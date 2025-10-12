@@ -226,13 +226,13 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 ## 5. Проверка доступности сервисов
 
-### Автоматизированная smoke-проверка
+### Основной сценарий: Docker Compose + smoke-check
 
-Используйте `./scripts/check-local-infra.sh`, чтобы убедиться, что инфраструктурные сервисы подняты и отвечают на базовые запросы.
+После `docker compose up -d` (см. шаги bootstrap-скрипта) выполните `./scripts/check-local-infra.sh`, чтобы убедиться в готовности PostgreSQL, Redis, Consul и RabbitMQ Management UI.
 
-- Скрипт по умолчанию выполняет команды через `docker compose exec` внутри контейнеров PostgreSQL, Redis, Consul и RabbitMQ. Для этого требуется запущенный `docker compose up -d` из каталога `infra/` и доступ к Docker Engine с поддержкой Compose V2.
-- Если Docker недоступен (например, вы запускаете сервисы локально через системные пакеты), скрипт автоматически переключится на проверки через локальные CLI (`psql`, `redis-cli`, `curl`). Режим выводится отдельным сообщением.
-- При наличии Docker, но остановленных контейнерах, выполнение завершится ошибкой с подсказкой запустить `docker compose`. Это помогает быстро заметить, что инфраструктура не поднята.
+- Скрипт ориентирован на тот же набор зависимостей, что и `./scripts/bootstrap-local.sh`: Docker Engine с Compose V2, `psql`, `redis-cli`, `curl` и актуальный `.env`, синхронизированный через [`scripts/sync-env.sh`](../scripts/sync-env.sh). Эти требования уже отражены в [`README.md`](../README.md) и проверяются в первом шаге bootstrap.
+- При наличии Docker Compose проверки выполняются внутри контейнеров (`docker compose exec`) и завершаются ошибкой, если какие-то сервисы не запущены. Сообщение подскажет, какие контейнеры нужно поднять повторно.
+- Результат выводится в виде таблицы. Статус `OK` подтверждает успешный `SELECT 1` в PostgreSQL, `PING → PONG` в Redis, наличие лидера Consul и доступность RabbitMQ UI.
 
 Пример запуска:
 
@@ -240,32 +240,11 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ./scripts/check-local-infra.sh
 ```
 
-### Ручные проверки (fallback)
-### Автоматизированный smoke-check
+### Fallback: локальные CLI без Docker
 
-1. Убедитесь, что в корне репозитория лежит актуальный `.env` (обновлён через `./scripts/sync-env.sh`).
-2. Проверьте установку утилит, которые использует скрипт:
-   - `psql` (PostgreSQL client);
-   - `redis-cli`;
-   - `curl`.
-3. Выполните из корня репозитория:
+Если инфраструктура запущена через системные сервисы или Docker недоступен, скрипт автоматически переключается на локальные CLI. Убедитесь, что `psql`, `redis-cli` и `curl` находятся в `PATH` — эти же утилиты требуются и для fallback-ветки bootstrap.
 
-   ```bash
-   ./scripts/check-local-infra.sh
-   ```
-
-4. Ожидаемый вывод при успешном запуске (значения в колонке «Комментарий» могут отличаться, но статус должен быть `OK`):
-
-   ```text
-   Проверка           | Статус | Комментарий
-   ------------------+--------+--------------------------------
-   PostgreSQL        | OK     | SELECT 1 выполнен
-   Redis             | OK     | PING → PONG
-   Consul            | OK     | Лидер: "127.0.0.1:8300"
-   RabbitMQ UI       | OK     | UI доступен
-   ```
-
-Скрипт читает параметры подключения из `.env` (`DATABASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR`, `RABBITMQ_MANAGEMENT_URL`, `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`) и завершается с ненулевым кодом, если какой-либо сервис недоступен. Используйте это поведение в автоматизированных сценариях или CI на будущее.
+При работе вне Docker проверьте, что `.env` содержит корректные значения `DATABASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR`, `RABBITMQ_MANAGEMENT_URL`, `RABBITMQ_DEFAULT_USER` и `RABBITMQ_DEFAULT_PASS`: они используются для прямых подключений.
 
 ### Ручные проверки (при необходимости)
 
