@@ -163,6 +163,72 @@ describe('Gateway bootstrap', () => {
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({ upstream: 'payments', body: payload });
   });
+
+  it('exposes deals SSE stream with correct headers', async () => {
+    await new Promise<void>((resolve, reject) => {
+      request(app.getHttpServer())
+        .get('/api/v1/streams/deals')
+        .set('Accept', 'text/event-stream')
+        .buffer(false)
+        .parse((res, callback) => {
+          let finished = false;
+          const finalize = () => {
+            if (finished) {
+              return;
+            }
+            finished = true;
+            clearTimeout(timeout);
+            callback(null, null);
+          };
+          const closeStream = () => {
+            const stream = res as unknown as Readable & {
+              req?: { abort?: () => void; destroy?: () => void };
+            };
+
+            if (typeof stream.destroy === 'function') {
+              stream.destroy();
+            } else if (stream.req?.destroy) {
+              stream.req.destroy();
+            } else {
+              stream.req?.abort?.();
+            }
+          };
+          const timeout = setTimeout(() => {
+            closeStream();
+            finalize();
+          }, 500);
+
+          res.on('data', () => {
+            closeStream();
+            finalize();
+          });
+          res.on('close', finalize);
+          res.on('end', finalize);
+          res.on('error', (error) => {
+            if (finished) {
+              return;
+            }
+            callback(error as Error, null);
+          });
+        })
+        .end((err, res) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          try {
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('text/event-stream');
+            expect(res.headers['cache-control']).toContain('no-cache');
+            expect(res.headers.connection).toBe('keep-alive');
+            resolve();
+          } catch (assertionError) {
+            reject(assertionError);
+          }
+        });
+    });
+  });
 });
 
 describe('UpstreamSseService', () => {
