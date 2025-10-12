@@ -100,9 +100,9 @@ while IFS= read -r var_name; do
     continue
   fi
   mapfile -t parsed <<<"$(parse_amqp_url "${url_value}")"
-  local_user="${parsed[0]}"
-  local_password="${parsed[1]}"
-  local_vhost="${parsed[2]}"
+  local_user="${parsed[0]-}"
+  local_password="${parsed[1]-}"
+  local_vhost="${parsed[2]-}"
   if [[ -z "${local_user}" || -z "${local_vhost}" ]]; then
     echo "[Предупреждение] Пропускаем переменную ${var_name}: пользователь или vhost не определены в URL '${url_value}'." >&2
     continue
