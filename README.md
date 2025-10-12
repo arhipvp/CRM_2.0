@@ -1,9 +1,23 @@
-**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md)
+**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
 
 1. Общее представление
 CRM предназначена для небольшой команды страховых агентов, которые ведут клиентов по долгосрочным страховым сделкам. Система концентрирует данные о клиентах, сделках, полисах, платежах и связанных документах, распределяет задачи между пользователями и обеспечивает контроль по ключевым событиям. Архитектурный черновик уже выделяет целевые сервисы (Gateway, Auth, CRM/Deals, Payments, Documents, Tasks, Notifications, Reports, Audit, Backup) — ниже зафиксированы их бизнес-требования и взаимосвязи.
 
 **Технологический стек и базовые архитектурные принципы** собраны в документе [`docs/tech-stack.md`](docs/tech-stack.md), который служит основой для детальных спецификаций сервисов и инфраструктуры.
+
+### Структура репозитория
+- [`docs/local-setup.md`](docs/local-setup.md) — карта сервисов с портами и ссылками на инструкции запуска.
+- Backend:
+  - [`backend/gateway/README.md`](backend/gateway/README.md) — запуск BFF/Gateway.【F:backend/gateway/README.md†L1-L34】
+  - [`backend/auth/README.md`](backend/auth/README.md) — конфигурация Auth и миграции Liquibase.【F:backend/auth/README.md†L1-L30】
+  - [`backend/crm/README.md`](backend/crm/README.md) — инструкции для CRM/Deals и Celery.【F:backend/crm/README.md†L1-L32】
+  - [`backend/payments/README.md`](backend/payments/README.md) — запуск Spring Boot Payments и Flyway.【F:backend/payments/README.md†L1-L28】
+  - [`backend/documents/README.md`](backend/documents/README.md) — NestJS-сервис для Google Drive и BullMQ.【F:backend/documents/README.md†L1-L30】
+  - [`backend/notifications/README.md`](backend/notifications/README.md) — SSE, очереди и отправка уведомлений.【F:backend/notifications/README.md†L1-L30】
+  - [`backend/tasks/README.md`](backend/tasks/README.md) — обработка задач и отложенных событий.【F:backend/tasks/README.md†L1-L30】
+  - [`backend/reports/README.md`](backend/reports/README.md) — текущее состояние отчётного сервиса и временная заглушка.【F:backend/reports/README.md†L1-L28】
+  - [`backend/audit/README.md`](backend/audit/README.md) — журналирование и агрегаты для аналитики.【F:backend/audit/README.md†L1-L30】
+- Frontend: [`frontend/README.md`](frontend/README.md) — запуск Next.js и тестовые профили.【F:frontend/README.md†L1-L36】
 
 2. Пользовательские роли
 Система использует одноуровневую модель доступа с пятью ролевыми типами. Если у роли есть доступ к сущности, то она может просматривать и изменять данные в рамках закреплённых за ней клиентов и сделок; дополнительных уровней «только чтение» или «расширенный доступ» нет для операционных ролей.
