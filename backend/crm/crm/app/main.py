@@ -50,8 +50,8 @@ app = create_app()
 def run() -> None:
     uvicorn.run(
         "crm.app.main:app",
-        host="0.0.0.0",
-        port=8082,
+        host=settings.service_host,
+        port=settings.service_port,
         reload=False,
         log_level="info",
     )

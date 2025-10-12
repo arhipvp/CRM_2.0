@@ -32,12 +32,20 @@ crm/
    ```bash
    poetry run alembic upgrade head
    ```
-4. Запустите API:
+4. Запустите API (порт и хост берутся из переменных `CRM_SERVICE_PORT`/`CRM_SERVICE_HOST` в `.env`):
    ```bash
    poetry run crm-api
    # или напрямую
-   poetry run uvicorn crm.app.main:app --host 0.0.0.0 --port ${CRM_SERVICE_PORT:-8082}
+   poetry run uvicorn crm.app.main:app --host ${CRM_SERVICE_HOST:-0.0.0.0} --port ${CRM_SERVICE_PORT:-8082}
    ```
+   Быстрая проверка на кастомном порту:
+   ```bash
+   CRM_SERVICE_PORT=9090 poetry run crm-api &
+   CRM_API_PID=$!
+   sleep 2 && curl -f http://localhost:9090/healthz
+   kill $CRM_API_PID
+   ```
+   Команда запустит сервис на порту `9090`, проверит `GET /healthz` и завершит процесс.
 5. Поднимите Celery-воркер (использует очереди Redis):
    ```bash
    poetry run crm-worker worker -l info
