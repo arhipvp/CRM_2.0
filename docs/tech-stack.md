@@ -117,7 +117,7 @@ Telegram-бот
 * `NEXT_PUBLIC_API_BASE_URL` — публичный URL Gateway/BFF, используемый при серверном рендеринге и на клиенте (локально по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`, то есть `http://localhost:8080/api` при стандартном значении порта).
 * `NEXT_PUBLIC_TELEMETRY_DSN` — DSN для фронтенд-логирования/трейсинга (Sentry или аналог), передаётся в runtime.
 * `NEXT_PUBLIC_FEATURE_FLAGS` — перечисление включённых feature-флагов (через запятую), синхронизировано с LaunchDarkly/ConfigCat.
-* `FRONTEND_PROXY_TIMEOUT` — таймаут проксирования на уровне Next.js middleware для долгих запросов.
+* `FRONTEND_PROXY_TIMEOUT` — таймаут (мс) для проксирования на уровне Next.js middleware и встроенного API-клиента; применяется как на сервере, так и в браузере.
 
 Связь с инфраструктурой: переменные окружения подставляются через Secrets Manager → GitHub Actions → Kubernetes secrets; окружения `dev/stage/prod` получают собственные конфигурации API и ключей телеметрии. Проверка соответствия схем API и e2e-сценариев выполняется в CI перед синхронизацией Argo CD. Для локального запуска значения считываются из файла `.env.local`, основанного на [`env.example`](../env.example) в корне репозитория.
 
