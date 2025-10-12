@@ -3,9 +3,33 @@
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
-import { paymentsQueryOptions } from "@/lib/api/queries";
+import { dealQueryOptions, dealsQueryOptions, paymentsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
+
+type StreamHandlers = Parameters<typeof useEventStream>[1];
+
+interface StreamSubscriptionProps {
+  url: string;
+  handlers: StreamHandlers;
+}
+
+function StreamSubscription({ url, handlers }: StreamSubscriptionProps) {
+  useEventStream(url, handlers);
+  return null;
+}
+
+export interface SSEBridgeProps {
+  apiBaseUrl?: string | null;
+  crmSseUrl?: string | null;
+  notificationsSseUrl?: string | null;
+  paymentsSseUrl?: string | null;
+}
+
+function normalizeUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 interface CrmEventPayload {
   id?: string;
@@ -48,11 +72,21 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 }
 
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
+const dealsQueryKey = dealsQueryOptions().queryKey;
 
-export function SSEBridge() {
+export function SSEBridge({
+  apiBaseUrl,
+  crmSseUrl,
+  notificationsSseUrl,
+  paymentsSseUrl,
+}: SSEBridgeProps = {}) {
+  const resolvedBaseUrl = (apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL)?.trim();
+  const mockModeEnabled = !resolvedBaseUrl || resolvedBaseUrl === "mock";
+
   const pushNotification = useUiStore((state) => state.pushNotification);
   const highlightDeal = useUiStore((state) => state.highlightDeal);
   const handlePaymentEvent = useUiStore((state) => state.handlePaymentEvent);
+  const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
 
   const handleCrmMessage = useCallback(
@@ -62,7 +96,10 @@ export function SSEBridge() {
 
       if (payload.dealId) {
         highlightDeal(payload.dealId);
+        markDealUpdated(payload.dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
       }
 
       if (payload.message) {
@@ -75,7 +112,7 @@ export function SSEBridge() {
         });
       }
     },
-    [highlightDeal, pushNotification],
+    [highlightDeal, markDealUpdated, pushNotification, queryClient],
   );
 
   const handleCrmError = useCallback((event: Event) => {
@@ -107,14 +144,16 @@ export function SSEBridge() {
 
       if (effect.highlightDealId) {
         highlightDeal(effect.highlightDealId);
+        markDealUpdated(effect.highlightDealId);
         setTimeout(() => highlightDeal(undefined), 3000);
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(effect.highlightDealId).queryKey });
       }
 
       if (effect.shouldRefetch) {
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
       }
     },
-    [handlePaymentEvent, highlightDeal, queryClient],
+    [handlePaymentEvent, highlightDeal, markDealUpdated, queryClient],
   );
 
   const handlePaymentsError = useCallback((event: Event) => {
@@ -145,11 +184,25 @@ export function SSEBridge() {
     [handlePaymentsMessage, handlePaymentsError],
   );
 
-  useEventStream(process.env.NEXT_PUBLIC_CRM_SSE_URL, crmHandlers);
+  if (mockModeEnabled) {
+    return null;
+  }
 
-  useEventStream(process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL, notificationHandlers);
+  const crmStreamUrl = normalizeUrl(crmSseUrl ?? process.env.NEXT_PUBLIC_CRM_SSE_URL);
+  const notificationsStreamUrl = normalizeUrl(
+    notificationsSseUrl ?? process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL,
+  );
+  const paymentsStreamUrl = normalizeUrl(paymentsSseUrl ?? process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL);
 
-  useEventStream(process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL, paymentsHandlers);
-
-  return null;
+  return (
+    <>
+      {crmStreamUrl ? <StreamSubscription url={crmStreamUrl} handlers={crmHandlers} /> : null}
+      {notificationsStreamUrl ? (
+        <StreamSubscription url={notificationsStreamUrl} handlers={notificationHandlers} />
+      ) : null}
+      {paymentsStreamUrl ? (
+        <StreamSubscription url={paymentsStreamUrl} handlers={paymentsHandlers} />
+      ) : null}
+    </>
+  );
 }

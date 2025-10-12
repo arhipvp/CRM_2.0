@@ -1,4 +1,50 @@
-import { ActivityLogEntry, Client, Deal, Payment, Task } from "@/types/crm";
+import {
+  ActivityLogEntry,
+  Client,
+  Deal,
+  DealDocument,
+  DealNote,
+  Payment,
+  Task,
+} from "@/types/crm";
+
+export const dealNotesMock: DealNote[] = [
+  {
+    id: "note-1",
+    dealId: "deal-1",
+    author: "Анна Савельева",
+    content: "Созвонились с клиентом, уточнили список покрываемых рисков.",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+  },
+  {
+    id: "note-2",
+    dealId: "deal-2",
+    author: "Иван Плахов",
+    content: "Клиент попросил ещё один расчёт с повышенным лимитом.",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+  },
+];
+
+export const dealDocumentsMock: DealDocument[] = [
+  {
+    id: "doc-1",
+    dealId: "deal-1",
+    title: "Коммерческое предложение",
+    fileName: "kp-alpha-log.pdf",
+    fileSize: 248_000,
+    uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    uploadedBy: "Анна Савельева",
+  },
+  {
+    id: "doc-2",
+    dealId: "deal-3",
+    title: "Расчёт стоимости ДМС",
+    fileName: "calc-dms.xlsx",
+    fileSize: 92_000,
+    uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    uploadedBy: "Мария Орлова",
+  },
+];
 
 export const dealsMock: Deal[] = [
   {
@@ -12,6 +58,11 @@ export const dealsMock: Deal[] = [
     owner: "Анна Савельева",
     updatedAt: new Date().toISOString(),
     expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
   },
   {
     id: "deal-2",
@@ -24,6 +75,11 @@ export const dealsMock: Deal[] = [
     owner: "Иван Плахов",
     updatedAt: new Date().toISOString(),
     expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
   },
   {
     id: "deal-3",
@@ -36,6 +92,11 @@ export const dealsMock: Deal[] = [
     owner: "Мария Орлова",
     updatedAt: new Date().toISOString(),
     expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
   },
   {
     id: "deal-4",
@@ -48,6 +109,11 @@ export const dealsMock: Deal[] = [
     owner: "Анна Савельева",
     updatedAt: new Date().toISOString(),
     expectedCloseDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
   },
 ];
 
@@ -175,6 +241,7 @@ export const activitiesMock: ActivityLogEntry[] = [
     message: "Отправлено уточнение условий страхования",
     createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     clientId: "client-1",
+    dealId: "deal-1",
   },
   {
     id: "activity-2",
@@ -183,6 +250,7 @@ export const activitiesMock: ActivityLogEntry[] = [
     message: "Созвон с клиентом по доработке КП",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
     clientId: "client-3",
+    dealId: "deal-3",
   },
   {
     id: "activity-3",
@@ -191,5 +259,6 @@ export const activitiesMock: ActivityLogEntry[] = [
     message: "Напоминание о просроченном платеже",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
     clientId: "client-2",
+    dealId: "deal-2",
   },
 ];

@@ -1,15 +1,22 @@
-import { activitiesMock, clientsMock, dealsMock, paymentsMock, tasksMock } from "@/mocks/data";
+import {
+  activitiesMock,
+  clientsMock,
+  dealDocumentsMock,
+  dealNotesMock,
+  dealsMock,
+  paymentsMock,
+  tasksMock,
+} from "@/mocks/data";
 import {
   ActivityLogEntry,
   Client,
   Deal,
-  DealFilters,
-  DealPeriodFilter,
-  DealStage,
-  DealStageMetrics,
+  DealDocument,
+  DealNote,
   Payment,
   Task,
 } from "@/types/crm";
+import { createRandomId } from "@/lib/utils/id";
 
 export interface ApiClientConfig {
   baseUrl?: string;
@@ -83,6 +90,32 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export interface DealTaskPayload {
+  title: string;
+  dueDate?: string;
+  owner?: string;
+}
+
+export interface DealNotePayload {
+  content: string;
+}
+
+export interface DealDocumentPayload {
+  title: string;
+  fileName: string;
+  fileSize: number;
+  url?: string;
+}
+
+export interface UpdateDealPayload {
+  name?: string;
+  stage?: Deal["stage"];
+  value?: number;
+  probability?: number;
+  expectedCloseDate?: string | null;
+  owner?: string;
 }
 
 export class ApiClient {
@@ -232,26 +265,160 @@ export class ApiClient {
       if (!deal) {
         throw new ApiError("Deal not found", 404);
       }
-      return deal;
+
+      const tasks = tasksMock.filter((item) => item.dealId === id);
+      const notes = dealNotesMock.filter((item) => item.dealId === id);
+      const documents = dealDocumentsMock.filter((item) => item.dealId === id);
+      const payments = paymentsMock.filter((item) => item.dealId === id);
+      const activity = activitiesMock.filter((item) => item.dealId === id);
+
+      return {
+        ...deal,
+        tasks,
+        notes,
+        documents,
+        payments,
+        activity,
+      };
     });
   }
 
-  getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
-    const query = this.buildQueryString(filters);
-    return this.request(`/crm/deals/metrics${query}`, undefined, async () => {
-      const filteredDeals = filterDealsMock(dealsMock, { ...filters, stage: undefined });
-      return calculateStageMetrics(filteredDeals);
-    });
+  getDealTasks(dealId: string): Promise<Task[]> {
+    return this.request(`/crm/deals/${dealId}/tasks`, undefined, async () =>
+      tasksMock.filter((task) => task.dealId === dealId),
+    );
   }
 
-  async updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
+  createDealTask(dealId: string, payload: DealTaskPayload): Promise<Task> {
     return this.request(
-      `/crm/deals/${dealId}/stage`,
+      `/crm/deals/${dealId}/tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const deal = dealsMock.find((item) => item.id === dealId);
+        const task: Task = {
+          id: createRandomId(),
+          title: payload.title,
+          dueDate: payload.dueDate ?? new Date().toISOString(),
+          completed: false,
+          owner: payload.owner ?? deal?.owner ?? "",
+          dealId,
+          clientId: deal?.clientId,
+        };
+        tasksMock.unshift(task);
+        return task;
+      },
+    );
+  }
+
+  getDealNotes(dealId: string): Promise<DealNote[]> {
+    return this.request(`/crm/deals/${dealId}/notes`, undefined, async () =>
+      dealNotesMock.filter((note) => note.dealId === dealId),
+    );
+  }
+
+  createDealNote(dealId: string, payload: DealNotePayload): Promise<DealNote> {
+    return this.request(
+      `/crm/deals/${dealId}/notes`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const note: DealNote = {
+          id: createRandomId(),
+          dealId,
+          author: "Вы",
+          content: payload.content,
+          createdAt: new Date().toISOString(),
+        };
+        dealNotesMock.unshift(note);
+        return note;
+      },
+    );
+  }
+
+  getDealDocuments(dealId: string): Promise<DealDocument[]> {
+    return this.request(`/crm/deals/${dealId}/documents`, undefined, async () =>
+      dealDocumentsMock.filter((doc) => doc.dealId === dealId),
+    );
+  }
+
+  uploadDealDocument(dealId: string, payload: DealDocumentPayload): Promise<DealDocument> {
+    return this.request(
+      `/crm/deals/${dealId}/documents`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const document: DealDocument = {
+          id: createRandomId(),
+          dealId,
+          title: payload.title,
+          fileName: payload.fileName,
+          fileSize: payload.fileSize,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: "Вы",
+          url: payload.url,
+        };
+        dealDocumentsMock.unshift(document);
+        return document;
+      },
+    );
+  }
+
+  getDealPayments(dealId: string): Promise<Payment[]> {
+    return this.request(`/crm/deals/${dealId}/payments`, undefined, async () =>
+      paymentsMock.filter((payment) => payment.dealId === dealId),
+    );
+  }
+
+  getDealActivity(dealId: string): Promise<ActivityLogEntry[]> {
+    return this.request(`/crm/deals/${dealId}/activity`, undefined, async () =>
+      activitiesMock.filter((entry) => entry.dealId === dealId),
+    );
+  }
+
+  updateDeal(dealId: string, payload: UpdateDealPayload): Promise<Deal> {
+    return this.request(
+      `/crm/deals/${dealId}`,
       {
         method: "PATCH",
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify(payload),
       },
-      async () => updateDealStageMock(dealId, stage),
+      async () => {
+        const deal = dealsMock.find((item) => item.id === dealId);
+        if (!deal) {
+          throw new ApiError("Deal not found", 404);
+        }
+
+        if (payload.name !== undefined) {
+          deal.name = payload.name;
+        }
+        if (payload.stage !== undefined) {
+          deal.stage = payload.stage;
+        }
+        if (payload.value !== undefined) {
+          deal.value = payload.value;
+        }
+        if (payload.probability !== undefined) {
+          deal.probability = payload.probability;
+        }
+        if (payload.owner !== undefined) {
+          deal.owner = payload.owner;
+        }
+
+        if (payload.expectedCloseDate !== undefined) {
+          deal.expectedCloseDate = payload.expectedCloseDate ?? undefined;
+        }
+
+        deal.updatedAt = new Date().toISOString();
+
+        return this.getDeal(dealId);
+      },
     );
   }
 

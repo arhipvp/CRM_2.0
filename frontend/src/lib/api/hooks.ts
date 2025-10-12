@@ -3,10 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import {
+  dealActivityQueryOptions,
   clientActivityQueryOptions,
   clientQueryOptions,
   clientsQueryOptions,
+  dealDocumentsQueryOptions,
   dealQueryOptions,
+  dealTasksQueryOptions,
+  dealNotesQueryOptions,
+  dealPaymentsQueryOptions,
   dealsQueryOptions,
   dealStageMetricsQueryOptions,
   paymentsQueryOptions,
@@ -22,8 +27,24 @@ export function useDeal(dealId: string) {
   return useQuery(dealQueryOptions(dealId));
 }
 
-export function useDealStageMetrics(filters?: DealFilters) {
-  return useQuery(dealStageMetricsQueryOptions(filters));
+export function useDealTasks(dealId: string) {
+  return useQuery(dealTasksQueryOptions(dealId));
+}
+
+export function useDealNotes(dealId: string) {
+  return useQuery(dealNotesQueryOptions(dealId));
+}
+
+export function useDealDocuments(dealId: string) {
+  return useQuery(dealDocumentsQueryOptions(dealId));
+}
+
+export function useDealPayments(dealId: string) {
+  return useQuery(dealPaymentsQueryOptions(dealId));
+}
+
+export function useDealActivity(dealId: string) {
+  return useQuery(dealActivityQueryOptions(dealId));
 }
 
 export function useClients() {
@@ -54,59 +75,30 @@ export function usePayments() {
   return useQuery(paymentsQueryOptions());
 }
 
-interface UpdateDealStageVariables {
-  dealId: string;
-  stage: DealStage;
-  optimisticUpdate?: (deal: Deal) => Deal;
+export function useCreateDealTask(dealId: string) {
+  return useMutation({
+    mutationKey: ["create-deal-task", dealId],
+    mutationFn: apiClient.createDealTask.bind(apiClient, dealId),
+  });
 }
 
-export function useUpdateDealStage() {
-  const queryClient = useQueryClient();
-
+export function useCreateDealNote(dealId: string) {
   return useMutation({
-    mutationKey: ["deal", "update-stage"],
-    mutationFn: ({ dealId, stage }: UpdateDealStageVariables) => apiClient.updateDealStage(dealId, stage),
-    onMutate: async ({ dealId, stage, optimisticUpdate }) => {
-      await queryClient.cancelQueries({ queryKey: ["deals"] });
+    mutationKey: ["create-deal-note", dealId],
+    mutationFn: apiClient.createDealNote.bind(apiClient, dealId),
+  });
+}
 
-      const previousDeals = queryClient.getQueriesData<Deal[]>({ queryKey: ["deals"] });
+export function useUploadDealDocument(dealId: string) {
+  return useMutation({
+    mutationKey: ["upload-deal-document", dealId],
+    mutationFn: apiClient.uploadDealDocument.bind(apiClient, dealId),
+  });
+}
 
-      for (const [queryKey, deals] of previousDeals) {
-        if (!deals) {
-          continue;
-        }
-
-        const updatedDeals = deals.map((deal) => {
-          if (deal.id !== dealId) {
-            return deal;
-          }
-
-          if (optimisticUpdate) {
-            return optimisticUpdate({ ...deal });
-          }
-
-          return { ...deal, stage, updatedAt: new Date().toISOString() };
-        });
-
-        queryClient.setQueryData(queryKey, updatedDeals);
-      }
-
-      return { previousDeals };
-    },
-    onError: (_error, _variables, context) => {
-      if (!context?.previousDeals) {
-        return;
-      }
-
-      for (const [queryKey, deals] of context.previousDeals) {
-        queryClient.setQueryData(queryKey, deals);
-      }
-    },
-    onSettled: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["deals"] }),
-        queryClient.invalidateQueries({ queryKey: ["deals", "metrics"] }),
-      ]);
-    },
+export function useUpdateDeal(dealId: string) {
+  return useMutation({
+    mutationKey: ["update-deal", dealId],
+    mutationFn: apiClient.updateDeal.bind(apiClient, dealId),
   });
 }

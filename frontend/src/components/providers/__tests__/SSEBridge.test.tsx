@@ -19,6 +19,7 @@ describe("SSEBridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUiStore.setState(initialState, true);
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://example.com/api";
     process.env.NEXT_PUBLIC_CRM_SSE_URL = "https://example.com/crm";
     process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL = "https://example.com/notifications";
     process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL = "https://example.com/payments";
@@ -56,5 +57,48 @@ describe("SSEBridge", () => {
     );
 
     expect(createEventStreamMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("не инициализирует SSE-потоки в mock-режиме", () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "mock";
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SSEBridge />
+      </QueryClientProvider>,
+    );
+
+    expect(createEventStreamMock).not.toHaveBeenCalled();
+  });
+
+  it("учитывает переданный apiBaseUrl и отключает SSE, когда он равен mock", () => {
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SSEBridge apiBaseUrl="mock" />
+      </QueryClientProvider>,
+    );
+
+    expect(createEventStreamMock).not.toHaveBeenCalled();
+  });
+
+  it("пропускает только отключённые потоки, если для них указан пустой URL", () => {
+    process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL = "   ";
+
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SSEBridge />
+      </QueryClientProvider>,
+    );
+
+    expect(createEventStreamMock).toHaveBeenCalledTimes(2);
+    expect(createEventStreamMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/payments/),
+      expect.anything(),
+    );
   });
 });

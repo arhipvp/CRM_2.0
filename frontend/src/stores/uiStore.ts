@@ -44,7 +44,7 @@ interface UiState {
   highlightedDealId?: string;
   previewDealId?: string;
   notifications: NotificationItem[];
-  dismissedHints: Record<string, boolean>;
+  dealUpdates: Record<string, string>;
   setSelectedStage: (stage: PipelineStageKey | "all") => void;
   setManagersFilter: (managers: string[]) => void;
   toggleManagerFilter: (manager: string) => void;
@@ -62,6 +62,8 @@ interface UiState {
   pushNotification: (notification: NotificationItem) => void;
   dismissNotification: (id: string) => void;
   handlePaymentEvent: (event: PaymentEventPayload) => PaymentEventEffect;
+  markDealUpdated: (dealId: string) => void;
+  clearDealUpdate: (dealId: string) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -74,84 +76,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   viewMode: "kanban",
   selectedDealIds: [],
   notifications: [],
-  dismissedHints: {},
-  setSelectedStage: (stage) =>
-    set((state) => ({
-      filters: {
-        ...state.filters,
-        stage,
-      },
-    })),
-  setManagersFilter: (managers) =>
-    set((state) => ({
-      filters: {
-        ...state.filters,
-        managers: Array.from(new Set(managers)).sort((a, b) => a.localeCompare(b)),
-      },
-    })),
-  toggleManagerFilter: (manager) =>
-    set((state) => {
-      const next = new Set(state.filters.managers);
-      if (next.has(manager)) {
-        next.delete(manager);
-      } else {
-        next.add(manager);
-      }
-
-      return {
-        filters: {
-          ...state.filters,
-          managers: Array.from(next).sort((a, b) => a.localeCompare(b)),
-        },
-      };
-    }),
-  setPeriodFilter: (period) =>
-    set((state) => ({
-      filters: {
-        ...state.filters,
-        period,
-      },
-    })),
-  setSearchFilter: (value) =>
-    set((state) => ({
-      filters: {
-        ...state.filters,
-        search: value,
-      },
-    })),
-  clearFilters: () =>
-    set((state) => ({
-      filters: {
-        ...state.filters,
-        stage: "all",
-        managers: [],
-        search: "",
-      },
-    })),
-  setViewMode: (mode) => set({ viewMode: mode }),
-  toggleDealSelection: (dealId) =>
-    set((state) => {
-      const isSelected = state.selectedDealIds.includes(dealId);
-      const selectedDealIds = isSelected
-        ? state.selectedDealIds.filter((id) => id !== dealId)
-        : [...state.selectedDealIds, dealId];
-
-      return { selectedDealIds };
-    }),
-  selectDeals: (dealIds) =>
-    set(() => ({
-      selectedDealIds: Array.from(new Set(dealIds)),
-    })),
-  clearSelection: () => set({ selectedDealIds: [] }),
-  openDealPreview: (dealId) => set({ previewDealId: dealId ?? undefined }),
-  isHintDismissed: (key) => Boolean(get().dismissedHints[key]),
-  dismissHint: (key) =>
-    set((state) => ({
-      dismissedHints: {
-        ...state.dismissedHints,
-        [key]: true,
-      },
-    })),
+  dealUpdates: {},
+  setSelectedStage: (stage) => set({ selectedStage: stage }),
   highlightDeal: (dealId) => set({ highlightedDealId: dealId ?? undefined }),
   pushNotification: (notification) =>
     set((state) => ({
@@ -161,6 +87,19 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.filter((item) => item.id !== id),
     })),
+  markDealUpdated: (dealId) =>
+    set((state) => ({
+      dealUpdates: {
+        ...state.dealUpdates,
+        [dealId]: new Date().toISOString(),
+      },
+    })),
+  clearDealUpdate: (dealId) =>
+    set((state) => {
+      const rest = { ...state.dealUpdates };
+      delete rest[dealId];
+      return { dealUpdates: rest };
+    }),
   handlePaymentEvent: (event) => {
     const result = processPaymentEvent(event);
 
