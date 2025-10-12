@@ -7,6 +7,30 @@ import { paymentsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
 
+type StreamHandlers = Parameters<typeof useEventStream>[1];
+
+interface StreamSubscriptionProps {
+  url: string;
+  handlers: StreamHandlers;
+}
+
+function StreamSubscription({ url, handlers }: StreamSubscriptionProps) {
+  useEventStream(url, handlers);
+  return null;
+}
+
+export interface SSEBridgeProps {
+  apiBaseUrl?: string | null;
+  crmSseUrl?: string | null;
+  notificationsSseUrl?: string | null;
+  paymentsSseUrl?: string | null;
+}
+
+function normalizeUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 interface CrmEventPayload {
   id?: string;
   message?: string;
@@ -49,7 +73,15 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
 
-export function SSEBridge() {
+export function SSEBridge({
+  apiBaseUrl,
+  crmSseUrl,
+  notificationsSseUrl,
+  paymentsSseUrl,
+}: SSEBridgeProps = {}) {
+  const resolvedBaseUrl = (apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL)?.trim();
+  const mockModeEnabled = !resolvedBaseUrl || resolvedBaseUrl === "mock";
+
   const pushNotification = useUiStore((state) => state.pushNotification);
   const highlightDeal = useUiStore((state) => state.highlightDeal);
   const handlePaymentEvent = useUiStore((state) => state.handlePaymentEvent);
@@ -145,11 +177,25 @@ export function SSEBridge() {
     [handlePaymentsMessage, handlePaymentsError],
   );
 
-  useEventStream(process.env.NEXT_PUBLIC_CRM_SSE_URL, crmHandlers);
+  if (mockModeEnabled) {
+    return null;
+  }
 
-  useEventStream(process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL, notificationHandlers);
+  const crmStreamUrl = normalizeUrl(crmSseUrl ?? process.env.NEXT_PUBLIC_CRM_SSE_URL);
+  const notificationsStreamUrl = normalizeUrl(
+    notificationsSseUrl ?? process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL,
+  );
+  const paymentsStreamUrl = normalizeUrl(paymentsSseUrl ?? process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL);
 
-  useEventStream(process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL, paymentsHandlers);
-
-  return null;
+  return (
+    <>
+      {crmStreamUrl ? <StreamSubscription url={crmStreamUrl} handlers={crmHandlers} /> : null}
+      {notificationsStreamUrl ? (
+        <StreamSubscription url={notificationsStreamUrl} handlers={notificationHandlers} />
+      ) : null}
+      {paymentsStreamUrl ? (
+        <StreamSubscription url={paymentsStreamUrl} handlers={paymentsHandlers} />
+      ) : null}
+    </>
+  );
 }
