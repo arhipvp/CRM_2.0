@@ -9,13 +9,7 @@ Notifications доставляет события и уведомления во
 - Настроенные переменные `NOTIFICATIONS_SERVICE_PORT`, `NOTIFICATIONS_DATABASE_URL`, `NOTIFICATIONS_RABBITMQ_URL`, `NOTIFICATIONS_REDIS_URL` (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
-1. Установите зависимости: `corepack enable pnpm && pnpm install`.
-2. Выполните миграции TypeORM: `pnpm typeorm migration:run`.
-3. Запустите сервис:
-   ```bash
-   pnpm start:dev
-   ```
-4. Для работы SSE убедитесь, что Gateway пробрасывает соединение или используйте прямой доступ.
+> **TODO:** сгенерировать NestJS сервис через `@nestjs/cli`, добавить поддержку SSE и RabbitMQ, настроить TypeORM миграции, отдельные pnpm-скрипты для воркеров уведомлений и интеграцию с Telegram mock/боевыми ключами.
 
 ## Миграции и фоновые процессы
 - Каталог [`migrations`](migrations/) предназначен для TypeORM миграций.

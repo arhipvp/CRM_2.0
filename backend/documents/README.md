@@ -9,13 +9,7 @@ Documents управляет метаданными файлов, синхрон
 - Переменные окружения `DOCUMENTS_SERVICE_PORT`, `DOCUMENTS_DATABASE_URL`, `DOCUMENTS_REDIS_URL`, `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, `GOOGLE_DRIVE_SHARED_DRIVE_ID` и другие, описанные в [`env.example`](../../env.example).
 
 ## Локальный запуск
-1. Установите зависимости: `corepack enable pnpm && pnpm install`.
-2. Запустите миграции TypeORM (при их появлении): `pnpm typeorm migration:run`.
-3. Поднимите сервис в режиме разработки:
-   ```bash
-   pnpm start:dev
-   ```
-   По умолчанию приложение слушает порт из `DOCUMENTS_SERVICE_PORT` (рекомендуется `8084`).
+> **TODO:** развернуть проект NestJS через `@nestjs/cli`, добавить модули TypeORM и BullMQ, настроить pnpm-скрипты (`start:dev`, `start:worker`), интеграцию с Google Drive и загрузку секретов сервисного аккаунта.
 
 ## Миграции и скрипты
 - Каталог [`migrations`](migrations/) предназначен для TypeORM миграций (SQL/TS).

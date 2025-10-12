@@ -9,12 +9,7 @@ Payments учитывает финансовые операции (платеж�
 - Переменные окружения `PAYMENTS_SERVICE_PORT`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_RABBITMQ_URL` и связанные настройки (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
-1. Перейдите в каталог: `cd backend/payments`.
-2. Запустите сервис:
-   ```bash
-   ./gradlew bootRun --args="--spring.profiles.active=local"
-   ```
-3. Для тестов используйте `./gradlew test` (JUnit + Testcontainers).
+> **TODO:** сгенерировать Spring Boot WebFlux сервис через Spring Initializr, добавить зависимости Spring Cloud Stream и Flyway, настроить профили `local`/`dev`, Gradle-скрипты (`bootRun`, тесты с Testcontainers) и конфигурацию RabbitMQ/PostgreSQL.
 
 ## Миграции и скрипты
 - Миграции Flyway храните в каталоге [`migrations`](migrations/) и запускайте автоматически при старте приложения или отдельной задачей `./gradlew flywayMigrate`.【F:docs/tech-stack.md†L226-L230】

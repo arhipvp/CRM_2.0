@@ -9,13 +9,7 @@ Gateway — единая точка входа для веб-клиента и T
 - Настроенные переменные `GATEWAY_SERVICE_PORT`, `GATEWAY_BASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR` и `GATEWAY_UPSTREAM_*` согласно [`env.example`](../../env.example).
 
 ## Локальный запуск
-1. Установите зависимости: `corepack enable pnpm && pnpm install`.
-2. Проверьте, что заданы `GATEWAY_SERVICE_PORT`, `GATEWAY_BASE_URL`, `REDIS_URL` и `CONSUL_HTTP_ADDR` (см. `env.example`).
-3. Запустите сервис в режиме разработки с автоматической перезагрузкой:
-   ```bash
-   pnpm start:dev
-   ```
-4. Для проверки SSE проксирования убедитесь, что CRM и Notifications запущены локально либо используйте моки.
+> **TODO:** сгенерировать сервис на NestJS через `@nestjs/cli`, настроить pnpm-скрипты `start:dev`/`start:prod`, подключить конфигурацию переменных окружения и проксирование SSE согласно `docs/tech-stack.md`.
 
 ## Миграции и скрипты
 - Gateway не использует собственную БД, поэтому каталог `migrations/` пуст. Контракты и схемы API храните в `schema/` (создайте при необходимости).
