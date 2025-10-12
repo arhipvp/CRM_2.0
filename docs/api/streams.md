@@ -15,6 +15,39 @@ Gateway публикует события через Server-Sent Events (SSE) д
   - Gateway автоматически переподключается к upstream при обрывах с задержкой `GATEWAY_UPSTREAM_SSE_RECONNECT_DELAY`.
   - При восстановлении соединения используется значение `Last-Event-ID`, сохранённое в Redis (`${REDIS_HEARTBEAT_PREFIX}:crm:last-event-id`).
   - Payload передаётся без изменений; тип события (`event`) задаёт CRM.
+- Каждый канал использует `Last-Event-ID` для восстановления после обрыва.
+- Все payload передаются в формате JSON, поле `event` — тип события, `data` — сериализованный объект.
+- При изменении схемы события повышается версия канала (`?version=2`).
+
+## Канал `deals`
+- **Маршрут:** `GET /api/v1/streams/deals`
+- **Назначение:** оперативные изменения сделок, клиентов, расчётов и полисов.
+- **Источник данных:** CRM/Deals публикует доменные события в RabbitMQ (`crm.domain`), Gateway транслирует их в SSE.
+
+| Тип события | Описание | Payload |
+| --- | --- | --- |
+| `deal.created` | Создана новая сделка. | `{ "deal_id": "uuid", "client_id": "uuid", "title": "string", "status": "draft", "created_at": "datetime" }` |
+| `deal.updated` | Изменились реквизиты сделки. | `{ "deal_id": "uuid", "changes": { "status": "issuing" }, "updated_at": "datetime", "version": 5 }` |
+| `deal.journal.appended` | Добавлена запись в журнал. | `{ "deal_id": "uuid", "entry_id": "uuid", "author_id": "uuid", "text": "string", "created_at": "datetime" }` |
+| `policy.status.changed` | Полис сменил статус. | `{ "policy_id": "uuid", "deal_id": "uuid", "status": "active", "effective_from": "date", "effective_to": "date" }` |
+| `calculation.added` | Добавлен расчёт. | `{ "calculation_id": "uuid", "deal_id": "uuid", "insurance_company": "string", "premium_amount": 12345.67 }` |
+
+**Ошибки канала:**
+- `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
+- `event: heartbeat` каждые 30 секунд для проверки соединения (payload пустой).
+
+## Канал `tasks` *(запланировано к последующим релизам)*
+- **Статус:** канал отложен и не входит в первую поставку; фронтенд работает только с потоками сделок, платежей и внутренних уведомлений.
+- **Назначение (позже):** обновления задач и напоминаний из сервиса Tasks после расширения сценариев напоминаний.
+- **Текущее состояние:** спецификация сохранена для ориентира, но реализация будет выполнена после запуска первой версии.
+
+| Тип события | Описание | Payload |
+| --- | --- | --- |
+| `task.created` | Создана новая задача. | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "status": "new" }` |
+| `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "waiting" }, "updated_at": "datetime" }` |
+| `task.reminder` | Напоминание по задаче. | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` |
+
+> Поле `channel` и перечень статусов задач остаются справочными и будут актуализированы перед реализацией канала.
 
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`

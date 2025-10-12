@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: auth-service
+  r2dbc:
+    url: ${AUTH_DATABASE_URL:}
+  data:
+    redis:
+      url: ${AUTH_REDIS_URL:}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: base
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_JWT_ISSUER:http://localhost}
+server:
+  port: ${AUTH_SERVICE_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+auth:
+  security:
+    issuer: ${AUTH_JWT_ISSUER:http://localhost}
+    audience: ${AUTH_JWT_AUDIENCE:crm-clients}
+    secret: ${AUTH_JWT_SECRET:change-me}
+    access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:PT15M}
+    refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:PT7D}
+

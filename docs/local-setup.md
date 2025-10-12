@@ -28,6 +28,26 @@
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
 - Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
 
+### CRM / Deals: быстрый старт
+
+- Перейдите в `backend/crm` и установите зависимости `poetry install`.
+- Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
+- Примените миграции: `poetry run alembic upgrade head`.
+- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`).
+- Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
+- Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+## CI/CD: временно только локальные проверки
+
+- GitHub Actions приостановлены: файл workflow сохранён как `.github/workflows/ci.yml.disabled` и не исполняется. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` и запушьте изменение в `main`.
+- Для локальной проверки повторите шаги пайплайна вручную: выполните линтеры, тесты и сборку контейнеров по инструкциям соответствующих сервисов. Рекомендуемый порядок: `lint` → `unit-tests` → `contract-tests` → `build`.
+- При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`.
+
+## Kubernetes-манифесты и Argo CD
+
+- Базовый слой (`infra/k8s/base`) содержит Namespace, Deployment/Service/ConfigMap/Secret для Gateway и развёртывание Redis как минимальной зависимости.
+- Оверлеи `infra/k8s/overlays/{dev,stage,prod}` задают namespace/prefix, image-tag, параметры ConfigMap и реплики для Gateway; патчи расширяются по мере добавления сервисов.
+- Файл `infra/k8s/argocd/gateway-apps.yaml` описывает три Argo CD Application-ресурса, которые синхронизируют соответствующие оверлеи и автоматически создают namespace (`syncOptions: CreateNamespace=true`).
+
 # Локальная инфраструктура: пошаговая инструкция
 
 Эта инструкция покрывает подготовку переменных окружения, запуск Docker Compose и базовую проверку вспомогательных сервисов, необходимых для разработки CRM.
@@ -39,7 +59,7 @@
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
-   - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`).
+   - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) и ключ сессий Gateway (`SESSION_SECRET`).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
@@ -116,7 +136,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 ## 4. Запуск миграций
 
-После подготовки инфраструктуры примените миграции сервисов согласно их README. ⚠️ До публикации первых ревизий (schema baseline) этот шаг пропускается.
+После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
 ## 5. Проверка доступности сервисов
 
