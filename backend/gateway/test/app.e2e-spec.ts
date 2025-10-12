@@ -1,6 +1,7 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { AddressInfo } from 'net';
 import { Readable } from 'stream';
+import { Observable } from 'rxjs';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, MessageEvent, VersioningType } from '@nestjs/common';
@@ -81,6 +82,7 @@ describe('Gateway bootstrap', () => {
   let upstreamServer: Server;
   let upstreamUrl: string;
   let redis: RedisMock;
+  let upstreamSseServiceMock: { stream: jest.Mock };
 
   beforeAll(async () => {
     const upstream = await createUpstreamServer();
@@ -96,11 +98,22 @@ describe('Gateway bootstrap', () => {
 
     redis = new RedisMock();
 
+    upstreamSseServiceMock = {
+      stream: jest.fn((channel: string) =>
+        new Observable<MessageEvent>((subscriber) => {
+          subscriber.next({ data: { channel, marker: `${channel}-event` } });
+          subscriber.complete();
+        })
+      )
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule]
     })
       .overrideProvider(REDIS_CLIENT)
       .useValue(redis)
+      .overrideProvider(UpstreamSseService)
+      .useValue(upstreamSseServiceMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -126,6 +139,18 @@ describe('Gateway bootstrap', () => {
     const response = await request(app.getHttpServer()).get('/api/v1/crm/customers/42?expand=profile');
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ upstream: 'crm', url: expect.stringContaining('customers/42') });
+  });
+
+  it('exposes deals stream as an alias for CRM SSE', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/streams/deals')
+      .set('Accept', 'text/event-stream')
+      .buffer(true);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/event-stream');
+    expect(response.text).toContain('crm-event');
+    expect(upstreamSseServiceMock.stream).toHaveBeenCalledWith('crm');
   });
 
   it('proxies Payments POST requests and forwards body', async () => {
