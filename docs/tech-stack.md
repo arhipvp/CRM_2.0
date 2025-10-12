@@ -221,29 +221,60 @@ Redis кластер для синхронизации
 
 Проверка квот API, миграции TypeORM
 
-Tasks / Notifications
+Tasks и Notifications могут развёртываться в одной инфраструктурной связке (общий репозиторий, пайплайн, shared-модули NestJS),
+но остаются отдельными сервисами с собственными схемами БД и очередями. Ниже приведены их стек и зависимости.
+
+Tasks
 
 Язык: TypeScript (Node.js LTS)
 
-Фреймворк: NestJS (@nestjs/websockets + @nestjs/schedule)
+Фреймворк: NestJS (@nestjs/schedule, CQRS-модули для команд и событий)
 
-БД и очереди: TypeORM (PostgreSQL), @golevelup/nestjs-rabbitmq (RabbitMQ)
+БД и очереди: TypeORM (PostgreSQL, схема `tasks`), @golevelup/nestjs-rabbitmq (RabbitMQ), BullMQ (Redis) для отложенных задач SLA
 
-API: REST + WebSocket, публикация событий в RabbitMQ
+API: REST (управление задачами) + внутренние webhook-и для уведомлений и подтверждений
+
+Зависимости:
+
+PostgreSQL-схема tasks
+
+RabbitMQ очереди `tasks.command` и `tasks.events` (подписка на `payments.events.*`, `crm.deal.*`)
+
+Redis (ioredis) для краткоживущих таймеров и блокировок повторного запуска
+
+Notifications API для триггеров напоминаний
+
+Тестирование и деплой:
+
+Jest + supertest, потребительские контракты RabbitMQ, e2e-сценарии с Testcontainers
+
+TypeORM миграции, canary-релизы с прогревом очередей
+
+Notifications
+
+Язык: TypeScript (Node.js LTS)
+
+Фреймворк: NestJS (@nestjs/websockets, @nestjs/event-emitter)
+
+БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ)
+
+API: REST + WebSocket, публикация уведомлений в RabbitMQ и webhook-и в Gateway/Telegram
 
 Зависимости:
 
 PostgreSQL-схема notifications
 
-RabbitMQ кластер
+RabbitMQ exchange `notifications.events`, очереди для Telegram-бота и внутренних каналов CRM
 
-Redis для временных токенов и rate limiting (ioredis)
+Redis (ioredis) для rate limiting и хранения одноразовых токенов подтверждения
+
+Gateway для маршрутизации внешних webhook-ов Telegram, Tasks для статусов напоминаний
 
 Тестирование и деплой:
 
-Jest + supertest, потребительские контракты для очередей
+Jest + Pact (контракты на очереди и webhook-и), нагрузочные тесты WebSocket каналов
 
-TypeORM миграции, canary-релизы
+TypeORM миграции, canary-релизы с мониторингом доставки сообщений
 
 Telegram Bot
 
