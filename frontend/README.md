@@ -34,7 +34,7 @@ pnpm dev
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок/тасков.
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
 
-В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
+В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:${GATEWAY_SERVICE_PORT}/api`, то есть `http://localhost:8080/api` при стандартном порте), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
 
 ## Архитектура UI
 

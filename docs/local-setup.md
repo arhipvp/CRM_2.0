@@ -156,7 +156,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 После запуска инфраструктуры сервисы и приложения могут использовать значения из `.env`. Примеры:
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
-- Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
+- Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`, в том числе `NEXT_PUBLIC_API_BASE_URL` (локально `http://localhost:${GATEWAY_SERVICE_PORT}/api`).
 - Для фоновых заданий и уведомлений доступны очереди RabbitMQ и Redis.
 - Для фоновых заданий и уведомлений используются очереди RabbitMQ и Redis.
 
