@@ -1,3 +1,4 @@
+**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md)
 **Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
 
 1. Общее представление
@@ -7,6 +8,7 @@ CRM предназначена для небольшой команды стра
 
 ### Структура репозитория
 - [`docs/local-setup.md`](docs/local-setup.md) — карта сервисов с портами и ссылками на инструкции запуска.
+- [`docs/testing-data.md`](docs/testing-data.md) — стандартный набор тестовых данных и процедура загрузки seed-миграций.
 - Backend:
   - [`backend/gateway/README.md`](backend/gateway/README.md) — запуск BFF/Gateway.【F:backend/gateway/README.md†L1-L34】
   - [`backend/auth/README.md`](backend/auth/README.md) — конфигурация Auth и миграции Liquibase.【F:backend/auth/README.md†L1-L30】
