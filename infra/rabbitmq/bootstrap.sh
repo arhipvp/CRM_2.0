@@ -41,6 +41,85 @@ compose_rabbitmqctl() {
   docker compose -f "${COMPOSE_FILE}" exec -T rabbitmq rabbitmqctl "$@"
 }
 
+rabbitmq_status() {
+  docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq \
+    | python3 - <<'PY'
+import json
+import sys
+
+raw = sys.stdin.read().strip()
+if not raw:
+    print("absent")
+    print("")
+    sys.exit(0)
+
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print("unknown")
+    print("")
+    sys.exit(0)
+
+if not data:
+    print("absent")
+    print("")
+else:
+    entry = data[0]
+    print(entry.get("State") or "unknown")
+    print(entry.get("Health") or "")
+PY
+}
+
+wait_for_rabbitmq_ready() {
+  echo "[Инфо] Ожидаем готовность RabbitMQ..."
+  local output state health attempt
+  if output=$(docker compose -f "${COMPOSE_FILE}" wait rabbitmq 2>&1); then
+    echo "[Инфо] RabbitMQ готов."
+    return 0
+  fi
+
+  if grep -qiE 'unknown command|No help topic for "wait"' <<<"${output}"; then
+    echo "[Инфо] Команда 'docker compose wait' недоступна, проверяем состояние вручную..."
+    for attempt in {1..30}; do
+      local -a status_lines=()
+      mapfile -t status_lines < <(rabbitmq_status)
+      state="${status_lines[0]:-}"
+      health="${status_lines[1]:-}"
+      if [[ "${state}" == "running" && ( -z "${health}" || "${health}" == "healthy" ) ]]; then
+        echo "[Инфо] RabbitMQ готов (state='${state}', health='${health:-n/a}')."
+        return 0
+      fi
+      sleep 2
+    done
+    echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' в отведённое время." >&2
+    return 1
+  fi
+
+  echo "${output}" >&2
+  return 1
+}
+
+ensure_rabbitmq_ready() {
+  local -a status_lines=()
+  mapfile -t status_lines < <(rabbitmq_status)
+  local state="${status_lines[0]:-}"
+
+  if [[ "${state}" != "running" ]]; then
+    echo "[Инфо] Контейнер RabbitMQ не запущен (state='${state:-unknown}'). Пытаемся стартовать..."
+    if ! docker compose -f "${COMPOSE_FILE}" up -d rabbitmq; then
+      echo "[Ошибка] Не удалось автоматически запустить контейнер RabbitMQ." >&2
+      exit 1
+    fi
+  else
+    echo "[Инфо] Контейнер RabbitMQ уже запущен."
+  fi
+
+  if ! wait_for_rabbitmq_ready; then
+    echo "[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
+    exit 1
+  fi
+}
+
 ensure_vhost() {
   local vhost="$1"
   if compose_rabbitmqctl list_vhosts -q | grep -Fxq -- "${vhost}"; then
@@ -114,6 +193,8 @@ if [[ ${#USER_COMBOS[@]} -eq 0 ]]; then
   echo "[Инфо] Не найдено ни одной переменной *_RABBITMQ_URL. Нечего делать." >&2
   exit 0
 fi
+
+ensure_rabbitmq_ready
 
 for key in "${!USER_COMBOS[@]}"; do
   user="${key%@*}"
