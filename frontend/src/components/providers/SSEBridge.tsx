@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -56,6 +56,10 @@ export function SSEBridge() {
     [highlightDeal, pushNotification],
   );
 
+  const handleCrmError = useCallback((event: Event) => {
+    console.error("CRM SSE error", event);
+  }, []);
+
   const handleNotificationMessage = useCallback(
     (event: MessageEvent<string>) => {
       const payload = parsePayload(event) as NotificationPayload;
@@ -70,15 +74,29 @@ export function SSEBridge() {
     [pushNotification],
   );
 
-  useEventStream(process.env.NEXT_PUBLIC_CRM_SSE_URL, {
-    onMessage: handleCrmMessage,
-    onError: (event) => console.error("CRM SSE error", event),
-  });
+  const handleNotificationsError = useCallback((event: Event) => {
+    console.error("Notifications SSE error", event);
+  }, []);
 
-  useEventStream(process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL, {
-    onMessage: handleNotificationMessage,
-    onError: (event) => console.error("Notifications SSE error", event),
-  });
+  const crmHandlers = useMemo(
+    () => ({
+      onMessage: handleCrmMessage,
+      onError: handleCrmError,
+    }),
+    [handleCrmMessage, handleCrmError],
+  );
+
+  const notificationHandlers = useMemo(
+    () => ({
+      onMessage: handleNotificationMessage,
+      onError: handleNotificationsError,
+    }),
+    [handleNotificationMessage, handleNotificationsError],
+  );
+
+  useEventStream(process.env.NEXT_PUBLIC_CRM_SSE_URL, crmHandlers);
+
+  useEventStream(process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL, notificationHandlers);
 
   return null;
 }
