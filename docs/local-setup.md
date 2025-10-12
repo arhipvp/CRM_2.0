@@ -145,6 +145,22 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
+#### Быстрый запуск миграций (CRM + Auth)
+
+Чтобы не переключаться вручную между проектами, используйте скрипт из корня репозитория:
+
+```bash
+./scripts/migrate-local.sh
+```
+
+Сценарий:
+
+1. Загружает переменные из `.env` (убедитесь, что он создан на основе `env.example` и содержит заполненные блоки `CRM_*`, `AUTH_*`, `POSTGRES_*`, `REDIS_*`, `RABBITMQ_*`).
+2. Запускает `poetry run alembic upgrade head` в `backend/crm`.
+3. Выполняет `./gradlew update` в `backend/auth`.
+
+> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
+
 ## 5. Проверка доступности сервисов
 
 | Сервис         | Проверка                                                                                         |

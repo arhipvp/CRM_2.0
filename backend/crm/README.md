@@ -72,6 +72,16 @@ poetry run alembic upgrade head           # применяет миграции
 poetry run alembic downgrade -1           # откатывает последнюю ревизию
 ```
 
+### Быстрый запуск миграций CRM и Auth
+
+Для локальной подготовки БД CRM и Auth используйте общий скрипт из корня репозитория:
+
+```bash
+./scripts/migrate-local.sh
+```
+
+Сценарий загружает переменные из `.env`, применяет Alembic (`poetry run alembic upgrade head`) и затем запускает Liquibase (`./gradlew update`) в сервисе Auth. Убедитесь, что PostgreSQL и Redis доступны, а `.env` создан на основе `env.example`.
+
 ## Тесты
 Интеграционные тесты используют Testcontainers, поэтому требуется доступ к Docker daemon:
 ```bash
