@@ -36,6 +36,8 @@ Gateway публикует события через Server-Sent Events (SSE) д
 | `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "in_progress" }, "updated_at": "datetime" }` |
 | `task.reminder` | Напоминание по задаче. | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` |
 
+> Поле `channel` в payload принимает значения `sse` (по умолчанию) или `telegram` и совпадает с каналом, указанным при создании напоминания в Tasks API.
+
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** доставка внутренних уведомлений (без участия Telegram).
