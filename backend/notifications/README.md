@@ -1,12 +1,14 @@
 # Notifications Service
 
 ## Назначение
-Notifications доставляет события и уведомления во внутренний интерфейс и Telegram-бот, поддерживая REST API, SSE-каналы и очереди RabbitMQ для триггеров напоминаний.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
+Notifications доставляет события и уведомления во внутренний интерфейс (SSE) и Telegram-бот, принимая события из очередей RabbitMQ и публикуя их по минимальному сценарию первой поставки.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
+
+Расширенные функции (экспорт журнала, автоподписки, расширенные правила доставки) появятся на [Этапе 1.1](../../docs/delivery-plan.md#notifications-export-autosubscribe).
 
 ## Требования к окружению
 - Node.js LTS (18+) и NestJS с @nestjs/platform-sse и @golevelup/nestjs-rabbitmq.【F:docs/tech-stack.md†L289-L307】
-- PostgreSQL (схема `notifications`), RabbitMQ (`notifications.events`, очереди Telegram) и Redis для rate limiting.【F:docs/tech-stack.md†L293-L305】
-- Настроенные переменные `NOTIFICATIONS_SERVICE_PORT`, `NOTIFICATIONS_DATABASE_URL`, `NOTIFICATIONS_RABBITMQ_URL`, `NOTIFICATIONS_REDIS_URL` (см. [`env.example`](../../env.example)).
+- PostgreSQL (схема `notifications`) и RabbitMQ (`notifications.events`, очереди Telegram) для приёма и доставки событий; Redis добавится позже вместе с расширенными сценариями.【F:docs/tech-stack.md†L293-L305】
+- Настроенные переменные `NOTIFICATIONS_SERVICE_PORT`, `NOTIFICATIONS_DATABASE_URL`, `NOTIFICATIONS_RABBITMQ_URL` (см. [`env.example`](../../env.example)). Переменная `NOTIFICATIONS_REDIS_URL` станет обязательной после включения расширенных сценариев.
 
 ## Локальный запуск
 1. Установите зависимости: `corepack enable pnpm && pnpm install`.
