@@ -145,15 +145,28 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
-## 5. Проверка доступности сервисов
+## 5. Smoke-check локальной инфраструктуры
 
-| Сервис         | Проверка                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| PostgreSQL     | `psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB -c "SELECT 1"` |
-| RabbitMQ       | Откройте [http://localhost:${RABBITMQ_MANAGEMENT_PORT}](http://localhost:${RABBITMQ_MANAGEMENT_PORT}) и авторизуйтесь указанными учётными данными. |
-| Redis          | `redis-cli -u $REDIS_URL ping` (должен вернуть `PONG`).                                           |
-| Consul         | Откройте веб-интерфейс [http://localhost:${CONSUL_HTTP_PORT}](http://localhost:${CONSUL_HTTP_PORT}). |
-| pgAdmin        | Откройте [http://localhost:${PGADMIN_PORT}](http://localhost:${PGADMIN_PORT}), авторизуйтесь и добавьте подключение к `postgres`. |
+После запуска Docker Compose выполните автоматизированную проверку зависимостей:
+
+```bash
+./scripts/check-local-infra.sh
+```
+
+Скрипт считывает переменные из корневого `.env` и проверяет доступность PostgreSQL, Redis, Consul и RabbitMQ Management UI. В случае недоступности хотя бы одной зависимости он вернёт ненулевой код выхода, что удобно использовать в собственных make-таргетах или dev-скриптах.
+
+Пример ожидаемого отчёта:
+
+```
+Проверка           | Статус | Комментарий
+------------------+--------+--------------------------------
+PostgreSQL        | OK     | SELECT 1 выполнен
+Redis             | OK     | PING → PONG
+Consul            | OK     | Лидер: "127.0.0.1:8300"
+RabbitMQ UI       | OK     | UI доступен
+```
+
+Если какая-либо проверка помечена как `FAIL`, внимательно проверьте значения в `.env`, состояние контейнеров и логи сервисов. После устранения проблем перезапустите скрипт.
 
 > ℹ️ Отдельный сервис для отправки e-mail локально не используется: уведомления по почте в разработке отключены.
 
