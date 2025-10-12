@@ -104,32 +104,36 @@
 
 ### Создайте пользователей и vhost-ы RabbitMQ для сервисов
 
-По умолчанию Docker Compose создаёт пользователя и виртуальный хост `crm`, которых достаточно для базового запуска. Сервисы
-`payments`, `notifications`, `tasks` и `audit` используют собственные учётные записи и vhost-ы — их нужно создать вручную до
-первого запуска приложений. Имена и пароли совпадают с шаблоном в [`env.example`](../env.example), например `PAYMENTS_RABBITMQ_URL`.
+Автоматизация оформлена в скрипте [`infra/rabbitmq/bootstrap.sh`](../infra/rabbitmq/bootstrap.sh). Он читает указанный `.env`, находит все переменные `*_RABBITMQ_URL` (единый источник правды прописан в [`env.example`](../env.example)) и через `rabbitmqctl` создаёт отсутствующие vhost-ы и пользователей, обновляя права при повторном запуске.
 
-Пример последовательности команд через `rabbitmqctl` (выполняйте внутри контейнера RabbitMQ):
+1. Убедитесь, что локальный `.env` соответствует актуальному шаблону (см. шаг 1 выше).
+2. Выполните скрипт из корня репозитория:
 
-```bash
-docker compose exec rabbitmq bash -c '
-  rabbitmqctl add_vhost payments &&
-  rabbitmqctl add_user payments payments &&
-  rabbitmqctl set_permissions -p payments payments ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost notifications &&
-  rabbitmqctl add_user notifications notifications &&
-  rabbitmqctl set_permissions -p notifications notifications ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost tasks &&
-  rabbitmqctl add_user tasks tasks &&
-  rabbitmqctl set_permissions -p tasks tasks ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost audit &&
-  rabbitmqctl add_user audit audit &&
-  rabbitmqctl set_permissions -p audit audit ".*" ".*" ".*"
-'
-```
+   ```bash
+   bash infra/rabbitmq/bootstrap.sh .env
+   ```
 
-> ℹ️ При желании можно использовать [`rabbitmqadmin`](https://www.rabbitmq.com/docs/rabbitmqadmin) и оформить команды в отдельный скрипт — положите его в `infra/` рядом с `docker-compose.yml` и привяжите к своим процессам автоматизации.
+3. Ожидаемый вывод (первый запуск создаёт объекты, последующие просто подтверждают их наличие):
 
-После выполнения команд убедитесь, что пользователи и vhost-ы появились: `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
+   ```text
+   ==> Обработка пользователя 'crm' и vhost 'crm'
+     • vhost 'crm' уже существует
+     • обновлён пароль пользователя 'crm'
+     • подтверждены права 'crm' на vhost 'crm'
+   ==> Обработка пользователя 'payments' и vhost 'payments'
+     • создан vhost 'payments'
+     • создан пользователь 'payments'
+     • подтверждены права 'payments' на vhost 'payments'
+   ...
+   ==> Обработка пользователя 'audit' и vhost 'audit'
+     • vhost 'audit' уже существует
+     • обновлён пароль пользователя 'audit'
+     • подтверждены права 'audit' на vhost 'audit'
+
+   Готово: проверено 5 комбинаций пользователь/vhost.
+   ```
+
+Скрипт можно выполнять сколько угодно раз — он идемпотентен. Для ручной проверки воспользуйтесь `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
 
 ## 3. Проверьте создание схем и ролей PostgreSQL
 
