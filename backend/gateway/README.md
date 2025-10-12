@@ -9,7 +9,12 @@ Gateway — единая точка входа для веб-клиента и T
 - Настроенные переменные `GATEWAY_SERVICE_PORT`, `GATEWAY_BASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR` и `GATEWAY_UPSTREAM_*` согласно [`env.example`](../../env.example).
 
 ## Локальный запуск
-> **TODO:** сгенерировать сервис на NestJS через `@nestjs/cli`, настроить pnpm-скрипты `start:dev`/`start:prod`, подключить конфигурацию переменных окружения и проксирование SSE согласно `docs/tech-stack.md`.
+
+1. Установите зависимости: `pnpm install` (поддерживается и `npm install`, но pnpm предпочтителен для всех Node-проектов репозитория).
+2. Создайте `.env` из шаблона в корне (`cp ../../env.example .env` либо используйте переменные окружения).
+3. Запустите сервис в режиме разработки: `pnpm start:dev`. Приложение слушает `http://${GATEWAY_SERVICE_HOST}:${GATEWAY_SERVICE_PORT}/api`.
+4. Для проверки доступности выполните `curl http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` — ответ должен содержать `"status":"ok"`.
+5. SSE-канал «heartbeat» доступен по адресу `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` и отдаёт регулярные сообщения, которые удобно использовать как smoke-тест подключения фронтенда.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
 
 ## Миграции и скрипты
 - Gateway не использует собственную БД, поэтому каталог `migrations/` пуст. Контракты и схемы API храните в `schema/` (создайте при необходимости).
