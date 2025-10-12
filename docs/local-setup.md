@@ -159,8 +159,37 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
   - Для локального запуска все `NEXT_PUBLIC_*_SSE_URL` и `NEXT_PUBLIC_API_BASE_URL` уже указывают на `http://localhost:${GATEWAY_SERVICE_PORT}`;
     дополнительных DNS-записей или кастомных доменов не требуется.
-- Для фоновых заданий и уведомлений доступны очереди RabbitMQ и Redis.
-- Для фоновых заданий и уведомлений используются очереди RabbitMQ и Redis.
+- Для фоновых заданий и уведомлений используйте очереди RabbitMQ и Redis из запущенного Docker Compose.
+- Для проверки готовности можно запустить ключевые сервисы локально:
+  - **Gateway / BFF:**
+
+    ```bash
+    cd backend/gateway
+    pnpm install
+    pnpm start:dev
+    ```
+
+    После старта убедитесь, что `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` возвращает `200 OK`.
+
+  - **CRM / Deals:**
+
+    ```bash
+    cd backend/crm
+    poetry install
+    poetry run crm-api
+    ```
+
+    При необходимости поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
+
+  - **Frontend:**
+
+    ```bash
+    cd frontend
+    pnpm install
+    pnpm dev
+    ```
+
+    Приложение будет доступно на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`.
 
 ## 7. Очистка состояния
 
