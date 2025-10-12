@@ -1,4 +1,4 @@
-**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
+**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md)
 
 1. Общее представление
 CRM предназначена для небольшой команды страховых агентов, которые ведут клиентов по долгосрочным страховым сделкам. Система концентрирует данные о клиентах, сделках, полисах, платежах и связанных документах, распределяет задачи между пользователями и обеспечивает контроль по ключевым событиям. Архитектурный черновик уже выделяет целевые сервисы (Gateway, Auth, CRM/Deals, Payments, Documents, Tasks, Notifications, Reports, Audit, Backup) — ниже зафиксированы их бизнес-требования и взаимосвязи. Подробные спецификации REST/SSE интерфейсов находятся в каталоге [`docs/api`](docs/api/README.md), а форматы интеграционных событий зафиксированы в [`docs/integration-events.md`](docs/integration-events.md).
@@ -7,6 +7,7 @@ CRM предназначена для небольшой команды стра
 
 ### Структура репозитория
 - [`docs/local-setup.md`](docs/local-setup.md) — карта сервисов с портами и ссылками на инструкции запуска.
+- [`docs/testing-data.md`](docs/testing-data.md) — стандартный набор тестовых данных и процедура загрузки seed-миграций.
 - Backend:
   - [`backend/gateway/README.md`](backend/gateway/README.md) — запуск BFF/Gateway.【F:backend/gateway/README.md†L1-L34】
   - [`backend/auth/README.md`](backend/auth/README.md) — конфигурация Auth и миграции Liquibase.【F:backend/auth/README.md†L1-L30】
