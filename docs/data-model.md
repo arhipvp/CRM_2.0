@@ -192,7 +192,7 @@ erDiagram
 | --- | --- |
 | `auth` | Справочник ролей (продавец, исполнитель, финансовый менеджер, руководитель, администратор). Системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. OAuth-клиент для фронтенда. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
-| `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned`, `pending`, `settled`, `cancelled`). |
+| `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned` — «Запланирован», `expected` — «Ожидается», `received` — «Получен», `paid_out` — «Выплачен», `cancelled` — «Отменён»). |
 | `tasks` | Справочник статусов задач (`new`, `in_progress`, `waiting`, `done`, `cancelled`) и SLA-профилей по ролям (связь с `auth.roles`). |
 | `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и корневая папка интеграции с Google Drive. |
 | `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
