@@ -31,9 +31,8 @@
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`).
    - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`).
-   - SMTP-параметры для тестовой отправки почты (если не используете MailHog — укажите реальные значения).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
-3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`, `MAILHOG_*`) не конфликтуют с уже занятыми на вашей машине.
+3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
 
 ## 2. Запустите инфраструктурные контейнеры
 
@@ -61,7 +60,8 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 | Redis          | `redis-cli -u $REDIS_URL ping` (должен вернуть `PONG`).                                           |
 | Consul         | Откройте веб-интерфейс [http://localhost:${CONSUL_HTTP_PORT}](http://localhost:${CONSUL_HTTP_PORT}). |
 | pgAdmin        | Откройте [http://localhost:${PGADMIN_PORT}](http://localhost:${PGADMIN_PORT}), авторизуйтесь и добавьте подключение к `postgres`. |
-| MailHog        | UI доступен по адресу [http://localhost:${MAILHOG_HTTP_PORT}](http://localhost:${MAILHOG_HTTP_PORT}), SMTP — `smtp://localhost:${MAILHOG_SMTP_PORT}`. |
+
+> ℹ️ Отдельный сервис для отправки e-mail локально не используется: уведомления по почте в разработке отключены.
 
 ## 5. Подключение приложений
 
@@ -69,7 +69,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
 - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
-- Для фоновых заданий и уведомлений доступны очереди RabbitMQ, Redis и почтовый сервер MailHog.
+- Для фоновых заданий и уведомлений используются очереди RabbitMQ и Redis.
 
 ## 6. Очистка состояния
 
