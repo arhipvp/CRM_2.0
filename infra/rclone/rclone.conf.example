@@ -1,0 +1,9 @@
+; Пример rclone-конфига для off-site бэкапов
+; Скопируй как rclone.conf и заполни ключи
+; [s3]
+; type = s3
+; provider = AWS
+; env_auth = false
+; access_key_id = YOUR_KEY
+; secret_access_key = YOUR_SECRET
+; region = eu-central-1
