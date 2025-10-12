@@ -193,7 +193,7 @@ RabbitMQ exchange payments.events с маршрутизацией по ключ�
 
 Тестирование и деплой:
 
-JUnit5 + Testcontainers для PostgreSQL и Kafka
+JUnit5 + Testcontainers для PostgreSQL и RabbitMQ (RabbitMQContainer, https://java.testcontainers.org/modules/rabbitmq/) с проверкой публикации и подтверждения доставки событий
 
 Миграции Flyway, поэтапный rolling update
 
