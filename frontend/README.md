@@ -10,12 +10,21 @@
 2. `corepack prepare pnpm@9 --activate`
 
 ```bash
+../scripts/sync-env.sh frontend
 pnpm install
 pnpm dev
 ```
 
-Приложение откроется на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`. Для корректной работы подключите REST Gateway и SSE-потоки в `.env` (см. раздел «Переменные окружения»). Быстрее всего синхронизировать файл через `../scripts/sync-env.sh frontend` — скрипт предупредит о перезаписи, после чего нужно обновить публичные токены и чувствительные значения.
-Локальный запуск не требует настройки кастомных доменов: все публичные URL по умолчанию указывают на `http://localhost` и порт Gateway из `env.example`.
+Приложение откроется на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`. Скрипт синхронизации подтягивает значения из корневого `env.example`; при первом запуске обновите публичные токены и чувствительные значения вручную.
+
+Чтобы проверить production-сборку в Docker, используйте общий `docker-compose` из `infra/`:
+
+```bash
+cd ../infra
+docker compose --profile app up -d frontend
+```
+
+Контейнер собирается из `frontend/Dockerfile`, подключается к сети `infra` и обращается к Gateway по адресу `http://gateway:8080`. Если Gateway работает на хостовой машине, оставьте порт `GATEWAY_SERVICE_PORT` в `.env` и измените публичные URL фронтенда на `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` (alias добавлен в `extra_hosts` для Linux). После остановки выполните `docker compose stop frontend` или `docker compose --profile app down` для полной остановки инфраструктуры.
 
 ### Основные скрипты
 
@@ -36,15 +45,15 @@ pnpm dev
 
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
-- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
-- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы.
+- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://gateway:8080/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
+- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://gateway:8080/api/v1/streams/deals`).
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://gateway:8080/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы.
   - ⚠️ После включения upstream-конфигурации в Gateway (см. `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL`) канал доступен по умолчанию; проверьте, что локальный Payments запущен, чтобы избежать авто-переподключений.
-- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications`).
+- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://gateway:8080/api/v1/streams/notifications`).
 
 Все SSE-переменные должны указывать на публичные HTTPS/HTTP2 endpoints, возвращающие `text/event-stream`, поддерживающие CORS для фронтенда и не закрывающие соединение без причины. Клиент автоматически переподключается с экспоненциальной задержкой (до 30 секунд) и сбрасывает счётчик при успешном `onopen`. При ошибках со стороны сервера стоит убедиться, что Gateway проксирует заголовки `Cache-Control: no-transform` и heartbeat-сообщения.
 
-В режиме разработки все указанные переменные по умолчанию указывают на локальный Gateway `http://localhost:${GATEWAY_SERVICE_PORT}`, поэтому REST-запросы (`/api`) и SSE-потоки (`/api/v1/streams/*`) идут к реальному backend-слою. Чтобы принудительно отключить обращения к сети и вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local` — клиент автоматически переключится в автономный режим.
+В режиме разработки контейнер Next.js ожидает доступный Gateway по адресу `http://gateway:8080`. Для локального `pnpm dev` этот URL можно переопределить на `http://localhost:${GATEWAY_SERVICE_PORT}` (или `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` на Linux) через `.env.local`. Чтобы принудительно отключить обращения к сети и вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` — клиент автоматически переключится в автономный режим.
 
 ## Архитектура UI
 
