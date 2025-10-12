@@ -14,18 +14,31 @@
 
 ## Порядок применения
 
+### Рекомендуемый способ
+
 1. Убедитесь, что выполнены миграции схем `auth`, `crm` и `payments`.
-2. Экспортируйте параметры подключения из актуального `.env` (см. `env.example`):
+2. Синхронизируйте `.env` с [env.example](../../../env.example): значения `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` используются для подключения скриптом.
+3. Запустите автоматизированный загрузчик:
+   ```bash
+   ./scripts/load-seeds.sh
+   ```
+   Скрипт применит SQL-файлы последовательно (Auth → CRM → Payments), проверит наличие `psql` или Docker и завершится при первой ошибке. Для частичной перезагрузки воспользуйтесь `./scripts/load-seeds.sh --only <auth|crm|payments>`.
+
+### Ручной fallback
+
+Если требуется выполнить команды вручную (например, в ограниченной среде CI), используйте следующую последовательность:
+
+1. Экспортируйте пароль из текущего `.env`:
    ```bash
    export PGPASSWORD="$POSTGRES_PASSWORD"
    ```
-3. Выполните скрипты последовательно:
+2. Запустите скрипты по порядку:
    ```bash
    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_auth.sql
    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_crm.sql
    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_payments.sql
    ```
-4. Очистите переменную:
+3. Очистите переменную окружения:
    ```bash
    unset PGPASSWORD
    ```
@@ -42,4 +55,4 @@ SELECT deal_id, status, value FROM crm.deals ORDER BY created_at DESC;
 SELECT status, amount FROM payments.payments ORDER BY planned_date;
 ```
 
-Все пользователи включены (`enabled = true`), минимум одна сделка имеет статус `in_progress`, а в платежах присутствуют статусы `planned`, `expected` и `received`.
+Все пользователи включены (`enabled = true`), минимум одна сделка имеет статус `in_progress`, а в платежах присутствуют статусы `planned`, `expected` и `received`. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
