@@ -176,6 +176,15 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
     После старта убедитесь, что `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` возвращает `200 OK`.
 
+  - **Auth:**
+
+    ```bash
+    cd backend/auth
+    ./gradlew bootRun
+    ```
+
+    Перед запуском проверьте, что скопировали свежие значения `AUTH_*` из `env.example` в локальный `.env` (после изменений JWT-параметров вроде `AUTH_JWT_SECRET`, `AUTH_JWT_AUDIENCE`, `AUTH_ACCESS_TOKEN_TTL`, `AUTH_REFRESH_TOKEN_TTL` не забудьте пересоздать `.env`, чтобы подтянуть актуальные настройки). Для проверки доступности сервиса выполните `GET http://localhost:${AUTH_SERVICE_PORT}/actuator/health` — ответ должен быть `200 OK`.
+
   - **CRM / Deals:**
 
     ```bash
