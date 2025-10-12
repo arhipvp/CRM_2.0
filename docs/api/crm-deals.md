@@ -251,7 +251,7 @@ CRM хранит метаданные платежей для воронки и 
 **Ошибки:** `400 validation_error`, `404 deal_not_found` (если указан `deal_id`).
 
 ### PATCH `/tasks/{task_id}`
-Обновляет статус задачи (`open`, `in_progress`, `done`, `cancelled`) и фактические даты.
+Обновляет статус задачи (`new`, `in_progress`, `done`, `cancelled`) и фактические даты.
 
 **Ответ 200** — обновлённая задача.
 

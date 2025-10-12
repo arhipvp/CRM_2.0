@@ -38,7 +38,7 @@
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
 | `task.created` | `tasks.task.created` | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "context": { "deal_id": "uuid" } }` | Notifications хранит `task_id` + `event_id`. |
-| `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "open", "new_status": "in_progress", "changed_at": "datetime" }` | Повторы определяются по `event_id`. |
+| `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "new", "new_status": "in_progress", "changed_at": "datetime" }` | Повторы определяются по `event_id`. |
 | `task.reminder` | `tasks.task.reminder` | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` | Notifications проверяет комбинацию (`task_id`, `remind_at`). |
 
 > Поле `channel` соответствует каналу доставки напоминания и принимает значения `sse` (значение по умолчанию) или `telegram` — в зависимости от параметра, который был передан при создании напоминания через Tasks API.

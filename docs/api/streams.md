@@ -32,7 +32,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 | Тип события | Описание | Payload |
 | --- | --- | --- |
-| `task.created` | Создана новая задача. | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "status": "open" }` |
+| `task.created` | Создана новая задача. | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "status": "new" }` |
 | `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "in_progress" }, "updated_at": "datetime" }` |
 | `task.reminder` | Напоминание по задаче. | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` |
 

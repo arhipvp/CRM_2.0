@@ -14,7 +14,7 @@
 | Имя | Тип | Описание |
 | --- | --- | --- |
 | assignee_id | UUID | Фильтр по исполнителю. |
-| status | array[string] | `open`, `in_progress`, `waiting`, `done`, `cancelled`. |
+| status | array[string] | `new`, `in_progress`, `waiting`, `done`, `cancelled`. |
 | due_before | date | Задачи со сроком до указанной даты. |
 | due_after | date | Задачи со сроком после указанной даты. |
 | priority | array[string] | `low`, `normal`, `high`. |
@@ -37,7 +37,35 @@
 | priority | string | Нет | `low`, `normal`, `high`. |
 | context | object | Нет | `{ "deal_id": "uuid", "policy_id": "uuid" }`. |
 
-**Ответ 201** — созданная задача.
+**Ответ 201** — созданная задача со статусом `new`.
+
+**Пример запроса**
+```json
+{
+  "subject": "Подготовить КП",
+  "description": "Согласовать условия и отправить клиенту",
+  "assignee_id": "uuid",
+  "author_id": "uuid",
+  "due_date": "2024-03-10",
+  "priority": "high",
+  "context": {"deal_id": "uuid"}
+}
+```
+
+**Пример ответа**
+```json
+{
+  "id": "uuid",
+  "status": "new",
+  "subject": "Подготовить КП",
+  "assignee_id": "uuid",
+  "author_id": "uuid",
+  "due_date": "2024-03-10",
+  "priority": "high",
+  "context": {"deal_id": "uuid"},
+  "created_at": "2024-03-05T11:00:00Z"
+}
+```
 
 **Ошибки:** `400 validation_error`, `404 context_not_found` (если указаны несущствующие сущности).
 
@@ -47,14 +75,34 @@
 **Тело запроса**
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| status | string | Новый статус. |
+| status | string | Новый статус (`new`, `in_progress`, `waiting`, `done`, `cancelled`). |
 | completed_at | datetime | Заполняется при статусе `done`. |
 | cancelled_reason | string | Причина отмены. |
 | due_date | date | Перенос срока. |
 
 **Ответ 200** — обновлённая задача.
 
-**Ошибки:** `404 task_not_found`, `409 invalid_status_transition`.
+**Пример запроса**
+```json
+{
+  "status": "in_progress",
+  "due_date": "2024-03-12"
+}
+```
+
+**Пример ответа**
+```json
+{
+  "id": "uuid",
+  "status": "in_progress",
+  "subject": "Подготовить КП",
+  "assignee_id": "uuid",
+  "due_date": "2024-03-12",
+  "updated_at": "2024-03-06T09:00:00Z"
+}
+```
+
+**Ошибки:** `404 task_not_found`, `409 invalid_status_transition` (например, при попытке вернуть задачу из `done` в `new`).
 
 ### POST `/tasks/{task_id}/reminders`
 Создаёт напоминание.
