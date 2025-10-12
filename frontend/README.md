@@ -45,9 +45,10 @@ docker compose --profile app up -d frontend
 
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
-- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://gateway:8080/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
-- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://gateway:8080/api/v1/streams/deals`).
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://gateway:8080/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы.
+- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
+- `FRONTEND_PROXY_TIMEOUT` — таймаут (в миллисекундах) для Next.js middleware и клиента `apiClient`. Значение доступно и на сервере, и в браузере; дефолтный лимит 15 секунд защищает от зависших запросов.
+- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы.
   - ⚠️ После включения upstream-конфигурации в Gateway (см. `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL`) канал доступен по умолчанию; проверьте, что локальный Payments запущен, чтобы избежать авто-переподключений.
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://gateway:8080/api/v1/streams/notifications`).
 

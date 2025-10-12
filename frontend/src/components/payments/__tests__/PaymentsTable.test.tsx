@@ -7,14 +7,16 @@ import { PaymentsTable } from "@/components/payments/PaymentsTable";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
 
 describe("PaymentsTable", () => {
-  it("отображает статусы платежей", async () => {
+  it("отображает все поддерживаемые статусы платежей", async () => {
     const client = createTestQueryClient();
     client.setQueryData(paymentsQueryOptions().queryKey, paymentsMock);
 
     renderWithQueryClient(<PaymentsTable />, client);
 
-    expect(await screen.findByText(/Оплачен/)).toBeInTheDocument();
-    expect(screen.getByText(/Ошибка/)).toBeInTheDocument();
-    expect(screen.getByText(/В ожидании/)).toBeInTheDocument();
+    const labels = ["Запланирован", "Ожидается", "Получен", "Выплачен", "Отменён"];
+
+    for (const label of labels) {
+      expect(await screen.findByText(label)).toBeInTheDocument();
+    }
   });
 });
