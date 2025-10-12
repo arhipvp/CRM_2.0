@@ -25,7 +25,7 @@ CRM состоит из набора специализированных сер
 
 1. Веб-клиент обращается к Gateway/BFF, который определяет целевой сервис и обогащает ответы агрегированными данными.
 2. Telegram-бот получает обновления через webhook, который завершается в Gateway; шлюз нормализует payload и инициирует внутренние запросы.
-3. Gateway проксирует обращения к внутренним REST API (Auth для авторизации, CRM/Deals для операций с клиентами и сделками, Payments для финансовых операций и т.д.) и поддерживает SSE-потоки CRM/Deals, Payments и Notifications для фронтенда (детали см. [`docs/api/streams.md`](api/streams.md)).
+3. Gateway проксирует обращения к внутренним REST API (Auth для авторизации, CRM/Deals для операций с клиентами и сделками, Payments для финансовых операций и т.д.) и поддерживает SSE-потоки CRM/Deals, Payments и Notifications для фронтенда (детали см. [`docs/api/streams.md`](api/streams.md)). Для восстановления соединений хранит `Last-Event-ID` и heartbeat-метки в Redis по шаблону `${REDIS_HEARTBEAT_PREFIX}:{channel}`, включая канал платежей (`${REDIS_HEARTBEAT_PREFIX}:payments:last-event-id`).【F:backend/gateway/src/sse/upstream-sse.service.ts†L31-L68】
 4. Для операций, требующих нескольких доменов, Gateway выполняет композицию данных и кеширует результаты в Redis.
 
 ### 2.2 Асинхронная шина RabbitMQ
