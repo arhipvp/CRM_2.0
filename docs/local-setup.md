@@ -28,6 +28,18 @@
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
 - Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
 
+## CI/CD: как прогнать пайплайн вручную
+
+- Workflow `Monorepo CI` (`.github/workflows/ci.yml`) стартует на `push`/`pull_request` и доступен в ручном режиме из **Actions → Monorepo CI → Run workflow**. Перед запуском убедитесь, что в настройках репозитория объявлена переменная `CI_REGISTRY_IMAGE` (см. `env.example`).
+- Последовательность job-ов: `lint` → `unit-tests` → `contract-tests` → `build-and-push`. Пока сервисы Auth/CRM не реализованы, соответствующие матричные элементы помечены `enabled: false` и выводят информационное сообщение без падения пайплайна.
+- Кэш pnpm (`actions/setup-node` с `cache: pnpm`) и BuildKit (`docker/build-push-action` с `cache-from/cache-to`) сокращает время прогона; для сброса воспользуйтесь разделом **Actions → Cache** или измените суффикс образа в workflow.
+
+## Kubernetes-манифесты и Argo CD
+
+- Базовый слой (`infra/k8s/base`) содержит Namespace, Deployment/Service/ConfigMap/Secret для Gateway и развёртывание Redis как минимальной зависимости.
+- Оверлеи `infra/k8s/overlays/{dev,stage,prod}` задают namespace/prefix, image-tag, параметры ConfigMap и реплики для Gateway; патчи расширяются по мере добавления сервисов.
+- Файл `infra/k8s/argocd/gateway-apps.yaml` описывает три Argo CD Application-ресурса, которые синхронизируют соответствующие оверлеи и автоматически создают namespace (`syncOptions: CreateNamespace=true`).
+
 # Локальная инфраструктура: пошаговая инструкция
 
 Эта инструкция покрывает подготовку переменных окружения, запуск Docker Compose и базовую проверку вспомогательных сервисов, необходимых для разработки CRM.
@@ -39,7 +51,7 @@
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
-   - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`).
+   - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) и ключ сессий Gateway (`SESSION_SECRET`).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.

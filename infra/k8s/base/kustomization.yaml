@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app.kubernetes.io/part-of: crm-platform
+resources:
+  - namespace.yaml
+  - gateway-configmap.yaml
+  - gateway-secret.yaml
+  - gateway-deployment.yaml
+  - gateway-service.yaml
+  - redis-deployment.yaml
+  - redis-service.yaml

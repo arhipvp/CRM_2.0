@@ -1,3 +1,7 @@
+[![Monorepo CI](https://github.com/your-org/CRM_2.0/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/your-org/CRM_2.0/actions/workflows/ci.yml)
+
+**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md)
+**Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
 **Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Зависимости](docs/dependencies.md), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md)
 **Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Зависимости](docs/dependencies.md), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
 
