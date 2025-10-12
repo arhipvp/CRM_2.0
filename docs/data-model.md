@@ -149,7 +149,7 @@ erDiagram
 | `notifications.notifications` | Журнал отправленных уведомлений. |
 | `notifications.delivery_attempts` | Попытки доставки уведомлений по каналам. |
 | `notifications.templates` | Шаблоны сообщений и правил триггеров. |
-| `notifications.channel_settings` | Конфигурация каналов (Telegram, внутренние пуши). |
+| `notifications.channel_settings` | Конфигурация каналов (Telegram, внутренние SSE-уведомления). |
 
 ### Ключи и ограничения
 
