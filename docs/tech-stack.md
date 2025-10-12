@@ -298,7 +298,7 @@ API: REST + SSE (однонаправленные каналы уведомле�
 
 PostgreSQL-схема notifications
 
-RabbitMQ exchange `notifications.events`, очереди для Telegram-бота и внутренних каналов CRM
+RabbitMQ exchange `notifications.events`, очереди для Telegram-бота и внутреннего SSE-канала CRM
 
 Redis (ioredis) для rate limiting и хранения одноразовых токенов подтверждения
 

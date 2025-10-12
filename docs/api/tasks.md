@@ -63,7 +63,7 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | remind_at | datetime | Да | Время напоминания (UTC). |
-| channel | string | Нет | `sse`, `telegram`, `email`. По умолчанию `sse`. |
+| channel | string | Нет | `sse`, `telegram`. По умолчанию `sse` (внутренний канал SSE). Telegram доступен при наличии `telegram_id`. |
 
 **Ответ 201** — напоминание.
 

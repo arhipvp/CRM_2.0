@@ -1,10 +1,23 @@
-**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [API](docs/api/README.md), [События](docs/integration-events.md)
+**Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
 
 1. Общее представление
 CRM предназначена для небольшой команды страховых агентов, которые ведут клиентов по долгосрочным страховым сделкам. Система концентрирует данные о клиентах, сделках, полисах, платежах и связанных документах, распределяет задачи между пользователями и обеспечивает контроль по ключевым событиям. Архитектурный черновик уже выделяет целевые сервисы (Gateway, Auth, CRM/Deals, Payments, Documents, Tasks, Notifications, Reports, Audit, Backup) — ниже зафиксированы их бизнес-требования и взаимосвязи. Подробные спецификации REST/SSE интерфейсов находятся в каталоге [`docs/api`](docs/api/README.md), а форматы интеграционных событий зафиксированы в [`docs/integration-events.md`](docs/integration-events.md).
 
 **Технологический стек и базовые архитектурные принципы** собраны в документе [`docs/tech-stack.md`](docs/tech-stack.md), который служит основой для детальных спецификаций сервисов и инфраструктуры.
 
+### Структура репозитория
+- [`docs/local-setup.md`](docs/local-setup.md) — карта сервисов с портами и ссылками на инструкции запуска.
+- Backend:
+  - [`backend/gateway/README.md`](backend/gateway/README.md) — запуск BFF/Gateway.【F:backend/gateway/README.md†L1-L34】
+  - [`backend/auth/README.md`](backend/auth/README.md) — конфигурация Auth и миграции Liquibase.【F:backend/auth/README.md†L1-L30】
+  - [`backend/crm/README.md`](backend/crm/README.md) — инструкции для CRM/Deals и Celery.【F:backend/crm/README.md†L1-L32】
+  - [`backend/payments/README.md`](backend/payments/README.md) — запуск Spring Boot Payments и Flyway.【F:backend/payments/README.md†L1-L28】
+  - [`backend/documents/README.md`](backend/documents/README.md) — NestJS-сервис для Google Drive и BullMQ.【F:backend/documents/README.md†L1-L30】
+  - [`backend/notifications/README.md`](backend/notifications/README.md) — SSE, очереди и отправка уведомлений.【F:backend/notifications/README.md†L1-L30】
+  - [`backend/tasks/README.md`](backend/tasks/README.md) — обработка задач и отложенных событий.【F:backend/tasks/README.md†L1-L30】
+  - [`backend/reports/README.md`](backend/reports/README.md) — текущее состояние отчётного сервиса и временная заглушка.【F:backend/reports/README.md†L1-L28】
+  - [`backend/audit/README.md`](backend/audit/README.md) — журналирование и агрегаты для аналитики.【F:backend/audit/README.md†L1-L30】
+- Frontend: [`frontend/README.md`](frontend/README.md) — запуск Next.js и тестовые профили.【F:frontend/README.md†L1-L36】
 ## Запуск окружения разработки
 
 Пошаговая инструкция по подготовке `.env`, запуску инфраструктурных контейнеров и проверке доступности сервисов доступна в разделе [`docs/local-setup.md`](docs/local-setup.md).
@@ -69,7 +82,7 @@ Documents. Связывает сделки и полисы с папками Goo
 
 Tasks. Планирование и исполнение задач, напоминания назначенным пользователям. Подробнее см. раздел [«Tasks» технологического стека](docs/tech-stack.md#tasks).
 
-Notifications. Отправка уведомлений по событиям (Telegram, внутренние уведомления CRM), интеграция с ботом для доставки и подтверждений. Подробнее см. раздел [«Notifications» технологического стека](docs/tech-stack.md#notifications).
+Notifications. Отправка уведомлений по событиям (Telegram, внутренние SSE-уведомления CRM), интеграция с ботом для доставки и подтверждений. Подробнее см. раздел [«Notifications» технологического стека](docs/tech-stack.md#notifications).
 
 Telegram Bot. Отдельный сервис, обеспечивающий персональные уведомления продавцов и исполнителей, а также быстрые сценарии: создание сделки из чат-команды, запуск напоминаний, подтверждение ключевых этапов.
 
