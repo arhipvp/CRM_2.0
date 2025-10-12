@@ -333,9 +333,10 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ```bash
 cd infra
 docker compose down -v
-rm -rf ../backups/postgres
+# Удалите только локальные каталоги данных, созданные Docker (они перечислены в .gitignore):
+rm -rf pgdata redis_data minio_data postgres/data rabbitmq/data */data
 ```
 
-После этого повторите шаги с запуска инфраструктуры.
+После этого повторите шаги с запуска инфраструктуры. Если по ошибке были изменены seed-файлы в `backups/postgres/seeds`, выполните `git checkout -- backups/postgres/seeds` для возврата к зафиксированной версии.
 
 > ⚠️ **Важно.** Локальные пароли и секреты в `.env` предназначены только для разработки. Никогда не коммитьте файл `.env` в репозиторий и не переиспользуйте эти значения в боевых средах.
