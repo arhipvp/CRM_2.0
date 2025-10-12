@@ -32,18 +32,13 @@ pnpm dev
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
 - `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`).
-- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок/тасков.
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток событий платежей.
+- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач.
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий.
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
 
 Все SSE-переменные должны указывать на публичные HTTPS/HTTP2 endpoints, возвращающие `text/event-stream`, поддерживающие CORS для фронтенда и не закрывающие соединение без причины. Клиент автоматически переподключается с экспоненциальной задержкой (до 30 секунд) и сбрасывает счётчик при успешном `onopen`. При ошибках со стороны сервера стоит убедиться, что Gateway проксирует заголовки `Cache-Control: no-transform` и heartbeat-сообщения.
 
-В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (обновления платежей и балансов).
-- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
-
-В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:${GATEWAY_SERVICE_PORT}/api`, то есть `http://localhost:8080/api` при стандартном порте), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
-В режиме разработки дефолтные значения `NEXT_PUBLIC_API_BASE_URL` и `NEXT_PUBLIC_*_SSE_URL` указывают на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою и не требуют локальных DNS-записей. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local`.
+В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на локально поднятый Gateway (`http://localhost:${GATEWAY_SERVICE_PORT}/api`, по умолчанию `http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
 
 ## Архитектура UI
 
