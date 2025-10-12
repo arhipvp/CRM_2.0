@@ -32,13 +32,13 @@ pnpm dev
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
 - `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`).
-- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач.
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий.
-- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
+- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments`).
+- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications`).
 
 Все SSE-переменные должны указывать на публичные HTTPS/HTTP2 endpoints, возвращающие `text/event-stream`, поддерживающие CORS для фронтенда и не закрывающие соединение без причины. Клиент автоматически переподключается с экспоненциальной задержкой (до 30 секунд) и сбрасывает счётчик при успешном `onopen`. При ошибках со стороны сервера стоит убедиться, что Gateway проксирует заголовки `Cache-Control: no-transform` и heartbeat-сообщения.
 
-В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на локально поднятый Gateway (`http://localhost:${GATEWAY_SERVICE_PORT}/api`, по умолчанию `http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
+В режиме разработки все указанные переменные по умолчанию указывают на локальный Gateway `http://localhost:${GATEWAY_SERVICE_PORT}`, поэтому REST-запросы (`/api`) и SSE-потоки (`/api/v1/streams/*`) идут к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local`.
 
 ## Архитектура UI
 
@@ -71,3 +71,5 @@ docker build -f Dockerfile -t crm-frontend .
 
 - Документация экранов и UX-сценариев: [`docs/frontend`](../docs/frontend).
 - Настройка локального окружения: [`docs/local-setup.md`](../docs/local-setup.md#frontend).
+
+После обновления [`env.example`](../env.example) пересоздайте `.env.local`, чтобы локальная конфигурация соответствовала актуальным инструкциям.
