@@ -271,31 +271,31 @@ End-to-end сценарии в staging, blue/green деплой
 
 <a id="audit"></a>Audit
 
-Язык: Go 1.21
+Язык: Kotlin (JVM 17)
 
-Фреймворк: Echo + OpenTelemetry middleware
+Фреймворк: Spring Boot (WebFlux + Actuator, Spring Cloud Stream)
 
-БД и очереди: pgx (PostgreSQL), amqp091-go (RabbitMQ)
+БД и очереди: Spring Data R2DBC (PostgreSQL), Spring AMQP (RabbitMQ)
 
 API: REST + gRPC для внутренних подписчиков
 
 Интеграция с PostgreSQL:
 
 * журнальные таблицы разбиваются на ежемесячные партиции внутри схемы audit, включён контроль долгих транзакций и ретеншн на уровне политик;
-* запись событий выполняется через batch-вставки с подтверждением и трекингом idempotency key;
-* ежедневная агрегация метрик действий пользователей записывается в материализованные представления, которые потребляются Reports и внутренними дашбордами.
+* запись событий выполняется через batch-вставки с подтверждением и трекингом idempotency key на основе reactive R2DBC-транзакций;
+* ежедневная агрегация метрик действий пользователей формируется через Spring Batch и записывается в материализованные представления, которые потребляются Reports и внутренними дашбордами.
 
 Интеграция с RabbitMQ:
 
 * сервис подписывается на exchange audit.events и очередь audit.core с quorum queue; сообщения публикуют Payments, Auth, CRM/Deals и Notifications;
-* включены ручные подтверждения доставки, дедупликация по message-id и сохранение dead-letter событий в отдельной очереди audit.dlq с мониторингом;
+* включены ручные подтверждения доставки, дедупликация по message-id и сохранение dead-letter событий в отдельной очереди audit.dlq с мониторингом через Spring AMQP;
 * при сбое основного хранилища события буферизуются в локальном write-ahead журнале на PersistentVolume до восстановления соединения с PostgreSQL.
 
 Тестирование и деплой:
 
-* Интеграционные тесты на GoConvey + Testcontainers (PostgreSQL, RabbitMQ);
+* Интеграционные тесты на JUnit5 + Testcontainers (PostgreSQL, RabbitMQ);
 * Развёртывание через Kubernetes StatefulSet с подстроенными ресурсными квотами, rolling update с прогревом кэша справочников;
-* Конфигурация очередей описывается в Helm-чарте и синхронизируется Argo CD.
+* Конфигурация очередей описывается в Helm-чарте и синхронизируется Argo CD; миграции схемы управляются через Liquibase в CI/CD.
 
 <a id="backup"></a>Backup
 
