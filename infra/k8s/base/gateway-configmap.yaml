@@ -23,6 +23,6 @@ data:
   TASKS_BASE_URL: "http://tasks:8086"
   REDIS_URL: "redis://redis:6379/0"
   CONSUL_HTTP_ADDR: "http://consul:8500"
-  NEXT_PUBLIC_GATEWAY_BASE_URL: "https://gateway.example.com/api"
+  NEXT_PUBLIC_API_BASE_URL: "https://gateway.example.com/api"
   NEXT_PUBLIC_CRM_SSE_URL: "https://gateway.example.com/api/v1/streams/deals"
   NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: "https://gateway.example.com/api/v1/streams/notifications"

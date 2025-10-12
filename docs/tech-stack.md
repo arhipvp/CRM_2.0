@@ -114,7 +114,7 @@ Telegram-бот
 
 Требования к окружению:
 
-* `NEXT_PUBLIC_GATEWAY_BASE_URL` — публичный URL Gateway/BFF, используемый при серверном рендеринге и на клиенте.
+* `NEXT_PUBLIC_API_BASE_URL` — публичный URL Gateway/BFF, используемый при серверном рендеринге и на клиенте (локально по умолчанию `http://localhost:8080/api`).
 * `NEXT_PUBLIC_TELEMETRY_DSN` — DSN для фронтенд-логирования/трейсинга (Sentry или аналог), передаётся в runtime.
 * `NEXT_PUBLIC_FEATURE_FLAGS` — перечисление включённых feature-флагов (через запятую), синхронизировано с LaunchDarkly/ConfigCat.
 * `FRONTEND_PROXY_TIMEOUT` — таймаут проксирования на уровне Next.js middleware для долгих запросов.

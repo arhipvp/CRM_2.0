@@ -30,11 +30,11 @@ pnpm dev
 
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
-- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient`.
+- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`).
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок/тасков.
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
 
-В режиме разработки можно оставить значения по умолчанию — будут использованы мок-данные из `src/mocks/data.ts`.
+В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
 
 ## Архитектура UI
 
