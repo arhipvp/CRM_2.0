@@ -14,7 +14,7 @@
    corepack enable
    pnpm install
    ```
-2. Скопируйте `env.example` в `frontend/.env.local`, заполните значения Gateway и SSE.
+2. Скопируйте `env.example` в `frontend/.env.local`, заполните значения Gateway и SSE (для потоков по умолчанию используйте маршруты `https://gateway.local/api/v1/streams/deals` и `https://gateway.local/api/v1/streams/notifications`).
 3. Запустите режим разработки:
    ```bash
    pnpm dev
