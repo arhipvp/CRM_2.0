@@ -167,6 +167,12 @@ CRM/Deals инициирует приглашение пользователя, 
 
 Внутренний сервис администрирования для генерации стартовых токенов и восстановления доступа через CRM/Telegram с протоколированием операций в Audit
 
+Ключевые переменные окружения (см. [`env.example`](../env.example)):
+
+* `AUTH_DATABASE_URL`, `AUTH_REDIS_URL` — подключения к PostgreSQL (R2DBC) и Redis.
+* `AUTH_JWT_SECRET`, `AUTH_JWT_ISSUER`, `AUTH_JWT_AUDIENCE` — параметры подписи и метаданные JWT.
+* `AUTH_ACCESS_TOKEN_TTL`, `AUTH_REFRESH_TOKEN_TTL` — длительность токенов в формате ISO-8601 `Duration`.
+
 Тестирование и деплой:
 
 JUnit5 + Testcontainers
