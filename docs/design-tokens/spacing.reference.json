@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "version": "0.9.5",
+    "lastUpdated": "2024-03-28",
+    "notes": "Добавлены размеры для планшетной сетки"
+  },
+  "tokens": {
+    "spacingScale": {
+      "xxs": {
+        "value": "4px",
+        "description": "Внутренние отступы в тегах"
+      },
+      "xs": {
+        "value": "8px",
+        "description": "Компактные элементы"
+      },
+      "sm": {
+        "value": "12px",
+        "description": "Карточки и ячейки таблиц"
+      },
+      "md": {
+        "value": "16px",
+        "description": "Стандартные блоки"
+      },
+      "lg": {
+        "value": "24px",
+        "description": "Контентные секции"
+      },
+      "xl": {
+        "value": "32px",
+        "description": "Экранные отступы"
+      }
+    },
+    "layout": {
+      "content-max-width": {
+        "value": "1280px",
+        "description": "Максимальная ширина контентной области"
+      },
+      "tablet-breakpoint": {
+        "value": "1024px",
+        "description": "Переход на планшетную сетку"
+      },
+      "mobile-breakpoint": {
+        "value": "768px",
+        "description": "Переход на мобильную сетку"
+      }
+    }
+  }
+}

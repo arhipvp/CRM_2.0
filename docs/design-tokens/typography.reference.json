@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "version": "1.0.2",
+    "lastUpdated": "2024-04-10",
+    "notes": "Скорректированы размеры для подзаголовков"
+  },
+  "tokens": {
+    "fontFamilies": {
+      "primary": {
+        "value": "'Inter', 'Segoe UI', sans-serif",
+        "description": "Основной текст интерфейса"
+      },
+      "mono": {
+        "value": "'JetBrains Mono', monospace",
+        "description": "Коды и идентификаторы"
+      }
+    },
+    "fontSizes": {
+      "caption": {
+        "value": "12px",
+        "description": "Подписи, метки форм"
+      },
+      "body": {
+        "value": "14px",
+        "description": "Основной текст"
+      },
+      "subtitle": {
+        "value": "16px",
+        "description": "Подзаголовки карточек"
+      },
+      "title": {
+        "value": "20px",
+        "description": "Заголовки экранов"
+      }
+    },
+    "lineHeights": {
+      "tight": {
+        "value": "1.2",
+        "description": "Компактные блоки"
+      },
+      "normal": {
+        "value": "1.4",
+        "description": "Стандартные тексты"
+      },
+      "relaxed": {
+        "value": "1.6",
+        "description": "Плотные таблицы"
+      }
+    }
+  }
+}
