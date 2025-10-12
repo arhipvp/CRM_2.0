@@ -41,6 +41,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 - **Маршрут:** `GET /api/v1/streams/payments` — поток статусов и графиков платежей (публичная переменная `NEXT_PUBLIC_PAYMENTS_SSE_URL`).
 - **Назначение:** ретрансляция финансовых событий Payments в реальном времени для экранов CRM.
 - **Особенности:**
+  - Канал активирован после включения upstream-подключения в Gateway (`GATEWAY_UPSTREAM_PAYMENTS_SSE_URL`), поэтому клиенты больше не получают 503 из-за отсутствия конфигурации.
   - Gateway подключается к upstream `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL` и проксирует события без трансформаций payload (тип и структура совпадают с RabbitMQ `payments.events`).
   - При восстановлении соединения используется идентификатор события из Redis (`${REDIS_HEARTBEAT_PREFIX}:payments:last-event-id`), что позволяет возобновить поток без потери данных.【F:backend/gateway/src/sse/upstream-sse.service.ts†L22-L115】
   - Сердечные импульсы (`event: heartbeat`) формируются каждые `GATEWAY_UPSTREAM_SSE_HEARTBEAT_INTERVAL` миллисекунд; ключ состояния канала — `${REDIS_HEARTBEAT_PREFIX}:payments`.
