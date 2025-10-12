@@ -108,7 +108,12 @@ step_check_dependencies() {
   else
     status=1
   fi
-  check_optional_command python3 "python3" "Будут недоступны вспомогательные проверки и парсинг JSON в shell-скриптах."
+  if require_command python3 "python3 (Python 3)"; then
+    :
+  else
+    log_error "Python 3 обязателен для bootstrap. Установите интерпретатор python3 из поставки вашей ОС (например, 'sudo apt install python3') и повторите попытку."
+    status=1
+  fi
   check_optional_command psql "psql" "Отсутствует локальный CLI PostgreSQL — скрипты будут пытаться использовать docker compose exec."
   check_optional_command redis-cli "redis-cli" "Для локальных проверок Redis используйте docker compose exec redis redis-cli."
   check_optional_command curl "curl" "Smoke-проверки HTTP будут пропущены или потребуют альтернативные инструменты."
