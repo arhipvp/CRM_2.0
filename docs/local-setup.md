@@ -8,20 +8,22 @@
 ./scripts/bootstrap-local.sh
 ```
 
-Скрипт автоматизирует основные шаги локальной подготовки и формирует агрегированный отчёт об ошибках. Последовательно выполняются:
+Скрипт автоматизирует основные шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и формирует агрегированный отчёт об ошибках. Последовательно выполняются:
 
 1. `scripts/sync-env.sh` — синхронизация `.env` во всех сервисах с шаблоном `env.example`.
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
 3. `infra/rabbitmq/bootstrap.sh` — создание vhost-ов и пользователей RabbitMQ на основе `*_RABBITMQ_URL`.
 4. `scripts/migrate-local.sh` — миграции CRM (Alembic) и Auth (Liquibase/Gradle).
 5. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
-6. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI.
+6. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI (подробности и fallback-режимы см. раздел [«Автоматизированная smoke-проверка»](#автоматизированная-smoke-проверка)).
+
+Эти шаги выполняются автоматически при каждом запуске `bootstrap-local.sh`, поэтому ручные вызовы `sync-env`, `docker compose`, миграций и smoke-check остаются опциональными.
 
 ### Требования
 
 - Docker Desktop/Engine с поддержкой Compose V2.
 - Python 3 и Poetry (для CRM/Deals), JDK 17+ для запуска Gradle wrapper Auth.
-- CLI-инструменты `psql`, `redis-cli`, `curl` в `PATH` (используются в проверках).
+- CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
 - Доступ к интернету для скачивания зависимостей при первом запуске сервисов.
 
 При ошибках скрипт продолжит выполнение остальных шагов, а итоговая таблица покажет, на каком этапе произошёл сбой. Логи неуспешных шагов сохраняются во временную директорию, путь к которой выводится в консоль.
