@@ -47,6 +47,16 @@ cd backend/auth
 ```
 Первый набор (`0001-init-auth-tables`) создаёт таблицы `users`, `roles`, `user_roles` и заполняет базовые роли.
 
+### Быстрый запуск миграций CRM и Auth
+
+Чтобы применить миграции CRM (Alembic) и Auth (Liquibase) одной командой, переходите в корень репозитория и выполните:
+
+```bash
+./scripts/migrate-local.sh
+```
+
+Скрипт экспортирует переменные из `.env`, прогоняет `poetry run alembic upgrade head` в `backend/crm`, затем `./gradlew update` здесь. Перед запуском убедитесь, что установлены Poetry, JDK 17, PostgreSQL и Redis доступны, а `.env` создан из `env.example`.
+
 ## Тесты
 Для проверки используется JUnit 5 + Testcontainers (PostgreSQL, Redis):
 ```bash
