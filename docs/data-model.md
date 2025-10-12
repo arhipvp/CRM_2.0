@@ -204,7 +204,7 @@ erDiagram
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 
 | `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned` — «Запланирован», `expected` — «Ожидается», `received` — «Получен», `paid_out` — «Выплачен», `cancelled` — «Отменён»). |
-| `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `waiting` — «Ожидание внешнего действия», `done` — «Выполнена», `cancelled` — «Отменена») и преднастроенные напоминания для ручных сценариев. |
+| `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `waiting` — «Ожидание внешнего действия», `done` — «Выполнена», `cancelled` — «Отменена»). |
 | `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и корневая папка интеграции с Google Drive. |
 | `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
 | `audit` | Не требует отдельного seed, но создаётся запись о запуске миграций.
