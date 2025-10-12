@@ -36,11 +36,11 @@
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`).
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
-## CI/CD: как прогнать пайплайн вручную
+## CI/CD: временно только локальные проверки
 
-- Workflow `Monorepo CI` (`.github/workflows/ci.yml`) стартует на `push`/`pull_request` и доступен в ручном режиме из **Actions → Monorepo CI → Run workflow**. Перед запуском убедитесь, что в настройках репозитория объявлена переменная `CI_REGISTRY_IMAGE` (см. `env.example`).
-- Последовательность job-ов: `lint` → `unit-tests` → `contract-tests` → `build-and-push`. Пока сервисы Auth/CRM не реализованы, соответствующие матричные элементы помечены `enabled: false` и выводят информационное сообщение без падения пайплайна.
-- Кэш pnpm (`actions/setup-node` с `cache: pnpm`) и BuildKit (`docker/build-push-action` с `cache-from/cache-to`) сокращает время прогона; для сброса воспользуйтесь разделом **Actions → Cache** или измените суффикс образа в workflow.
+- GitHub Actions приостановлены: файл workflow сохранён как `.github/workflows/ci.yml.disabled` и не исполняется. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` и запушьте изменение в `main`.
+- Для локальной проверки повторите шаги пайплайна вручную: выполните линтеры, тесты и сборку контейнеров по инструкциям соответствующих сервисов. Рекомендуемый порядок: `lint` → `unit-tests` → `contract-tests` → `build`.
+- При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`.
 
 ## Kubernetes-манифесты и Argo CD
 

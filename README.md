@@ -1,4 +1,4 @@
-[![Monorepo CI](https://github.com/your-org/CRM_2.0/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/your-org/CRM_2.0/actions/workflows/ci.yml)
+> ⚠️ GitHub Actions временно приостановлены. Интеграционные проверки выполняются только локально согласно инструкции из [`docs/local-setup.md`](docs/local-setup.md). История предыдущего workflow сохранена в репозитории и может быть восстановлена при необходимости.
 
 **Быстрая навигация:** [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md)
 **Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Инфраструктура](docs/tech-stack.md#инфраструктура), [Интеграции](docs/tech-stack.md#интеграции), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md)
