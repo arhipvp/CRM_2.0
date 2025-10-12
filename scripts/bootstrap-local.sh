@@ -42,6 +42,21 @@ require_command() {
   fi
 }
 
+check_optional_command() {
+  local cmd="$1"
+  local human_name="${2:-$1}"
+  local hint="${3:-}"
+  if command -v "$cmd" >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ -n "$hint" ]]; then
+    log_warn "Команда '${human_name}' не найдена. ${hint}"
+  else
+    log_warn "Команда '${human_name}' не найдена."
+  fi
+  return 1
+}
+
 STEP_RESULTS=()
 FAIL_COUNT=0
 
@@ -87,16 +102,16 @@ step_check_dependencies() {
     log_error "Плагин 'docker compose' недоступен. Установите Docker Compose V2."
     status=1
   fi
-  require_command python3 || status=1
   require_command poetry || status=1
-  require_command psql || status=1
-  require_command redis-cli || status=1
-  require_command curl || status=1
   if require_command java "java (JDK 17+)"; then
     :
   else
     status=1
   fi
+  check_optional_command python3 "python3" "Будут недоступны вспомогательные проверки и парсинг JSON в shell-скриптах."
+  check_optional_command psql "psql" "Отсутствует локальный CLI PostgreSQL — скрипты будут пытаться использовать docker compose exec."
+  check_optional_command redis-cli "redis-cli" "Для локальных проверок Redis используйте docker compose exec redis redis-cli."
+  check_optional_command curl "curl" "Smoke-проверки HTTP будут пропущены или потребуют альтернативные инструменты."
   if [[ -x "${ROOT_DIR}/backend/auth/gradlew" ]]; then
     :
   else
@@ -107,11 +122,61 @@ step_check_dependencies() {
 }
 
 step_sync_env() {
-  (cd "${ROOT_DIR}" && ./scripts/sync-env.sh)
+  (cd "${ROOT_DIR}" && ./scripts/sync-env.sh --mode=skip-existing)
 }
 
 step_compose_up() {
   (cd "${INFRA_DIR}" && docker compose up -d)
+}
+
+step_wait_infra() {
+  (
+    cd "${INFRA_DIR}" || return 1
+    if docker compose wait >/dev/null 2>&1; then
+      echo "docker compose wait завершён успешно"
+      return 0
+    fi
+
+    echo "Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов"
+    local attempt=0
+    local max_attempts=30
+    local sleep_seconds=2
+    local ps_output=""
+
+    while (( attempt < max_attempts )); do
+      if ! ps_output=$(docker compose ps); then
+        sleep "$sleep_seconds"
+        attempt=$((attempt + 1))
+        continue
+      fi
+
+      if grep -qE '\\b(Exit|Down|Stopped)\\b' <<<"$ps_output"; then
+        echo "$ps_output"
+        echo "Обнаружены контейнеры в состоянии Exit/Down/Stopped" >&2
+        return 1
+      fi
+
+      if grep -q '(health: starting)' <<<"$ps_output"; then
+        sleep "$sleep_seconds"
+        attempt=$((attempt + 1))
+        continue
+      fi
+
+      if grep -q '(unhealthy)' <<<"$ps_output"; then
+        echo "$ps_output"
+        echo "Контейнеры имеют статус unhealthy" >&2
+        return 1
+      fi
+
+      echo "$ps_output"
+      echo "Контейнеры готовы."
+      return 0
+    done
+
+    echo "Истёк таймаут ожидания готовности контейнеров" >&2
+    docker compose ps
+    return 1
+  )
 }
 
 step_rabbitmq_bootstrap() {
@@ -142,6 +207,7 @@ main() {
   fi
 
   run_step "docker compose up -d" step_compose_up
+  run_step "Ожидание готовности docker compose" step_wait_infra
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
 
