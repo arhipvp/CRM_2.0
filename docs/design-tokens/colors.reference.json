@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "version": "1.1.0",
+    "lastUpdated": "2024-05-15",
+    "notes": "Обновлена палитра состояний кнопок"
+  },
+  "tokens": {
+    "base": {
+      "white": {
+        "value": "#FFFFFF",
+        "description": "Базовый фон"
+      },
+      "graphite-900": {
+        "value": "#1C1F26",
+        "description": "Основной текст на светлом фоне"
+      }
+    },
+    "accent": {
+      "primary-500": {
+        "value": "#2F6BFF",
+        "description": "Цвет основных действий"
+      },
+      "primary-500-hover": {
+        "value": "#2454CC",
+        "description": "Наведение для первичных кнопок"
+      }
+    },
+    "status": {
+      "success-500": {
+        "value": "#3BB273",
+        "description": "Успешные операции"
+      },
+      "warning-500": {
+        "value": "#F5A623",
+        "description": "Предупреждения"
+      },
+      "danger-500": {
+        "value": "#D64545",
+        "description": "Ошибки и критические состояния"
+      }
+    }
+  }
+}

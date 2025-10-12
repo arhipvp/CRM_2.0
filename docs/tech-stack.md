@@ -108,7 +108,7 @@ Telegram-бот
 
 Управление состоянием: React Query для работы с асинхронными данными Gateway/BFF, Zustand для локального UI-состояния и кэширования пользовательских настроек, Context API для тем и параметров локализации.
 
-Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); SSE-каналы используются для трансляции изменений сделок и платежей из CRM/Deals, а также внутренних уведомлений Notifications (подтверждения, быстрая обратная связь). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`). Значения по умолчанию в [`env.example`](../env.example) указывают на документированные маршруты Gateway — `https://gateway.local/api/v1/streams/deals` и `https://gateway.local/api/v1/streams/notifications` соответственно.
+Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); SSE-каналы используются для трансляции изменений сделок и платежей из CRM/Deals, а также внутренних уведомлений Notifications (подтверждения, быстрая обратная связь). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_PAYMENTS_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`). Значения по умолчанию в [`env.example`](../env.example) указывают на документированные маршруты Gateway — `https://gateway.local/api/v1/streams/deals`, `https://gateway.local/api/v1/streams/payments` и `https://gateway.local/api/v1/streams/notifications` соответственно.
 
 Тестирование: unit и компонентные тесты на Vitest + React Testing Library, визуальные снапшоты Storybook Chromatic, end-to-end сценарии в Playwright. Smoke-тесты фронтенда запускаются после деплоя вместе с контрактными тестами Gateway/BFF.
 
@@ -129,7 +129,7 @@ Gateway / BFF
 
 БД и очереди: ioredis (Redis); прямой работы с PostgreSQL нет
 
-API: REST (JSON) и SSE-каналы (прокси потоков CRM/Deals и Notifications), внутренние вызовы — REST и управление стримами
+API: REST (JSON) и SSE-каналы (прокси потоков CRM/Deals, Payments и Notifications), внутренние вызовы — REST и управление стримами
 
 Зависимости и компоненты:
 
