@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "brand": {
+    "primary": "#0B66FF",
+    "secondary": "#5C6C7C"
+  },
+  "background": {
+    "base": "#FFFFFF",
+    "muted": "#F5F7FA"
+  },
+  "text": {
+    "primary": "#1F2A37",
+    "secondary": "#475467",
+    "inverse": "#FFFFFF"
+  },
+  "border": {
+    "default": "#D0D5DD",
+    "focus": "#0B66FF"
+  }
+}
