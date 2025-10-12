@@ -10,7 +10,6 @@ import Context from "./assets/context.png";
 import Assets from "./assets/assets.png";
 import Docs from "./assets/docs.png";
 import Share from "./assets/share.png";
-import FigmaPlugin from "./assets/figma-plugin.png";
 import Testing from "./assets/testing.png";
 import Accessibility from "./assets/accessibility.png";
 import Theming from "./assets/theming.png";
@@ -133,20 +132,16 @@ export const RightArrow = () => <svg
         >Learn more<RightArrow /></a>
       </div>
       <div className="sb-grid-item">
-        <Image
-          width={0}
-          height={0}
-          style={{ width: '100%', height: 'auto' }}
-          src={FigmaPlugin}
-          alt="Windows showing the Storybook plugin in Figma"
-        />
-        <h4 className="sb-section-item-heading">Figma Plugin</h4>
-        <p className="sb-section-item-paragraph">Embed your stories into Figma to cross-reference the design and live
-          implementation in one place.</p>
+        <div className="sb-placeholder" aria-hidden="true">
+          <span className="sb-placeholder-badge">Tip</span>
+          <span className="sb-placeholder-graphic" />
+        </div>
+        <h4 className="sb-section-item-heading">Design review checklist</h4>
+        <p className="sb-section-item-paragraph">Share stories with your design team and capture feedback in one place before shipping updates.</p>
         <a
-          href="https://storybook.js.org/docs/sharing/design-integrations/?renderer=react&ref=configure#embed-storybook-in-figma-with-the-plugin"
+          href="https://storybook.js.org/docs/sharing/publish-storybook/?renderer=react"
           target="_blank"
-        >Learn more<RightArrow /></a>
+        >See collaboration tips<RightArrow /></a>
       </div>
       <div className="sb-grid-item">
         <Image
@@ -397,6 +392,46 @@ export const RightArrow = () => <svg
     .sb-addon-img {
       left: 300px;
     }
+  }
+
+  .sb-placeholder {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 140px;
+    padding: 16px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(9, 81, 150, 0.15), rgba(9, 81, 150, 0.35));
+    overflow: hidden;
+  }
+
+  .sb-placeholder-badge {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #094f96;
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 3px rgba(9, 79, 150, 0.25);
+  }
+
+  .sb-placeholder-graphic {
+    position: absolute;
+    right: -30px;
+    bottom: -40px;
+    width: 140px;
+    height: 140px;
+    border-radius: 999px;
+    background: rgba(9, 79, 150, 0.15);
+    border: 2px solid rgba(9, 79, 150, 0.4);
+    box-shadow: inset 0 0 0 12px rgba(255, 255, 255, 0.4);
   }
 
   @media screen and (max-width: 600px) {
