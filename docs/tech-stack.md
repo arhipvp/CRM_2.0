@@ -169,9 +169,9 @@ Alembic миграции, прогрев кеша
 
 Payments
 
-Язык: Go 1.21
+Язык: Kotlin (JVM 17)
 
-Фреймворк: Fiber + go-chi/render
+Фреймворк: Spring Boot (WebFlux + Spring Cloud Stream)
 
 БД и очереди: pgx (PostgreSQL), amqp091-go (RabbitMQ)
 
@@ -193,9 +193,9 @@ RabbitMQ exchange payments.events с маршрутизацией по ключ�
 
 Тестирование и деплой:
 
-Unit-тесты и consumer-driven контракты
+JUnit5 + Testcontainers для PostgreSQL и Kafka
 
-Rolling update, миграции golang-migrate
+Миграции Flyway, поэтапный rolling update
 
 Documents
 
@@ -223,11 +223,11 @@ Redis кластер для синхронизации
 
 Tasks / Notifications
 
-Язык: Rust 1.72
+Язык: TypeScript (Node.js LTS)
 
-Фреймворк: Actix Web + Tokio
+Фреймворк: NestJS (@nestjs/websockets + @nestjs/schedule)
 
-БД и очереди: sqlx (PostgreSQL), lapin (RabbitMQ)
+БД и очереди: TypeORM (PostgreSQL), @golevelup/nestjs-rabbitmq (RabbitMQ)
 
 API: REST + WebSocket, публикация событий в RabbitMQ
 
@@ -237,13 +237,13 @@ PostgreSQL-схема notifications
 
 RabbitMQ кластер
 
-Redis для временных токенов
+Redis для временных токенов и rate limiting (ioredis)
 
 Тестирование и деплой:
 
-Нагрузочные тесты (k6), end-to-end сценарии
+Jest + supertest, потребительские контракты для очередей
 
-Canary-релизы, миграции sqlx migrate
+TypeORM миграции, canary-релизы
 
 Telegram Bot
 
