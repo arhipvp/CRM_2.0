@@ -27,7 +27,7 @@ crm/
    cd backend/crm
    poetry install
    ```
-2. Скопируйте переменные окружения из корня репозитория: `cp ../../env.example .env` и заполните значения блока CRM (`CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL`, `CRM_EVENTS_EXCHANGE`, `CRM_PAYMENTS_*`).
+2. Синхронизируйте переменные окружения: `../../scripts/sync-env.sh backend/crm` создаст или обновит `.env`. После копирования проверьте и заполните блок CRM (`CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL`, `CRM_EVENTS_EXCHANGE`, `CRM_PAYMENTS_*`) и замените чувствительные данные на локальные значения.
 3. Примените миграции:
    ```bash
    poetry run alembic upgrade head
