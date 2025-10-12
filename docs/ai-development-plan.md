@@ -23,7 +23,8 @@
 - Для каждого сервиса синхронизировать API-контракты с фронтендом, поддерживать миграции и тесты. Применять ИИ для автоматического сравнения спецификаций и генерации OpenAPI.
 
 ### Статус этапа 2
-- ✅ Gateway/BFF: реализовано проксирование REST/SSE, heartbeat и тестовые сценарии; подробности в [`backend/gateway/README.md`](../backend/gateway/README.md).【F:backend/gateway/README.md†L4-L29】
+- ✅ Gateway/BFF: реализовано проксирование REST/SSE, heartbeat и тестовые сценарии; подробности в [`backend/gateway/README.md`](../backend/gateway/README.md).【F:backend/gateway/README.md†L4-L36】
+- ✅ Синхронизирован публичный маршрут сделок: `GET /api/v1/streams/deals` заменяет старый `/crm`, добавлен обратный алиас и e2e-тест потоков, а документация отражает актуальное имя канала.【F:backend/gateway/src/sse/sse.controller.ts†L21-L32】【F:backend/gateway/test/app.e2e-spec.ts†L142-L206】【F:docs/api/streams.md†L12-L37】【F:backend/gateway/README.md†L17-L24】
 - ✅ Auth: сервис WebFlux с R2DBC, ролями и миграциями зафиксирован в [`backend/auth/README.md`](../backend/auth/README.md).【F:backend/auth/README.md†L1-L64】
 - ✅ CRM/Deals: доменные модели, RabbitMQ и Celery описаны в [`backend/crm/README.md`](../backend/crm/README.md).【F:backend/crm/README.md†L1-L68】
 

@@ -19,9 +19,14 @@ export class SseController {
     );
   }
 
+  @Sse('deals')
+  dealsStream(): Observable<MessageEvent> {
+    return this.upstreamSseService.stream('crm');
+  }
+
   @Sse('crm')
   crmStream(): Observable<MessageEvent> {
-    return this.upstreamSseService.stream('crm');
+    return this.dealsStream();
   }
 
   @Sse('payments')
