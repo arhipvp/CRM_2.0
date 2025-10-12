@@ -10,7 +10,14 @@ export function useEventStream(
   const { onMessage, onError, onOpen, retryInterval, withCredentials, maxRetryInterval } = handlers;
 
   const stableHandlers = useMemo(
-    () => handlers,
+    () => ({
+      onMessage,
+      onError,
+      onOpen,
+      retryInterval,
+      withCredentials,
+      maxRetryInterval,
+    }),
     [onMessage, onError, onOpen, retryInterval, withCredentials, maxRetryInterval],
   );
 
