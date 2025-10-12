@@ -18,20 +18,20 @@
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
-2. Проверьте переменные окружения в [`env.example`](../env.example) — для каждого сервиса указан порт и URL запуска.
+2. Синхронизируйте переменные окружения через [`scripts/sync-env.sh`](../scripts/sync-env.sh), чтобы в каждом сервисе появился свежий `.env` из корневого [`env.example`](../env.example). Скрипт предупреждает о перезаписи и позволяет пропустить каталог — после копирования обязательно обновите секреты и уникальные значения вручную.
 3. Настройте базы данных и очереди (см. [«Инфраструктура» в tech-stack](tech-stack.md#инфраструктура)) и запускайте сервис локально или в Docker согласно инструкции.
 
 ### Gateway / BFF: быстрый старт
 
 - Перейдите в `backend/gateway` и установите зависимости (`pnpm install`).
-- Скопируйте `env.example` из корня репозитория (`cp ../../env.example .env`) или экспортируйте переменные окружения вручную. Минимально нужны `GATEWAY_SERVICE_PORT`, `GATEWAY_SERVICE_HOST`, `GATEWAY_BASE_URL`, блок `GATEWAY_UPSTREAM_*`, а также `REDIS_*` и `CONSUL_*` для подключения к инфраструктуре.
+- Выполните `../../scripts/sync-env.sh backend/gateway`, чтобы получить свежий `.env` из шаблона. Скрипт предупредит о перезаписи существующего файла — при необходимости выберите `skip` и обновите значения вручную. После синхронизации проверьте секреты (`JWT_*`, `SESSION_SECRET`) и параметры upstream (`GATEWAY_UPSTREAM_*`, `REDIS_*`, `CONSUL_*`).
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
 - Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
 
 ### CRM / Deals: быстрый старт
 
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
-- Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
+- Выполните `../../scripts/sync-env.sh backend/crm`, чтобы скопировать шаблон `.env`. После синхронизации пересмотрите блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, очереди событий) и замените секреты на локальные значения.
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
@@ -54,8 +54,8 @@
 
 ## 1. Подготовьте `.env`
 
-1. Скопируйте шаблон: `cp env.example .env`.
-   > ℹ️ После любого обновления `env.example` (например, фикса `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на префикс `r2dbc:`) пересоздайте локальный `.env` из свежей версии (`cp env.example .env` с перезаписью), чтобы подтянуть актуальные значения RabbitMQ, R2DBC и других переменных. Иначе в локальной конфигурации могут остаться устаревшие шаблоны.
+1. Синхронизируйте переменные: `./scripts/sync-env.sh` создаст или обновит `.env` в корне и основных сервисах. Если для какого-то каталога уже есть файл, скрипт спросит о перезаписи — при необходимости выберите `skip`. После выполнения обновите секреты и уникальные значения (пароли, токены, ключи) во всех скопированных файлах.
+   > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
@@ -145,28 +145,31 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
-## 5. Smoke-check локальной инфраструктуры
+#### Быстрый запуск миграций (CRM + Auth)
 
-После запуска Docker Compose выполните автоматизированную проверку зависимостей:
+Чтобы не переключаться вручную между проектами, используйте скрипт из корня репозитория:
 
 ```bash
-./scripts/check-local-infra.sh
+./scripts/migrate-local.sh
 ```
 
-Скрипт считывает переменные из корневого `.env` и проверяет доступность PostgreSQL, Redis, Consul и RabbitMQ Management UI. В случае недоступности хотя бы одной зависимости он вернёт ненулевой код выхода, что удобно использовать в собственных make-таргетах или dev-скриптах.
+Сценарий:
 
-Пример ожидаемого отчёта:
+1. Загружает переменные из `.env` (убедитесь, что он создан на основе `env.example` и содержит заполненные блоки `CRM_*`, `AUTH_*`, `POSTGRES_*`, `REDIS_*`, `RABBITMQ_*`).
+2. Запускает `poetry run alembic upgrade head` в `backend/crm`.
+3. Выполняет `./gradlew update` в `backend/auth`.
 
-```
-Проверка           | Статус | Комментарий
-------------------+--------+--------------------------------
-PostgreSQL        | OK     | SELECT 1 выполнен
-Redis             | OK     | PING → PONG
-Consul            | OK     | Лидер: "127.0.0.1:8300"
-RabbitMQ UI       | OK     | UI доступен
-```
+> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
 
-Если какая-либо проверка помечена как `FAIL`, внимательно проверьте значения в `.env`, состояние контейнеров и логи сервисов. После устранения проблем перезапустите скрипт.
+## 5. Проверка доступности сервисов
+
+| Сервис         | Проверка                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| PostgreSQL     | `psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB -c "SELECT 1"` |
+| RabbitMQ       | Откройте [http://localhost:${RABBITMQ_MANAGEMENT_PORT}](http://localhost:${RABBITMQ_MANAGEMENT_PORT}) и авторизуйтесь указанными учётными данными. |
+| Redis          | `redis-cli -u $REDIS_URL ping` (должен вернуть `PONG`).                                           |
+| Consul         | Откройте веб-интерфейс [http://localhost:${CONSUL_HTTP_PORT}](http://localhost:${CONSUL_HTTP_PORT}). |
+| pgAdmin        | Откройте [http://localhost:${PGADMIN_PORT}](http://localhost:${PGADMIN_PORT}), авторизуйтесь и добавьте подключение к `postgres`. |
 
 > ℹ️ Отдельный сервис для отправки e-mail локально не используется: уведомления по почте в разработке отключены.
 

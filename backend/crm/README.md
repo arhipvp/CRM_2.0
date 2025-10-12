@@ -27,7 +27,7 @@ crm/
    cd backend/crm
    poetry install
    ```
-2. Скопируйте переменные окружения из корня репозитория: `cp ../../env.example .env` и заполните значения блока CRM (`CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL`, `CRM_EVENTS_EXCHANGE`, `CRM_PAYMENTS_*`).
+2. Синхронизируйте переменные окружения: `../../scripts/sync-env.sh backend/crm` создаст или обновит `.env`. После копирования проверьте и заполните блок CRM (`CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL`, `CRM_EVENTS_EXCHANGE`, `CRM_PAYMENTS_*`) и замените чувствительные данные на локальные значения.
 3. Примените миграции:
    ```bash
    poetry run alembic upgrade head
@@ -71,6 +71,16 @@ poetry run alembic revision -m "feature"  # создаёт новую ревиз
 poetry run alembic upgrade head           # применяет миграции
 poetry run alembic downgrade -1           # откатывает последнюю ревизию
 ```
+
+### Быстрый запуск миграций CRM и Auth
+
+Для локальной подготовки БД CRM и Auth используйте общий скрипт из корня репозитория:
+
+```bash
+./scripts/migrate-local.sh
+```
+
+Сценарий загружает переменные из `.env`, применяет Alembic (`poetry run alembic upgrade head`) и затем запускает Liquibase (`./gradlew update`) в сервисе Auth. Убедитесь, что PostgreSQL и Redis доступны, а `.env` создан на основе `env.example`.
 
 ## Тесты
 Интеграционные тесты используют Testcontainers, поэтому требуется доступ к Docker daemon:
