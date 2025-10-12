@@ -4,6 +4,11 @@
 
 ## Быстрый старт
 
+Перед установкой зависимостей убедитесь, что используется Node.js 20 LTS и активирован Corepack:
+
+1. `corepack enable`
+2. `corepack prepare pnpm@9 --activate`
+
 ```bash
 pnpm install
 pnpm dev

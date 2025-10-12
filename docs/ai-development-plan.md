@@ -8,6 +8,7 @@
 - Поддерживать репозиторий с `docker-compose`, шаблонами Kubernetes и пайплайнами CI/CD (GitHub Actions, Argo CD). Использовать ИИ для генерации базовых конфигураций и статических проверок.
 - Поддерживать `env.example` и шаблоны `.env`/секретов. Проверять актуальность файла с помощью автоматизированных напоминаний и ревью с участием ИИ.
 - Задокументировать процесс локального развёртывания и подготовки секретов в `docs/`. Предварительно сгенерировать инструкции на основе подсказок ИИ и затем валидировать вручную.
+- Зафиксировать обязательные версии инструментов (Node.js 20 LTS, Corepack, `pnpm@9`) для фронтенда в общих гайдах и README.
 
 ### Прогресс
 - ✅ Автоматизирован быстрый старт окружения: `scripts/bootstrap-local.sh` выполняет синхронизацию `.env`, запуск `docker compose`, настройку RabbitMQ, миграции, seeds и smoke-проверку с агрегированным отчётом; документация (`README.md`, `docs/local-setup.md`) дополнена разделами «Быстрый старт» с перечислением зависимостей и последовательности шагов.【F:scripts/bootstrap-local.sh†L1-L133】【F:README.md†L5-L22】【F:docs/local-setup.md†L1-L33】
@@ -20,6 +21,7 @@
 - ✅ Обновлены переменные окружения и инструкции: `env.example` включает согласованные порты и адреса SSE-потоков Gateway, а в `docs/local-setup.md` отражены проверки heartbeat и маршруты для обновлённых портов. Исправлены несоответствия, вызывавшие ошибки SSE и конфликт портов при локальном запуске.【F:env.example†L97-L134】【F:docs/local-setup.md†L8-L34】
 - ✅ Добавлены переменные `AUTH_JWT_ISSUER`, `AUTH_JWT_SECRET`, `AUTH_JWT_AUDIENCE`, а также значения TTL для access/refresh токенов — шаблон `env.example` служит единой точкой правды для всех команд и синхронизирован с конфигурацией Auth.【F:env.example†L120-L143】
 - ✅ Фронтенд-документация и локальный гайд актуализированы: `frontend/README.md` ссылается на обновлённые переменные окружения, а `docs/local-setup.md` подчёркивает обязательность пересборки `.env` после изменения JWT-настроек Auth.【F:frontend/README.md†L1-L75】【F:docs/local-setup.md†L55-L71】
+- ✅ Требования локальной среды уточнены: фронтенд переведён на Next.js 15 и React 19, а документация фиксирует установку Node.js 20 LTS, включение Corepack и активацию `pnpm@9` перед запуском фронтенда.【F:docs/local-setup.md†L34-L60】【F:docs/dependencies.md†L8-L41】【F:docs/tech-stack.md†L104-L136】【F:frontend/README.md†L6-L36】
 - ✅ Синхронизированы SSE-маршруты Gateway: публичный поток `/api/v1/streams/deals` и алиас `/api/v1/streams/crm` задокументированы, а e2e-тест подтверждает проксирование через upstream `crm` для этапа миграции.【F:backend/gateway/README.md†L18-L32】【F:docs/api/streams.md†L16-L36】【F:backend/gateway/test/app.e2e-spec.ts†L123-L156】
 - ✅ Инструкция по полной очистке локальной среды уточнена: `docs/local-setup.md` рекомендует `docker compose down -v`, удаление только игнорируемых каталогов данных в `infra/` и подчёркивает возможность восстановить seed-файлы через `git checkout -- backups/postgres/seeds`.
 - ✅ Канал платежей активирован на Gateway: настроен `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL`, добавлен публичный маршрут `GET /api/v1/streams/payments`, обновлены тесты и документация, чтобы поток оставался доступным без ошибок 503.【F:backend/gateway/src/config/upstreams.config.ts†L39-L77】【F:backend/gateway/src/sse/sse.controller.ts†L20-L32】【F:backend/gateway/test/app.e2e-spec.ts†L152-L229】【F:docs/api/streams.md†L46-L73】
@@ -48,12 +50,15 @@
 - После реализации сервисов синхронизировать `env.example`, схемы очередей и инструкции запуска. ИИ используется для автоматической проверки несоответствий в конфигурациях.
 
 ## Этап 4. Фронтенд и UX
-- Поддерживать Next.js 14 (App Router) проект с React Query, Zustand, интеграцией REST/SSE, сборкой в CI/CD. ИИ помогает в генерации компонентов, хуков и тестов Playwright.
+- Поддерживать Next.js 15 (App Router) проект на React 19 с React Query, Zustand, интеграцией REST/SSE, сборкой в CI/CD. ИИ помогает в генерации компонентов, хуков и тестов Playwright.
 - Разработать дизайн-токены и макеты в `docs/frontend/`, `docs/frontend/mockups`. Использовать ИИ для прототипирования визуальных компонентов, генерации токенов и описаний UX.
+- Поддерживать Next.js 14 (App Router) проект с React Query, Zustand, интеграцией REST/SSE, сборкой в CI/CD. ИИ помогает в генерации компонентов, хуков и тестов Playwright.
+- Разработать дизайн-токены и макеты в `docs/frontend/`, `docs/frontend/mockups`, синхронизируя рабочие JSON и индекс в `frontend/src/design-tokens`. Использовать ИИ для прототипирования визуальных компонентов, генерации токенов и описаний UX.
 - Вести README и Storybook-инструкции, фиксируя сценарии для ролей. ИИ применяется для генерации пользовательских сценариев и проверки согласованности терминов.
 
 ### Прогресс этапа 4
 - ✅ Улучшен локальный старт фронтенда: скрипты `pnpm dev`/`pnpm start` автоматически пробрасывают `FRONTEND_SERVICE_PORT` в `PORT`, Playwright использует ту же переменную, а документация (`frontend/README.md`, `docs/local-setup.md`, `env.example`) объясняет переопределение порта для Next.js.【F:frontend/package.json†L7-L11】【F:frontend/scripts/run-with-port.mjs†L1-L28】【F:frontend/playwright.config.ts†L3-L29】【F:frontend/README.md†L8-L42】【F:docs/local-setup.md†L76-L101】【F:env.example†L118-L133】
+- ✅ Подписи источников в NotificationCenter унифицированы (CRM, Платежи, Уведомления), добавлен компонентный тест и актуализирована документация `docs/frontend/notifications.md`.
 
 ## Этап 5. Тестовые данные, QA и документация
 - Подготовить seed-наборы для Auth, CRM/Deals, Payments, Documents, Tasks, Notifications в `backups/postgres/seeds`. ИИ помогает генерировать репрезентативные данные и сценарии проверки.

@@ -26,9 +26,11 @@
 ### Требования
 
 - Docker Desktop/Engine с поддержкой Compose V2.
-- Poetry и JDK 17+ для запуска Gradle wrapper Auth.
-- Рекомендуемые CLI: `python3`, `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - Python 3 и Poetry (для CRM/Deals), JDK 17+ для запуска Gradle wrapper Auth.
+- Node.js 20 LTS для фронтенда. Установите LTS-версию с сайта [nodejs.org](https://nodejs.org) или через менеджер версий, затем выполните подготовку менеджера пакетов:
+  1. `corepack enable` — включает Corepack глобально.
+  2. `corepack prepare pnpm@9 --activate` — активирует требуемую версию pnpm.
+- Рекомендуемые CLI: `python3`, `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
 - Доступ к интернету для скачивания зависимостей при первом запуске сервисов.
 
