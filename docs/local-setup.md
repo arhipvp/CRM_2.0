@@ -20,6 +20,14 @@
 1. Выберите сервис и перейдите по ссылке README.
 2. Проверьте переменные окружения в [`env.example`](../env.example) — для каждого сервиса указан порт и URL запуска.
 3. Настройте базы данных и очереди (см. [«Инфраструктура» в tech-stack](tech-stack.md#инфраструктура)) и запускайте сервис локально или в Docker согласно инструкции.
+
+### Gateway / BFF: быстрый старт
+
+- Перейдите в `backend/gateway` и установите зависимости (`pnpm install`).
+- Скопируйте `env.example` из корня репозитория (`cp ../../env.example .env`) или экспортируйте переменные окружения вручную. Минимально нужны `GATEWAY_SERVICE_PORT`, `GATEWAY_SERVICE_HOST`, `GATEWAY_BASE_URL`.
+- Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
+- Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
+
 # Локальная инфраструктура: пошаговая инструкция
 
 Эта инструкция покрывает подготовку переменных окружения, запуск Docker Compose и базовую проверку вспомогательных сервисов, необходимых для разработки CRM.
