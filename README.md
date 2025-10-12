@@ -2,6 +2,23 @@
 
 **Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Технологический стек](docs/tech-stack.md), [API](docs/api/README.md), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md), [Бэкапы](backups/README.md)
 
+## Быстрый старт
+
+```bash
+./scripts/bootstrap-local.sh
+```
+
+Сценарий последовательно выполняет ключевые шаги локальной подготовки и печатает агрегированную таблицу статусов:
+
+1. синхронизация `.env` через `scripts/sync-env.sh` (создаёт файл или обновляет значения из `env.example`);
+2. запуск инфраструктуры `docker compose up -d` в каталоге `infra/`;
+3. автоматическая настройка RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
+4. миграции CRM/Auth через `scripts/migrate-local.sh`;
+5. загрузка seed-данных, если существует `scripts/load-seeds.sh`;
+6. smoke-проверка окружения `scripts/check-local-infra.sh`.
+
+Для успешного выполнения необходимы Docker с Compose V2, Python 3, Poetry, JDK 17+ (для Gradle wrapper в `backend/auth`) и доступные CLI `psql`, `redis-cli`, `curl` из `PATH`. Скрипт автоматически выдаёт предупреждение о пропущенных шагах и сохраняет логи неудачных этапов во временной директории.
+
 1. Общее представление
 CRM предназначена для небольшой команды страховых агентов, которые ведут клиентов по долгосрочным страховым сделкам. Система концентрирует данные о клиентах, сделках, полисах, платежах и связанных документах, распределяет задачи между пользователями и обеспечивает контроль по ключевым событиям. Архитектурный черновик уже выделяет целевые сервисы (Gateway, Auth, CRM/Deals, Payments, Documents, Tasks, Notifications, Reports, Audit, Backup) — ниже зафиксированы их бизнес-требования и взаимосвязи. Состав первой поставки и критерии готовности описаны в документе [`docs/delivery-plan.md`](docs/delivery-plan.md). Подробные спецификации REST/SSE интерфейсов находятся в каталоге [`docs/api`](docs/api/README.md), а форматы интеграционных событий зафиксированы в [`docs/integration-events.md`](docs/integration-events.md).
 
@@ -27,6 +44,7 @@ CRM предназначена для небольшой команды стра
 - Backups: [`backups/README.md`](backups/README.md) — скрипты и артефакты резервного копирования.【F:backups/README.md†L1-L8】
 ## Запуск окружения разработки
 
+Подробная инструкция с альтернативными ручными шагами описана в [`docs/local-setup.md`](docs/local-setup.md). Используйте её, если нужно выполнить подготовку выборочно или воспроизвести отдельный этап. Перед стартом приложений дополнительно можно выполнить smoke-check `./scripts/check-local-infra.sh`, чтобы убедиться в доступности PostgreSQL, Redis, Consul и RabbitMQ Management UI.
 Для быстрого старта выполните `./scripts/bootstrap-local.sh`: скрипт проверит наличие `.env`, поднимет инфраструктуру через `docker compose`, настроит RabbitMQ и применит миграции CRM/Auth. Подробности и требования перечислены в разделе [`docs/local-setup.md`](docs/local-setup.md). Если требуется ручной контроль каждого шага, воспользуйтесь fallback-инструкцией из того же документа. Перед стартом приложений рекомендуем запустить smoke-check `./scripts/check-local-infra.sh` (требуются `psql`, `redis-cli` и `curl`), чтобы автоматически убедиться в доступности PostgreSQL, Redis, Consul и RabbitMQ Management UI.
 
 2. Пользовательские роли
