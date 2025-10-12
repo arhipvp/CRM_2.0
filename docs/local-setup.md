@@ -24,9 +24,9 @@
 ### Gateway / BFF: быстрый старт
 
 - Перейдите в `backend/gateway` и установите зависимости (`pnpm install`).
-- Скопируйте `env.example` из корня репозитория (`cp ../../env.example .env`) или экспортируйте переменные окружения вручную. Минимально нужны `GATEWAY_SERVICE_PORT`, `GATEWAY_SERVICE_HOST`, `GATEWAY_BASE_URL`.
+- Скопируйте `env.example` из корня репозитория (`cp ../../env.example .env`) или экспортируйте переменные окружения вручную. Минимально нужны `GATEWAY_SERVICE_PORT`, `GATEWAY_SERVICE_HOST`, `GATEWAY_BASE_URL`, блок `GATEWAY_UPSTREAM_*`, а также `REDIS_*` и `CONSUL_*` для подключения к инфраструктуре.
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
-- Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
+- Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
 
 # Локальная инфраструктура: пошаговая инструкция
 

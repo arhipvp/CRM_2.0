@@ -2,9 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 
-import type { UpstreamsConfig } from '../config/upstreams.config';
-import { UpstreamSseService } from './upstream-sse.service';
-import { SseController } from './sse.controller';
+import type { UpstreamsConfig } from '../../config/upstreams.config';
+import { RestProxyService } from './rest-proxy.service';
 
 @Module({
   imports: [
@@ -21,7 +20,7 @@ import { SseController } from './sse.controller';
       }
     })
   ],
-  controllers: [SseController],
-  providers: [UpstreamSseService]
+  providers: [RestProxyService],
+  exports: [RestProxyService]
 })
-export class SseModule {}
+export class ProxyModule {}
