@@ -202,6 +202,34 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 ## 5. Проверка доступности сервисов
 
+### Автоматизированный smoke-check
+
+1. Убедитесь, что в корне репозитория лежит актуальный `.env` (обновлён через `./scripts/sync-env.sh`).
+2. Проверьте установку утилит, которые использует скрипт:
+   - `psql` (PostgreSQL client);
+   - `redis-cli`;
+   - `curl`.
+3. Выполните из корня репозитория:
+
+   ```bash
+   ./scripts/check-local-infra.sh
+   ```
+
+4. Ожидаемый вывод при успешном запуске (значения в колонке «Комментарий» могут отличаться, но статус должен быть `OK`):
+
+   ```text
+   Проверка           | Статус | Комментарий
+   ------------------+--------+--------------------------------
+   PostgreSQL        | OK     | SELECT 1 выполнен
+   Redis             | OK     | PING → PONG
+   Consul            | OK     | Лидер: "127.0.0.1:8300"
+   RabbitMQ UI       | OK     | UI доступен
+   ```
+
+Скрипт читает параметры подключения из `.env` (`DATABASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR`, `RABBITMQ_MANAGEMENT_URL`, `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`) и завершается с ненулевым кодом, если какой-либо сервис недоступен. Используйте это поведение в автоматизированных сценариях или CI на будущее.
+
+### Ручные проверки (при необходимости)
+
 | Сервис         | Проверка                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------ |
 | PostgreSQL     | `psql postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB -c "SELECT 1"` |
