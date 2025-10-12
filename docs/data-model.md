@@ -190,7 +190,7 @@ erDiagram
 
 | Схема | Обязательные записи |
 | --- | --- |
-| `auth` | Справочник ролей (`admin`, `sales_agent`, `finance`, `underwriter`, `bot`). Системный пользователь `system` для фоновых процессов. OAuth-клиент для фронтенда. |
+| `auth` | Справочник ролей (`admin`, `sales_agent`, `finance`, `manager`, `executor`, `bot`). Системный пользователь `system` для фоновых процессов. OAuth-клиент для фронтенда. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 | `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned`, `pending`, `settled`, `cancelled`). |
 | `tasks` | Справочник статусов задач (`new`, `in_progress`, `waiting`, `done`, `cancelled`) и SLA-профилей по ролям (связь с `auth.roles`). |
