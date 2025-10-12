@@ -22,6 +22,8 @@
 - **Тип обмена:** topic
 - **Очереди-потребители:** `crm.payments`, `tasks.payments`, `notifications.payments`, `audit.payments`
 
+> **Примечание:** все события Payments публикуются только с валютой `RUB` в полях данных.
+
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
 | `payment.created` | `payments.payment.created` | `{ "payment_id": "uuid", "deal_id": "uuid", "policy_id": "uuid", "amount": 12345.67, "currency": "RUB", "planned_date": "date", "payment_type": "client_premium" }` | CRM сверяет `payment_id`; при повторе обновляет данные, сохраняя `event_id`. |

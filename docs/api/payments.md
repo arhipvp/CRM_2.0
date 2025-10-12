@@ -36,7 +36,7 @@
 | payment_type | string | Да | Тип платежа. |
 | planned_date | date | Нет | Плановая дата. |
 | amount | number | Да | Сумма. |
-| currency | string | Да | Валюта. |
+| currency | string | Да | Валюта. Допустимо только значение `RUB`. |
 | direction | string | Да | `inbound` или `outbound`. |
 | notes | string | Нет | Примечание. |
 
@@ -122,5 +122,5 @@
 | 403 | `forbidden` | Нет прав на операцию. |
 | 404 | `not_found` | Платёж/ресурс не найден. |
 | 409 | `conflict` | Конфликт версий. |
-| 422 | `currency_mismatch` | Валюта не поддерживается. |
+| 422 | `invalid_currency_value` | Поле `currency` поддерживает только значение `RUB`. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
