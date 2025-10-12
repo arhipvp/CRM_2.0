@@ -66,6 +66,35 @@
 3. Проверьте статус: `docker compose ps` — все контейнеры должны находиться в состоянии `Up` или `healthy`.
 4. Для завершения работы выполните `docker compose down` (с флагом `-v`, если нужно очистить данные).
 
+### Создайте пользователей и vhost-ы RabbitMQ для сервисов
+
+По умолчанию Docker Compose создаёт пользователя и виртуальный хост `crm`, которых достаточно для базового запуска. Сервисы
+`payments`, `notifications`, `tasks` и `audit` используют собственные учётные записи и vhost-ы — их нужно создать вручную до
+первого запуска приложений. Имена и пароли совпадают с шаблоном в [`env.example`](../env.example), например `PAYMENTS_RABBITMQ_URL`.
+
+Пример последовательности команд через `rabbitmqctl` (выполняйте внутри контейнера RabbitMQ):
+
+```bash
+docker compose exec rabbitmq bash -c '
+  rabbitmqctl add_vhost payments &&
+  rabbitmqctl add_user payments payments &&
+  rabbitmqctl set_permissions -p payments payments ".*" ".*" ".*" &&
+  rabbitmqctl add_vhost notifications &&
+  rabbitmqctl add_user notifications notifications &&
+  rabbitmqctl set_permissions -p notifications notifications ".*" ".*" ".*" &&
+  rabbitmqctl add_vhost tasks &&
+  rabbitmqctl add_user tasks tasks &&
+  rabbitmqctl set_permissions -p tasks tasks ".*" ".*" ".*" &&
+  rabbitmqctl add_vhost audit &&
+  rabbitmqctl add_user audit audit &&
+  rabbitmqctl set_permissions -p audit audit ".*" ".*" ".*"
+'
+```
+
+> ℹ️ При желании можно использовать [`rabbitmqadmin`](https://www.rabbitmq.com/docs/rabbitmqadmin) и оформить команды в отдельный скрипт — положите его в `infra/` рядом с `docker-compose.yml` и привяжите к своим процессам автоматизации.
+
+После выполнения команд убедитесь, что пользователи и vhost-ы появились: `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
+
 ## 3. Проверьте создание схем и ролей PostgreSQL
 
 Скрипт `infra/postgres/init.sh` автоматически создаёт схемы и роли, указанные в `.env`. Чтобы убедиться, что всё применилось:
