@@ -9,16 +9,16 @@ pnpm install
 pnpm dev
 ```
 
-Приложение откроется на [http://localhost:3000](http://localhost:3000). Для корректной работы подключите REST Gateway и SSE-потоки в `.env` (см. раздел «Переменные окружения»). Быстрее всего синхронизировать файл через `../scripts/sync-env.sh frontend` — скрипт предупредит о перезаписи, после чего нужно обновить публичные токены и чувствительные значения.
+Приложение откроется на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`. Для корректной работы подключите REST Gateway и SSE-потоки в `.env` (см. раздел «Переменные окружения»). Быстрее всего синхронизировать файл через `../scripts/sync-env.sh frontend` — скрипт предупредит о перезаписи, после чего нужно обновить публичные токены и чувствительные значения.
 Локальный запуск не требует настройки кастомных доменов: все публичные URL по умолчанию указывают на `http://localhost` и порт Gateway из `env.example`.
 
 ### Основные скрипты
 
 | Скрипт            | Назначение                                        |
 | ----------------- | ------------------------------------------------- |
-| `pnpm dev`        | локальный сервер разработки Next.js               |
+| `pnpm dev`        | локальный сервер разработки Next.js (учитывает `FRONTEND_SERVICE_PORT`/`PORT`) |
 | `pnpm build`      | сборка production-бандла (standalone)             |
-| `pnpm start`      | запуск собранного бандла                          |
+| `pnpm start`      | запуск собранного бандла (учитывает `FRONTEND_SERVICE_PORT`/`PORT`) |
 | `pnpm lint`       | ESLint (включая проверки Storybook)               |
 | `pnpm test`       | Vitest + React Testing Library с покрытием        |
 | `pnpm test:watch` | Vitest в watch-режиме                             |
@@ -67,6 +67,11 @@ docker build -f Dockerfile -t crm-frontend .
 ```
 
 Контейнер запускает standalone-сборку Next.js (`node server.js` на порту 3000).
+
+## Переопределение порта
+
+- `pnpm dev` и `pnpm start` автоматически пробрасывают `PORT=${FRONTEND_SERVICE_PORT:-3000}`. Чтобы сменить порт, выполните `FRONTEND_SERVICE_PORT=3100 pnpm dev` или установите `PORT=3100` в окружении.
+- E2E-тесты Playwright используют ту же переменную (`process.env.FRONTEND_SERVICE_PORT`), поэтому при изменении порта достаточно экспортировать её один раз перед запуском `pnpm test:e2e`.
 
 ## Полезные ссылки
 

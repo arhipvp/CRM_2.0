@@ -52,6 +52,9 @@
 - Разработать дизайн-токены и макеты в `docs/frontend/`, `docs/frontend/mockups`. Использовать ИИ для прототипирования визуальных компонентов, генерации токенов и описаний UX.
 - Вести README и Storybook-инструкции, фиксируя сценарии для ролей. ИИ применяется для генерации пользовательских сценариев и проверки согласованности терминов.
 
+### Прогресс этапа 4
+- ✅ Улучшен локальный старт фронтенда: скрипты `pnpm dev`/`pnpm start` автоматически пробрасывают `FRONTEND_SERVICE_PORT` в `PORT`, Playwright использует ту же переменную, а документация (`frontend/README.md`, `docs/local-setup.md`, `env.example`) объясняет переопределение порта для Next.js.【F:frontend/package.json†L7-L11】【F:frontend/scripts/run-with-port.mjs†L1-L28】【F:frontend/playwright.config.ts†L3-L29】【F:frontend/README.md†L8-L42】【F:docs/local-setup.md†L76-L101】【F:env.example†L118-L133】
+
 ## Этап 5. Тестовые данные, QA и документация
 - Подготовить seed-наборы для Auth, CRM/Deals, Payments, Documents, Tasks, Notifications в `backups/postgres/seeds`. ИИ помогает генерировать репрезентативные данные и сценарии проверки.
 - Настроить процедуры загрузки seed-данных и контрольных запросов, задокументировать процесс для разработчиков и QA.
