@@ -1,8 +1,143 @@
 version: "3.9"
+
 services:
-  # Здесь позже добавим postgres, minio, redis, backup и т.д.
-  # Пример см. в предыдущих шагах.
-  placeholder:
-    image: alpine:3.20
-    command: ["sh","-c","echo 'infra placeholder'; sleep 3600"]
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm-postgres
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crm}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+      PGTZ: ${TIMEZONE:-Europe/Moscow}
+      AUTH_DB_USER: ${AUTH_DB_USER:-auth}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth}
+      CRM_DB_USER: ${CRM_DB_USER:-crm}
+      CRM_DB_PASSWORD: ${CRM_DB_PASSWORD:-crm}
+      PAYMENTS_DB_USER: ${PAYMENTS_DB_USER:-payments}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:-payments}
+      DOCUMENTS_DB_USER: ${DOCUMENTS_DB_USER:-documents}
+      DOCUMENTS_DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD:-documents}
+      TASKS_DB_USER: ${TASKS_DB_USER:-tasks}
+      TASKS_DB_PASSWORD: ${TASKS_DB_PASSWORD:-tasks}
+      NOTIFICATIONS_DB_USER: ${NOTIFICATIONS_DB_USER:-notifications}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:-notifications}
+      AUDIT_DB_USER: ${AUDIT_DB_USER:-audit}
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:-audit}
+      BACKUP_DB_USER: ${BACKUP_DB_USER:-backup}
+      BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:-backup}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infra
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: crm-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-crm}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-crm}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-crm}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infra
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infra
+
+  consul:
+    image: hashicorp/consul:1.16
+    container_name: crm-consul
+    restart: unless-stopped
+    command:
+      - agent
+      - -server
+      - -bootstrap-expect=1
+      - -ui
+      - -client=0.0.0.0
+      - -bind=0.0.0.0
+      - -data-dir=/consul/data
+    ports:
+      - "${CONSUL_HTTP_PORT:-8500}:8500"
+      - "${CONSUL_DNS_PORT:-8600}:8600/udp"
+      - "${CONSUL_GRPC_PORT:-8502}:8502"
+    volumes:
+      - consul_data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "info"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - infra
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: crm-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - infra
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: crm-mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_HTTP_PORT:-8025}:8025"
+    networks:
+      - infra
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+  consul_data:
+  pgadmin_data:
+
+networks:
+  infra:
+    driver: bridge
