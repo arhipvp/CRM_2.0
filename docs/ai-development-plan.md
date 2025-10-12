@@ -10,6 +10,7 @@
 - Задокументировать процесс локального развёртывания и подготовки секретов в `docs/`. Предварительно сгенерировать инструкции на основе подсказок ИИ и затем валидировать вручную.
 
 ### Прогресс
+- ✅ Улучшены автоматизированные smoke-проверки инфраструктуры: `scripts/check-local-infra.sh` по умолчанию использует `docker compose exec`, обрабатывает остановленные контейнеры и логирует выбранный режим; обновлён `docs/local-setup.md` с описанием требований и fallback-сценариев. 【F:scripts/check-local-infra.sh†L1-L192】【F:docs/local-setup.md†L137-L164】
 - ✅ Автоматизировано создание vhost-ов RabbitMQ: скрипт `infra/rabbitmq/bootstrap.sh` читает `*_RABBITMQ_URL` из `.env`, а в `docs/local-setup.md` описан идемпотентный сценарий запуска; `env.example` служит единым источником правды для перечисления очередей.【F:infra/rabbitmq/bootstrap.sh†L1-L115】【F:docs/local-setup.md†L101-L133】【F:env.example†L33-L75】
 - ✅ Обновлены переменные окружения и инструкции: `env.example` включает согласованные порты и адреса SSE-потоков Gateway, а в `docs/local-setup.md` отражены проверки heartbeat и маршруты для обновлённых портов. Исправлены несоответствия, вызывавшие ошибки SSE и конфликт портов при локальном запуске.【F:env.example†L97-L134】【F:docs/local-setup.md†L8-L34】
 - ✅ Добавлены переменные `AUTH_JWT_ISSUER`, `AUTH_JWT_SECRET`, `AUTH_JWT_AUDIENCE`, а также значения TTL для access/refresh токенов — шаблон `env.example` служит единой точкой правды для всех команд и синхронизирован с конфигурацией Auth.【F:env.example†L120-L143】
