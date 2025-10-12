@@ -18,6 +18,16 @@
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
 7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI.
 
+После завершения bootstrap синхронизируйте фронтендовый `.env` и, при необходимости, поднимите Next.js-контейнер:
+
+```bash
+./scripts/sync-env.sh frontend
+cd infra
+docker compose --profile app up -d frontend
+```
+
+Профиль `app` гарантирует, что фронтенд не стартует автоматически при стандартном `docker compose up -d` в bootstrap-скрипте. Контейнер подключается к сети `infra` и использует сервис `gateway` внутри сети (`http://gateway:8080`). Если вы запускаете Gateway на хостовой машине, оставьте переменную `GATEWAY_SERVICE_PORT` в `.env` и используйте проброс `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` (хост добавлен в `extra_hosts` для Linux).
+
 ### Режимы синхронизации `.env`
 
 - **Интерактивный** (значение по умолчанию). При запуске `./scripts/sync-env.sh` без дополнительных флагов скрипт проверяет наличие существующего `.env` и предлагает на выбор: перезаписать файл, пропустить каталог или прервать операцию. Подходит для ручного обновления, когда нужно свериться с изменениями.
