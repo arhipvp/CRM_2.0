@@ -1,5 +1,22 @@
-import { activitiesMock, clientsMock, dealsMock, paymentsMock, tasksMock } from "@/mocks/data";
-import { ActivityLogEntry, Client, Deal, Payment, Task } from "@/types/crm";
+import {
+  activitiesMock,
+  clientsMock,
+  dealDocumentsMock,
+  dealNotesMock,
+  dealsMock,
+  paymentsMock,
+  tasksMock,
+} from "@/mocks/data";
+import {
+  ActivityLogEntry,
+  Client,
+  Deal,
+  DealDocument,
+  DealNote,
+  Payment,
+  Task,
+} from "@/types/crm";
+import { createRandomId } from "@/lib/utils/id";
 
 export interface ApiClientConfig {
   baseUrl?: string;
@@ -73,6 +90,32 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export interface DealTaskPayload {
+  title: string;
+  dueDate?: string;
+  owner?: string;
+}
+
+export interface DealNotePayload {
+  content: string;
+}
+
+export interface DealDocumentPayload {
+  title: string;
+  fileName: string;
+  fileSize: number;
+  url?: string;
+}
+
+export interface UpdateDealPayload {
+  name?: string;
+  stage?: Deal["stage"];
+  value?: number;
+  probability?: number;
+  expectedCloseDate?: string | null;
+  owner?: string;
 }
 
 export class ApiClient {
@@ -182,8 +225,38 @@ export class ApiClient {
     }
   }
 
-  getDeals(): Promise<Deal[]> {
-    return this.request("/crm/deals", undefined, async () => dealsMock);
+  private buildQueryString(filters?: DealFilters): string {
+    if (!filters) {
+      return "";
+    }
+
+    const params = new URLSearchParams();
+
+    if (filters.stage && filters.stage !== "all") {
+      params.set("stage", filters.stage);
+    }
+
+    if (filters.managers && filters.managers.length > 0) {
+      for (const manager of filters.managers) {
+        params.append("manager", manager);
+      }
+    }
+
+    if (filters.period && filters.period !== "all") {
+      params.set("period", filters.period);
+    }
+
+    if (filters.search) {
+      params.set("search", filters.search);
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  getDeals(filters?: DealFilters): Promise<Deal[]> {
+    const query = this.buildQueryString(filters);
+    return this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
   }
 
   getDeal(id: string): Promise<Deal> {
@@ -192,8 +265,161 @@ export class ApiClient {
       if (!deal) {
         throw new ApiError("Deal not found", 404);
       }
-      return deal;
+
+      const tasks = tasksMock.filter((item) => item.dealId === id);
+      const notes = dealNotesMock.filter((item) => item.dealId === id);
+      const documents = dealDocumentsMock.filter((item) => item.dealId === id);
+      const payments = paymentsMock.filter((item) => item.dealId === id);
+      const activity = activitiesMock.filter((item) => item.dealId === id);
+
+      return {
+        ...deal,
+        tasks,
+        notes,
+        documents,
+        payments,
+        activity,
+      };
     });
+  }
+
+  getDealTasks(dealId: string): Promise<Task[]> {
+    return this.request(`/crm/deals/${dealId}/tasks`, undefined, async () =>
+      tasksMock.filter((task) => task.dealId === dealId),
+    );
+  }
+
+  createDealTask(dealId: string, payload: DealTaskPayload): Promise<Task> {
+    return this.request(
+      `/crm/deals/${dealId}/tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const deal = dealsMock.find((item) => item.id === dealId);
+        const task: Task = {
+          id: createRandomId(),
+          title: payload.title,
+          dueDate: payload.dueDate ?? new Date().toISOString(),
+          completed: false,
+          owner: payload.owner ?? deal?.owner ?? "",
+          dealId,
+          clientId: deal?.clientId,
+        };
+        tasksMock.unshift(task);
+        return task;
+      },
+    );
+  }
+
+  getDealNotes(dealId: string): Promise<DealNote[]> {
+    return this.request(`/crm/deals/${dealId}/notes`, undefined, async () =>
+      dealNotesMock.filter((note) => note.dealId === dealId),
+    );
+  }
+
+  createDealNote(dealId: string, payload: DealNotePayload): Promise<DealNote> {
+    return this.request(
+      `/crm/deals/${dealId}/notes`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const note: DealNote = {
+          id: createRandomId(),
+          dealId,
+          author: "Вы",
+          content: payload.content,
+          createdAt: new Date().toISOString(),
+        };
+        dealNotesMock.unshift(note);
+        return note;
+      },
+    );
+  }
+
+  getDealDocuments(dealId: string): Promise<DealDocument[]> {
+    return this.request(`/crm/deals/${dealId}/documents`, undefined, async () =>
+      dealDocumentsMock.filter((doc) => doc.dealId === dealId),
+    );
+  }
+
+  uploadDealDocument(dealId: string, payload: DealDocumentPayload): Promise<DealDocument> {
+    return this.request(
+      `/crm/deals/${dealId}/documents`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const document: DealDocument = {
+          id: createRandomId(),
+          dealId,
+          title: payload.title,
+          fileName: payload.fileName,
+          fileSize: payload.fileSize,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: "Вы",
+          url: payload.url,
+        };
+        dealDocumentsMock.unshift(document);
+        return document;
+      },
+    );
+  }
+
+  getDealPayments(dealId: string): Promise<Payment[]> {
+    return this.request(`/crm/deals/${dealId}/payments`, undefined, async () =>
+      paymentsMock.filter((payment) => payment.dealId === dealId),
+    );
+  }
+
+  getDealActivity(dealId: string): Promise<ActivityLogEntry[]> {
+    return this.request(`/crm/deals/${dealId}/activity`, undefined, async () =>
+      activitiesMock.filter((entry) => entry.dealId === dealId),
+    );
+  }
+
+  updateDeal(dealId: string, payload: UpdateDealPayload): Promise<Deal> {
+    return this.request(
+      `/crm/deals/${dealId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const deal = dealsMock.find((item) => item.id === dealId);
+        if (!deal) {
+          throw new ApiError("Deal not found", 404);
+        }
+
+        if (payload.name !== undefined) {
+          deal.name = payload.name;
+        }
+        if (payload.stage !== undefined) {
+          deal.stage = payload.stage;
+        }
+        if (payload.value !== undefined) {
+          deal.value = payload.value;
+        }
+        if (payload.probability !== undefined) {
+          deal.probability = payload.probability;
+        }
+        if (payload.owner !== undefined) {
+          deal.owner = payload.owner;
+        }
+
+        if (payload.expectedCloseDate !== undefined) {
+          deal.expectedCloseDate = payload.expectedCloseDate ?? undefined;
+        }
+
+        deal.updatedAt = new Date().toISOString();
+
+        return this.getDeal(dealId);
+      },
+    );
   }
 
   getClients(): Promise<Client[]> {
@@ -241,6 +467,111 @@ export class ApiClient {
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );
   }
+}
+
+const DAY_IN_MS = 86_400_000;
+
+const DEAL_STAGE_ORDER: DealStage[] = [
+  "qualification",
+  "negotiation",
+  "proposal",
+  "closedWon",
+  "closedLost",
+];
+
+function getPeriodStart(period: DealPeriodFilter | undefined): number | undefined {
+  switch (period) {
+    case "7d":
+      return Date.now() - DAY_IN_MS * 7;
+    case "30d":
+      return Date.now() - DAY_IN_MS * 30;
+    case "90d":
+      return Date.now() - DAY_IN_MS * 90;
+    default:
+      return undefined;
+  }
+}
+
+function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
+  const normalizedManagers = filters?.managers?.map((name) => name.toLowerCase());
+  const search = filters?.search?.trim().toLowerCase();
+  const periodStart = getPeriodStart(filters?.period);
+  const stageFilter = filters?.stage && filters.stage !== "all" ? filters.stage : undefined;
+
+  return deals
+    .filter((deal) => {
+      if (stageFilter && deal.stage !== stageFilter) {
+        return false;
+      }
+
+      if (normalizedManagers && normalizedManagers.length > 0) {
+        if (!normalizedManagers.includes(deal.owner.toLowerCase())) {
+          return false;
+        }
+      }
+
+      if (periodStart && new Date(deal.updatedAt).getTime() < periodStart) {
+        return false;
+      }
+
+      if (search) {
+        const haystack = `${deal.name} ${deal.clientName}`.toLowerCase();
+        if (!haystack.includes(search)) {
+          return false;
+        }
+      }
+
+      return true;
+    })
+    .map((deal) => ({ ...deal }));
+}
+
+function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
+  const baselineCount = deals.filter((deal) => deal.stage === "qualification").length;
+  const now = Date.now();
+
+  return DEAL_STAGE_ORDER.map((stage, index) => {
+    const stageDeals = deals.filter((deal) => deal.stage === stage);
+    const count = stageDeals.length;
+    const totalValue = stageDeals.reduce((acc, deal) => acc + deal.value, 0);
+    const conversionRate =
+      index === 0
+        ? 1
+        : baselineCount > 0
+          ? Math.max(0, Math.min(1, count / baselineCount))
+          : 0;
+    const avgCycleDurationDays =
+      stageDeals.length === 0
+        ? null
+        : Number.parseFloat(
+            (
+              stageDeals.reduce((acc, deal) => acc + (now - new Date(deal.updatedAt).getTime()), 0) /
+              stageDeals.length /
+              DAY_IN_MS
+            ).toFixed(1),
+          );
+
+    return {
+      stage,
+      count,
+      totalValue,
+      conversionRate,
+      avgCycleDurationDays,
+    } satisfies DealStageMetrics;
+  });
+}
+
+function updateDealStageMock(dealId: string, stage: DealStage): Deal {
+  const deal = dealsMock.find((item) => item.id === dealId);
+
+  if (!deal) {
+    throw new ApiError("Deal not found", 404);
+  }
+
+  deal.stage = stage;
+  deal.updatedAt = new Date().toISOString();
+
+  return { ...deal };
 }
 
 export const apiClient = new ApiClient();

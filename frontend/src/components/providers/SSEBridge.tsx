@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
-import { paymentsQueryOptions } from "@/lib/api/queries";
+import { dealQueryOptions, dealsQueryOptions, paymentsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
 
@@ -72,6 +72,7 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 }
 
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
+const dealsQueryKey = dealsQueryOptions().queryKey;
 
 export function SSEBridge({
   apiBaseUrl,
@@ -85,6 +86,7 @@ export function SSEBridge({
   const pushNotification = useUiStore((state) => state.pushNotification);
   const highlightDeal = useUiStore((state) => state.highlightDeal);
   const handlePaymentEvent = useUiStore((state) => state.handlePaymentEvent);
+  const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
 
   const handleCrmMessage = useCallback(
@@ -94,7 +96,10 @@ export function SSEBridge({
 
       if (payload.dealId) {
         highlightDeal(payload.dealId);
+        markDealUpdated(payload.dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
       }
 
       if (payload.message) {
@@ -107,7 +112,7 @@ export function SSEBridge({
         });
       }
     },
-    [highlightDeal, pushNotification],
+    [highlightDeal, markDealUpdated, pushNotification, queryClient],
   );
 
   const handleCrmError = useCallback((event: Event) => {
@@ -139,14 +144,16 @@ export function SSEBridge({
 
       if (effect.highlightDealId) {
         highlightDeal(effect.highlightDealId);
+        markDealUpdated(effect.highlightDealId);
         setTimeout(() => highlightDeal(undefined), 3000);
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(effect.highlightDealId).queryKey });
       }
 
       if (effect.shouldRefetch) {
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
       }
     },
-    [handlePaymentEvent, highlightDeal, queryClient],
+    [handlePaymentEvent, highlightDeal, markDealUpdated, queryClient],
   );
 
   const handlePaymentsError = useCallback((event: Event) => {
