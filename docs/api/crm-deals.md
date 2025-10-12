@@ -183,7 +183,7 @@ CRM хранит метаданные платежей для воронки и 
 | --- | --- | --- |
 | deal_id | UUID | Фильтр по сделке. |
 | policy_id | UUID | Фильтр по полису. |
-| status | array[string] | `planned`, `expected`, `received`, `paid_out`. |
+| status | array[string] | `planned`, `expected`, `received`, `paid_out`, `cancelled`. |
 
 **Ответ 200** — список платежей с ссылкой на `payments` сервис через `external_ref`.
 

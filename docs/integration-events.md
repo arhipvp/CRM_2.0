@@ -28,6 +28,8 @@
 | --- | --- | --- | --- |
 | `payment.created` | `payments.payment.created` | `{ "payment_id": "uuid", "deal_id": "uuid", "policy_id": "uuid", "amount": 12345.67, "currency": "RUB", "planned_date": "date", "payment_type": "client_premium" }` | CRM сверяет `payment_id`; при повторе обновляет данные, сохраняя `event_id`. |
 | `payment.status.changed` | `payments.payment.status_changed` | `{ "payment_id": "uuid", "status": "received", "actual_date": "date", "confirmed_by": "uuid" }` | Потребители ведут таблицу `payment_id` + `status` + `event_id`; повтор с тем же `event_id` игнорируется. |
+
+> Поле `status` принимает значения справочника из [модели данных Payments](data-model.md#справочник-статусов-платежей).
 | `payment.overdue` | `payments.payment.overdue` | `{ "payment_id": "uuid", "deal_id": "uuid", "due_date": "date", "amount": 12345.67 }` | Notifications использует `deduplication_key = payment_id + due_date`. |
 
 ## События Tasks

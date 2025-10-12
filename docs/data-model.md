@@ -96,6 +96,16 @@ erDiagram
 * `payments.payment_history`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `payments.payments(id)`, `FOREIGN KEY (changed_by)` → `auth.users(id)`, индекс по `changed_at`.
 * `payments.payment_schedules`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индекс по `(deal_id, due_date)`, уникальное ограничение `(deal_id, payment_type, due_date)`.
 
+### Справочник статусов платежей
+
+| Код | Русское название | Описание |
+| --- | --- | --- |
+| `planned` | Запланирован | Платёж внесён в график, счёт ещё не выставлен. |
+| `expected` | Ожидается | Счёт отправлен, ожидается подтверждение поступления или списания. |
+| `received` | Получен | Поступление средств на счёт подтверждено. |
+| `paid_out` | Выплачен | Сумма перечислена контрагенту или распределена как комиссия/скидка. |
+| `cancelled` | Отменён | Платёж отменён либо перенесён без движения денег. |
+
 ## Схема `tasks`
 
 ```mermaid
@@ -193,10 +203,8 @@ erDiagram
 | `auth` | Справочник ролей (продавец, исполнитель, финансовый менеджер, руководитель, администратор). Системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. OAuth-клиент для фронтенда. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 
-| `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned` — «Запланирован», `expected` — «Ожидается», `received` — «Получен», `paid_out` — «Выплачен», `cancelled` — «Отменён»). |
-| `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `done` — «Выполнена», `cancelled` — «Отменена») и SLA-профилей по ролям (связь с `auth.roles`). |
-| `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`), статусы (`planned` — «Запланирован», `expected` — «Ожидается», `received` — «Получен», `paid_out` — «Выплачен», `cancelled` — «Отменён»). |
-| `tasks` | Справочник статусов задач (`new`, `in_progress`, `waiting`, `done`, `cancelled`) и SLA-профилей по ролям (связь с `auth.roles`). |
+| `payments` | Типы платежей (`client_premium`, `commission_income`, `client_discount`, `executor_fee`); статусы — см. таблицу «Справочник статусов платежей». |
+| `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `done` — «Выполнена», `cancelled` — «Отменена») и SLA-профили по ролям (связь с `auth.roles`). |
 | `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и корневая папка интеграции с Google Drive. |
 | `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
 | `audit` | Не требует отдельного seed, но создаётся запись о запуске миграций.
