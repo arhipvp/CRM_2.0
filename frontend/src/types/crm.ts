@@ -35,13 +35,15 @@ export interface Task {
   clientId?: string;
 }
 
+export type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";
+
 export interface Payment {
   id: string;
   dealId: string;
   clientId: string;
   amount: number;
   currency: string;
-  status: "pending" | "paid" | "failed";
+  status: PaymentStatus;
   paidAt?: string;
   dueDate: string;
 }
