@@ -1,6 +1,21 @@
 "use client";
 
+import type { NotificationItem } from "@/stores/uiStore";
 import { useUiStore } from "@/stores/uiStore";
+
+const SOURCE_LABELS: Record<NonNullable<NotificationItem["source"]>, string> = {
+  crm: "CRM",
+  payments: "Платежи",
+  notifications: "Уведомления",
+};
+
+function getSourceLabel(source: NotificationItem["source"]): string {
+  if (!source) {
+    return "Уведомления";
+  }
+
+  return SOURCE_LABELS[source] ?? "Уведомления";
+}
 
 export function NotificationCenter() {
   const { notifications, dismissNotification } = useUiStore((state) => ({
@@ -29,7 +44,7 @@ export function NotificationCenter() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{item.source === "crm" ? "CRM" : "Уведомления"}</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{getSourceLabel(item.source)}</p>
               <p className="text-sm text-slate-600 dark:text-slate-200">{item.message}</p>
               <time className="text-xs text-slate-400" dateTime={item.timestamp}>
                 {new Intl.DateTimeFormat("ru-RU", { timeStyle: "short" }).format(new Date(item.timestamp))}
