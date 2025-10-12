@@ -20,36 +20,82 @@ export class ApiClient {
     return this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL;
   }
 
-  private async request<T>(path: string, init?: RequestInit, fallback?: () => T | Promise<T>): Promise<T> {
-    const url = this.baseUrl ? new URL(path, this.baseUrl).toString() : undefined;
+  private async request<T>(
+    path: string,
+    init?: RequestInit,
+    fallback?: () => T | Promise<T>,
+  ): Promise<T> {
+    const baseUrl = this.baseUrl?.trim();
+    const useMocks = !baseUrl || baseUrl === "mock";
 
-    if (!url) {
+    const resolveWithFallback = async (
+      error?: unknown,
+      missingFallbackMessage?: string,
+    ): Promise<T> => {
       if (fallback) {
         return await fallback();
       }
-      throw new ApiError("API base URL is not configured");
+
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      if (missingFallbackMessage) {
+        throw new ApiError(missingFallbackMessage);
+      }
+
+      if (error instanceof Error) {
+        throw new ApiError(error.message);
+      }
+
+      throw new ApiError("Request failed");
+    };
+
+    if (useMocks) {
+      return await resolveWithFallback(
+        undefined,
+        "API base URL is not configured or mock mode is enabled without a fallback",
+      );
     }
 
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...this.config.headers,
-        ...init?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const details = await response.text();
-      throw new ApiError(details || response.statusText, response.status);
+    let url: string;
+    try {
+      url = new URL(path, baseUrl).toString();
+    } catch (error) {
+      return await resolveWithFallback(
+        error,
+        "Failed to construct API URL and no fallback is available",
+      );
     }
 
-    if (response.status === 204) {
-      return undefined as T;
-    }
+    try {
+      const response = await fetch(url, {
+        ...init,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          ...this.config.headers,
+          ...init?.headers,
+        },
+      });
 
-    return (await response.json()) as T;
+      if (!response.ok) {
+        const details = await response.text();
+        throw new ApiError(details || response.statusText, response.status);
+      }
+
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      return await resolveWithFallback(error, "Request failed and no fallback is available");
+    }
   }
 
   getDeals(): Promise<Deal[]> {
