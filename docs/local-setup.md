@@ -157,6 +157,8 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
 - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
+  - Для локального запуска все `NEXT_PUBLIC_*_SSE_URL` и `NEXT_PUBLIC_API_BASE_URL` уже указывают на `http://localhost:${GATEWAY_SERVICE_PORT}`;
+    дополнительных DNS-записей или кастомных доменов не требуется.
 - Для фоновых заданий и уведомлений доступны очереди RabbitMQ и Redis.
 - Для фоновых заданий и уведомлений используются очереди RabbitMQ и Redis.
 

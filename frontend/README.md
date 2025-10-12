@@ -10,6 +10,7 @@ pnpm dev
 ```
 
 Приложение откроется на [http://localhost:3000](http://localhost:3000). Для корректной работы подключите REST Gateway и SSE-потоки в `.env` (см. раздел «Переменные окружения»).
+Локальный запуск не требует настройки кастомных доменов: все публичные URL по умолчанию указывают на `http://localhost` и порт Gateway из `env.example`.
 
 ### Основные скрипты
 
@@ -32,9 +33,10 @@ pnpm dev
 
 - `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`).
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок/тасков.
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (обновления платежей и балансов).
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts).
 
-В режиме разработки дефолтное значение `NEXT_PUBLIC_API_BASE_URL` указывает на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите URL на `mock` в `.env.local`.
+В режиме разработки дефолтные значения `NEXT_PUBLIC_API_BASE_URL` и `NEXT_PUBLIC_*_SSE_URL` указывают на Gateway, поднятый локально (`http://localhost:8080/api`), поэтому REST-запросы выполняются к реальному backend-слою и не требуют локальных DNS-записей. Чтобы вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local`.
 
 ## Архитектура UI
 
