@@ -36,15 +36,15 @@ pnpm dev
 
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
-- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
-- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
-- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы.
+- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Укажите значение `mock`, чтобы отключить реальные запросы, подписки на SSE и всегда использовать встроенные мок-данные из `src/mocks`.
+- `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`). Очистите значение (оставьте пустую строку), чтобы временно отключить подписку на поток.
+- `NEXT_PUBLIC_PAYMENTS_SSE_URL` — поток финансовых событий (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments`), используется для обновления таблицы платежей и всплывающих уведомлений без ручного обновления страницы. Очистите значение, если канал недоступен или не требуется.
   - ⚠️ После включения upstream-конфигурации в Gateway (см. `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL`) канал доступен по умолчанию; проверьте, что локальный Payments запущен, чтобы избежать авто-переподключений.
-- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications`).
+- `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications`). Очистка переменной отключает подписку на уведомления.
 
 Все SSE-переменные должны указывать на публичные HTTPS/HTTP2 endpoints, возвращающие `text/event-stream`, поддерживающие CORS для фронтенда и не закрывающие соединение без причины. Клиент автоматически переподключается с экспоненциальной задержкой (до 30 секунд) и сбрасывает счётчик при успешном `onopen`. При ошибках со стороны сервера стоит убедиться, что Gateway проксирует заголовки `Cache-Control: no-transform` и heartbeat-сообщения.
 
-В режиме разработки все указанные переменные по умолчанию указывают на локальный Gateway `http://localhost:${GATEWAY_SERVICE_PORT}`, поэтому REST-запросы (`/api`) и SSE-потоки (`/api/v1/streams/*`) идут к реальному backend-слою. Чтобы принудительно отключить обращения к сети и вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local` — клиент автоматически переключится в автономный режим.
+В режиме разработки все указанные переменные по умолчанию указывают на локальный Gateway `http://localhost:${GATEWAY_SERVICE_PORT}`, поэтому REST-запросы (`/api`) и SSE-потоки (`/api/v1/streams/*`) идут к реальному backend-слою. Чтобы принудительно отключить обращения к сети и вернуться к мок-данным из `src/mocks/data.ts`, переопределите `NEXT_PUBLIC_API_BASE_URL` на `mock` в `.env.local` — клиент автоматически переключится в автономный режим и не будет инициировать SSE-подписки.
 
 ## Архитектура UI
 

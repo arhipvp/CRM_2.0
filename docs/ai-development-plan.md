@@ -57,7 +57,7 @@
 - Вести README и Storybook-инструкции, фиксируя сценарии для ролей. ИИ применяется для генерации пользовательских сценариев и проверки согласованности терминов.
 
 ### Прогресс этапа 4
-- ✅ API-клиент фронтенда поддерживает автономный режим моков: значение `NEXT_PUBLIC_API_BASE_URL=mock` отключает сетевые запросы, а тесты Vitest подтверждают возврат данных из `src/mocks`. Документация (`frontend/README.md`, `env.example`) дополнена подсказками по включению режима.
+- ✅ API-клиент фронтенда поддерживает автономный режим моков: значение `NEXT_PUBLIC_API_BASE_URL=mock` отключает сетевые запросы, а тесты Vitest подтверждают возврат данных из `src/mocks`. Документация (`frontend/README.md`, `env.example`) дополнена подсказками по включению режима, а `SSEBridge` не инициализирует SSE-потоки в mock-конфигурации.
 - ✅ Улучшен локальный старт фронтенда: скрипты `pnpm dev`/`pnpm start` автоматически пробрасывают `FRONTEND_SERVICE_PORT` в `PORT`, Playwright использует ту же переменную, а документация (`frontend/README.md`, `docs/local-setup.md`, `env.example`) объясняет переопределение порта для Next.js.【F:frontend/package.json†L7-L11】【F:frontend/scripts/run-with-port.mjs†L1-L28】【F:frontend/playwright.config.ts†L3-L29】【F:frontend/README.md†L8-L42】【F:docs/local-setup.md†L76-L101】【F:env.example†L118-L133】
 - ✅ Подписи источников в NotificationCenter унифицированы (CRM, Платежи, Уведомления), добавлен компонентный тест и актуализирована документация `docs/frontend/notifications.md`.
 
