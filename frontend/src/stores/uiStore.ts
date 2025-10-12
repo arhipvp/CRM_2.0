@@ -31,16 +31,20 @@ interface UiState {
   selectedStage: PipelineStageKey | "all";
   highlightedDealId?: string;
   notifications: NotificationItem[];
+  dealUpdates: Record<string, string>;
   setSelectedStage: (stage: PipelineStageKey | "all") => void;
   highlightDeal: (dealId: string | undefined) => void;
   pushNotification: (notification: NotificationItem) => void;
   dismissNotification: (id: string) => void;
   handlePaymentEvent: (event: PaymentEventPayload) => PaymentEventEffect;
+  markDealUpdated: (dealId: string) => void;
+  clearDealUpdate: (dealId: string) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
   selectedStage: "all",
   notifications: [],
+  dealUpdates: {},
   setSelectedStage: (stage) => set({ selectedStage: stage }),
   highlightDeal: (dealId) => set({ highlightedDealId: dealId ?? undefined }),
   pushNotification: (notification) =>
@@ -51,6 +55,19 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.filter((item) => item.id !== id),
     })),
+  markDealUpdated: (dealId) =>
+    set((state) => ({
+      dealUpdates: {
+        ...state.dealUpdates,
+        [dealId]: new Date().toISOString(),
+      },
+    })),
+  clearDealUpdate: (dealId) =>
+    set((state) => {
+      const rest = { ...state.dealUpdates };
+      delete rest[dealId];
+      return { dealUpdates: rest };
+    }),
   handlePaymentEvent: (event) => {
     const result = processPaymentEvent(event);
 
