@@ -122,7 +122,7 @@ step_check_dependencies() {
 }
 
 step_sync_env() {
-  (cd "${ROOT_DIR}" && ./scripts/sync-env.sh --mode=skip-existing)
+  (cd "${ROOT_DIR}" && ./scripts/sync-env.sh --non-interactive)
 }
 
 step_compose_up() {
