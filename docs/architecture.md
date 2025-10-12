@@ -116,5 +116,6 @@ flowchart LR
 * [README.md](../README.md) — бизнес-контекст и пользовательские сценарии.
 * [docs/api/README.md](api/README.md) — спецификации REST API и SSE каналов.
 * [docs/integration-events.md](integration-events.md) — форматы сообщений RabbitMQ.
+* [docs/data-model.md](data-model.md) — физическая модель данных (ER-диаграммы, таблицы и ограничения).
 * [docs/tech-stack.md](tech-stack.md) — технологический стек и инфраструктурные решения (дополняет разделы 2.2–2.4).
 * [docs/security-and-access.md](security-and-access.md) — политика доступа, соответствующая ролям и границам сервисов.
