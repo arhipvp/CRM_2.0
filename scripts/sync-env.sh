@@ -31,13 +31,17 @@ ${DEFAULT_TARGETS[*]}
 Скрипт создаёт или обновляет файл "$TARGET_FILE_NAME" в целевых директориях.
 
 Опции:
-  --mode=interactive     (по умолчанию) спрашивать подтверждение перезаписи.
-  --mode=skip-existing   пропускать уже существующие файлы без вопросов.
-  --mode=overwrite       перезаписывать существующие файлы без подтверждения.
+  --mode=interactive       (по умолчанию) спрашивать подтверждение перезаписи.
+  --mode=skip-existing     пропускать уже существующие файлы без вопросов.
+  --mode=overwrite         перезаписывать существующие файлы без подтверждения.
+  --non-interactive[=MODE] не спрашивать подтверждения. MODE: skip (по умолчанию) или overwrite.
+  --force                  синоним --non-interactive=overwrite.
 USAGE
 }
 
 MODE="interactive"
+MODE_SET_EXPLICIT=false
+NON_INTERACTIVE=""
 TARGETS=()
 
 while [[ $# -gt 0 ]]; do
@@ -52,10 +56,24 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       MODE="$2"
+      MODE_SET_EXPLICIT=true
       shift 2
       ;;
     --mode=*)
       MODE="${1#*=}"
+      MODE_SET_EXPLICIT=true
+      shift
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE="skip"
+      shift
+      ;;
+    --non-interactive=*)
+      NON_INTERACTIVE="${1#*=}"
+      shift
+      ;;
+    --force)
+      NON_INTERACTIVE="overwrite"
       shift
       ;;
     --*)
@@ -77,6 +95,26 @@ case "$MODE" in
     exit 1
     ;;
 esac
+
+if [[ -n "$NON_INTERACTIVE" ]]; then
+  if [[ "$MODE_SET_EXPLICIT" == true ]]; then
+    echo "[Ошибка] Опции --mode и --non-interactive несовместимы" >&2
+    exit 1
+  fi
+
+  case "${NON_INTERACTIVE,,}" in
+    skip)
+      MODE="skip-existing"
+      ;;
+    overwrite)
+      MODE="overwrite"
+      ;;
+    *)
+      echo "[Ошибка] Неизвестное значение '--non-interactive=${NON_INTERACTIVE}'. Допустимо: skip, overwrite." >&2
+      exit 1
+      ;;
+  esac
+fi
 
 if [[ ! -f "$SOURCE_FILE" ]]; then
   echo "[Ошибка] Не найден источник $SOURCE_FILE" >&2
