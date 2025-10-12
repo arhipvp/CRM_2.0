@@ -79,7 +79,174 @@ Telegram-бот
 
 Метаданные и события импорта фиксируются в Audit и сохраняются бессрочно для восстановления истории действий.
 
+Стек по сервисам
+Gateway / BFF
+
+Язык: TypeScript (Node.js LTS)
+
+Фреймворк: NestJS с модулем @nestjs/axios для агрегации
+
+БД и очереди: ioredis (Redis); прямой работы с PostgreSQL нет
+
+API: REST (JSON) для фронтенда, внутренние вызовы — REST/gRPC
+
+Зависимости и компоненты:
+
+Redis для сессий и кеша
+
+Service Discovery через Consul
+
+Тестирование и деплой:
+
+Контрактные тесты и smoke-тесты UI
+
+Blue/green деплой без простоев
+
+Auth
+
+Язык: Kotlin (JVM 17)
+
+Фреймворк: Spring Boot (WebFlux + Security)
+
+БД и очереди: R2DBC (PostgreSQL), lettuce (Redis)
+
+API: REST + OAuth2/OpenID Connect
+
+Зависимости:
+
+PostgreSQL-схема auth
+
+Redis для токенов и кодов
+
+SMTP-провайдер для e-mail подтверждений
+
+Тестирование и деплой:
+
+JUnit5 + Testcontainers
+
+Миграции Liquibase, ротация JWT-ключей
+
+CRM / Deals
+
+Язык: Python 3.11
+
+Фреймворк: FastAPI
+
+БД и очереди: SQLAlchemy 2.0 + Alembic (PostgreSQL), Celery + Redis
+
+API: REST + WebSocket
+
+Зависимости:
+
+PostgreSQL-схема crm
+
+Redis (очередь Celery), S3-совместимый сторедж
+
+Интеграция с Documents
+
+Тестирование и деплой:
+
+Pytest + async-интеграции
+
+Alembic миграции, прогрев кеша
+
+Payments
+
+Язык: Go 1.21
+
+Фреймворк: Fiber + go-chi/render
+
+БД и очереди: pgx (PostgreSQL), sarama (Kafka)
+
+API: REST, публикация событий в Kafka
+
+Зависимости:
+
+PostgreSQL-схема payments
+
+Kafka topic payments.events
+
+Внешний API валютных курсов через Gateway
+
+Тестирование и деплой:
+
+Unit-тесты и consumer-driven контракты
+
+Rolling update, миграции golang-migrate
+
+Documents
+
+Язык: TypeScript (Node.js)
+
+Фреймворк: NestJS + @googleapis/drive SDK
+
+БД и очереди: TypeORM (PostgreSQL), BullMQ (Redis)
+
+API: REST + Webhook
+
+Зависимости:
+
+PostgreSQL-схема documents
+
+Redis кластер для синхронизации
+
+Общие сервисные аккаунты Google Drive
+
+Тестирование и деплой:
+
+Интеграционные тесты с песочницей Drive
+
+Проверка квот API, миграции TypeORM
+
+Tasks / Notifications
+
+Язык: Rust 1.72
+
+Фреймворк: Actix Web + Tokio
+
+БД и очереди: sqlx (PostgreSQL), lapin (RabbitMQ)
+
+API: REST + WebSocket, публикация событий в RabbitMQ
+
+Зависимости:
+
+PostgreSQL-схема notifications
+
+RabbitMQ кластер
+
+Redis для временных токенов
+
+Тестирование и деплой:
+
+Нагрузочные тесты (k6), end-to-end сценарии
+
+Canary-релизы, миграции sqlx migrate
+
+Telegram Bot
+
+Язык: Python 3.11
+
+Фреймворк: aiogram 3
+
+БД и очереди: asyncpg (PostgreSQL), aio-pika (RabbitMQ)
+
+API: Вебхуки Telegram + внутренний REST Callback
+
+Зависимости:
+
+PostgreSQL-схема bot (readonly к auth и crm)
+
+Очередь notifications.telegram
+
+Redis для FSM и rate limiting
+
+Тестирование и деплой:
+
+Pytest-asyncio + моки Telegram API
+
+End-to-end сценарии в staging, blue/green деплой
+
 Дальнейшее развитие
 
-Список технологий будет расширяться по мере детализации сервисов и инфраструктуры: выбор конкретных СУБД, брокеров сообщений, инструментов развёртывания и средств интеграции.
-Все изменения документируются в соответствующих разделах docs/ и проходят ревью архитектурной комиссии проекта.
+Список технологий будет расширяться по мере детализации сервисов и инфраструктуры (СУБД, брокеры, деплой, интеграции).
+Все изменения документируются в docs/ и проходят архитектурное ревью.
