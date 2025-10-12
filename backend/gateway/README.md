@@ -11,10 +11,21 @@ Gateway — единая точка входа для веб-клиента и T
 ## Локальный запуск
 
 1. Установите зависимости: `pnpm install` (поддерживается и `npm install`, но pnpm предпочтителен для всех Node-проектов репозитория).
-2. Создайте `.env` из шаблона в корне (`cp ../../env.example .env` либо используйте переменные окружения).
+2. Создайте `.env` из шаблона в корне (`cp ../../env.example .env` либо используйте переменные окружения). Убедитесь, что заданы `GATEWAY_UPSTREAM_*`, `REDIS_*` и `CONSUL_*` для подключения к внутренним сервисам.
 3. Запустите сервис в режиме разработки: `pnpm start:dev`. Приложение слушает `http://${GATEWAY_SERVICE_HOST}:${GATEWAY_SERVICE_PORT}/api`.
-4. Для проверки доступности выполните `curl http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` — ответ должен содержать `"status":"ok"`.
-5. SSE-канал «heartbeat» доступен по адресу `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` и отдаёт регулярные сообщения, которые удобно использовать как smoke-тест подключения фронтенда.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
+4. Для проверки доступности выполните `curl http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` — ответ должен содержать `"status":"ok"` и статусы Redis/Consul.
+5. SSE-канал «heartbeat» доступен по адресу `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` и отдаёт регулярные сообщения, которые удобно использовать как smoke-тест подключения фронтенда.【F:backend/gateway/src/sse/sse.controller.ts†L4-L29】
+6. Для запуска e2e/контрактных тестов выполните `pnpm test` — в них поднимаются mock-сервисы и проверяется проксирование REST/SSE.
+
+## REST и SSE прокси
+
+- REST-контроллеры `v1/crm`, `v1/payments`, `v1/auth` проксируют все HTTP-методы в соответствующие upstream-сервисы с учётом `GATEWAY_UPSTREAM_*` переменных и fallback через Consul service discovery.【F:backend/gateway/src/http/crm/crm.controller.ts†L1-L22】【F:backend/gateway/src/http/payments/payments.controller.ts†L1-L22】【F:backend/gateway/src/http/auth/auth.controller.ts†L1-L22】【F:backend/gateway/src/http/proxy/rest-proxy.service.ts†L1-L143】
+- SSE-контроллер ретранслирует потоки CRM и Notifications, обеспечивает heartbeat и хранит последние Event ID/тайминги в Redis для graceful reconnect.【F:backend/gateway/src/sse/sse.controller.ts†L1-L32】【F:backend/gateway/src/sse/upstream-sse.service.ts†L1-L165】
+
+## Интеграции Redis и Consul
+
+- Redis используется как кэш (`CacheModule`) и для служебных ключей SSE. Провайдер поддерживает `mock://` URL для локальных тестов и graceful shutdown.【F:backend/gateway/src/app.module.ts†L1-L53】【F:backend/gateway/src/integrations/redis/redis.module.ts†L1-L64】
+- Consul клиент вынесен в отдельный модуль, health-check проверяет `status.leader`, а REST-прокси может запрашивать адреса по `serviceName` при отсутствии статического URL.【F:backend/gateway/src/integrations/consul/consul.module.ts†L1-L39】【F:backend/gateway/src/integrations/consul/consul.service.ts†L1-L43】【F:backend/gateway/src/http/health/consul.health-indicator.ts†L1-L33】
 
 ## Миграции и скрипты
 - Gateway не использует собственную БД, поэтому каталог `migrations/` пуст. Контракты и схемы API храните в `schema/` (создайте при необходимости).
