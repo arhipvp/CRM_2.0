@@ -145,6 +145,8 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
+> ℹ️ Для загрузки стандартных тестовых данных воспользуйтесь инструкцией [`docs/testing-data.md`](testing-data.md) и seed-скриптами из `backups/postgres/seeds`. Они помогают быстро проверить интеграции Auth → CRM → Payments после миграций.
+
 ## 5. Проверка доступности сервисов
 
 | Сервис         | Проверка                                                                                         |
