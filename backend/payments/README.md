@@ -1,7 +1,7 @@
 # Payments Service
 
 ## Назначение
-Payments учитывает финансовые операции (платежи, комиссии, возвраты), публикует события в RabbitMQ и опирается на внутренние справочники тарифов.【F:docs/architecture.md†L12-L17】【F:docs/tech-stack.md†L202-L236】
+Payments учитывает финансовые операции (платежи, комиссии, возвраты), публикует события в RabbitMQ и опирается на внутренние справочники тарифов. Все расчёты выполняются в валюте RUB без дополнительных пересчётов или внешних конвертаций.【F:docs/architecture.md†L12-L17】【F:docs/tech-stack.md†L202-L236】
 
 ## Требования к окружению
 - JDK 17 и Gradle 8+ (Spring Boot WebFlux + Spring Cloud Stream).【F:docs/tech-stack.md†L204-L230】
