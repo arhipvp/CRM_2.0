@@ -38,6 +38,8 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 > Поле `channel` в payload принимает значения `sse` (по умолчанию) или `telegram` и совпадает с каналом, указанным при создании напоминания в Tasks API.
 
+> Статусы задач в событиях каналов: `new` (Новая), `in_progress` (В работе), `done` (Выполнена), `cancelled` (Отменена).
+
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** доставка внутренних уведомлений (без участия Telegram).
