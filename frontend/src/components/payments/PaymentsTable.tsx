@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePayments } from "@/lib/api/hooks";
+import type { PaymentStatus } from "@/types/crm";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ru-RU", {
@@ -11,10 +12,38 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-const statusClasses: Record<string, string> = {
-  paid: "bg-emerald-100 text-emerald-700",
-  pending: "bg-amber-100 text-amber-700",
-  failed: "bg-rose-100 text-rose-700",
+const statusConfig: Record<PaymentStatus, { label: string; className: string; ariaLabel: string }> = {
+  planned: {
+    label: "Запланирован",
+    className: "bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200",
+    ariaLabel: "Статус платежа: запланирован",
+  },
+  expected: {
+    label: "Ожидается",
+    className: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200",
+    ariaLabel: "Статус платежа: ожидается",
+  },
+  received: {
+    label: "Получен",
+    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200",
+    ariaLabel: "Статус платежа: получен",
+  },
+  paid_out: {
+    label: "Выплачен",
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-200",
+    ariaLabel: "Статус платежа: выплачен",
+  },
+  cancelled: {
+    label: "Отменён",
+    className: "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200",
+    ariaLabel: "Статус платежа: отменён",
+  },
+};
+
+const fallbackStatus = {
+  label: "Неизвестен",
+  className: "bg-slate-100 text-slate-600 dark:bg-slate-700/40 dark:text-slate-300",
+  ariaLabel: "Статус платежа: неизвестен",
 };
 
 export function PaymentsTable() {
@@ -48,9 +77,18 @@ export function PaymentsTable() {
               </td>
               <td className="px-4 py-3 font-medium">{formatCurrency(payment.amount)}</td>
               <td className="px-4 py-3">
-                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClasses[payment.status] ?? "bg-slate-100 text-slate-600"}`}>
-                  {payment.status === "paid" ? "Оплачен" : payment.status === "failed" ? "Ошибка" : "В ожидании"}
-                </span>
+                {(() => {
+                  const config = statusConfig[payment.status as PaymentStatus] ?? fallbackStatus;
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${config.className}`}
+                      aria-label={config.ariaLabel}
+                      title={config.label}
+                    >
+                      {config.label}
+                    </span>
+                  );
+                })()}
               </td>
               <td className="px-4 py-3">
                 {new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(new Date(payment.dueDate))}

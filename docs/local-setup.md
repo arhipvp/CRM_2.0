@@ -18,6 +18,16 @@
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
 7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI.
 
+После завершения bootstrap синхронизируйте фронтендовый `.env` и, при необходимости, поднимите Next.js-контейнер:
+
+```bash
+./scripts/sync-env.sh frontend
+cd infra
+docker compose --profile app up -d frontend
+```
+
+Профиль `app` гарантирует, что фронтенд не стартует автоматически при стандартном `docker compose up -d` в bootstrap-скрипте. Контейнер подключается к сети `infra` и использует сервис `gateway` внутри сети (`http://gateway:8080`). Если вы запускаете Gateway на хостовой машине, оставьте переменную `GATEWAY_SERVICE_PORT` в `.env` и используйте проброс `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` (хост добавлен в `extra_hosts` для Linux).
+
 ### Режимы синхронизации `.env`
 
 - **Интерактивный** (значение по умолчанию). При запуске `./scripts/sync-env.sh` без дополнительных флагов скрипт проверяет наличие существующего `.env` и предлагает на выбор: перезаписать файл, пропустить каталог или прервать операцию. Подходит для ручного обновления, когда нужно свериться с изменениями.
@@ -26,11 +36,12 @@
 ### Требования
 
 - Docker Desktop/Engine с поддержкой Compose V2.
-- Python 3 и Poetry (для CRM/Deals), JDK 17+ для запуска Gradle wrapper Auth.
+- Python 3 (интерпретатор `python3`) — обязательная зависимость bootstrap-скриптов и инфраструктурных утилит, используемых для парсинга JSON и проверок состояния сервисов.
+- Poetry (для CRM/Deals) и JDK 17+ для запуска Gradle wrapper Auth.
 - Node.js 20 LTS для фронтенда. Установите LTS-версию с сайта [nodejs.org](https://nodejs.org) или через менеджер версий, затем выполните подготовку менеджера пакетов:
   1. `corepack enable` — включает Corepack глобально.
   2. `corepack prepare pnpm@9 --activate` — активирует требуемую версию pnpm.
-- Рекомендуемые CLI: `python3`, `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
+- Рекомендуемые CLI: `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
 - Доступ к интернету для скачивания зависимостей при первом запуске сервисов.
 
@@ -48,7 +59,7 @@
 | Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
 | Reports | Аналитика и отчёты (заглушка на текущем этапе).【F:README.md†L53-L74】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 | Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
-| Frontend | Веб-интерфейс CRM на Next.js 14.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
+| Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
