@@ -198,10 +198,34 @@ CRM хранит метаданные платежей для воронки и 
 | payment_type | string | Да | `client_premium`, `commission_income`, `client_discount`, `executor_fee`. |
 | planned_date | date | Нет | Плановая дата. |
 | amount | number | Да | Сумма. |
-| currency | string | Да | Валюта, фиксированное значение `RUB` (хранится для совместимости). |
+| currency | string | Да | Валюта, фиксированное значение `RUB` (хранится для совместимости и не поддерживает другие значения). |
 | notes | string | Нет | Комментарии. |
 
+**Пример запроса**
+```json
+{
+  "deal_id": "uuid",
+  "policy_id": "uuid",
+  "payment_type": "client_premium",
+  "amount": 12345.67,
+  "currency": "RUB"
+}
+```
+
 **Ответ 201** — созданный платёж с `status = planned`.
+
+**Пример ответа**
+```json
+{
+  "id": "uuid",
+  "deal_id": "uuid",
+  "policy_id": "uuid",
+  "payment_type": "client_premium",
+  "status": "planned",
+  "amount": 12345.67,
+  "currency": "RUB"
+}
+```
 
 **Ошибки:** `400 validation_error`, `404 deal_not_found`, `404 policy_not_found`.
 

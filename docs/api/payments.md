@@ -36,11 +36,40 @@
 | payment_type | string | Да | Тип платежа. |
 | planned_date | date | Нет | Плановая дата. |
 | amount | number | Да | Сумма. |
-| currency | string | Да | Валюта. Допустимо только значение `RUB`. |
+| currency | string | Да | Валюта, фиксированное значение `RUB` (используется для совместимости и не поддерживает другие значения). |
 | direction | string | Да | `inbound` или `outbound`. |
 | notes | string | Нет | Примечание. |
 
+**Пример запроса**
+```json
+{
+  "external_ref": "crm-payment-id",
+  "deal_id": "uuid",
+  "policy_id": "uuid",
+  "payment_type": "client_premium",
+  "planned_date": "2024-06-20",
+  "amount": 12345.67,
+  "currency": "RUB",
+  "direction": "inbound"
+}
+```
+
 **Ответ 201** — созданный платёж со статусом `planned`.
+
+**Пример ответа**
+```json
+{
+  "id": "uuid",
+  "external_ref": "crm-payment-id",
+  "deal_id": "uuid",
+  "policy_id": "uuid",
+  "payment_type": "client_premium",
+  "status": "planned",
+  "amount": 12345.67,
+  "currency": "RUB",
+  "direction": "inbound"
+}
+```
 
 **Ошибки:** `400 validation_error`, `409 duplicate_payment` (по `external_ref`).
 
@@ -122,5 +151,4 @@
 | 403 | `forbidden` | Нет прав на операцию. |
 | 404 | `not_found` | Платёж/ресурс не найден. |
 | 409 | `conflict` | Конфликт версий. |
-| 422 | `invalid_currency_value` | Поле `currency` поддерживает только значение `RUB`. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
