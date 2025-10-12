@@ -18,20 +18,20 @@
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
-2. Проверьте переменные окружения в [`env.example`](../env.example) — для каждого сервиса указан порт и URL запуска.
+2. Синхронизируйте переменные окружения через [`scripts/sync-env.sh`](../scripts/sync-env.sh), чтобы в каждом сервисе появился свежий `.env` из корневого [`env.example`](../env.example). Скрипт предупреждает о перезаписи и позволяет пропустить каталог — после копирования обязательно обновите секреты и уникальные значения вручную.
 3. Настройте базы данных и очереди (см. [«Инфраструктура» в tech-stack](tech-stack.md#инфраструктура)) и запускайте сервис локально или в Docker согласно инструкции.
 
 ### Gateway / BFF: быстрый старт
 
 - Перейдите в `backend/gateway` и установите зависимости (`pnpm install`).
-- Скопируйте `env.example` из корня репозитория (`cp ../../env.example .env`) или экспортируйте переменные окружения вручную. Минимально нужны `GATEWAY_SERVICE_PORT`, `GATEWAY_SERVICE_HOST`, `GATEWAY_BASE_URL`, блок `GATEWAY_UPSTREAM_*`, а также `REDIS_*` и `CONSUL_*` для подключения к инфраструктуре.
+- Выполните `../../scripts/sync-env.sh backend/gateway`, чтобы получить свежий `.env` из шаблона. Скрипт предупредит о перезаписи существующего файла — при необходимости выберите `skip` и обновите значения вручную. После синхронизации проверьте секреты (`JWT_*`, `SESSION_SECRET`) и параметры upstream (`GATEWAY_UPSTREAM_*`, `REDIS_*`, `CONSUL_*`).
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
 - Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
 
 ### CRM / Deals: быстрый старт
 
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
-- Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
+- Выполните `../../scripts/sync-env.sh backend/crm`, чтобы скопировать шаблон `.env`. После синхронизации пересмотрите блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, очереди событий) и замените секреты на локальные значения.
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
@@ -54,8 +54,8 @@
 
 ## 1. Подготовьте `.env`
 
-1. Скопируйте шаблон: `cp env.example .env`.
-   > ℹ️ После любого обновления `env.example` (например, фикса `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на префикс `r2dbc:`) пересоздайте локальный `.env` из свежей версии (`cp env.example .env` с перезаписью), чтобы подтянуть актуальные значения RabbitMQ, R2DBC и других переменных. Иначе в локальной конфигурации могут остаться устаревшие шаблоны.
+1. Синхронизируйте переменные: `./scripts/sync-env.sh` создаст или обновит `.env` в корне и основных сервисах. Если для какого-то каталога уже есть файл, скрипт спросит о перезаписи — при необходимости выберите `skip`. После выполнения обновите секреты и уникальные значения (пароли, токены, ключи) во всех скопированных файлах.
+   > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
@@ -104,32 +104,36 @@
 
 ### Создайте пользователей и vhost-ы RabbitMQ для сервисов
 
-По умолчанию Docker Compose создаёт пользователя и виртуальный хост `crm`, которых достаточно для базового запуска. Сервисы
-`payments`, `notifications`, `tasks` и `audit` используют собственные учётные записи и vhost-ы — их нужно создать вручную до
-первого запуска приложений. Имена и пароли совпадают с шаблоном в [`env.example`](../env.example), например `PAYMENTS_RABBITMQ_URL`.
+Автоматизация оформлена в скрипте [`infra/rabbitmq/bootstrap.sh`](../infra/rabbitmq/bootstrap.sh). Он читает указанный `.env`, находит все переменные `*_RABBITMQ_URL` (единый источник правды прописан в [`env.example`](../env.example)) и через `rabbitmqctl` создаёт отсутствующие vhost-ы и пользователей, обновляя права при повторном запуске.
 
-Пример последовательности команд через `rabbitmqctl` (выполняйте внутри контейнера RabbitMQ):
+1. Убедитесь, что локальный `.env` соответствует актуальному шаблону (см. шаг 1 выше).
+2. Выполните скрипт из корня репозитория:
 
-```bash
-docker compose exec rabbitmq bash -c '
-  rabbitmqctl add_vhost payments &&
-  rabbitmqctl add_user payments payments &&
-  rabbitmqctl set_permissions -p payments payments ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost notifications &&
-  rabbitmqctl add_user notifications notifications &&
-  rabbitmqctl set_permissions -p notifications notifications ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost tasks &&
-  rabbitmqctl add_user tasks tasks &&
-  rabbitmqctl set_permissions -p tasks tasks ".*" ".*" ".*" &&
-  rabbitmqctl add_vhost audit &&
-  rabbitmqctl add_user audit audit &&
-  rabbitmqctl set_permissions -p audit audit ".*" ".*" ".*"
-'
-```
+   ```bash
+   bash infra/rabbitmq/bootstrap.sh .env
+   ```
 
-> ℹ️ При желании можно использовать [`rabbitmqadmin`](https://www.rabbitmq.com/docs/rabbitmqadmin) и оформить команды в отдельный скрипт — положите его в `infra/` рядом с `docker-compose.yml` и привяжите к своим процессам автоматизации.
+3. Ожидаемый вывод (первый запуск создаёт объекты, последующие просто подтверждают их наличие):
 
-После выполнения команд убедитесь, что пользователи и vhost-ы появились: `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
+   ```text
+   ==> Обработка пользователя 'crm' и vhost 'crm'
+     • vhost 'crm' уже существует
+     • обновлён пароль пользователя 'crm'
+     • подтверждены права 'crm' на vhost 'crm'
+   ==> Обработка пользователя 'payments' и vhost 'payments'
+     • создан vhost 'payments'
+     • создан пользователь 'payments'
+     • подтверждены права 'payments' на vhost 'payments'
+   ...
+   ==> Обработка пользователя 'audit' и vhost 'audit'
+     • vhost 'audit' уже существует
+     • обновлён пароль пользователя 'audit'
+     • подтверждены права 'audit' на vhost 'audit'
+
+   Готово: проверено 5 комбинаций пользователь/vhost.
+   ```
+
+Скрипт можно выполнять сколько угодно раз — он идемпотентен. Для ручной проверки воспользуйтесь `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
 
 ## 3. Проверьте создание схем и ролей PostgreSQL
 
@@ -145,7 +149,21 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
-> ℹ️ Для загрузки стандартных тестовых данных воспользуйтесь инструкцией [`docs/testing-data.md`](testing-data.md) и seed-скриптами из `backups/postgres/seeds`. Они помогают быстро проверить интеграции Auth → CRM → Payments после миграций.
+#### Быстрый запуск миграций (CRM + Auth)
+
+Чтобы не переключаться вручную между проектами, используйте скрипт из корня репозитория:
+
+```bash
+./scripts/migrate-local.sh
+```
+
+Сценарий:
+
+1. Загружает переменные из `.env` (убедитесь, что он создан на основе `env.example` и содержит заполненные блоки `CRM_*`, `AUTH_*`, `POSTGRES_*`, `REDIS_*`, `RABBITMQ_*`).
+2. Запускает `poetry run alembic upgrade head` в `backend/crm`.
+3. Выполняет `./gradlew update` в `backend/auth`.
+
+> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
 
 ## 5. Проверка доступности сервисов
 
