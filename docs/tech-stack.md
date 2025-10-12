@@ -151,9 +151,9 @@ API: REST + WebSocket
 
 PostgreSQL-схема crm
 
-Redis (очередь Celery), S3-совместимый сторедж
+Redis (очередь Celery)
 
-Интеграция с Documents
+Интеграция с Documents/Google Drive; метаданные файлов сохраняются в БД CRM, а сами файлы остаются в Drive
 
 Тестирование и деплой:
 
