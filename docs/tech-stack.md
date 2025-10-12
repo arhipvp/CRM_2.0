@@ -104,7 +104,7 @@ Telegram-бот
 
 Управление состоянием: React Query для работы с асинхронными данными Gateway/BFF, Zustand для локального UI-состояния и кэширования пользовательских настроек, Context API для тем и параметров локализации.
 
-Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); подключены SSE-каналы для обновлений статусов задач и платежей, которые транслирует Gateway из RabbitMQ. Все вызовы проходят через `/api` шлюз, домен которого задаётся переменными окружения.
+Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); SSE-канал используется для трансляции изменений сделок и платежей из CRM/Deals, а WebSocket-подключение — для интерактивных уведомлений (подтверждения, быстрая обратная связь). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_WS_URL`).
 
 Тестирование: unit и компонентные тесты на Vitest + React Testing Library, визуальные снапшоты Storybook Chromatic, end-to-end сценарии в Playwright. Smoke-тесты фронтенда запускаются после деплоя вместе с контрактными тестами Gateway/BFF.
 
@@ -125,13 +125,15 @@ Gateway / BFF
 
 БД и очереди: ioredis (Redis); прямой работы с PostgreSQL нет
 
-API: REST (JSON) и SSE-каналы для фронтенда, внутренние вызовы — REST и управление SSE-потоками
+API: REST (JSON), SSE-каналы (прокси потоков CRM/Deals) и WebSocket (агрегация уведомлений Notifications), внутренние вызовы — REST и управление стримами
 
 Зависимости и компоненты:
 
 Redis для сессий и кеша
 
 Service Discovery через Consul
+
+@nestjs/platform-sse для серверных событий и @nestjs/websockets + socket.io адаптер для WebSocket-шлюза
 
 Тестирование и деплой:
 
@@ -175,7 +177,7 @@ CRM / Deals
 
 БД и очереди: SQLAlchemy 2.0 + Alembic (PostgreSQL), Celery + Redis
 
-API: REST + WebSocket
+API: REST + SSE (через `sse-starlette` для стриминга событий сделок)
 
 Зависимости:
 
@@ -282,11 +284,11 @@ Notifications
 
 Язык: TypeScript (Node.js LTS)
 
-Фреймворк: NestJS (@nestjs/websockets, @nestjs/event-emitter)
+Фреймворк: NestJS (@nestjs/websockets + socket.io, @nestjs/event-emitter)
 
 БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ)
 
-API: REST + WebSocket, публикация уведомлений в RabbitMQ и webhook-и в Gateway/Telegram
+API: REST + WebSocket (двусторонние каналы уведомлений), публикация уведомлений в RabbitMQ и webhook-и в Gateway/Telegram
 
 Зависимости:
 
