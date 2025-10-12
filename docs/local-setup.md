@@ -28,6 +28,14 @@
 - Запустите `pnpm start:dev` и проверьте доступность эндпоинта `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health`.
 - Для быстрой проверки SSE подключитесь к `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` — поток должен присылать события каждые 15 секунд.【F:backend/gateway/src/sse/sse.controller.ts†L4-L16】
 
+### CRM / Deals: быстрый старт
+
+- Перейдите в `backend/crm` и установите зависимости `poetry install`.
+- Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
+- Примените миграции: `poetry run alembic upgrade head`.
+- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`).
+- Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
+- Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
 ## CI/CD: как прогнать пайплайн вручную
 
 - Workflow `Monorepo CI` (`.github/workflows/ci.yml`) стартует на `push`/`pull_request` и доступен в ручном режиме из **Actions → Monorepo CI → Run workflow**. Перед запуском убедитесь, что в настройках репозитория объявлена переменная `CI_REGISTRY_IMAGE` (см. `env.example`).
@@ -128,7 +136,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 ## 4. Запуск миграций
 
-После подготовки инфраструктуры примените миграции сервисов согласно их README. ⚠️ До публикации первых ревизий (schema baseline) этот шаг пропускается.
+После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
 
 ## 5. Проверка доступности сервисов
 
