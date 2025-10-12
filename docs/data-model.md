@@ -96,6 +96,16 @@ erDiagram
 * `payments.payment_history`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `payments.payments(id)`, `FOREIGN KEY (changed_by)` → `auth.users(id)`, индекс по `changed_at`.
 * `payments.payment_schedules`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индекс по `(deal_id, due_date)`, уникальное ограничение `(deal_id, payment_type, due_date)`.
 
+### Справочник статусов платежей
+
+| Код | Русское название | Описание |
+| --- | --- | --- |
+| `planned` | Запланирован | Платёж внесён в график, счёт ещё не выставлен. |
+| `expected` | Ожидается | Счёт отправлен, ожидается подтверждение поступления или списания. |
+| `received` | Получен | Поступление средств на счёт подтверждено. |
+| `paid_out` | Выплачен | Сумма перечислена контрагенту или распределена как комиссия/скидка. |
+| `cancelled` | Отменён | Платёж отменён либо перенесён без движения денег. |
+
 ## Схема `tasks`
 
 ```mermaid
