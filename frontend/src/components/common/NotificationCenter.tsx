@@ -18,10 +18,8 @@ function getSourceLabel(source: NotificationItem["source"]): string {
 }
 
 export function NotificationCenter() {
-  const { notifications, dismissNotification } = useUiStore((state) => ({
-    notifications: state.notifications,
-    dismissNotification: state.dismissNotification,
-  }));
+  const notifications = useUiStore((state) => state.notifications);
+  const dismissNotification = useUiStore((state) => state.dismissNotification);
 
   if (notifications.length === 0) {
     return null;
