@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     app_name: str = Field(default="CRM Deals Service")
     api_prefix: str = Field(default="/api/v1")
 
+    service_host: str = Field(default="0.0.0.0", alias="service_host")
+    service_port: int = Field(default=8082, alias="service_port")
+
     database_url: AnyUrl = Field(..., alias="database_url")
     redis_url: AnyUrl = Field(..., alias="redis_url")
     rabbitmq_url: AnyUrl = Field(..., alias="rabbitmq_url")

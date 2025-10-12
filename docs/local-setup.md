@@ -33,7 +33,7 @@
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
 - Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
 - Примените миграции: `poetry run alembic upgrade head`.
-- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`).
+- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
 ## CI/CD: временно только локальные проверки
