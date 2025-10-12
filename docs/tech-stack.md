@@ -173,7 +173,7 @@ CRM / Deals
 
 Фреймворк: FastAPI
 
-БД и очереди: SQLAlchemy 2.0 + Alembic (PostgreSQL), Celery + Redis
+БД и очереди: SQLAlchemy 2.0 + Alembic (PostgreSQL), Celery + Redis, RabbitMQ (aio-pika)
 
 API: REST + WebSocket
 
@@ -184,6 +184,10 @@ PostgreSQL-схема crm
 Redis (очередь Celery)
 
 Использует общий кластер Redis, описанный в разделе «Брокеры сообщений и кэши», и разделяет мониторинг очередей Celery с Notifications.
+
+RabbitMQ выступает шиной доменных событий: сервис подписывается на exchange `payments.events`, читая сообщения через выделенную очередь `crm.payments-sync` с ключами `payments.*`. Для публикации собственных событий (`deal.created`, `deal.updated`, SLA, документы) используется отдельный exchange `crm.events`, привязанный к очередям Notifications и Tasks (см. [архитектуру, раздел 2.2](docs/architecture.md#22-асинхронная-шина-rabbitmq)). Подключение реализовано поверх `aio-pika` с подтверждением доставки (publisher confirms) и ручным ack со стороны консьюмера.
+
+Повторные попытки организованы через пару `crm.payments-sync.retry`/`crm.payments-sync.dlx`: основная очередь настроена на dead-letter при ошибках обработки, сообщения попадают в retry-очередь с TTL (60 секунд по умолчанию) и возвращаются в рабочую очередь ограниченное число раз. Невосстановимые сообщения сохраняются в `crm.payments-sync.dlx` для ручного анализа и корреляции с Audit.
 
 Интеграция с Documents-сервисом: загрузки и скачивания проходят через его API, который создаёт и управляет файлами в Google Drive; в PostgreSQL CRM хранит только метаданные (ID, ссылки, привязку к сущностям).
 
