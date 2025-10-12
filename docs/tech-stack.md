@@ -28,7 +28,7 @@
 
 Базы данных.
 
-Основные сервисы (Auth, CRM/Deals, Payments, Tasks, Notifications) подключаются к единому PostgreSQL-кластеру. Изоляция достигается за счёт выделенных схем, отдельных ролей и политик row-level security там, где требуется. Кластер развёрнут в конфигурации primary–standby с резервным копированием в Backup-сервис.
+Основные сервисы (Auth, CRM/Deals, Payments, Tasks, Notifications) подключаются к единому PostgreSQL-кластеру. Изоляция достигается за счёт выделенных схем, отдельных ролей и политик row-level security там, где требуется. Кластер развёрнут в конфигурации primary–standby с резервным копированием в Backup-сервис. Для реактивных приложений (Auth, Payments, Audit) переменные окружения используют R2DBC URI, например `r2dbc:postgresql://auth:auth@localhost:5432/crm?schema=auth`; допускается эквивалент с `search_path=auth`.
 
 Audit использует ту же инсталляцию PostgreSQL, но ведёт журналы в собственной схеме с включённым логированием длительных транзакций и повышенными SLA на хранение.
 
@@ -114,7 +114,7 @@ Telegram-бот
 
 Требования к окружению:
 
-* `NEXT_PUBLIC_API_BASE_URL` — публичный URL Gateway/BFF, используемый при серверном рендеринге и на клиенте (локально по умолчанию `http://localhost:8080/api`).
+* `NEXT_PUBLIC_API_BASE_URL` — публичный URL Gateway/BFF, используемый при серверном рендеринге и на клиенте (локально по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`, то есть `http://localhost:8080/api` при стандартном значении порта).
 * `NEXT_PUBLIC_TELEMETRY_DSN` — DSN для фронтенд-логирования/трейсинга (Sentry или аналог), передаётся в runtime.
 * `NEXT_PUBLIC_FEATURE_FLAGS` — перечисление включённых feature-флагов (через запятую), синхронизировано с LaunchDarkly/ConfigCat.
 * `FRONTEND_PROXY_TIMEOUT` — таймаут проксирования на уровне Next.js middleware для долгих запросов.

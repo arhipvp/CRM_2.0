@@ -33,14 +33,14 @@
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
 - Скопируйте `.env`: `cp ../../env.example .env` и заполните блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, обмены событий).
 - Примените миграции: `poetry run alembic upgrade head`.
-- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`).
+- Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
 ## CI/CD: временно только локальные проверки
 
-- GitHub Actions приостановлены: файл workflow сохранён как `.github/workflows/ci.yml.disabled` и не исполняется. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` и запушьте изменение в `main`.
-- Для локальной проверки повторите шаги пайплайна вручную: выполните линтеры, тесты и сборку контейнеров по инструкциям соответствующих сервисов. Рекомендуемый порядок: `lint` → `unit-tests` → `contract-tests` → `build`.
-- При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`.
+- GitHub Actions приостановлены: пайплайны сохранены как `.github/workflows/ci.yml.disabled` и `.github/workflows/frontend.yml.disabled`, поэтому при пуше и открытии PR задачи не запускаются. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` у нужного файла и запушьте изменение в `main`.
+- Для локальной проверки повторите шаги пайплайнов вручную: выполните линтеры, тесты и сборку контейнеров по инструкциям соответствующих сервисов. Рекомендуемый порядок: `lint` → `unit-tests` → `contract-tests` → `build`.
+- При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`. Флаг `CI_CD_DISABLED=true` (см. шаблон `env.example`) можно использовать в локальных скриптах, чтобы пропускать этапы, завязанные на GitHub Actions.
 
 ## Kubernetes-манифесты и Argo CD
 
@@ -62,7 +62,7 @@
    - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) и ключ сессий Gateway (`SESSION_SECRET`).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
-   - Проверьте, что `AUTH_DATABASE_URL` использует префикс `r2dbc:postgresql://...` и параметр `schema=auth`; если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`.
+   - Проверьте, что `AUTH_DATABASE_URL` использует формат `r2dbc:postgresql://.../${POSTGRES_DB}?schema=auth` (или эквивалент с `search_path=auth`); если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`, например `r2dbc:postgresql://auth:auth@localhost:5432/crm?schema=auth`.
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
 
 ### Интеграции
@@ -157,6 +157,8 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
 - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
+  - Для локального запуска все `NEXT_PUBLIC_*_SSE_URL` и `NEXT_PUBLIC_API_BASE_URL` уже указывают на `http://localhost:${GATEWAY_SERVICE_PORT}`;
+    дополнительных DNS-записей или кастомных доменов не требуется.
 - Для фоновых заданий и уведомлений доступны очереди RabbitMQ и Redis.
 - Для фоновых заданий и уведомлений используются очереди RabbitMQ и Redis.
 
