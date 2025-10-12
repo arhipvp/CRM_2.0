@@ -21,7 +21,7 @@ DEFAULT_TARGETS=(
 
 usage() {
   cat <<USAGE
-Использование: ${0##*/} [ДИРЕКТОРИЯ ...]
+Использование: ${0##*/} [ОПЦИИ] [ДИРЕКТОРИЯ ...]
 
 Без аргументов копирует env.example в корень репозитория и основные сервисы:
 ${DEFAULT_TARGETS[*]}
@@ -29,21 +29,62 @@ ${DEFAULT_TARGETS[*]}
 
 Если указать аргументы, будут обработаны только перечисленные каталоги.
 Скрипт создаёт или обновляет файл "$TARGET_FILE_NAME" в целевых директориях.
+
+Опции:
+  --mode=interactive     (по умолчанию) спрашивать подтверждение перезаписи.
+  --mode=skip-existing   пропускать уже существующие файлы без вопросов.
+  --mode=overwrite       перезаписывать существующие файлы без подтверждения.
 USAGE
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  usage
-  exit 0
-fi
+MODE="interactive"
+TARGETS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --mode)
+      if [[ -z "${2:-}" ]]; then
+        echo "[Ошибка] Для --mode требуется значение" >&2
+        exit 1
+      fi
+      MODE="$2"
+      shift 2
+      ;;
+    --mode=*)
+      MODE="${1#*=}"
+      shift
+      ;;
+    --*)
+      echo "[Ошибка] Неизвестный флаг $1" >&2
+      exit 1
+      ;;
+    *)
+      TARGETS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+case "$MODE" in
+  interactive|skip-existing|overwrite)
+    ;;
+  *)
+    echo "[Ошибка] Неизвестный режим '$MODE'. Допустимые значения: interactive, skip-existing, overwrite." >&2
+    exit 1
+    ;;
+esac
 
 if [[ ! -f "$SOURCE_FILE" ]]; then
   echo "[Ошибка] Не найден источник $SOURCE_FILE" >&2
   exit 1
 fi
 
-if [[ $# -gt 0 ]]; then
-  TARGETS=("$@")
+if [[ ${#TARGETS[@]} -gt 0 ]]; then
+  TARGETS=("${TARGETS[@]}")
 else
   TARGETS=("${DEFAULT_TARGETS[@]}")
 fi
@@ -69,20 +110,29 @@ for target in "${TARGETS[@]}"; do
   fi
 
   if [[ -f "$DEST_FILE" ]]; then
-    echo "[Внимание] $DISPLAY_PATH уже существует. Перезаписать? [y/N/skip]"
-    read -r answer
-    case "${answer,,}" in
-      y|yes)
-        ;;
-      s|skip)
-        echo "[Пропуск] $DISPLAY_TARGET"
-        continue
-        ;;
-      *)
-        echo "[Пропуск] $DISPLAY_TARGET"
-        continue
-        ;;
-    esac
+    if [[ "$MODE" == "skip-existing" ]]; then
+      echo "[Пропуск] $DISPLAY_PATH уже существует (режим skip-existing)"
+      continue
+    fi
+
+    if [[ "$MODE" == "overwrite" ]]; then
+      :
+    else
+      echo "[Внимание] $DISPLAY_PATH уже существует. Перезаписать? [y/N/skip]"
+      read -r answer
+      case "${answer,,}" in
+        y|yes)
+          ;;
+        s|skip)
+          echo "[Пропуск] $DISPLAY_TARGET"
+          continue
+          ;;
+        *)
+          echo "[Пропуск] $DISPLAY_TARGET"
+          continue
+          ;;
+      esac
+    fi
   fi
 
   cp "$SOURCE_FILE" "$DEST_FILE"
