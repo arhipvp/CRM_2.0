@@ -225,8 +225,38 @@ export class ApiClient {
     }
   }
 
-  getDeals(): Promise<Deal[]> {
-    return this.request("/crm/deals", undefined, async () => dealsMock);
+  private buildQueryString(filters?: DealFilters): string {
+    if (!filters) {
+      return "";
+    }
+
+    const params = new URLSearchParams();
+
+    if (filters.stage && filters.stage !== "all") {
+      params.set("stage", filters.stage);
+    }
+
+    if (filters.managers && filters.managers.length > 0) {
+      for (const manager of filters.managers) {
+        params.append("manager", manager);
+      }
+    }
+
+    if (filters.period && filters.period !== "all") {
+      params.set("period", filters.period);
+    }
+
+    if (filters.search) {
+      params.set("search", filters.search);
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  getDeals(filters?: DealFilters): Promise<Deal[]> {
+    const query = this.buildQueryString(filters);
+    return this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
   }
 
   getDeal(id: string): Promise<Deal> {
@@ -437,6 +467,111 @@ export class ApiClient {
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );
   }
+}
+
+const DAY_IN_MS = 86_400_000;
+
+const DEAL_STAGE_ORDER: DealStage[] = [
+  "qualification",
+  "negotiation",
+  "proposal",
+  "closedWon",
+  "closedLost",
+];
+
+function getPeriodStart(period: DealPeriodFilter | undefined): number | undefined {
+  switch (period) {
+    case "7d":
+      return Date.now() - DAY_IN_MS * 7;
+    case "30d":
+      return Date.now() - DAY_IN_MS * 30;
+    case "90d":
+      return Date.now() - DAY_IN_MS * 90;
+    default:
+      return undefined;
+  }
+}
+
+function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
+  const normalizedManagers = filters?.managers?.map((name) => name.toLowerCase());
+  const search = filters?.search?.trim().toLowerCase();
+  const periodStart = getPeriodStart(filters?.period);
+  const stageFilter = filters?.stage && filters.stage !== "all" ? filters.stage : undefined;
+
+  return deals
+    .filter((deal) => {
+      if (stageFilter && deal.stage !== stageFilter) {
+        return false;
+      }
+
+      if (normalizedManagers && normalizedManagers.length > 0) {
+        if (!normalizedManagers.includes(deal.owner.toLowerCase())) {
+          return false;
+        }
+      }
+
+      if (periodStart && new Date(deal.updatedAt).getTime() < periodStart) {
+        return false;
+      }
+
+      if (search) {
+        const haystack = `${deal.name} ${deal.clientName}`.toLowerCase();
+        if (!haystack.includes(search)) {
+          return false;
+        }
+      }
+
+      return true;
+    })
+    .map((deal) => ({ ...deal }));
+}
+
+function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
+  const baselineCount = deals.filter((deal) => deal.stage === "qualification").length;
+  const now = Date.now();
+
+  return DEAL_STAGE_ORDER.map((stage, index) => {
+    const stageDeals = deals.filter((deal) => deal.stage === stage);
+    const count = stageDeals.length;
+    const totalValue = stageDeals.reduce((acc, deal) => acc + deal.value, 0);
+    const conversionRate =
+      index === 0
+        ? 1
+        : baselineCount > 0
+          ? Math.max(0, Math.min(1, count / baselineCount))
+          : 0;
+    const avgCycleDurationDays =
+      stageDeals.length === 0
+        ? null
+        : Number.parseFloat(
+            (
+              stageDeals.reduce((acc, deal) => acc + (now - new Date(deal.updatedAt).getTime()), 0) /
+              stageDeals.length /
+              DAY_IN_MS
+            ).toFixed(1),
+          );
+
+    return {
+      stage,
+      count,
+      totalValue,
+      conversionRate,
+      avgCycleDurationDays,
+    } satisfies DealStageMetrics;
+  });
+}
+
+function updateDealStageMock(dealId: string, stage: DealStage): Deal {
+  const deal = dealsMock.find((item) => item.id === dealId);
+
+  if (!deal) {
+    throw new ApiError("Deal not found", 404);
+  }
+
+  deal.stage = stage;
+  deal.updatedAt = new Date().toISOString();
+
+  return { ...deal };
 }
 
 export const apiClient = new ApiClient();

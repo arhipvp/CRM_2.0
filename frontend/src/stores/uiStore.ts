@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { createRandomId } from "@/lib/utils/id";
+import { DealPeriodFilter } from "@/types/crm";
 
 export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
+
+export type DealViewMode = "kanban" | "table";
 
 type NotificationType = "info" | "success" | "warning" | "error";
 
@@ -27,12 +30,34 @@ export interface PaymentEventEffect {
   highlightDealId?: string;
 }
 
+interface FiltersState {
+  stage: PipelineStageKey | "all";
+  managers: string[];
+  period: DealPeriodFilter;
+  search: string;
+}
+
 interface UiState {
-  selectedStage: PipelineStageKey | "all";
+  filters: FiltersState;
+  viewMode: DealViewMode;
+  selectedDealIds: string[];
   highlightedDealId?: string;
+  previewDealId?: string;
   notifications: NotificationItem[];
   dealUpdates: Record<string, string>;
   setSelectedStage: (stage: PipelineStageKey | "all") => void;
+  setManagersFilter: (managers: string[]) => void;
+  toggleManagerFilter: (manager: string) => void;
+  setPeriodFilter: (period: DealPeriodFilter) => void;
+  setSearchFilter: (value: string) => void;
+  clearFilters: () => void;
+  setViewMode: (mode: DealViewMode) => void;
+  toggleDealSelection: (dealId: string) => void;
+  selectDeals: (dealIds: string[]) => void;
+  clearSelection: () => void;
+  openDealPreview: (dealId: string | undefined) => void;
+  isHintDismissed: (key: string) => boolean;
+  dismissHint: (key: string) => void;
   highlightDeal: (dealId: string | undefined) => void;
   pushNotification: (notification: NotificationItem) => void;
   dismissNotification: (id: string) => void;
@@ -42,7 +67,14 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
-  selectedStage: "all",
+  filters: {
+    stage: "all",
+    managers: [],
+    period: "30d",
+    search: "",
+  },
+  viewMode: "kanban",
+  selectedDealIds: [],
   notifications: [],
   dealUpdates: {},
   setSelectedStage: (stage) => set({ selectedStage: stage }),
