@@ -55,13 +55,14 @@
 ## 1. Подготовьте `.env`
 
 1. Скопируйте шаблон: `cp env.example .env`.
-   > ℹ️ После обновления шаблона окружения (например, после фикса `RABBITMQ_URL`) пересоздайте локальный `.env` из свежей версии (`cp env.example .env` с перезаписью), чтобы подтянуть актуальные значения RabbitMQ и других переменных.
+   > ℹ️ После обновления шаблона окружения (например, после фикса `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на префикс `r2dbc:`) пересоздайте локальный `.env` из свежей версии (`cp env.example .env` с перезаписью), чтобы подтянуть актуальные значения RabbitMQ, R2DBC и других переменных.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
    - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) и ключ сессий Gateway (`SESSION_SECRET`).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
+   - Проверьте, что `AUTH_DATABASE_URL` использует префикс `r2dbc:postgresql://...` и параметр `schema=auth`; если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`.
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
 
 ### Интеграции
