@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: crm-stage
+namePrefix: stage-
+commonLabels:
+  env: stage
+resources:
+  - ../../base
+patchesStrategicMerge:
+  - gateway-configmap-patch.yaml
+  - gateway-deployment-patch.yaml
+images:
+  - name: ghcr.io/your-org/crm-gateway
+    newName: ghcr.io/your-org/crm-gateway
+    newTag: stage
