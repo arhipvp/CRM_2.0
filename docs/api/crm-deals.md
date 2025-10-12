@@ -198,7 +198,7 @@ CRM хранит метаданные платежей для воронки и 
 | payment_type | string | Да | `client_premium`, `commission_income`, `client_discount`, `executor_fee`. |
 | planned_date | date | Нет | Плановая дата. |
 | amount | number | Да | Сумма. |
-| currency | string | Да | Валюта (ISO 4217). |
+| currency | string | Да | Валюта, фиксированное значение `RUB` (хранится для совместимости). |
 | notes | string | Нет | Комментарии. |
 
 **Ответ 201** — созданный платёж с `status = planned`.
