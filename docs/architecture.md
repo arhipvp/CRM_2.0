@@ -9,7 +9,7 @@ CRM состоит из набора специализированных сер
 | Gateway / BFF | Единая точка входа для веб-клиента и Telegram-бота, оркестрация запросов, управление сессиями, агрегация данных | Redis (сессии, кеш), внутренние REST API сервисов, SSE-каналы CRM/Deals и Notifications, Consul |
 | Auth | Управление пользователями, ролями, OAuth/OIDC-потоками, выдача токенов и проверка доступов | PostgreSQL (схема `auth`), Redis (одноразовые коды и токены), Gateway |
 | CRM / Deals | Клиенты, сделки, расчёты, полисы, журналы и связанные задачи | PostgreSQL (схема `crm`), RabbitMQ (доменные события), Documents API |
-| Payments | Учёт платежей, комиссий и взаиморасчётов, публикация финансовых событий | PostgreSQL (схема `payments`), RabbitMQ (exchange `payments.events`), справочники тарифов |
+| Payments | Учёт платежей, комиссий и взаиморасчётов, публикация финансовых событий | PostgreSQL (схема `payments`), RabbitMQ (exchange `payments.events`), внутренние справочники тарифов |
 | Tasks | Планирование и исполнение задач, SLA и напоминания | PostgreSQL (схема `tasks`), RabbitMQ, Notifications |
 | Notifications | Доставка уведомлений и триггеров в Telegram и внутренние уведомления CRM | RabbitMQ, Gateway (webhook Telegram), Redis (rate limiting) |
 | Documents | Управление метаданными файлов и связью с Google Drive | PostgreSQL (схема `documents`), Google Drive API, Auth |
