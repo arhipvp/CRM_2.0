@@ -73,7 +73,7 @@ flowchart LR
         TG[Telegram Bot]
     end
 
-    FE -->|REST/GraphQL| GW[Gateway / BFF]
+    FE -->|REST + SSE| GW[Gateway / BFF]
     TG -->|Webhook| GW
 
     GW -->|AuthN/AuthZ| AUTH[Auth]
