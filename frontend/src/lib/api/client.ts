@@ -4,6 +4,68 @@ import { ActivityLogEntry, Client, Deal, Payment, Task } from "@/types/crm";
 export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+function parseTimeout(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+const ENV_TIMEOUT_MS = parseTimeout(process.env.FRONTEND_PROXY_TIMEOUT);
+
+function normalizeTimeout(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function mergeAbortSignals(signals: Array<AbortSignal | undefined>): AbortSignal | undefined {
+  const activeSignals = signals.filter(Boolean) as AbortSignal[];
+
+  if (activeSignals.length === 0) {
+    return undefined;
+  }
+
+  if (activeSignals.length === 1) {
+    return activeSignals[0];
+  }
+
+  const controller = new AbortController();
+  const abort = (signal: AbortSignal) => {
+    if (!controller.signal.aborted) {
+      // `reason` доступен не во всех окружениях, поэтому подстрахуемся.
+      const reason = (signal as AbortSignal & { reason?: unknown }).reason;
+      controller.abort(reason);
+    }
+  };
+
+  for (const signal of activeSignals) {
+    if (signal.aborted) {
+      abort(signal);
+      break;
+    }
+
+    signal.addEventListener("abort", () => abort(signal), { once: true });
+  }
+
+  return controller.signal;
 }
 
 export class ApiError extends Error {
@@ -18,6 +80,10 @@ export class ApiClient {
 
   private get baseUrl() {
     return this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  private get timeoutMs(): number {
+    return normalizeTimeout(this.config.timeoutMs) ?? ENV_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS;
   }
 
   private async request<T>(
@@ -68,9 +134,18 @@ export class ApiClient {
       );
     }
 
+    const timeoutMs = this.timeoutMs;
+    const timeoutController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    if (timeoutController) {
+      timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+    }
+
     try {
       const response = await fetch(url, {
         ...init,
+        signal: mergeAbortSignals([timeoutController?.signal, init?.signal]),
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -90,11 +165,20 @@ export class ApiClient {
 
       return (await response.json()) as T;
     } catch (error) {
+      if (timeoutController && timeoutController.signal.aborted) {
+        const timeoutError = new ApiError(`Request timed out after ${timeoutMs} ms`);
+        return await resolveWithFallback(timeoutError, "Request timed out and no fallback is available");
+      }
+
       if (error instanceof ApiError) {
         throw error;
       }
 
       return await resolveWithFallback(error, "Request failed and no fallback is available");
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 
