@@ -82,7 +82,7 @@ Telegram-бот
 
 Команды и уведомления помещаются в очередь RabbitMQ, откуда их читают Notifications и CRM/Deals. Ответы пользователям отправляются асинхронно.
 
-Привязка Telegram-пользователя к учётной записи CRM хранится в Auth-сервисе, доступ предоставляется по REST API.
+Привязка Telegram-пользователя к учётной записи CRM хранится в Auth-сервисе и выполняется через REST-вызовы шлюза `/api/auth/telegram/*`.
 
 Политика хранения импортируемых файлов
 
@@ -123,7 +123,7 @@ Gateway / BFF
 
 БД и очереди: ioredis (Redis); прямой работы с PostgreSQL нет
 
-API: REST (JSON) для фронтенда, внутренние вызовы — REST и управление WebSocket/SSE-каналами
+API: REST (JSON) и SSE-каналы для фронтенда, внутренние вызовы — REST и управление SSE-потоками
 
 Зависимости и компоненты:
 
@@ -336,7 +336,7 @@ End-to-end сценарии в staging, blue/green деплой
 
 БД и очереди: Spring Data R2DBC (PostgreSQL), Spring AMQP (RabbitMQ)
 
-API: REST + gRPC для внутренних подписчиков
+API: REST endpoints для внутренних подписчиков; события доставляются через Spring Cloud Stream
 
 Интеграция с PostgreSQL:
 
@@ -364,7 +364,7 @@ API: REST + gRPC для внутренних подписчиков
 
 БД и очереди: psycopg (PostgreSQL), boto3 (S3-совместимое хранилище), aio-pika (RabbitMQ для уведомлений)
 
-API: REST для управления бэкапами + internal gRPC health-check
+API: REST для управления бэкапами, health-check реализован через REST endpoint `/health` и метрики Prometheus
 
 Механизмы резервного копирования:
 
