@@ -13,7 +13,7 @@
 **Параметры запроса**
 | Имя | Тип | Описание |
 | --- | --- | --- |
-| channel | array[string] | `sse`, `telegram`, `email`. |
+| channel | array[string] | `sse`, `telegram`. |
 | active | boolean | Только активные шаблоны. |
 
 **Ответ 200** — список шаблонов с версиями.
@@ -25,9 +25,9 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | key | string | Да | Уникальный идентификатор (`deal.status.changed`). |
-| channel | string | Да | Канал. |
+| channel | string | Да | Канал (`sse` или `telegram`). |
 | locale | string | Нет | Код локали (по умолчанию `ru-RU`). |
-| subject | string | Нет | Заголовок (для email/SSE). |
+| subject | string | Нет | Заголовок (для отображения в потоке SSE). |
 | body | string | Да | Шаблон в формате Mustache. |
 | metadata | object | Нет | Доп. параметры. |
 
@@ -45,7 +45,7 @@
 | --- | --- | --- | --- |
 | event_key | string | Да | Ключ события, выбирает шаблон. |
 | recipients | array<object> | Да | Каждый объект содержит `user_id`, опционально `telegram_id`. |
-| channel_overrides | array<string> | Нет | Список каналов, если нужно переопределить шаблон. |
+| channel_overrides | array<string> | Нет | Список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
 | payload | object | Да | Данные для подстановки. |
 | deduplication_key | string | Нет | Используется для идемпотентности (например, `task:uuid`). |
 
