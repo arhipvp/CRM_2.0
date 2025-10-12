@@ -1,5 +1,25 @@
 export type DealStage = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
 
+export interface DealNote {
+  id: string;
+  dealId: string;
+  author: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface DealDocument {
+  id: string;
+  dealId: string;
+  title: string;
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  url?: string;
+}
+
 export interface Deal {
   id: string;
   name: string;
@@ -11,6 +31,11 @@ export interface Deal {
   owner: string;
   updatedAt: string;
   expectedCloseDate?: string;
+  tasks: Task[];
+  notes: DealNote[];
+  documents: DealDocument[];
+  payments: Payment[];
+  activity: ActivityLogEntry[];
 }
 
 export interface Client {
@@ -55,4 +80,5 @@ export interface ActivityLogEntry {
   message: string;
   createdAt: string;
   clientId: string;
+  dealId?: string;
 }
