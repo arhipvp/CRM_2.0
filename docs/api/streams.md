@@ -36,6 +36,28 @@ Gateway публикует события через Server-Sent Events (SSE) д
 - `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
 - `event: heartbeat` каждые 30 секунд для проверки соединения (payload пустой).
 
+## Канал `payments`
+- **Маршрут:** `GET /api/v1/streams/payments` — поток статусов и графиков платежей (публичная переменная `NEXT_PUBLIC_PAYMENTS_SSE_URL`).
+- **Назначение:** ретрансляция финансовых событий Payments в реальном времени для экранов CRM.
+- **Особенности:**
+  - Gateway подключается к upstream `GATEWAY_UPSTREAM_PAYMENTS_SSE_URL` и проксирует события без трансформаций payload (тип и структура совпадают с RabbitMQ `payments.events`).
+  - При восстановлении соединения используется идентификатор события из Redis (`${REDIS_HEARTBEAT_PREFIX}:payments:last-event-id`), что позволяет возобновить поток без потери данных.【F:backend/gateway/src/sse/upstream-sse.service.ts†L22-L115】
+  - Сердечные импульсы (`event: heartbeat`) формируются каждые `GATEWAY_UPSTREAM_SSE_HEARTBEAT_INTERVAL` миллисекунд; ключ состояния канала — `${REDIS_HEARTBEAT_PREFIX}:payments`.
+  - Повторные подключения выполняются с задержкой `GATEWAY_UPSTREAM_SSE_RECONNECT_DELAY`; upstream поддерживает заголовок `Last-Event-ID` и отдаёт монотонно возрастающие идентификаторы событий.
+
+### Типы событий канала `payments`
+- **Источник данных:** сервис Payments транслирует в SSE те же доменные события, которые публикует в exchange `payments.events` (см. [`docs/integration-events.md`](../integration-events.md)).
+
+| Тип события | Описание | Payload |
+| --- | --- | --- |
+| `payment.created` | Создан новый платёж или добавлена запись в график. | `{ "payment_id": "uuid", "deal_id": "uuid", "amount": 12345.67, "currency": "RUB", "planned_date": "date", "status": "planned" }` |
+| `payment.status.changed` | Обновлён статус платежа, подтверждена оплата или возврат. | `{ "payment_id": "uuid", "status": "received", "actual_date": "date", "confirmed_by": "uuid", "version": 3 }` |
+| `payment.overdue` | Платёж просрочен и требует внимания. | `{ "payment_id": "uuid", "deal_id": "uuid", "due_date": "date", "amount": 12345.67, "days_overdue": 5 }` |
+
+**Ошибки канала:**
+- `event: error` + `data: {"code": "upstream_unavailable"}` — Payments временно недоступен, Gateway продолжает попытки переподключения.
+- `event: heartbeat` каждые 30 секунд для проверки соединения (payload содержит `upstream` и таймстамп).【F:backend/gateway/src/sse/upstream-sse.service.ts†L47-L115】
+
 ## Запланированные каналы (после первой поставки)
 
 ### Канал `tasks`
