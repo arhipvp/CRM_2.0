@@ -50,6 +50,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
     process.env.GATEWAY_UPSTREAM_PAYMENTS_BASE_URL ?? '',
     'http://localhost:3003/api'
   );
+  const paymentsStreamsDefault = `http://localhost:${process.env.PAYMENTS_SERVICE_PORT ?? '8083'}/streams`;
   const authBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL ?? '',
     'http://localhost:3005/api'
@@ -77,7 +78,12 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
       payments: {
         baseUrl: paymentsBase,
         timeout: parseNumber(process.env.GATEWAY_UPSTREAM_PAYMENTS_TIMEOUT, defaultTimeout),
-        serviceName: process.env.GATEWAY_UPSTREAM_PAYMENTS_SERVICE_NAME ?? 'payments-service'
+        serviceName: process.env.GATEWAY_UPSTREAM_PAYMENTS_SERVICE_NAME ?? 'payments-service',
+        sse: {
+          url:
+            process.env.GATEWAY_UPSTREAM_PAYMENTS_SSE_URL ??
+            normalizeUrl(`${paymentsBase}/streams`, paymentsStreamsDefault)
+        }
       },
       auth: {
         baseUrl: authBase,
