@@ -336,7 +336,7 @@ End-to-end сценарии в staging, blue/green деплой
 
 БД и очереди: Spring Data R2DBC (PostgreSQL), Spring AMQP (RabbitMQ)
 
-API: REST + gRPC для внутренних подписчиков
+API: REST/SSE для внутренних подписчиков
 
 Интеграция с PostgreSQL:
 
