@@ -108,22 +108,35 @@ function processPaymentEvent(event: PaymentEventPayload): PaymentEventProcessing
       };
     }
     case "payment.status_changed": {
-      const status = String(data.status ?? "");
+      const status = String(data.status ?? "").toLowerCase();
       const normalizedStatus = status.replace(/[_-]/g, " ").trim();
 
       let message = "Статус платежа обновлён";
       let level: NotificationType = "info";
 
-      if (status === "received" || status === "paid_out") {
-        message = "Платёж подтверждён";
-        level = "success";
-      } else if (status === "failed" || status === "cancelled") {
-        message = "Платёж отклонён";
-        level = "error";
-      }
-
-      if (normalizedStatus && level === "info") {
-        message = `${message} (${normalizedStatus})`;
+      switch (status) {
+        case "received":
+          message = "Платёж получен";
+          level = "success";
+          break;
+        case "paid_out":
+          message = "Платёж выплачен";
+          level = "success";
+          break;
+        case "cancelled":
+          message = "Платёж отменён";
+          level = "error";
+          break;
+        case "planned":
+          message = "Платёж запланирован";
+          break;
+        case "expected":
+          message = "Ожидается подтверждение платежа";
+          break;
+        default:
+          if (normalizedStatus) {
+            message = `${message} (${normalizedStatus})`;
+          }
       }
 
       return {
