@@ -32,7 +32,7 @@ abstract class AbstractIntegrationTest {
         @DynamicPropertySource
         fun registerProperties(registry: DynamicPropertyRegistry) {
             registry.add("AUTH_DATABASE_URL") {
-                "r2dbc:postgresql://${postgres.username}:${postgres.password}@${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+                "r2dbc:postgresql://${postgres.username}:${postgres.password}@${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}?schema=auth"
             }
             registry.add("AUTH_REDIS_URL") { "redis://${redis.host}:${redis.firstMappedPort}/0" }
             registry.add("AUTH_JWT_SECRET") { "test-secret" }

@@ -62,7 +62,7 @@
    - Секреты JWT (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`) и ключ сессий Gateway (`SESSION_SECRET`).
    - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
-   - Проверьте, что `AUTH_DATABASE_URL` использует префикс `r2dbc:postgresql://...` и параметр `schema=auth`; если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`.
+   - Проверьте, что `AUTH_DATABASE_URL` использует формат `r2dbc:postgresql://.../${POSTGRES_DB}?schema=auth` (или эквивалент с `search_path=auth`); если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`, например `r2dbc:postgresql://auth:auth@localhost:5432/crm?schema=auth`.
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
 
 ### Интеграции
