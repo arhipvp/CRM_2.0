@@ -165,6 +165,30 @@
 
 Скрипт можно выполнять сколько угодно раз — он идемпотентен. Для ручной проверки воспользуйтесь `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
 
+### Загрузите seed-набор PostgreSQL
+
+Набор `backups/postgres/seeds` автоматизирован скриптом [`./scripts/load-seeds.sh`](../scripts/load-seeds.sh). Он читает параметры подключения из актуального `.env`, поэтому перед запуском синхронизируйте файл с [env.example](../env.example) (см. шаг «Подготовьте `.env`») и убедитесь, что миграции Auth (`./gradlew update`) и CRM (`poetry run alembic upgrade head`) уже применены.
+
+**Требования**
+
+- Установленный `psql` **или** запущенный Docker с контейнером `crm-postgres` (`docker compose up -d` в каталоге `infra/`).
+- Созданный `.env`, значения переменных подключения (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`) совпадают с шаблоном `env.example`, который остаётся источником правды.
+- Выполненные миграции схем `auth`, `crm`, `payments`.
+
+**Запуск**
+
+```bash
+./scripts/load-seeds.sh
+```
+
+Скрипт применяет SQL-файлы в порядке Auth → CRM → Payments, выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить `payments`), воспользуйтесь фильтром по подстроке имени файла:
+
+```bash
+./scripts/load-seeds.sh --only payments
+```
+
+В отсутствии локального `psql` сценарий автоматически выполнит `docker compose exec postgres psql`, перенаправив SQL внутрь контейнера. После успешного завершения появится сообщение `Готово.` — база содержит актуальные тестовые данные для smoke-проверок.
+
 ## 3. Проверьте создание схем и ролей PostgreSQL
 
 Скрипт `infra/postgres/init.sh` автоматически создаёт схемы и роли, указанные в `.env`. Чтобы убедиться, что всё применилось:

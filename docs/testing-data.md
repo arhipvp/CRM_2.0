@@ -18,18 +18,14 @@
 
 ## Процедура загрузки
 
-1. Подготовьте окружение согласно [docs/local-setup.md](local-setup.md): создайте `.env`, поднимите инфраструктурные контейнеры и примените миграции сервисов (`alembic upgrade head`, `liquibase update` и т.д.).
-2. Проверьте, что в `.env` заполнены переменные подключения к PostgreSQL (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`). Шаблон значений хранится в [env.example](../env.example) и служит источником правды.
-3. Выполните загрузку файлов в порядке Auth → CRM → Payments. Пример для Linux/macOS:
+1. Подготовьте окружение согласно [docs/local-setup.md](local-setup.md): создайте `.env`, поднимите инфраструктурные контейнеры, выполните миграции (`poetry run alembic upgrade head`, `./gradlew update` и т.д.).
+2. Убедитесь, что `.env` синхронизирован с [env.example](../env.example) — он остаётся источником правды для параметров `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+3. Запустите автоматизированный скрипт загрузки:
    ```bash
-   export PGPASSWORD="$POSTGRES_PASSWORD"
-   psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_auth.sql
-   psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_crm.sql
-   psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f backups/postgres/seeds/seed_20240715_payments.sql
-   unset PGPASSWORD
+   ./scripts/load-seeds.sh
    ```
-   Для XML-файлов других доменов используйте CLI выбранного инструмента миграций (Liquibase/Flyway) и следуйте README сервиса.
-4. Для локальных экспериментов создайте отдельный файл `seed_<дата>_local.sql`, добавьте его в `.gitignore` и применяйте вручную — так основной набор остаётся неизменным.
+   Сценарий читает переменные подключения из `.env`, проверяет наличие `psql` или Docker и применяет SQL-файлы в порядке Auth → CRM → Payments. Для частичной перезагрузки используйте фильтр по подстроке имени файла, например `./scripts/load-seeds.sh --only payments`.
+4. При работе с пользовательскими расширениями создавайте отдельный файл `seed_<дата>_local.sql`, добавляйте его в `.gitignore` и применяйте вручную — основной набор остаётся неизменным.
 
 ## Проверка корректности
 
