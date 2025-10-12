@@ -102,7 +102,7 @@ Telegram-бот
 
 Фронтенд
 
-Ядро: React 18 + TypeScript, собранные поверх Next.js 14 в режиме App Router для гибридного SSR/SSG и оптимизаций по производительности.
+Ядро: React 19 + TypeScript, собранные поверх Next.js 15 в режиме App Router для гибридного SSR/SSG и оптимизаций по производительности.
 
 Сборка и поставка: встроенный bundler Next.js (SWC) и Turbopack в режиме разработки; артефакт собирается в Docker-образ, который проходит через pipeline GitHub Actions → GitHub Container Registry → Argo CD для выката в Kubernetes (отдельный deployment `frontend`).
 
@@ -110,7 +110,7 @@ Telegram-бот
 
 Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); в первой поставке фронтенд открывает только три SSE-канала — сделки (`deals`), платежи (`payments`) и внутренние уведомления (`notifications`). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_PAYMENTS_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`). Значения по умолчанию в [`env.example`](../env.example) указывают на документированные маршруты Gateway — `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`, `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments` и `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications` соответственно. Поток платежей дополнительно инициирует инвалидацию React Query и формирует тосты о статусах (`created`, `status_changed`, `overdue`), что позволяет таблице платежей и уведомлениям синхронно обновляться. Для окружения разработки (`dev`) фронтенд использует `http://localhost`, тогда как значения для stage/prod поступают из Kubernetes overlay (`infra/k8s/overlays`) и резолвятся в актуальные доменные имена. Внутренний upstream для CRM продолжает обозначаться как `crm`, однако публичный маршрут и фронтенд-конфигурация используют имя `deals` для единообразия. Отдельный поток задач появится после расширения сценариев напоминаний; в текущем релизе соединение с Tasks не открывается. Значения для окружений stage/prod подставляются через Kubernetes overlay, поэтому при переключении окружения обновлять `.env` вручную не требуется.
 
-Тестирование: unit и компонентные тесты на Vitest + React Testing Library, визуальные снапшоты Storybook Chromatic, end-to-end сценарии в Playwright. Smoke-тесты фронтенда запускаются после деплоя вместе с контрактными тестами Gateway/BFF.
+Тестирование: unit и компонентные тесты на Vitest + React Testing Library, визуальные снапшоты Storybook Chromatic, end-to-end сценарии в Playwright. Для всех команд зафиксирован менеджер пакетов `pnpm` версии 9 через Corepack. Smoke-тесты фронтенда запускаются после деплоя вместе с контрактными тестами Gateway/BFF.
 
 Требования к окружению:
 

@@ -5,7 +5,7 @@
 ## Глобальные инструменты
 
 - **Node.js 18 LTS + pnpm** — базовая платформа для Gateway/BFF, Documents, Tasks и Notifications (NestJS-сервисы).【F:backend/gateway/README.md†L6-L16】【F:backend/documents/README.md†L6-L18】【F:backend/tasks/README.md†L6-L18】【F:backend/notifications/README.md†L8-L20】
-- **Node.js 20 LTS + Corepack** — рекомендуемый рантайм для фронтенда на Next.js 14, включая Storybook и Playwright сценарии.【F:frontend/README.md†L6-L13】
+- **Node.js 20 LTS + Corepack** — рекомендуемый рантайм для фронтенда на Next.js 15, включая Storybook и Playwright сценарии. После установки выполните `corepack enable` и `corepack prepare pnpm@9 --activate`, чтобы зафиксировать требуемую версию pnpm.【F:frontend/README.md†L6-L22】
 - **Python 3.11** — основной рантайм CRM/Deals (FastAPI, SQLAlchemy, Celery).【F:backend/crm/README.md†L6-L17】
 - **JDK 17 + Gradle 8** — стек Spring Boot WebFlux для Auth, Payments и Audit, где используются Liquibase/Flyway и Spring Cloud Stream.【F:backend/auth/README.md†L6-L17】【F:backend/payments/README.md†L6-L18】【F:backend/audit/README.md†L6-L17】
 
@@ -33,7 +33,7 @@
 | **Tasks** | NestJS (Node.js 18) | PostgreSQL `tasks`, RabbitMQ `tasks.*`, Redis (отложенные задачи) | Планировщик SLA, BullMQ пула нет (использует Redis напрямую).【F:backend/tasks/README.md†L6-L31】【F:env.example†L59-L131】 |
 | **Reports** | Планируется Python/TypeScript | PostgreSQL агрегаты (`crm`, `audit`), RabbitMQ события (позже) | Пока заглушка, но переменные зарезервированы.【F:backend/reports/README.md†L6-L23】【F:env.example†L61-L134】 |
 | **Audit** | Spring Boot WebFlux (JDK 17) | PostgreSQL `audit`, RabbitMQ (`audit.events`, `audit.core`, `audit.dlq`) | Liquibase миграции, persistent volume для write-ahead журнала.【F:backend/audit/README.md†L6-L27】【F:env.example†L61-L138】 |
-| **Frontend (Next.js)** | Node.js 20 LTS, Next.js 14 | — (получает данные через Gateway) | Требуются переменные `NEXT_PUBLIC_*`, Storybook/Playwright инструменты.【F:frontend/README.md†L6-L18】【F:env.example†L97-L108】 |
+| **Frontend (Next.js)** | Node.js 20 LTS, Next.js 15 | — (получает данные через Gateway) | Требуются переменные `NEXT_PUBLIC_*`, Storybook/Playwright инструменты, pnpm 9 через Corepack.【F:frontend/README.md†L6-L22】【F:env.example†L97-L108】 |
 
 ## Как пользоваться
 
