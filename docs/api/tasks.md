@@ -15,7 +15,7 @@
 | Имя | Тип | Описание |
 | --- | --- | --- |
 | assignee_id | UUID | Фильтр по исполнителю. |
-| status | array[string] | Коды статусов: `new` (Новая), `in_progress` (В работе), `done` (Выполнена), `cancelled` (Отменена). |
+| status | array[string] | Коды статусов: `new` (Новая), `in_progress` (В работе), `waiting` (В ожидании), `done` (Выполнена), `cancelled` (Отменена). |
 | due_before | date | Задачи со сроком до указанной даты. |
 | due_after | date | Задачи со сроком после указанной даты. |
 | priority | array[string] | `low`, `normal`, `high`. |
@@ -76,7 +76,7 @@
 **Тело запроса**
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| status | string | Новый статус (`new`, `in_progress`, `done`, `cancelled`). |
+| status | string | Новый статус (`new`, `in_progress`, `waiting`, `done`, `cancelled`). |
 | completed_at | datetime | Заполняется при переводе в `done` («Выполнена»). |
 | cancelled_reason | string | Причина отмены, обязательна при `status = cancelled`. |
 | due_date | date | Перенос срока. |

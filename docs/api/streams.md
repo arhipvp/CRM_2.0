@@ -33,12 +33,12 @@ Gateway публикует события через Server-Sent Events (SSE) д
 | Тип события | Описание | Payload |
 | --- | --- | --- |
 | `task.created` | Создана новая задача. | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "status": "new" }` |
-| `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "in_progress" }, "updated_at": "datetime" }` |
+| `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "waiting" }, "updated_at": "datetime" }` |
 | `task.reminder` | Напоминание по задаче. | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` |
 
 > Поле `channel` в payload принимает значения `sse` (по умолчанию) или `telegram` и совпадает с каналом, указанным при создании напоминания в Tasks API.
 
-> Статусы задач в событиях каналов: `new` (Новая), `in_progress` (В работе), `done` (Выполнена), `cancelled` (Отменена).
+> Статусы задач в событиях каналов: `new` (Новая), `in_progress` (В работе), `waiting` (В ожидании), `done` (Выполнена), `cancelled` (Отменена).
 
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
