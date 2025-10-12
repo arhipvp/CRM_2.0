@@ -27,6 +27,7 @@
 ## 1. Подготовьте `.env`
 
 1. Скопируйте шаблон: `cp env.example .env`.
+   > ℹ️ Если вы создавали `.env` до исправления `RABBITMQ_URL`, пересоздайте файл из обновлённого шаблона (`cp env.example .env` с перезаписью), чтобы подтянуть корректные значения RabbitMQ.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
