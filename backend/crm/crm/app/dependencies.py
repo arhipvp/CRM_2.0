@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
-from crm.infrastructure.db import AsyncSessionFactory, get_session
+from crm.infrastructure.db import AsyncSessionFactory
 
 
 TenantHeader = Annotated[str | None, Header(alias="X-Tenant-ID")]
@@ -26,10 +27,9 @@ async def get_tenant_id(header: TenantHeader = None) -> UUID:
     raise HTTPException(status_code=400, detail="Tenant scope is required")
 
 
-async def get_db_session() -> AsyncSession:
-    async for session in get_session():
-        return session
-    raise RuntimeError("Database session factory did not yield a session")
+async def get_db_session() -> AsyncIterator[AsyncSession]:
+    async with AsyncSessionFactory() as session:
+        yield session
 
 
 async def get_client_service(session: AsyncSession = Depends(get_db_session)) -> services.ClientService:
