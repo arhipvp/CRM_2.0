@@ -3,10 +3,12 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import {
+  dealStageMetricsQueryKey,
   dealActivityQueryOptions,
   clientActivityQueryOptions,
   clientQueryOptions,
   clientsQueryOptions,
+  dealsQueryKey,
   dealDocumentsQueryOptions,
   dealQueryOptions,
   dealTasksQueryOptions,
@@ -68,10 +70,27 @@ export function useTasks() {
 }
 
 export function useToggleTask() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationKey: ["toggle-task"],
     mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
       apiClient.updateTaskStatus(taskId, completed),
+    onSuccess: async (task) => {
+      const invalidations = [
+        queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+      ];
+
+      if (task.dealId) {
+        invalidations.push(
+          queryClient.invalidateQueries({ queryKey: dealQueryOptions(task.dealId).queryKey }),
+        );
+      }
+
+      await Promise.all(invalidations);
+    },
   });
 }
 
