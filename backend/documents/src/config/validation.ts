@@ -10,6 +10,7 @@ export const validationSchema = Joi.object({
   DOCUMENTS_QUEUE_NAME: Joi.string().default('documents:tasks'),
   GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: Joi.string().optional(),
   GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH: Joi.string().optional(),
+  GOOGLE_APPLICATION_CREDENTIALS: Joi.string().optional(),
   GOOGLE_DRIVE_SHARED_DRIVE_ID: Joi.string().optional(),
   GOOGLE_DRIVE_EMULATOR_URL: Joi.string().uri({ scheme: [/https?/] }).optional(),
   GOOGLE_DRIVE_EMULATOR_ROOT: Joi.string().optional(),

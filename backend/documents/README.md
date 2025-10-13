@@ -44,12 +44,19 @@ pnpm install
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
 | `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
 | `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH` | JSON сервисного аккаунта или путь к файлу. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Альтернативный путь до JSON ключа (совместимо с SDK Google). |
 | `GOOGLE_DRIVE_SHARED_DRIVE_ID` | ID Shared Drive для реальной интеграции. |
 | `GOOGLE_DRIVE_EMULATOR_URL` | URL локального эмулятора (MinIO/LocalStack). |
 | `GOOGLE_DRIVE_EMULATOR_ROOT` | Корневая папка/идентификатор каталога эмулятора. |
 
 Переменные `GOOGLE_DRIVE_*` могут быть пустыми в dev-режиме — тогда используется эмулятор. В stage/prod требуется валидный
 сервисный аккаунт.
+
+## Сервисный аккаунт Google Drive
+1. Получите JSON ключ сервисного аккаунта и сохраните его в `backend/documents/credentials/service-account.json` **или** укажите
+   путь в `GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`/`GOOGLE_APPLICATION_CREDENTIALS`.
+2. Чтобы передать содержимое напрямую, используйте `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` (подходит для CI).
+3. При запуске без этих переменных модуль `DriveService` попытается использовать эмулятор (`GOOGLE_DRIVE_EMULATOR_URL`).
 
 ## REST API
 - `GET /health` — состояние сервиса.
