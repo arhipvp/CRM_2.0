@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: audit-service
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: ${AUDIT_DB_SCHEMA:audit}
+  cloud:
+    function:
+      definition: auditEventConsumer
+    stream:
+      defaultBinder: rabbit
+      bindings:
+        auditEventConsumer-in-0:
+          destination: ${AUDIT_EVENTS_QUEUE:audit.events}
+          group: ${AUDIT_EVENTS_GROUP:audit-service}
+          consumer:
+            maxAttempts: 3
+      rabbit:
+        bindings:
+          auditEventConsumer-in-0:
+            consumer:
+              autoBindDlq: true
+              deadLetterQueueName: ${AUDIT_DLQ_NAME:audit.dlq}
+              durableSubscription: true
+      binders:
+        rabbit:
+          type: rabbit
+          environment:
+            spring:
+              rabbitmq:
+                host: ${AUDIT_RABBITMQ_HOST:localhost}
+                port: ${AUDIT_RABBITMQ_PORT:5672}
+                username: ${AUDIT_RABBITMQ_USER:audit}
+                password: ${AUDIT_RABBITMQ_PASSWORD:audit}
+                virtual-host: ${AUDIT_RABBITMQ_VHOST:audit}
+server:
+  port: ${AUDIT_SERVICE_PORT:8088}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

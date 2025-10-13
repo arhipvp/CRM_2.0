@@ -1,0 +1,20 @@
+spring:
+  r2dbc:
+    url: ${AUDIT_R2DBC_URL:r2dbc:postgresql://${AUDIT_DB_USER:audit}:${AUDIT_DB_PASSWORD:audit}@localhost:5432/crm?schema=audit}
+    username: ${AUDIT_DB_USER:audit}
+    password: ${AUDIT_DB_PASSWORD:audit}
+  datasource:
+    url: ${AUDIT_JDBC_URL:jdbc:postgresql://${AUDIT_DB_USER:audit}:${AUDIT_DB_PASSWORD:audit}@localhost:5432/crm?search_path=audit}
+    username: ${AUDIT_DB_USER:audit}
+    password: ${AUDIT_DB_PASSWORD:audit}
+    hikari:
+      schema: ${AUDIT_DB_SCHEMA:audit}
+  cloud:
+    stream:
+      bindings:
+        auditEventConsumer-in-0:
+          consumer:
+            prefetch: 50
+logging:
+  level:
+    com.crm.audit: INFO

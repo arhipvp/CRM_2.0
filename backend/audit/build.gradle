@@ -1,0 +1,113 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '2.0.21'
+    id 'org.jetbrains.kotlin.plugin.spring' version '2.0.21'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.liquibase.gradle' version '2.2.1'
+}
+
+group = 'com.crm'
+version = '0.0.1-SNAPSHOT'
+description = 'CRM Audit Service'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springCloudVersion', '2023.0.4')
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
+    implementation 'org.liquibase:liquibase-core'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    implementation 'io.projectreactor.kotlin:reactor-kotlin-extensions'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-reactor'
+
+    runtimeOnly 'org.postgresql:r2dbc-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:5.3.1'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.2'
+    testImplementation 'org.testcontainers:postgresql:1.20.2'
+    testImplementation 'org.testcontainers:rabbitmq:1.20.2'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll '-Xjsr305=strict'
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'migrations'
+        }
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'test'
+}
+
+// Позволяет запускать `gradle bootRun -PspringProfile=dev`
+tasks.named('bootRun') {
+    systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'local'
+}
+
+liquibase {
+    def jdbcUrl = System.getenv('AUDIT_JDBC_URL')
+
+    activities {
+        main {
+            changeLogFile 'migrations/db/changelog/db.changelog-master.yaml'
+            url jdbcUrl ?: 'jdbc:postgresql://localhost:5432/crm?currentSchema=audit'
+            username System.getenv('AUDIT_DB_USER') ?: 'audit'
+            password System.getenv('AUDIT_DB_PASSWORD') ?: 'audit'
+            defaultSchemaName System.getenv('AUDIT_DB_SCHEMA') ?: 'audit'
+        }
+    }
+    runList = 'main'
+}
+
+configurations {
+    liquibaseRuntime
+}
+
+dependencies {
+    liquibaseRuntime 'info.picocli:picocli:4.7.6'
+    liquibaseRuntime 'org.postgresql:postgresql'
+    liquibaseRuntime 'org.liquibase:liquibase-core'
+    liquibaseRuntime sourceSets.main.runtimeClasspath
+}
+
+tasks.named('update') {
+    dependsOn tasks.named('compileKotlin')
+}

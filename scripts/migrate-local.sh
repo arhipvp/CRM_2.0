@@ -27,6 +27,20 @@ run_auth_migrations() {
   popd >/dev/null
 }
 
+run_audit_migrations() {
+  echo "[migrate-local] Применяем миграции Audit (Liquibase)..."
+  pushd "$ROOT_DIR/backend/audit" >/dev/null
+  if command -v gradle >/dev/null 2>&1; then
+    gradle update
+  elif [[ -x ./gradlew ]]; then
+    ./gradlew update
+  else
+    echo "[migrate-local] Gradle не установлен и wrapper отсутствует. Установите Gradle 8+ и повторите." >&2
+    exit 1
+  fi
+  popd >/dev/null
+}
+
 run_reports_migrations() {
   local migrations_dir="$ROOT_DIR/backend/reports/migrations"
   local migration_file="$migrations_dir/001_create_deal_pipeline_summary.sql"
@@ -61,6 +75,7 @@ run_reports_migrations() {
 
 run_crm_migrations
 run_auth_migrations
+run_audit_migrations
 run_reports_migrations
 
-echo "[migrate-local] Миграции CRM, Auth и Reports применены."
+echo "[migrate-local] Миграции CRM, Auth, Audit и Reports применены."
