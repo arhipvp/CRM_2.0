@@ -9,6 +9,7 @@ describe('TasksController (validation)', () => {
   let app: INestApplication;
   let commandBus: { execute: jest.Mock };
   let taskQuery: { findById: jest.Mock; findAll: jest.Mock };
+  const baseUrl = '/api/tasks';
 
   beforeEach(async () => {
     commandBus = { execute: jest.fn() };
@@ -23,6 +24,7 @@ describe('TasksController (validation)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    app.setGlobalPrefix('api');
     await app.init();
   });
 
@@ -30,26 +32,26 @@ describe('TasksController (validation)', () => {
     await app.close();
   });
 
-  it('GET /tasks/:id возвращает 400 при невалидном UUID', async () => {
-    await request(app.getHttpServer()).get('/tasks/invalid').expect(400);
+  it('GET /api/tasks/invalid возвращает 400 при невалидном UUID', async () => {
+    await request(app.getHttpServer()).get(`${baseUrl}/invalid`).expect(400);
     expect(taskQuery.findById).not.toHaveBeenCalled();
   });
 
-  it('POST /tasks/:id/schedule возвращает 400 при невалидном UUID', async () => {
+  it('POST /api/tasks/:id/schedule возвращает 400 при невалидном UUID', async () => {
     await request(app.getHttpServer())
-      .post('/tasks/invalid/schedule')
+      .post(`${baseUrl}/invalid/schedule`)
       .send({ scheduledFor: new Date().toISOString() })
       .expect(400);
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 
-  it('POST /tasks/:id/complete возвращает 400 при невалидном UUID', async () => {
-    await request(app.getHttpServer()).post('/tasks/invalid/complete').send({}).expect(400);
+  it('POST /api/tasks/:id/complete возвращает 400 при невалидном UUID', async () => {
+    await request(app.getHttpServer()).post(`${baseUrl}/invalid/complete`).send({}).expect(400);
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 
-  it('PATCH /tasks/:id возвращает 400 при невалидном UUID', async () => {
-    await request(app.getHttpServer()).patch('/tasks/invalid').send({}).expect(400);
+  it('PATCH /api/tasks/:id возвращает 400 при невалидном UUID', async () => {
+    await request(app.getHttpServer()).patch(`${baseUrl}/invalid`).send({}).expect(400);
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 });
