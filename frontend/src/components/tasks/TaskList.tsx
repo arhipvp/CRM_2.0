@@ -10,7 +10,15 @@ function isOverdue(date: string) {
 
 export function TaskList() {
   const { data: tasks = [], isLoading } = useTasks();
-  const toggleTask = useToggleTask();
+  const { mutateAsync: toggleTask, isPending: isToggling } = useToggleTask();
+
+  const handleToggle = async (taskId: string, completed: boolean) => {
+    try {
+      await toggleTask({ taskId, completed });
+    } catch (error) {
+      console.error("Не удалось обновить статус задачи", error);
+    }
+  };
 
   const sortedTasks = useMemo(
     () =>
@@ -44,7 +52,8 @@ export function TaskList() {
                 type="checkbox"
                 className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                 checked={task.completed}
-                onChange={() => toggleTask.mutate({ taskId: task.id, completed: !task.completed })}
+                disabled={isToggling}
+                onChange={() => handleToggle(task.id, !task.completed)}
               />
               <span className="flex-1">
                 <span className="font-medium">{task.title}</span>

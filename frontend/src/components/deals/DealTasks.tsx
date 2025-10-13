@@ -41,7 +41,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
   const queryClient = useQueryClient();
   const { data: tasks = [], isLoading } = useDealTasks(dealId);
   const { mutateAsync: createTask, isPending: isCreating } = useCreateDealTask(dealId);
-  const { mutateAsync: toggleTask } = useToggleTask();
+  const { mutateAsync: toggleTask, isPending: isToggling } = useToggleTask();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -89,11 +89,11 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
   };
 
   const handleToggle = async (task: Task) => {
-    await toggleTask({ taskId: task.id, completed: !task.completed });
-    await queryClient.invalidateQueries({ queryKey: tasksKey });
-    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey });
-    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+    try {
+      await toggleTask({ taskId: task.id, completed: !task.completed });
+    } catch (error) {
+      console.error("Не удалось переключить задачу", error);
+    }
   };
 
   const visibleTasks = useMemo(() => sortTasks(tasks), [tasks]);
@@ -180,6 +180,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
                   <button
                     type="button"
                     onClick={() => handleToggle(task)}
+                    disabled={isToggling}
                     className={`flex h-5 w-5 items-center justify-center rounded border text-xs font-semibold transition ${
                       task.completed
                         ? "border-emerald-500 bg-emerald-500 text-white"
