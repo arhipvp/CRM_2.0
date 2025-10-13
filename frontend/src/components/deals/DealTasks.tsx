@@ -3,7 +3,12 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { dealQueryOptions, dealTasksQueryOptions, dealsQueryKey } from "@/lib/api/queries";
+import {
+  dealQueryOptions,
+  dealStageMetricsQueryKey,
+  dealTasksQueryOptions,
+  dealsQueryKey,
+} from "@/lib/api/queries";
 import { useCreateDealTask, useDealTasks, useToggleTask } from "@/lib/api/hooks";
 import { Task } from "@/types/crm";
 
@@ -75,6 +80,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
     await queryClient.invalidateQueries({ queryKey: tasksKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
     await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
 
     setIsFormOpen(false);
     setTitle("");
@@ -86,6 +92,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
     await toggleTask({ taskId: task.id, completed: !task.completed });
     await queryClient.invalidateQueries({ queryKey: tasksKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
+    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
   };
 
   const visibleTasks = useMemo(() => sortTasks(tasks), [tasks]);

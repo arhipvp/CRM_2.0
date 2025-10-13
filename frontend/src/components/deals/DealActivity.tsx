@@ -7,6 +7,7 @@ import {
   dealActivityQueryOptions,
   dealNotesQueryOptions,
   dealQueryOptions,
+  dealStageMetricsQueryKey,
   dealsQueryKey,
 } from "@/lib/api/queries";
 import { useCreateDealNote, useDealActivity, useDealNotes } from "@/lib/api/hooks";
@@ -69,6 +70,7 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
     await queryClient.invalidateQueries({ queryKey: activityKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
     await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
 
     setIsComposerOpen(false);
     setContent("");

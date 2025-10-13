@@ -5,6 +5,7 @@ import { DealFilters } from "@/types/crm";
 const emptyObject = {} as const;
 
 export const dealsQueryKey = ["deals"] as const;
+export const dealStageMetricsQueryKey = ["deal-stage-metrics"] as const;
 
 function sanitizeDealFilters(filters?: DealFilters): DealFilters | undefined {
   if (!filters) {
@@ -49,7 +50,7 @@ export const dealStageMetricsQueryOptions = (filters?: DealFilters) => {
   const sanitizedFilters = sanitizeDealFilters(filters);
 
   return queryOptions({
-    queryKey: ["deal-stage-metrics", sanitizedFilters ?? emptyObject],
+    queryKey: [...dealStageMetricsQueryKey, sanitizedFilters ?? emptyObject] as const,
     queryFn: () => apiClient.getDealStageMetrics(sanitizedFilters),
   });
 };

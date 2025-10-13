@@ -55,7 +55,7 @@
 
 ## API и данные
 - **Список сделок:** `GET /crm/deals` с необязательными параметрами `stage`, `manager`, `period`, `search`, `sort`. Фронтенд очищает значение `stage=all`, пустые списки менеджеров и пробелы в строке поиска перед отправкой; `sort` по умолчанию равен `next_review_at`.
-- **Метрики стадий:** `GET /crm/deals/stage-metrics` принимает те же фильтры, что и список сделок, и возвращает массив объектов `{ stage, count, totalValue, conversionRate, avgCycleDurationDays }`. Значение `conversionRate` нормализовано в диапазоне 0..1, `avgCycleDurationDays` может быть `null`, если в стадии нет сделок. В мок-режиме фронтенд вычисляет метрики локально на основе фильтрованных сделок (см. `frontend/src/lib/api/client.ts`).
+- **Метрики стадий:** `GET /crm/deals/stage-metrics` принимает те же фильтры, что и список сделок, и возвращает массив объектов `{ stage, count, totalValue, conversionRate, avgCycleDurationDays }`. Значение `conversionRate` нормализовано в диапазоне 0..1, `avgCycleDurationDays` может быть `null`, если в стадии нет сделок. В мок-режиме фронтенд вычисляет метрики локально на основе фильтрованных сделок (см. `frontend/src/lib/api/client.ts`). После действий в карточке (заметка, документ, задача) инвалидируется `dealStageMetricsQueryKey`, чтобы хедер всегда отображал актуальные значения.
 - **Настройки окружения:** переменная `NEXT_PUBLIC_API_BASE_URL` должна указывать на Gateway (`http://gateway:8080/api`) или иметь значение `mock` для полностью локального режима без бэкенда. Таймауты запросов задаются через `FRONTEND_PROXY_TIMEOUT`.
 
 ## Критерии приёмки
