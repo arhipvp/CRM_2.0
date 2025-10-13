@@ -5,9 +5,10 @@ import com.crm.audit.domain.AuditEventMessage
 import com.crm.audit.domain.AuditEventRepository
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Component
+import kotlinx.coroutines.runBlocking
 
 @Component
 open class AuditEventProcessor(
@@ -46,14 +47,24 @@ open class AuditEventProcessor(
                 receivedAt = OffsetDateTime.now(ZoneOffset.UTC)
             )
 
-            repository.save(entity)
-            logger.debug(
-                "Событие сохранено type={}, id={}, source={}, occurredAt={}",
-                event.eventType,
-                event.eventId,
-                event.source,
-                entity.occurredAt
-            )
+            try {
+                repository.save(entity)
+                logger.debug(
+                    "Событие сохранено type={}, id={}, source={}, occurredAt={}",
+                    event.eventType,
+                    event.eventId,
+                    event.source,
+                    entity.occurredAt
+                )
+            } catch (duplicate: DuplicateKeyException) {
+                logger.debug(
+                    "Повторная доставка события type={}, id={}, source={} — запись уже существует",
+                    event.eventType,
+                    event.eventId,
+                    event.source,
+                    duplicate
+                )
+            }
         }
     }
 

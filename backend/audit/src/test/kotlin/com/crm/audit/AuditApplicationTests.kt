@@ -132,4 +132,28 @@ class AuditApplicationTests {
         val count = auditEventRepository.count()
         assertEquals(1L, count)
     }
+
+    @Test
+    fun `should deduplicate by type time and source when id is absent`() = runBlocking {
+        val payload = AuditEventMessage(
+            eventId = null,
+            eventType = "crm.user.login",
+            source = "auth-service",
+            occurredAt = Instant.parse("2024-11-22T12:00:00Z"),
+            payload = null
+        )
+
+        auditEventConsumer.accept(payload)
+        auditEventConsumer.accept(payload)
+
+        val saved = auditEventRepository.findByEventTypeAndOccurredAtAndEventSource(
+            payload.eventType,
+            payload.occurredAt.atOffset(ZoneOffset.UTC),
+            payload.source
+        )
+        assertNotNull(saved)
+        assertEquals(payload.eventType, saved.eventType)
+        assertEquals(payload.source, saved.eventSource)
+        assertEquals(1L, auditEventRepository.count())
+    }
 }
