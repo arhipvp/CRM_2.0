@@ -161,7 +161,7 @@
 ### POST `/tasks/{task_id}/reminders`
 Создаёт напоминание.
 
-> Напоминания выполняются асинхронно: воркер `TaskReminderProcessor` каждые `TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд читает очередь `TASKS_REMINDERS_QUEUE_KEY`, публикует событие `task.reminder` (RabbitMQ/SSE) и удаляет успешно отправленные элементы. При ошибке напоминание автоматически переотправляется с задержкой.
+> Напоминания выполняются асинхронно: `WorkerRegistrarService` запускает `TaskReminderProcessor`, который каждые `TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд читает очередь `TASKS_REMINDERS_QUEUE_KEY`, публикует событие `task.reminder` (RabbitMQ/SSE) и удаляет успешно отправленные элементы. При ошибке напоминание автоматически переотправляется с задержкой.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
