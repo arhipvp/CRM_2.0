@@ -191,10 +191,28 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | event | string | Да | `payment.created` или `payment.updated`. |
-| payload | object | Да | Структура платежа из CRM. Для `payment.updated` обязательно поле `paymentId`. |
+| payload | object | Да | Структура платежа из CRM. Для `payment.updated` обязательны поля `paymentId` и версия (`updatedAt` в ISO 8601 или `revision` как миллисекунды Unix-эпохи). |
 | signature | string | Да | HMAC-подпись (см. алгоритм ниже). |
 
 **Ответ 202** — запись принята для обработки.
+
+**Ответ 409** — возвращается, если пришёл устаревший payload `payment.updated` (значение `updatedAt` в базе новее переданного либо `revision` меньше актуального). Код ошибки — `stale_update`.
+
+#### Пример `payment.updated`
+
+```json
+{
+  "event": "payment.updated",
+  "payload": {
+    "paymentId": "11f6a3f5-4a71-46a8-9f32-4e90ac1959fa",
+    "amount": 2500.00,
+    "updatedAt": "2024-07-24T10:15:30Z"
+  },
+  "signature": "..."
+}
+```
+
+> Если CRM использует числовую версию (`revision`), значение должно представлять собой метку времени в миллисекундах с начала Unix-эпохи. Сервис конвертирует её в UTC и сравнивает с текущим `updated_at` в базе.
 
 **Алгоритм подписи**
 

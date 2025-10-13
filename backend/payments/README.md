@@ -51,6 +51,10 @@ gradle test
 
 `POST /api/v1/payments/{paymentId}/status` переводит платёж в новый статус. Допустимы переходы `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`; возврат из `CANCELLED` запрещён. Для `COMPLETED` требуется `actual_date`, для `CANCELLED` — комментарий с причиной. При успешной смене статуса обновляется `processed_at`, при необходимости сохраняется `confirmation_reference`, создаётся запись в истории и публикуется событие `payment.status_changed` (RabbitMQ + SSE).
 
+### Вебхуки CRM
+
+События `payment.created` и `payment.updated` приходят через `/api/v1/webhooks/crm`. Для обновлений CRM обязана передавать идентификатор платежа и версию (`updatedAt` в ISO 8601 или числовой `revision` — миллисекунды Unix-эпохи). Если версия устарела относительно `payments.updated_at`, сервис отвечает `409 stale_update` и не изменяет данные. Это предотвращает перезапись актуальной информации более ранним состоянием.
+
 ### Справочник типов платежей
 
 `paymentType` обязателен при создании платежа и принимает одно из следующих значений:

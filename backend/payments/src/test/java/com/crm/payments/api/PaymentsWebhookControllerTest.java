@@ -1,12 +1,15 @@
 package com.crm.payments.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
+import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.service.PaymentService;
 import com.crm.payments.service.PaymentsWebhookService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,7 +19,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.OffsetDateTime;
 import java.util.HexFormat;
+import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
@@ -25,8 +30,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 @WebFluxTest(PaymentsWebhookController.class)
@@ -66,6 +73,31 @@ class PaymentsWebhookControllerTest {
 
         ArgumentCaptor<PaymentRequest> requestCaptor = ArgumentCaptor.forClass(PaymentRequest.class);
         verify(paymentService).create(requestCaptor.capture());
+    }
+
+    @Test
+    void shouldPropagateConflictFromPaymentService() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        OffsetDateTime updatedAt = OffsetDateTime.now().minusMinutes(1).withNano(0);
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("paymentId", paymentId.toString());
+        payload.put("updatedAt", updatedAt.toString());
+        payload.put("amount", 1700);
+
+        String signature = sign("payment.updated", payload);
+
+        when(paymentService.update(eq(paymentId), any(UpdatePaymentRequest.class)))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, "stale_update")));
+
+        webTestClient.post()
+                .uri("/api/v1/webhooks/crm")
+                .bodyValue(buildRequest("payment.updated", payload, signature))
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT);
+
+        ArgumentCaptor<UpdatePaymentRequest> captor = ArgumentCaptor.forClass(UpdatePaymentRequest.class);
+        verify(paymentService).update(eq(paymentId), captor.capture());
+        assertThat(captor.getValue().getUpdatedAt()).isEqualTo(updatedAt);
     }
 
     @Test
