@@ -161,9 +161,12 @@ class PaymentServiceTest {
         request.setCurrency("USD");
 
         StepVerifier.create(paymentService.update(paymentId, request))
-                .expectErrorSatisfies(throwable -> assertThat(throwable)
-                        .isInstanceOf(IllegalArgumentException.class)
-                        .hasMessage("Only RUB currency is supported"))
+                .expectErrorSatisfies(throwable -> {
+                    assertThat(throwable).isInstanceOf(ResponseStatusException.class);
+                    ResponseStatusException exception = (ResponseStatusException) throwable;
+                    assertThat(exception.getStatusCode().value()).isEqualTo(400);
+                    assertThat(exception.getReason()).isEqualTo("validation_error");
+                })
                 .verify();
 
         verify(paymentRepository, never()).save(any(PaymentEntity.class));
