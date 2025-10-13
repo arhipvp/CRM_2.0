@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
@@ -10,6 +11,7 @@ import {
 } from "@/components/deals/DealBulkActions";
 import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
+import type { Deal } from "@/types/crm";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -38,6 +40,67 @@ function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
+function formatShortDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function safeTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function compareDealsByNextReview(a: Deal, b: Deal) {
+  const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
+  const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
+
+  if (aValue === bValue) {
+    return a.name.localeCompare(b.name);
+  }
+
+  return aValue - bValue;
+}
+
+function getNextReviewTone(nextReviewAt: string) {
+  const timestamp = new Date(nextReviewAt).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return {
+      indicator: "bg-slate-300 dark:bg-slate-600",
+      text: "text-slate-500 dark:text-slate-400",
+    } as const;
+  }
+
+  const diff = timestamp - Date.now();
+  const dayInMs = 86_400_000;
+
+  if (diff < 0) {
+    return {
+      indicator: "bg-rose-500",
+      text: "text-rose-600 dark:text-rose-300",
+    } as const;
+  }
+
+  if (diff <= dayInMs * 2) {
+    return {
+      indicator: "bg-amber-400",
+      text: "text-amber-600 dark:text-amber-300",
+    } as const;
+  }
+
+  return {
+    indicator: "bg-emerald-400",
+    text: "text-emerald-600 dark:text-emerald-300",
+  } as const;
+}
+
 export function DealFunnelTable() {
   const filters = useUiStore((state) => state.filters);
   const viewMode = useUiStore((state) => state.viewMode);
@@ -51,6 +114,7 @@ export function DealFunnelTable() {
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
+  const dealsForRender = useMemo(() => [...deals].sort(compareDealsByNextReview), [deals]);
 
   if (viewMode !== "table") {
     return null;
@@ -69,9 +133,10 @@ export function DealFunnelTable() {
                 <div
                   // biome-ignore lint/suspicious/noArrayIndexKey: индексы используются для скелетона
                   key={index}
-                  className="grid grid-cols-7 gap-4 px-4 py-4"
+                  className="grid grid-cols-8 gap-4 px-4 py-4"
                 >
                   <div className="col-span-2 h-4 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                  <div className="col-span-1 h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
                   <div className="col-span-1 h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
                   <div className="col-span-1 h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
                   <div className="col-span-1 h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
@@ -107,7 +172,7 @@ export function DealFunnelTable() {
     );
   }
 
-  const hasDeals = deals.length > 0;
+  const hasDeals = dealsForRender.length > 0;
   const hasBulkSelection = selectedDealIds.length > 0;
 
   const triggerBulkActionNotification = (actionLabel: string, level: "info" | "warning" = "info") => {
@@ -165,6 +230,9 @@ export function DealFunnelTable() {
                     Сумма
                   </th>
                   <th scope="col" className="px-4 py-3 text-left">
+                    Следующий просмотр
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left">
                     Обновлено
                   </th>
                   <th scope="col" className="px-4 py-3 text-right">
@@ -173,9 +241,10 @@ export function DealFunnelTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {deals.map((deal) => {
+                {dealsForRender.map((deal) => {
                   const isSelected = selectedDealIds.includes(deal.id);
                   const isHighlighted = highlightedDealId === deal.id;
+                  const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
 
                   return (
                     <tr
@@ -219,6 +288,20 @@ export function DealFunnelTable() {
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
                       <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
                       <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
+                            <span
+                              className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
+                              aria-hidden="true"
+                            />
+                            Следующий просмотр
+                          </span>
+                          <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
+                            {formatShortDate(deal.nextReviewAt)}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
                       <td className="px-4 py-4 text-right">
                         <Link

@@ -101,6 +101,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
   const [value, setValue] = useState("");
   const [probability, setProbability] = useState(50);
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
+  const [nextReviewDate, setNextReviewDate] = useState("");
   const [owner, setOwner] = useState("");
   const [isHighlighted, setIsHighlighted] = useState(false);
 
@@ -116,6 +117,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
     setValue(String(deal.value));
     setProbability(Math.round(deal.probability * 100));
     setExpectedCloseDate(toDateInput(deal.expectedCloseDate));
+    setNextReviewDate(toDateInput(deal.nextReviewAt));
     setOwner(deal.owner ?? "");
   }, [deal]);
 
@@ -147,6 +149,18 @@ export function DealDetails({ dealId }: { dealId: string }) {
     const sanitizedProbability = Math.min(Math.max(probability, 0), 100);
     const normalizedValue = Number.parseFloat(value);
     const expected = expectedCloseDate ? new Date(expectedCloseDate).toISOString() : null;
+    const nextReview = (() => {
+      if (!nextReviewDate) {
+        return deal.nextReviewAt;
+      }
+
+      const parsed = new Date(nextReviewDate);
+      if (Number.isNaN(parsed.getTime())) {
+        return deal.nextReviewAt;
+      }
+
+      return parsed.toISOString();
+    })();
 
     const updated = await updateDeal({
       stage,
@@ -154,6 +168,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
       probability: Number.isFinite(sanitizedProbability) ? sanitizedProbability / 100 : deal.probability,
       value: Number.isFinite(normalizedValue) ? normalizedValue : deal.value,
       expectedCloseDate: expected,
+      nextReviewAt: nextReview,
     });
 
     queryClient.setQueryData(dealKey, updated);
@@ -201,7 +216,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
             Обновлено: {formatDateTime(deal.updatedAt)}
           </div>
         </div>
-        <dl className="grid gap-4 text-sm text-slate-600 dark:text-slate-200 sm:grid-cols-4">
+        <dl className="grid gap-4 text-sm text-slate-600 dark:text-slate-200 sm:grid-cols-5">
           <div>
             <dt className="font-medium">Сумма</dt>
             <dd>{formatCurrency(deal.value)}</dd>
@@ -217,6 +232,16 @@ export function DealDetails({ dealId }: { dealId: string }) {
           <div>
             <dt className="font-medium">Ожидаемое закрытие</dt>
             <dd>{formatDate(deal.expectedCloseDate)}</dd>
+          </div>
+          <div>
+            <dt className="font-medium">Следующий просмотр</dt>
+            <dd
+              className={deal.nextReviewAt && new Date(deal.nextReviewAt).getTime() < Date.now()
+                ? "font-semibold text-amber-600 dark:text-amber-300"
+                : undefined}
+            >
+              {formatDate(deal.nextReviewAt)}
+            </dd>
           </div>
         </dl>
       </header>
@@ -271,6 +296,16 @@ export function DealDetails({ dealId }: { dealId: string }) {
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Следующий просмотр</label>
+            <input
+              type="date"
+              value={nextReviewDate}
+              onChange={(event) => setNextReviewDate(event.target.value)}
+              required
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </div>
           <div className="space-y-1 sm:col-span-2">
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Ответственный</label>
             <input
@@ -291,6 +326,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
                 setValue(String(deal.value));
                 setProbability(Math.round(deal.probability * 100));
                 setExpectedCloseDate(toDateInput(deal.expectedCloseDate));
+                setNextReviewDate(toDateInput(deal.nextReviewAt));
                 setOwner(deal.owner ?? "");
               }}
               className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800"

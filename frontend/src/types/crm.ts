@@ -39,6 +39,7 @@ export interface Deal {
   stage: DealStage;
   owner: string;
   updatedAt: string;
+  nextReviewAt: string;
   expectedCloseDate?: string;
   tasks: Task[];
   notes: DealNote[];
