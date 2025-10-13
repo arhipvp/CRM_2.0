@@ -7,7 +7,7 @@ import {
   dealActivityQueryOptions,
   dealNotesQueryOptions,
   dealQueryOptions,
-  dealsQueryOptions,
+  dealsQueryKey,
 } from "@/lib/api/queries";
 import { useCreateDealNote, useDealActivity, useDealNotes } from "@/lib/api/hooks";
 import type { ActivityLogEntry, DealNote } from "@/types/crm";
@@ -44,7 +44,6 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
   const notesKey = useMemo(() => dealNotesQueryOptions(dealId).queryKey, [dealId]);
   const activityKey = useMemo(() => dealActivityQueryOptions(dealId).queryKey, [dealId]);
   const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
-  const dealsKey = dealsQueryOptions().queryKey;
 
   useEffect(() => {
     if (createRequestKey) {
@@ -69,7 +68,7 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
     await queryClient.invalidateQueries({ queryKey: notesKey });
     await queryClient.invalidateQueries({ queryKey: activityKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
-    await queryClient.invalidateQueries({ queryKey: dealsKey });
+    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
 
     setIsComposerOpen(false);
     setContent("");
