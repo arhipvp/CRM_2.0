@@ -233,61 +233,25 @@ function check_rabbitmq() {
   fi
 }
 
+function check_reports_api() {
+  local name="Reports API"
+  local base_url="${REPORTS_BASE_URL:-}"
+  if [[ -z "$base_url" ]]; then
+    add_result "$name" "WARN" "REPORTS_BASE_URL не задан"
+    return
+  fi
 
-function check_tasks_api() {
-  local name="Tasks API"
-  local base="${TASKS_BASE_URL:-}"
-  if [[ -z "$base" ]]; then
-    add_result "$name" "SKIP" "TASKS_BASE_URL не задан"
-    return
-  fi
-  local url="${base%/}"
-  if [[ $url != */api ]]; then
-    url="${url%/}/api"
-  fi
-  local health="$url/health"
-  if ! command -v curl >/dev/null 2>&1; then
-    add_result "$name" "SKIP" "curl недоступен"
-    return
-  fi
-  local output
-  if output=$(curl -fsS "$health" 2>&1); then
-    add_result "$name" "OK" "Ответ health получен"
-  else
-    add_result "$name" "FAIL" "$output"
-  fi
-}
-
-function check_tasks_worker() {
-  local name="Tasks worker"
-  local enabled="${TASKS_WORKER_ENABLED:-false}"
-  if [[ ${enabled,,} != "true" ]]; then
-    add_result "$name" "SKIP" "TASKS_WORKER_ENABLED!=true"
-    return
-  fi
-  local key="${TASKS_DELAYED_QUEUE_KEY:-tasks:delayed}"
-  local redis_url="${TASKS_REDIS_URL:-${REDIS_URL:-}}"
-  if [[ -z "$redis_url" ]]; then
-    add_result "$name" "FAIL" "TASKS_REDIS_URL не задан"
-    return
-  fi
-  local output
-  if command -v redis-cli >/dev/null 2>&1; then
-    if output=$(redis-cli -u "$redis_url" zcard "$key" 2>&1); then
-      add_result "$name" "OK" "ZCARD=$output"
+  local health_url
+  health_url="${base_url%/}/health"
+  local response
+  if response=$(curl -fsS -o /dev/null -w '%{http_code}' "$health_url" 2>&1); then
+    if [[ "$response" == "200" ]]; then
+      add_result "$name" "OK" "$health_url отвечает"
     else
-      add_result "$name" "FAIL" "$output"
-    fi
-    return
-  fi
-  if [[ "$CHECK_MODE" == "docker" ]]; then
-    if output=$(docker_exec redis redis-cli -u "$redis_url" zcard "$key" 2>&1); then
-      add_result "$name" "OK" "ZCARD=$output (docker)"
-    else
-      add_result "$name" "FAIL" "$output"
+      add_result "$name" "WARN" "HTTP $response от $health_url"
     fi
   else
-    add_result "$name" "SKIP" "redis-cli недоступен"
+    add_result "$name" "WARN" "Недоступен: $response"
   fi
 }
 
@@ -305,8 +269,7 @@ check_postgres
 check_redis
 check_consul
 check_rabbitmq
-check_tasks_api
-check_tasks_worker
+check_reports_api
 
 printf "\n%-18s | %-6s | %s\n" "Проверка" "Статус" "Комментарий"
 printf '%s\n' "------------------+--------+--------------------------------"

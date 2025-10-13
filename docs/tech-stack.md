@@ -247,29 +247,27 @@ JUnit5 + Testcontainers для PostgreSQL и RabbitMQ
 
 Documents
 
-Язык: TypeScript (Node.js)
+Язык: TypeScript (Node.js 20 LTS)
 
-Фреймворк: NestJS + @googleapis/drive SDK
+Фреймворк: NestJS 10 (`@nestjs/config`, `@nestjs/typeorm`, `@nestjs/bullmq`) и официальный SDK `googleapis` для Drive.
 
-БД и очереди: TypeORM (PostgreSQL), BullMQ (Redis)
+БД и очереди: TypeORM (PostgreSQL, схема `documents`), BullMQ (Redis), очередь `documents:tasks` с заданиями `documents.upload` и `documents.sync`.
 
-API: REST + Webhook
+API: REST (CRUD метаданных, health-check), отдельный воркер BullMQ.
 
 Зависимости:
 
-PostgreSQL-схема documents
+PostgreSQL-схема `documents` (не забудьте включить `pgcrypto` для `gen_random_uuid()`).
 
-Redis кластер для синхронизации
+Redis (`DOCUMENTS_REDIS_URL`, `DOCUMENTS_REDIS_PREFIX`).
 
-Очереди BullMQ обслуживаются тем же высокодоступным Redis, что и Celery; требования к отказоустойчивости и мониторингу см. в разделе «Брокеры сообщений и кэши».
+Service account Google Drive (`GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`) либо локальный эмулятор (`GOOGLE_DRIVE_EMULATOR_URL`, `GOOGLE_DRIVE_EMULATOR_ROOT`).
 
-Общие сервисные аккаунты Google Drive
+Переменные `DOCUMENTS_QUEUE_NAME` и `DOCUMENTS_RUN_MIGRATIONS` управляют именем очереди BullMQ и автозапуском миграций TypeORM.
 
 Тестирование и деплой:
 
-Интеграционные тесты с песочницей Drive
-
-Проверка квот API, миграции TypeORM
+E2E-тесты NestJS, smoke-запуск воркера; миграции применяются командой `pnpm typeorm migration:run -d typeorm.config.ts`.
 
 Tasks и Notifications могут развёртываться в одной инфраструктурной связке (общий репозиторий, пайплайн, shared-модули NestJS),
 но остаются отдельными сервисами с собственными схемами БД и очередями. Ниже приведены их стек и зависимости.
@@ -381,6 +379,30 @@ API: REST endpoints для внутренних подписчиков; собы
 * Интеграционные тесты на JUnit5 + Testcontainers (PostgreSQL, RabbitMQ);
 * Развёртывание через Kubernetes StatefulSet с подстроенными ресурсными квотами, rolling update с прогревом кэша справочников;
 * Конфигурация очередей описывается в Helm-чарте и синхронизируется Argo CD; миграции схемы управляются через Liquibase в CI/CD.
+
+Reports
+
+Язык: Python 3.11
+
+Фреймворк: FastAPI + SQLAlchemy 2.0 (async)
+
+БД и источники: PostgreSQL (материализованные представления в схеме `reports`, чтение агрегатов `crm` и `audit`), asyncpg
+
+API: REST (`/api/v1/aggregates/**`), health-check `/health`
+
+Зависимости:
+
+PostgreSQL-схема reports и доступ на чтение к таблицам/представлениям CRM и Audit
+
+Материализованное представление `deal_pipeline_summary`, поддерживаемое SQL-миграциями и CLI `reports-refresh-views`
+
+Gateway подключит публичные маршруты отчётности (в планах интеграции)
+
+Тестирование и деплой:
+
+Pytest + HTTPX (юнит и contract-тесты REST API)
+
+Poetry-скрипты (`reports-api`, `reports-refresh-views`); миграции — SQL-файлы в `backend/reports/migrations`
 
 <a id="backup"></a>Backup
 
