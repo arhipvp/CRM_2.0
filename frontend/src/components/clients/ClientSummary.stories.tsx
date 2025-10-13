@@ -24,16 +24,21 @@ export default meta;
 
 type Story = StoryObj<typeof ClientSummary>;
 
-const Template = (args: Story["args"]) => {
+const Template: NonNullable<Story["render"]> = ({
+  clientId = clientsMock[0].id,
+}) => {
   const client = useQueryClient();
   useEffect(() => {
-    client.setQueryData(clientQueryOptions(args.clientId).queryKey, clientsMock[0]);
-    client.setQueryData(clientActivityQueryOptions(args.clientId).queryKey, activitiesMock.filter((item) => item.clientId === args.clientId));
-  }, [client, args.clientId]);
+    client.setQueryData(clientQueryOptions(clientId).queryKey, clientsMock[0]);
+    client.setQueryData(
+      clientActivityQueryOptions(clientId).queryKey,
+      activitiesMock.filter((item) => item.clientId === clientId),
+    );
+  }, [client, clientId]);
 
-  return <ClientSummary {...args} />;
+  return <ClientSummary clientId={clientId} />;
 };
 
 export const Default: Story = {
-  render: (args) => <Template {...args} />,
+  render: Template,
 };

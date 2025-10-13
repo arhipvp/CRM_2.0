@@ -154,7 +154,7 @@ export function useUpdateDealStage() {
 
       await Promise.all([
         queryClient.cancelQueries({ queryKey: dealsQueryKey }),
-        queryClient.cancelQueries({ queryKey: singleDealQueryKey }),
+        queryClient.cancelQueries({ queryKey: singleDealQueryKey, exact: true }),
       ]);
 
       const previousDeals = queryClient.getQueriesData<Deal[] | Deal>({

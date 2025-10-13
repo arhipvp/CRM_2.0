@@ -13,6 +13,7 @@ import type {
   Deal,
   DealDocument,
   DealFilters,
+  DealPeriodFilter,
   DealNote,
   DealStage,
   DealStageMetrics,
@@ -194,7 +195,7 @@ export class ApiClient {
     try {
       const response = await fetch(url, {
         ...init,
-        signal: mergeAbortSignals([timeoutController?.signal, init?.signal]),
+        signal: mergeAbortSignals([timeoutController?.signal, init?.signal ?? undefined]),
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",

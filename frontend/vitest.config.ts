@@ -20,7 +20,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
-      reports: ["text", "html"],
+      reporter: ["text", "html"],
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/*.stories.*"],
     },
