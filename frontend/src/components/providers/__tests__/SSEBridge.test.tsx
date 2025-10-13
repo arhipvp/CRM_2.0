@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,5 +100,45 @@ describe("SSEBridge", () => {
       expect.stringMatching(/payments/),
       expect.anything(),
     );
+  });
+
+  it("нормализует deal_id в CRM событиях", () => {
+    const queryClient = new QueryClient();
+    const highlightDealSpy = vi.spyOn(useUiStore.getState(), "highlightDeal");
+    const markDealUpdatedSpy = vi.spyOn(useUiStore.getState(), "markDealUpdated");
+    const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SSEBridge />
+        </QueryClientProvider>,
+      );
+
+      const crmHandlers = createEventStreamMock.mock.calls[0]?.[1];
+      expect(crmHandlers?.onMessage).toBeTypeOf("function");
+
+      act(() => {
+        crmHandlers?.onMessage(
+          new MessageEvent("message", {
+            data: JSON.stringify({
+              id: "event-1",
+              deal_id: " deal-77 ",
+              message: "Updated",
+            }),
+          }),
+        );
+      });
+
+      expect(highlightDealSpy).toHaveBeenCalledWith("deal-77");
+      expect(markDealUpdatedSpy).toHaveBeenCalledWith("deal-77");
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ["deal", "deal-77"] }),
+      );
+    } finally {
+      highlightDealSpy.mockRestore();
+      markDealUpdatedSpy.mockRestore();
+      invalidateQueriesSpy.mockRestore();
+    }
   });
 });
