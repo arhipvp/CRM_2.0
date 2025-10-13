@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { DealFilters } from "@/types/crm";
+import { NO_MANAGER_VALUE, getManagerLabel } from "@/lib/utils/managers";
 
 const emptyObject = {} as const;
 
@@ -19,8 +20,14 @@ function sanitizeDealFilters(filters?: DealFilters): DealFilters | undefined {
   }
 
   if (filters.managers && filters.managers.length > 0) {
-    const unique = Array.from(new Set(filters.managers.filter(Boolean)));
-    unique.sort((a, b) => a.localeCompare(b));
+    const unique = Array.from(
+      new Set(
+        filters.managers
+          .map((manager) => (manager === NO_MANAGER_VALUE ? NO_MANAGER_VALUE : manager.trim()))
+          .filter((manager) => manager === NO_MANAGER_VALUE || manager.length > 0),
+      ),
+    );
+    unique.sort((a, b) => getManagerLabel(a).localeCompare(getManagerLabel(b)));
     if (unique.length > 0) {
       sanitized.managers = unique;
     }

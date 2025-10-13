@@ -5,12 +5,7 @@ import { useMemo } from "react";
 import { DealDetails } from "@/components/deals/DealDetails";
 import { useDeals } from "@/lib/api/hooks";
 import { useUiStore } from "@/stores/uiStore";
-
-function formatManagersList(managers: string[]) {
-  const unique = Array.from(new Set(managers));
-  unique.sort((a, b) => a.localeCompare(b));
-  return unique;
-}
+import { collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
 
 export function DealPreviewSidebar() {
   const previewDealId = useUiStore((state) => state.previewDealId);
@@ -19,7 +14,7 @@ export function DealPreviewSidebar() {
   const dealsQuery = useDeals(filters);
 
   const managers = useMemo(() => {
-    return formatManagersList((dealsQuery.data ?? []).map((deal) => deal.owner));
+    return collectManagerValues((dealsQuery.data ?? []).map((deal) => deal.owner)).map(getManagerLabel);
   }, [dealsQuery.data]);
 
   if (!previewDealId) {

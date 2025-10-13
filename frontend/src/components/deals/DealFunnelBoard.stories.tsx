@@ -5,6 +5,7 @@ import { DealFunnelBoard } from "./DealFunnelBoard";
 import { dealsMock } from "@/mocks/data";
 import { dealsQueryOptions } from "@/lib/api/queries";
 import { useUiStore } from "@/stores/uiStore";
+import { collectManagerValues, NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
 type UiStoreSnapshot = {
   filters: ReturnType<typeof useUiStore.getState>["filters"];
@@ -39,6 +40,15 @@ function restoreUiStore(snapshot: UiStoreSnapshot) {
   }));
 }
 
+const dealsWithUnassignedOwner = dealsMock.map((deal, index) =>
+  index === 0
+    ? {
+        ...deal,
+        owner: undefined,
+      }
+    : deal,
+);
+
 const meta: Meta<typeof DealFunnelBoard> = {
   title: "CRM/DealFunnelBoard",
   component: DealFunnelBoard,
@@ -57,7 +67,7 @@ export default meta;
 const WithData = () => {
   const client = useQueryClient();
   useEffect(() => {
-    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions().queryKey, dealsWithUnassignedOwner);
   }, [client]);
 
   return <DealFunnelBoard />;
@@ -113,13 +123,16 @@ const WithActiveFilters = () => {
 
   useEffect(() => {
     const previousState = snapshotUiStore();
-    const owners = Array.from(new Set(dealsMock.map((deal) => deal.owner)));
+    const managerValues = collectManagerValues(dealsWithUnassignedOwner.map((deal) => deal.owner));
+    const firstNamedManager = managerValues.find((value) => value !== NO_MANAGER_VALUE);
     const store = useUiStore.getState();
 
     store.clearFilters();
     store.setViewMode("kanban");
     store.setSelectedStage("negotiation");
-    store.setManagersFilter(owners.slice(0, 2));
+    store.setManagersFilter(
+      [firstNamedManager, NO_MANAGER_VALUE].filter((value): value is string => Boolean(value)),
+    );
     store.setPeriodFilter("7d");
     store.setSearchFilter("полис");
 

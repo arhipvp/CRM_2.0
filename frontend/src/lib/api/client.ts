@@ -21,6 +21,7 @@ import type {
 } from "@/types/crm";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
+import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
 export interface ApiClientConfig {
   baseUrl?: string;
@@ -243,7 +244,7 @@ export class ApiClient {
 
     if (filters.managers && filters.managers.length > 0) {
       for (const manager of filters.managers) {
-        params.append("manager", manager);
+        params.append("manager", manager === NO_MANAGER_VALUE ? NO_MANAGER_VALUE : manager);
       }
     }
 
@@ -521,7 +522,16 @@ function getPeriodStart(period: DealPeriodFilter | undefined): number | undefine
 }
 
 function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
-  const normalizedManagers = filters?.managers?.map((name) => name.toLowerCase());
+  const managerNames = new Set<string>();
+  const includeNoManager = (filters?.managers ?? []).some((manager) => manager === NO_MANAGER_VALUE);
+
+  for (const manager of filters?.managers ?? []) {
+    if (!manager || manager === NO_MANAGER_VALUE) {
+      continue;
+    }
+
+    managerNames.add(manager.toLowerCase());
+  }
   const search = filters?.search?.trim().toLowerCase();
   const periodStart = getPeriodStart(filters?.period);
   const stageFilter = filters?.stage && filters.stage !== "all" ? filters.stage : undefined;
@@ -533,10 +543,19 @@ function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
         return false;
       }
 
-      if (normalizedManagers && normalizedManagers.length > 0) {
-        if (!normalizedManagers.includes(deal.owner.toLowerCase())) {
+      const hasManagerFilter = includeNoManager || managerNames.size > 0;
+
+      if (hasManagerFilter) {
+        const owner = deal.owner?.trim();
+
+        if (!owner) {
+          return includeNoManager;
+        }
+
+        if (managerNames.size > 0 && !managerNames.has(owner.toLowerCase())) {
           return false;
         }
+
       }
 
       if (periodStart && new Date(deal.updatedAt).getTime() < periodStart) {
