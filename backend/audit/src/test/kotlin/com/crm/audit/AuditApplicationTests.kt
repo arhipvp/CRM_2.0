@@ -2,6 +2,7 @@ package com.crm.audit
 
 import com.crm.audit.domain.AuditEventMessage
 import com.crm.audit.domain.AuditEventRepository
+import com.crm.audit.domain.AuditEventTagRepository
 import com.crm.audit.stream.AuditEventProcessor
 import java.time.Instant
 import java.time.ZoneOffset
@@ -25,6 +26,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -71,8 +73,13 @@ class AuditApplicationTests {
     @Autowired
     private lateinit var auditEventRepository: AuditEventRepository
 
+    @Autowired
+    private lateinit var auditEventTagRepository: AuditEventTagRepository
+
     @SpyBean
     private lateinit var processor: AuditEventProcessor
+
+    private val objectMapper = jacksonObjectMapper()
 
     @BeforeEach
     fun cleanDatabase() = runBlocking {
@@ -179,5 +186,40 @@ class AuditApplicationTests {
         assertEquals(payload.eventType, saved.eventType)
         assertEquals(payload.source, saved.eventSource)
         assertEquals(1L, auditEventRepository.count())
+    }
+
+    @Test
+    fun `should persist tags when payload contains tag object`() = runBlocking {
+        val payloadJson = objectMapper.createObjectNode().apply {
+            put("entityId", "deal-777")
+            set<com.fasterxml.jackson.databind.node.ObjectNode>(
+                "tags",
+                objectMapper.createObjectNode().apply {
+                    put("region", "msk")
+                    put("priority", "high")
+                    put("retry_count", 2)
+                }
+            )
+        }
+
+        val payload = AuditEventMessage(
+            eventId = "evt-with-tags",
+            eventType = "crm.deal.changed",
+            source = "crm-service",
+            occurredAt = Instant.parse("2024-11-24T10:00:00Z"),
+            payload = payloadJson
+        )
+
+        auditEventConsumer.accept(payload)
+
+        val saved = auditEventRepository.findByEventId("evt-with-tags")
+        assertNotNull(saved)
+
+        val tags = auditEventTagRepository.findByEventId(saved.id)
+        assertEquals(3, tags.size)
+        val tagsByKey = tags.associate { it.tagKey to it.tagValue }
+        assertEquals("msk", tagsByKey["region"])
+        assertEquals("high", tagsByKey["priority"])
+        assertEquals("2", tagsByKey["retry_count"])
     }
 }
