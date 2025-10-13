@@ -12,6 +12,21 @@ const FINAL_STATUSES = new Set<TaskStatusCode>([
   TaskStatusCode.CANCELLED
 ]);
 
+const invalidStatusTransition = (
+  current: TaskStatusCode,
+  next: TaskStatusCode,
+  message: string
+) =>
+  new ConflictException({
+    statusCode: 409,
+    code: 'invalid_status_transition',
+    message,
+    details: {
+      current,
+      next
+    }
+  });
+
 const ALLOWED_TRANSITIONS: Record<TaskStatusCode, TaskStatusCode[]> = {
   [TaskStatusCode.PENDING]: [
     TaskStatusCode.IN_PROGRESS,
@@ -132,12 +147,16 @@ export class TaskUpdateService {
 
   private ensureTransition(current: TaskStatusCode, next: TaskStatusCode) {
     if (FINAL_STATUSES.has(current)) {
-      throw new ConflictException(`Task in status ${current} cannot transition to ${next}`);
+      throw invalidStatusTransition(
+        current,
+        next,
+        `Task in status ${current} cannot transition to ${next}`
+      );
     }
 
     const allowed = ALLOWED_TRANSITIONS[current] ?? [];
     if (!allowed.includes(next)) {
-      throw new ConflictException(`Transition from ${current} to ${next} is not allowed`);
+      throw invalidStatusTransition(current, next, `Transition from ${current} to ${next} is not allowed`);
     }
   }
 }
