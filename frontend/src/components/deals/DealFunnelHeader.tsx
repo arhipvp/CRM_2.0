@@ -71,8 +71,18 @@ export function DealFunnelHeader() {
   const setViewMode = useUiStore((state) => state.setViewMode);
   const setSelectedStage = useUiStore((state) => state.setSelectedStage);
 
+  const managerFilters = useMemo(
+    () => ({
+      stage: filters.stage,
+      period: filters.period,
+      search: filters.search,
+      managers: [] as string[],
+    }),
+    [filters.period, filters.search, filters.stage],
+  );
+
   const dealsQuery = useDeals(filters);
-  const rawDealsQuery = useQuery(dealsQueryOptions());
+  const rawDealsQuery = useQuery(dealsQueryOptions(managerFilters));
   const metricsQuery = useDealStageMetrics(filters);
   const { data: deals = [] } = dealsQuery;
   const { data: rawDeals = [] } = rawDealsQuery;

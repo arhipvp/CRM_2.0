@@ -136,6 +136,18 @@ const WithActiveFilters = () => {
     store.setPeriodFilter("7d");
     store.setSearchFilter("полис");
 
+    const nextFilters = useUiStore.getState().filters;
+    const managerFilters = {
+      stage: nextFilters.stage,
+      period: nextFilters.period,
+      search: nextFilters.search,
+      managers: [] as string[],
+    };
+    const negotiationDeals = dealsMock.filter((deal) => deal.stage === "negotiation");
+
+    client.setQueryData(dealsQueryOptions(nextFilters).queryKey, negotiationDeals);
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, negotiationDeals);
+
     return () => {
       restoreUiStore(previousState);
     };
