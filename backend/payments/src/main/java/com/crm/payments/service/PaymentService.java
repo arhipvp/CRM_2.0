@@ -1,5 +1,6 @@
 package com.crm.payments.service;
 
+import com.crm.payments.api.dto.PaymentListRequest;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.api.dto.PaymentStreamEvent;
@@ -45,11 +46,9 @@ public class PaymentService {
         this.streamSink = streamSink;
     }
 
-    public Flux<PaymentResponse> findAll(Optional<UUID> dealId) {
-        Flux<PaymentEntity> source = dealId
-                .map(paymentRepository::findAllByDealId)
-                .orElseGet(paymentRepository::findAll);
-        return source.map(paymentMapper::toResponse);
+    public Flux<PaymentResponse> findAll(PaymentListRequest request) {
+        return paymentRepository.findAll(request)
+                .map(paymentMapper::toResponse);
     }
 
     public Mono<PaymentResponse> findById(UUID paymentId) {

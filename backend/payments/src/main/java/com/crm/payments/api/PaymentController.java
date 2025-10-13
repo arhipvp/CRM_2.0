@@ -1,11 +1,11 @@
 package com.crm.payments.api;
 
+import com.crm.payments.api.dto.PaymentListRequest;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.api.dto.PaymentStreamEvent;
 import com.crm.payments.service.PaymentService;
 import jakarta.validation.Valid;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,11 +14,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Validated
 @RestController
 @RequestMapping({"/api/v1", "/api"})
 public class PaymentController {
@@ -30,8 +31,8 @@ public class PaymentController {
     }
 
     @GetMapping("/payments")
-    public Flux<PaymentResponse> listPayments(@RequestParam(name = "dealId", required = false) UUID dealId) {
-        return paymentService.findAll(Optional.ofNullable(dealId));
+    public Flux<PaymentResponse> listPayments(@Valid PaymentListRequest request) {
+        return paymentService.findAll(request);
     }
 
     @GetMapping("/payments/{paymentId}")

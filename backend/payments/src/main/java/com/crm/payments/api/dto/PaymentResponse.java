@@ -1,6 +1,7 @@
 package com.crm.payments.api.dto;
 
 import com.crm.payments.domain.PaymentStatus;
+import com.crm.payments.domain.PaymentType;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -14,6 +15,7 @@ public class PaymentResponse {
     private BigDecimal amount;
     private String currency;
     private PaymentStatus status;
+    private PaymentType paymentType;
     private OffsetDateTime dueDate;
     private OffsetDateTime processedAt;
     private String description;
@@ -74,6 +76,14 @@ public class PaymentResponse {
 
     public void setStatus(PaymentStatus status) {
         this.status = status;
+    }
+
+    public PaymentType getPaymentType() {
+        return paymentType;
+    }
+
+    public void setPaymentType(PaymentType paymentType) {
+        this.paymentType = paymentType;
     }
 
     public OffsetDateTime getDueDate() {

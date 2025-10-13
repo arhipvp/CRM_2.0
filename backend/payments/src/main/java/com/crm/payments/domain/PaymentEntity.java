@@ -28,6 +28,9 @@ public class PaymentEntity {
 
     private PaymentStatus status;
 
+    @Column("payment_type")
+    private PaymentType paymentType;
+
     @Column("due_date")
     private OffsetDateTime dueDate;
 
@@ -96,6 +99,14 @@ public class PaymentEntity {
 
     public void setStatus(PaymentStatus status) {
         this.status = status;
+    }
+
+    public PaymentType getPaymentType() {
+        return paymentType;
+    }
+
+    public void setPaymentType(PaymentType paymentType) {
+        this.paymentType = paymentType;
     }
 
     public OffsetDateTime getDueDate() {
