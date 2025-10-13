@@ -91,6 +91,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
   const handleToggle = async (task: Task) => {
     await toggleTask({ taskId: task.id, completed: !task.completed });
     await queryClient.invalidateQueries({ queryKey: tasksKey });
+    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
     await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
   };
