@@ -3,7 +3,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { TaskReminderProcessor } from './task-reminder-processor.service';
 import { TaskReminderQueueService } from './task-reminder-queue.service';
@@ -27,11 +26,20 @@ describe('TaskReminderProcessor', () => {
   let repository: jest.Mocked<Repository<TaskReminderEntity>>;
   let publisher: jest.Mocked<TaskEventsPublisher>;
   let config: jest.Mocked<ConfigService>;
+  let queueEntries: Map<string, number>;
 
   beforeEach(async () => {
+    queueEntries = new Map<string, number>();
+
     queue = {
-      claimDue: jest.fn(),
-      schedule: jest.fn()
+      claimDue: jest.fn(async () => {
+        const due = Array.from(queueEntries.entries()).map(([id, score]) => ({ id, score }));
+        queueEntries.clear();
+        return due;
+      }),
+      schedule: jest.fn(async (id: string, runAt: Date) => {
+        queueEntries.set(id, runAt.getTime());
+      })
     } as unknown as jest.Mocked<TaskReminderQueueService>;
 
     repository = {
@@ -63,8 +71,7 @@ describe('TaskReminderProcessor', () => {
         { provide: TaskReminderQueueService, useValue: queue },
         { provide: TaskEventsPublisher, useValue: publisher },
         { provide: getRepositoryToken(TaskReminderEntity), useValue: repository },
-        { provide: ConfigService, useValue: config },
-        { provide: SchedulerRegistry, useValue: { addInterval: jest.fn(), deleteInterval: jest.fn() } }
+        { provide: ConfigService, useValue: config }
       ]
     }).compile();
 
@@ -75,9 +82,9 @@ describe('TaskReminderProcessor', () => {
     jest.useRealTimers();
   });
 
-  it('публикует события для просроченных напоминаний и возвращает количество обработанных', async () => {
+  it('публикует событие, очищает очередь и возвращает количество обработанных напоминаний', async () => {
     const reminder = reminderFactory();
-    queue.claimDue.mockResolvedValue([{ id: reminder.id, score: reminder.remindAt.getTime() }]);
+    queueEntries.set(reminder.id, reminder.remindAt.getTime());
     repository.findOne.mockResolvedValue(reminder);
 
     const processed = await processor.processDueReminders();
@@ -85,10 +92,11 @@ describe('TaskReminderProcessor', () => {
     expect(processed).toBe(1);
     expect(publisher.taskReminder).toHaveBeenCalledWith(reminder);
     expect(queue.schedule).not.toHaveBeenCalled();
+    expect(queueEntries.size).toBe(0);
   });
 
   it('пропускает удалённые напоминания', async () => {
-    queue.claimDue.mockResolvedValue([{ id: 'missing', score: Date.now() }]);
+    queueEntries.set('missing', Date.now());
     repository.findOne.mockResolvedValue(null);
 
     const processed = await processor.processDueReminders();
@@ -96,13 +104,14 @@ describe('TaskReminderProcessor', () => {
     expect(processed).toBe(0);
     expect(publisher.taskReminder).not.toHaveBeenCalled();
     expect(queue.schedule).not.toHaveBeenCalled();
+    expect(queueEntries.size).toBe(0);
   });
 
   it('повторяет попытку при ошибке и откладывает напоминание', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2024-03-10T09:00:00Z'));
 
     const reminder = reminderFactory({ id: 'retry-reminder' });
-    queue.claimDue.mockResolvedValue([{ id: reminder.id, score: reminder.remindAt.getTime() }]);
+    queueEntries.set(reminder.id, reminder.remindAt.getTime());
     repository.findOne.mockResolvedValue(reminder);
     publisher.taskReminder.mockRejectedValue(new Error('temporary failure'));
 
@@ -114,5 +123,6 @@ describe('TaskReminderProcessor', () => {
     expect(retryId).toBe(reminder.id);
     expect(retryDate).toBeInstanceOf(Date);
     expect((retryDate as Date).getTime()).toBeGreaterThanOrEqual(Date.now() + 5000);
+    expect(queueEntries.has(reminder.id)).toBe(true);
   });
 });
