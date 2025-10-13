@@ -8,6 +8,9 @@ import { CreateTaskCommand } from '../commands/create-task.command';
 import { TaskStatusCode } from '../constants/task-status.constants';
 import { TaskEntity } from '../entities/task.entity';
 import { TaskStatusEntity } from '../entities/task-status.entity';
+import { CreateTaskReminderCommand } from '../commands/create-task-reminder.command';
+import { TaskReminderChannel } from '../constants/task-reminder-channel.constants';
+import { TaskReminderEntity } from '../entities/task-reminder.entity';
 
 describe('TasksController (validation)', () => {
   let app: INestApplication;
@@ -173,6 +176,57 @@ describe('TasksController (validation)', () => {
 
   it('PATCH /api/tasks/:id возвращает 400 при невалидном UUID', async () => {
     await request(app.getHttpServer()).patch(`${baseUrl}/invalid`).send({}).expect(400);
+    expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/tasks/:id/reminders создаёт напоминание и возвращает 201', async () => {
+    const taskId = '2dc7ea49-2a4e-4f8e-bd3b-7de1fbd2b6a4';
+    const remindAtIso = '2024-03-10T09:00:00.000Z';
+    const remindAt = new Date(remindAtIso);
+
+    const reminder: TaskReminderEntity = {
+      id: 'e63c24c8-6e15-4b07-9a6c-4a9247dc1449',
+      taskId,
+      remindAt,
+      channel: TaskReminderChannel.SSE,
+      createdAt: new Date('2024-03-09T09:00:00.000Z')
+    } as TaskReminderEntity;
+
+    commandBus.execute.mockResolvedValue(reminder);
+
+    const response = await request(app.getHttpServer())
+      .post(`${baseUrl}/${taskId}/reminders`)
+      .send({ remind_at: remindAtIso, channel: 'sse' })
+      .expect(201);
+
+    expect(commandBus.execute).toHaveBeenCalledTimes(1);
+    const command = commandBus.execute.mock.calls[0][0] as CreateTaskReminderCommand;
+    expect(command).toBeInstanceOf(CreateTaskReminderCommand);
+    expect(command.taskId).toBe(taskId);
+    expect(command.remindAt).toEqual(remindAt);
+    expect(command.channel).toBe(TaskReminderChannel.SSE);
+
+    expect(response.body).toEqual({
+      id: reminder.id,
+      taskId,
+      remindAt: remindAtIso,
+      channel: 'sse',
+      createdAt: reminder.createdAt.toISOString()
+    });
+  });
+
+  it('POST /api/tasks/:id/reminders возвращает 400 при отсутствии remind_at', async () => {
+    const taskId = '2dc7ea49-2a4e-4f8e-bd3b-7de1fbd2b6a4';
+
+    const response = await request(app.getHttpServer())
+      .post(`${baseUrl}/${taskId}/reminders`)
+      .send({})
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      message: expect.arrayContaining([expect.stringContaining('remindAt')])
+    });
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 });

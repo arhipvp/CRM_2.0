@@ -12,6 +12,9 @@ import { ListTasksDto } from '../dto/list-tasks.dto';
 import { TaskQueryService } from '../services/task-query.service';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { UpdateTaskCommand } from '../commands/update-task.command';
+import { CreateReminderDto } from '../dto/create-reminder.dto';
+import { CreateTaskReminderCommand } from '../commands/create-task-reminder.command';
+import { TaskReminderResponseDto } from '../dto/task-reminder-response.dto';
 
 @Controller('tasks')
 export class TasksController {
@@ -70,6 +73,16 @@ export class TasksController {
     const completedAt = dto.completedAt ? new Date(dto.completedAt) : undefined;
     const task = await this.commandBus.execute(new CompleteTaskCommand(id, completedAt));
     return TaskResponseDto.fromEntity(task);
+  }
+
+  @Post(':id/reminders')
+  async createReminder(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreateReminderDto
+  ): Promise<TaskReminderResponseDto> {
+    const remindAt = new Date(dto.remindAt);
+    const reminder = await this.commandBus.execute(new CreateTaskReminderCommand(id, remindAt, dto.channel));
+    return TaskReminderResponseDto.fromEntity(reminder);
   }
 
   @Patch(':id')

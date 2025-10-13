@@ -167,7 +167,29 @@
 | remind_at | datetime | Да | Время напоминания (UTC). |
 | channel | string | Нет | `sse`, `telegram`. По умолчанию `sse` (внутренний канал SSE). Telegram доступен при наличии `telegram_id`. |
 
+**Пример запроса**
+
+```http
+POST /tasks/0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613/reminders
+Content-Type: application/json
+
+{
+  "remind_at": "2024-03-10T09:00:00Z",
+  "channel": "telegram"
+}
+```
+
 **Ответ 201** — напоминание.
+
+```json
+{
+  "id": "5f4f93f2-1965-4240-9a3d-6fdc54bb693c",
+  "taskId": "0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613",
+  "remindAt": "2024-03-10T09:00:00.000Z",
+  "channel": "telegram",
+  "createdAt": "2024-03-09T12:00:00.000Z"
+}
+```
 
 **Ошибки:** `400 validation_error`, `404 task_not_found`.
 

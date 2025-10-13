@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
+import com.crm.payments.api.dto.PaymentStatusRequest;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.domain.PaymentStatus;
 import com.crm.payments.domain.PaymentType;
@@ -141,6 +142,49 @@ class PaymentControllerTest {
                 .expectStatus().isBadRequest();
 
         verify(paymentService, never()).update(any(UUID.class), any(UpdatePaymentRequest.class));
+    }
+
+    @Test
+    void postPaymentStatusShouldReturn200() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentResponse response = new PaymentResponse();
+        response.setId(paymentId);
+        response.setStatus(PaymentStatus.PROCESSING);
+        response.setUpdatedAt(OffsetDateTime.now());
+
+        when(paymentService.updateStatus(eq(paymentId), any(PaymentStatusRequest.class))).thenReturn(Mono.just(response));
+
+        webTestClient.post()
+                .uri("/api/v1/payments/{paymentId}/status", paymentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"status\": \"PROCESSING\"," +
+                        "\"comment\": \"Платёж в обработке\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.status").isEqualTo("PROCESSING");
+
+        ArgumentCaptor<PaymentStatusRequest> captor = ArgumentCaptor.forClass(PaymentStatusRequest.class);
+        verify(paymentService).updateStatus(eq(paymentId), captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(PaymentStatus.PROCESSING);
+        assertThat(captor.getValue().getComment()).isEqualTo("Платёж в обработке");
+    }
+
+    @Test
+    void postPaymentStatusShouldReturn404WhenPaymentMissing() {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.updateStatus(eq(paymentId), any(PaymentStatusRequest.class))).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri("/api/v1/payments/{paymentId}/status", paymentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"status\": \"PROCESSING\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isNotFound();
     }
 
     @Test

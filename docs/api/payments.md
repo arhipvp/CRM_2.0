@@ -140,14 +140,16 @@
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| status | string | Да | Новый статус. |
-| actual_date | date | Нет | Дата фактического события (обязательно для `received` и `paid_out`). |
-| confirmation_reference | string | Нет | Номер платёжного документа. |
-| comment | string | Нет | Примечание. |
+| status | string | Да | Новый статус (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`). |
+| actual_date | datetime | Нет | Фактическая дата события; обязательна для `COMPLETED`. |
+| confirmation_reference | string | Нет | Номер платёжного документа (до 128 символов). |
+| comment | string | Нет | Служебное примечание (обязательно при переводе в `CANCELLED`). |
+
+Допустимые переходы: `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`. Возврат из `CANCELLED` невозможен. Любые попытки выйти за пределы этих правил завершаются ошибкой `invalid_status_transition`.
 
 **Ответ 200** — текущий платёж с историей.
 
-**Ошибки:** `400 invalid_status_transition`, `404 payment_not_found`.
+**Ошибки:** `400 validation_error`, `400 invalid_status_transition`, `404 payment_not_found`.
 
 ## Экспорт и отчёты
 
@@ -189,12 +191,19 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | event | string | Да | `payment.created` или `payment.updated`. |
-| payload | object | Да | Структура платежа из CRM. |
-| signature | string | Да | HMAC-подпись. |
+| payload | object | Да | Структура платежа из CRM. Для `payment.updated` обязательно поле `paymentId`. |
+| signature | string | Да | HMAC-подпись (см. алгоритм ниже). |
 
 **Ответ 202** — запись принята для обработки.
 
-**Ошибки:** `400 invalid_signature`, `409 stale_update` (версия устарела).
+**Алгоритм подписи**
+
+- Формируется строка `<event>:<payload_json>`, где `payload_json` — JSON-представление объекта `payload` без дополнительных
+  пробелов (по сути `JSON.stringify` в JavaScript или `ObjectMapper.writeValueAsString` в Java).
+- Строка подписывается алгоритмом `HMAC-SHA256` с использованием секрета `PAYMENTS_CRM_WEBHOOK_SECRET`.
+- Полученный бинарный хэш кодируется в нижнем регистре HEX и передаётся в поле `signature`.
+
+**Ошибки:** `401 invalid_signature`, `400 invalid_payload`, `404 payment_not_found`, `409 stale_update` (версия устарела).
 
 ## Стандартные ошибки Payments API
 

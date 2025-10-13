@@ -4,6 +4,7 @@ import com.crm.payments.api.dto.PaymentListRequest;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.api.dto.PaymentStreamEvent;
+import com.crm.payments.api.dto.PaymentStatusRequest;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.service.PaymentService;
 import jakarta.validation.Valid;
@@ -54,6 +55,14 @@ public class PaymentController {
     public Mono<ResponseEntity<PaymentResponse>> updatePayment(@PathVariable UUID paymentId,
             @Valid @RequestBody UpdatePaymentRequest request) {
         return paymentService.update(paymentId, request)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/payments/{paymentId}/status")
+    public Mono<ResponseEntity<PaymentResponse>> updatePaymentStatus(@PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentStatusRequest request) {
+        return paymentService.updateStatus(paymentId, request)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }

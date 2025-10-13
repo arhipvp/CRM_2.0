@@ -6,7 +6,7 @@ Payments учитывает финансовые операции (платеж�
 ## Требования к окружению
 - JDK 17 и Gradle 8+ (Spring Boot WebFlux + Spring Cloud Stream).【F:docs/tech-stack.md†L204-L230】
 - PostgreSQL (схема `payments`) и RabbitMQ (exchange `payments.events`).【F:docs/architecture.md†L12-L13】【F:docs/tech-stack.md†L214-L236】
-- Переменные окружения `PAYMENTS_SERVICE_PORT`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_RABBITMQ_URL` и связанные настройки (см. [`env.example`](../../env.example)).
+- Переменные окружения `PAYMENTS_SERVICE_PORT`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_RABBITMQ_URL`, `PAYMENTS_CRM_WEBHOOK_SECRET` и связанные настройки (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
 
@@ -48,6 +48,8 @@ gradle test
 Если заданы оба параметра дат, `fromDate` не может быть позже `toDate`. При превышении `limit` значения `200` используется верхняя граница.
 
 `PATCH /api/v1/payments/{paymentId}` позволяет частично обновлять платёж: сумму, валюту, даты (`dueDate`, `processedAt`), тип (`paymentType`) и описание. Любое изменение или переданный комментарий (`comment`) фиксируется в `payment_history`, а наружу отправляется событие `payment.updated` (RabbitMQ + SSE-поток). В теле достаточно передать только изменяемые поля.
+
+`POST /api/v1/payments/{paymentId}/status` переводит платёж в новый статус. Допустимы переходы `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`; возврат из `CANCELLED` запрещён. Для `COMPLETED` требуется `actual_date`, для `CANCELLED` — комментарий с причиной. При успешной смене статуса обновляется `processed_at`, при необходимости сохраняется `confirmation_reference`, создаётся запись в истории и публикуется событие `payment.status_changed` (RabbitMQ + SSE).
 
 ### Справочник типов платежей
 

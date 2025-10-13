@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
@@ -8,6 +8,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DriveService } from '../drive/drive.service';
+import { CompleteUploadDto } from './dto/complete-upload.dto';
 
 @Injectable()
 export class DocumentsService {
@@ -108,6 +109,32 @@ export class DocumentsService {
       },
     );
     return this.findOne(id);
+  }
+
+  async completeUpload(id: string, dto: CompleteUploadDto): Promise<DocumentEntity> {
+    const entity = await this.findOne(id);
+
+    if (![DocumentStatus.PendingUpload, DocumentStatus.Uploading].includes(entity.status)) {
+      throw new ConflictException(`Документ ${id} уже находится в статусе ${entity.status}`);
+    }
+
+    Object.assign(entity, {
+      size: dto.fileSize.toString(),
+      checksumMd5: dto.checksum,
+      status: DocumentStatus.Uploaded,
+      uploadedAt: new Date(),
+      lastError: null,
+      metadata: {
+        ...(entity.metadata ?? {}),
+        upload: {
+          ...(entity.metadata?.upload ?? {}),
+          fileSize: dto.fileSize,
+          checksum: dto.checksum,
+        },
+      },
+    });
+
+    return this.repository.save(entity);
   }
 
   async markFailed(id: string, error: Error | string): Promise<void> {

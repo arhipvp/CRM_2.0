@@ -18,6 +18,7 @@ type TasksConfiguration = {
   redis: {
     url: string;
     delayedQueueKey: string;
+    remindersQueueKey: string;
   };
   scheduling: {
     workerEnabled: boolean;
@@ -43,7 +44,8 @@ export default registerAs('tasks', (): TasksConfiguration => ({
   },
   redis: {
     url: process.env.TASKS_REDIS_URL ?? process.env.REDIS_URL ?? 'redis://localhost:6379/6',
-    delayedQueueKey: process.env.TASKS_DELAYED_QUEUE_KEY ?? 'tasks:delayed'
+    delayedQueueKey: process.env.TASKS_DELAYED_QUEUE_KEY ?? 'tasks:delayed',
+    remindersQueueKey: process.env.TASKS_REMINDERS_QUEUE_KEY ?? 'tasks:reminders'
   },
   scheduling: {
     workerEnabled: (process.env.TASKS_WORKER_ENABLED ?? 'false').toLowerCase() === 'true',
