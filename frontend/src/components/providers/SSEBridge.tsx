@@ -187,14 +187,28 @@ export function SSEBridge({
         highlightDeal(effect.highlightDealId);
         markDealUpdated(effect.highlightDealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        void invalidateDealQueries(effect.highlightDealId);
       }
 
       if (effect.shouldRefetch) {
+        if (effect.highlightDealId) {
+          void invalidateDealQueries(effect.highlightDealId);
+        } else {
+          void Promise.all([
+            queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+            queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+          ]);
+        }
+
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
       }
     },
-    [handlePaymentEvent, highlightDeal, invalidateDealQueries, markDealUpdated, queryClient],
+    [
+      handlePaymentEvent,
+      highlightDeal,
+      invalidateDealQueries,
+      markDealUpdated,
+      queryClient,
+    ],
   );
 
   const handlePaymentsError = useCallback((event: Event) => {
