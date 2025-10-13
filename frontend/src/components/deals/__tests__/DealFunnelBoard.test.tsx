@@ -386,6 +386,8 @@ describe("DealFunnelBoard", () => {
     ).toBeInTheDocument();
 
     useUpdateDealStageSpy.mockRestore();
+  });
+
   it("показывает панель массовых действий при выборе сделок", async () => {
     const client = createTestQueryClient();
     client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
