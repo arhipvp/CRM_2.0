@@ -13,16 +13,18 @@ Notifications доставляет события и уведомления во
 ## Локальный запуск
 1. Перейдите в каталог `backend/notifications` и установите зависимости: `pnpm install`.
 2. Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications --non-interactive` (или без флага для ручного режима). Проверьте блок `NOTIFICATIONS_*` и заполните токен/чат Telegram, если планируете реальную отправку.
-3. Запустите сервис HTTP + SSE: `pnpm start:dev`. Эндпоинты:
-   - `POST /notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
-   - `GET /notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
-4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики.
+3. Запустите HTTP-приложение с live reload: `pnpm start:api:dev`. Проверьте основные маршруты:
+   - `GET /api/notifications/health` — проверка готовности сервиса.
+   - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
+   - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
+   Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
+4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
 
 ## Миграции и фоновые процессы
 - TypeORM конфигурация размещена в [`typeorm.config.ts`](typeorm.config.ts); миграции — в каталоге [`migrations`](migrations/).
 - Запуск миграций: `pnpm run migrations:run` (bootstrap вызывает команду автоматически через [`scripts/migrate-local.sh`](../../scripts/migrate-local.sh)).
 - Генерация новых миграций: `pnpm run migrations:generate -- <имя>` — файл появится в `migrations/`.
-- Воркеры событий запускаются командой `pnpm start:workers`; при деплое убедитесь, что процесс масштабируется независимо от HTTP-приложения.
+- Для сборки артефактов используйте `pnpm run build:all` (собирает API и воркер). После релиза убедитесь, что HTTP-приложение (`pnpm start:api`) и воркеры (`pnpm start:workers`) запускаются как отдельные процессы и масштабируются независимо.
 
 ## Запуск в Docker
 1. Соберите образ:

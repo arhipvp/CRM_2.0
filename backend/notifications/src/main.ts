@@ -22,6 +22,8 @@ async function bootstrap() {
     })
   );
 
+  app.setGlobalPrefix('api');
+
   const configService = app.get(ConfigService<NotificationsConfiguration>);
   const host = configService.get<string>('http.host', { infer: true }) ?? '0.0.0.0';
   const port = configService.get<number>('http.port', { infer: true }) ?? 3050;
