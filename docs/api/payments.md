@@ -50,7 +50,7 @@
 | payment_type | string | Да | Тип платежа. |
 | planned_date | date | Нет | Плановая дата. |
 | amount | number | Да | Сумма. |
-| currency | string | Да | Валюта, фиксированное значение `RUB` (используется для совместимости и не поддерживает другие значения). |
+| currency | string | Да | Валюта, фиксированное значение `RUB` (используется для совместимости, запросы с другой валютой завершаются ошибкой `400 validation_error`). |
 | direction | string | Да | `inbound` или `outbound`. |
 | notes | string | Нет | Примечание. |
 
@@ -94,7 +94,7 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | amount | number | Нет | Новая сумма платежа (> 0). |
-| currency | string | Нет | Валюта ISO 4217 (например, `RUB`, `USD`). |
+| currency | string | Нет | Валюта ISO 4217, поддерживается только значение `RUB` (любое другое значение отклоняется ошибкой `400 validation_error`). |
 | dueDate | datetime (ISO 8601) | Нет | Плановая дата платежа. |
 | processedAt | datetime (ISO 8601) | Нет | Фактическая дата обработки. |
 | paymentType | string | Нет | Тип платежа (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
