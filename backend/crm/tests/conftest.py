@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import os
+import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from uuid import uuid4
@@ -14,11 +15,21 @@ from alembic.config import Config
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.postgres import PostgresContainer
-from testcontainers.rabbitmq import RabbitMqContainer
 from testcontainers.redis import RedisContainer
 
-from crm.app import config as app_config
+try:  # pragma: no cover - optional dependency guard
+    from testcontainers.rabbitmq import RabbitMqContainer
+except ModuleNotFoundError:  # pragma: no cover - optional dependency guard
+    RabbitMqContainer = None  # type: ignore[assignment]
 
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
+
+os.environ.setdefault("CRM_DATABASE_URL", "https://example.com/database")
+os.environ.setdefault("CRM_REDIS_URL", "https://example.com/redis")
+os.environ.setdefault("CRM_RABBITMQ_URL", "https://example.com/rabbitmq")
 
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
@@ -49,6 +60,9 @@ def redis() -> Iterator[RedisContainer]:
 
 @pytest.fixture(scope="session")
 def rabbitmq() -> Iterator[RabbitMqContainer]:
+    if RabbitMqContainer is None:
+        pytest.skip("RabbitMQ test container dependencies are not installed")
+
     container = RabbitMqContainer("rabbitmq:3.12-management")
     container.start()
     try:
@@ -67,6 +81,8 @@ def configure_environment(postgres: PostgresContainer, redis: RedisContainer, ra
     os.environ.setdefault("CRM_CELERY_BROKER_URL", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_CELERY_RESULT_BACKEND", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_DEFAULT_TENANT_ID", str(uuid4()))
+
+    from crm.app import config as app_config
 
     app_config.get_settings.cache_clear()
     app_config.settings = app_config.get_settings()
@@ -87,6 +103,7 @@ def apply_migrations(configure_environment):
 @pytest_asyncio.fixture()
 async def api_client(apply_migrations) -> AsyncIterator[AsyncClient]:
     from crm.app import main
+    from crm.app import config as app_config
 
     app_config.settings.enable_payments_consumer = False
     importlib.reload(main)
