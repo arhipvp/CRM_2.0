@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString
+} from 'class-validator';
 
 export class IncomingNotificationDto {
   @IsString()
@@ -10,4 +18,11 @@ export class IncomingNotificationDto {
   @IsOptional()
   @IsString()
   chatId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(['sse', 'telegram'], { each: true })
+  channels?: Array<'sse' | 'telegram'>;
 }

@@ -308,11 +308,11 @@ Notifications
 
 БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ), @liaoliaots/nestjs-redis (Redis)
 
-API: REST (`POST /notifications/events` для ручных публикаций) + SSE (`GET /notifications/stream`), подписчик очереди `notifications.events`, рассылка в Telegram через Bot API с поддержкой mock-режима
+API: REST (`POST /notifications/events` для ручных публикаций, `GET /v1/notifications/:id` для проверки статуса доставки) + SSE (`GET /notifications/stream`), подписчик очереди `notifications.events`, рассылка в Telegram через Bot API с поддержкой mock-режима
 
 Зависимости:
 
-PostgreSQL-схема notifications (таблица `notification_events` для аудита доставок)
+PostgreSQL-схема notifications (таблица `notification_events` хранит payload, каналы доставки, статус (`pending/processing/delivered/failed`), число попыток и время подтверждённой доставки)
 
 RabbitMQ exchange `notifications.events` + очередь `notifications.events` с настройкой durability и routing key `notifications.*`
 

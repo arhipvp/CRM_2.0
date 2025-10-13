@@ -1,7 +1,7 @@
 # Notifications Service
 
 ## Назначение
-Notifications доставляет события и уведомления во внутренний интерфейс (SSE) и Telegram-бот, принимая события из очередей RabbitMQ и публикуя их по минимальному сценарию первой поставки.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
+Notifications доставляет события и уведомления во внутренний интерфейс (SSE) и Telegram-бот, принимая события из очередей RabbitMQ и публикуя их по минимальному сценарию первой поставки. Сервис фиксирует каждое событие в таблице `notification_events`, сохраняя каналы доставки, статус (`pending` → `processing` → `delivered|failed`) и число попыток отправки.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
 
 Расширенные функции (экспорт журнала, автоподписки, расширенные правила доставки) появятся на [Этапе 1.1](../../docs/delivery-plan.md#notifications-export-autosubscribe).
 
@@ -17,6 +17,7 @@ Notifications доставляет события и уведомления во
    - `GET /api/notifications/health` — проверка готовности сервиса.
    - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
    - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
+   - `GET /api/v1/notifications/{id}` — статус конкретного уведомления (каналы, попытки, время доставки).
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
 4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
 
@@ -25,6 +26,10 @@ Notifications доставляет события и уведомления во
 - Запуск миграций: `pnpm run migrations:run` (bootstrap вызывает команду автоматически через [`scripts/migrate-local.sh`](../../scripts/migrate-local.sh)).
 - Генерация новых миграций: `pnpm run migrations:generate -- <имя>` — файл появится в `migrations/`.
 - Для сборки артефактов используйте `pnpm run build:all` (собирает API и воркер). После релиза убедитесь, что HTTP-приложение (`pnpm start:api`) и воркеры (`pnpm start:workers`) запускаются как отдельные процессы и масштабируются независимо.
+
+## Тесты
+
+- Юнит- и e2e-проверки покрывают обработку очередей и REST-метод статусов. Запустите `pnpm test`, чтобы убедиться, что воркеры обновляют статусы, а `GET /api/v1/notifications/:id` возвращает корректную структуру ответа.
 
 ## Запуск в Docker
 1. Соберите образ:

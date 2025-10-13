@@ -111,7 +111,7 @@ Documents. Связывает сделки и полисы с папками Goo
 
 Tasks. Планирование и исполнение задач, напоминания назначенным пользователям. SLA и автоматические сценарии будут включены после выпуска [Этапа 1.1](docs/delivery-plan.md#2-приоритизация-последующих-этапов); текущие договорённости зафиксированы в [`backend/tasks/README.md`](backend/tasks/README.md).
 
-Notifications. Отправка уведомлений по событиям (Telegram, внутренние SSE-уведомления CRM), интеграция с ботом для доставки и подтверждений; см. [`backend/notifications/README.md`](backend/notifications/README.md).
+Notifications. Отправка уведомлений по событиям (Telegram, внутренние SSE-уведомления CRM), хранение статусов доставки и REST-метод для проверки `/api/v1/notifications/:id`; см. [`backend/notifications/README.md`](backend/notifications/README.md).
 
 Telegram Bot. Отдельный сервис, обеспечивающий персональные уведомления продавцов и исполнителей, а также быстрые сценарии: создание сделки из чат-команды, запуск напоминаний, подтверждение ключевых этапов. Архитектура и чек-листы на реализацию — в [`docs/architecture/bot.md`](docs/architecture/bot.md).
 

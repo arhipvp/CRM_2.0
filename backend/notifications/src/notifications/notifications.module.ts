@@ -7,10 +7,15 @@ import { NotificationEventsService } from './notification-events.service';
 import { NotificationsQueueConsumer } from './notifications.queue.consumer';
 import { TelegramService } from './telegram.service';
 import { NotificationsIngressController } from './notifications.ingress.controller';
+import { NotificationsStatusController } from './notifications.status.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([NotificationEventEntity])],
-  controllers: [NotificationsController, NotificationsIngressController],
+  controllers: [
+    NotificationsController,
+    NotificationsIngressController,
+    NotificationsStatusController
+  ],
   providers: [
     NotificationStreamService,
     NotificationEventsService,
