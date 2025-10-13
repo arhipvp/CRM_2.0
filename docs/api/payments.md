@@ -88,7 +88,18 @@
 **Ошибки:** `400 validation_error`, `409 duplicate_payment` (по `external_ref`).
 
 ### PATCH `/payments/{payment_id}`
-Обновляет параметры платежа (даты, суммы, направление, тип, комментарии).
+Частичное обновление платежа (сумма, валюта, даты, тип и описание). Любое изменённое поле или комментарий фиксируется в истории (`payment_history`) и транслируется наружу событием `payment.updated` (RabbitMQ `payments.events` + SSE `/streams/payments`).
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| amount | number | Нет | Новая сумма платежа (> 0). |
+| currency | string | Нет | Валюта ISO 4217 (например, `RUB`, `USD`). |
+| dueDate | datetime (ISO 8601) | Нет | Плановая дата платежа. |
+| processedAt | datetime (ISO 8601) | Нет | Фактическая дата обработки. |
+| paymentType | string | Нет | Тип платежа (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
+| description | string | Нет | Пользовательское описание/примечание. |
+| comment | string | Нет | Комментарий для истории (сохраняется в `payment_history.description`). |
 
 **Ответ 200** — обновлённый платёж.
 

@@ -45,6 +45,8 @@ gradle test
 
 Если заданы оба параметра дат, `fromDate` не может быть позже `toDate`. При превышении `limit` значения `200` используется верхняя граница.
 
+`PATCH /api/v1/payments/{paymentId}` позволяет частично обновлять платёж: сумму, валюту, даты (`dueDate`, `processedAt`), тип (`paymentType`) и описание. Любое изменение или переданный комментарий (`comment`) фиксируется в `payment_history`, а наружу отправляется событие `payment.updated` (RabbitMQ + SSE-поток). В теле достаточно передать только изменяемые поля.
+
 ## Миграции и скрипты
 - Миграции Flyway хранятся в каталоге [`migrations`](migrations/) и запускаются автоматически при старте приложения либо вручную через `gradle flywayMigrate`.【F:docs/tech-stack.md†L226-L230】
 - Обмен `payments.events` и связанные сущности описаны в конфигурации Spring AMQP (`com.crm.payments.config`).
