@@ -19,6 +19,7 @@ crm/
 ## Требования к окружению
 - Python 3.11 (Poetry рекомендуем устанавливать глобально: https://python-poetry.org/docs/).
 - PostgreSQL (схема `crm`), Redis и RabbitMQ — URL подключений настраиваются через переменные `CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL` и дополнительные параметры очередей (см. `env.example`).【F:env.example†L78-L118】
+- Для указания тенанта по умолчанию задайте `CRM_DEFAULT_TENANT_ID` (UUID) или оставьте переменную пустой, чтобы требовать заголовок `X-Tenant-ID`.【F:env.example†L118-L120】
 - Для фоновых задач Celery используется Redis (по умолчанию `CRM_CELERY_BROKER_URL=${REDIS_CELERY_URL}`).
 
 ## Быстрый запуск (локально)
