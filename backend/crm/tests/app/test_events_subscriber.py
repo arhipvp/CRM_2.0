@@ -61,6 +61,17 @@ def make_message(headers: dict | None) -> SimpleNamespace:
     return SimpleNamespace(headers=headers)
 
 
+class DummyMessage:
+    def __init__(self, body: bytes, headers: dict | None = None) -> None:
+        self.body = body
+        self.headers = headers
+        self.content_type = "application/json"
+
+    @asynccontextmanager
+    async def process(self, *, requeue: bool = False) -> "DummyMessage":  # noqa: FBT001
+        yield self
+
+
 def test_should_dead_letter_without_header(subscriber: PaymentsEventsSubscriber) -> None:
     message = make_message(headers=None)
 
@@ -142,18 +153,92 @@ async def test_handle_message_publishes_synced(monkeypatch: pytest.MonkeyPatch) 
         "payload": {},
     }
 
-    class DummyMessage:
-        def __init__(self, body: bytes) -> None:
-            self.body = body
-            self.headers = None
-            self.content_type = "application/json"
-
-        @asynccontextmanager
-        async def process(self, *, requeue: bool = False) -> "DummyMessage":  # noqa: FBT001
-            yield self
-
     message = DummyMessage(json.dumps(payload).encode("utf-8"))
 
     await subscriber._handle_message(message)  # type: ignore[arg-type]
 
     subscriber._publish_event.assert_awaited_once_with("payments.synced", ANY)
+
+
+@pytest.mark.asyncio()
+async def test_handle_message_service_error_dead_letter(monkeypatch: pytest.MonkeyPatch, subscriber: PaymentsEventsSubscriber) -> None:
+    class FailingPaymentSyncService:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        async def handle_payment_event(self, event: object) -> PaymentEventResult:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("crm.app.events.PaymentSyncService", FailingPaymentSyncService)
+
+    @asynccontextmanager
+    async def fake_session_factory() -> SimpleNamespace:
+        yield SimpleNamespace()
+
+    subscriber._session_factory = fake_session_factory  # type: ignore[assignment]
+    subscriber._publish_event = AsyncMock()  # type: ignore[assignment]
+    subscriber._publish_to_dlx = AsyncMock()
+    subscriber._should_dead_letter = Mock(return_value=True)  # type: ignore[assignment]
+
+    payload = {
+        "tenant_id": str(uuid4()),
+        "event_id": str(uuid4()),
+        "payment_id": str(uuid4()),
+        "deal_id": None,
+        "policy_id": None,
+        "status": "processed",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "amount": 100.0,
+        "currency": "USD",
+        "payload": {},
+    }
+
+    message = DummyMessage(json.dumps(payload).encode("utf-8"))
+
+    await subscriber._handle_message(message)  # type: ignore[arg-type]
+
+    subscriber._publish_to_dlx.assert_awaited_once()
+    publish_call = subscriber._publish_to_dlx.await_args
+    assert publish_call.args[0] is message
+    assert isinstance(publish_call.kwargs["reason"], str)
+
+
+@pytest.mark.asyncio()
+async def test_handle_message_service_error_requeue(monkeypatch: pytest.MonkeyPatch, subscriber: PaymentsEventsSubscriber) -> None:
+    class FailingPaymentSyncService:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        async def handle_payment_event(self, event: object) -> PaymentEventResult:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("crm.app.events.PaymentSyncService", FailingPaymentSyncService)
+
+    @asynccontextmanager
+    async def fake_session_factory() -> SimpleNamespace:
+        yield SimpleNamespace()
+
+    subscriber._session_factory = fake_session_factory  # type: ignore[assignment]
+    subscriber._publish_event = AsyncMock()  # type: ignore[assignment]
+    subscriber._publish_to_dlx = AsyncMock()
+    subscriber._should_dead_letter = Mock(return_value=False)  # type: ignore[assignment]
+
+    payload = {
+        "tenant_id": str(uuid4()),
+        "event_id": str(uuid4()),
+        "payment_id": str(uuid4()),
+        "deal_id": None,
+        "policy_id": None,
+        "status": "processed",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "amount": 100.0,
+        "currency": "USD",
+        "payload": {},
+    }
+
+    message = DummyMessage(json.dumps(payload).encode("utf-8"))
+
+    with pytest.raises(RuntimeError):
+        await subscriber._handle_message(message)  # type: ignore[arg-type]
+
+    subscriber._publish_to_dlx.assert_not_awaited()
