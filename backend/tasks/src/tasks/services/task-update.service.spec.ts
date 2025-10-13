@@ -131,6 +131,64 @@ describe('TaskUpdateService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('не позволяет изменить причину отмены для активной задачи', async () => {
+    const task: TaskEntity = {
+      id: 'task-3a',
+      title: 'Active task',
+      statusCode: TaskStatusCode.PENDING,
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+      payload: null,
+      completedAt: null,
+      cancelledReason: null,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-02T00:00:00Z'),
+      status: undefined as any
+    };
+
+    repository.findOne.mockResolvedValueOnce(task);
+
+    await expect(
+      service.updateTask(
+        new UpdateTaskCommand('task-3a', undefined, undefined, undefined, 'later')
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('не позволяет добавить причину отмены при смене на активный статус', async () => {
+    const task: TaskEntity = {
+      id: 'task-3b',
+      title: 'In progress',
+      statusCode: TaskStatusCode.IN_PROGRESS,
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+      payload: null,
+      completedAt: null,
+      cancelledReason: null,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-02T00:00:00Z'),
+      status: undefined as any
+    };
+
+    repository.findOne.mockResolvedValueOnce(task);
+
+    await expect(
+      service.updateTask(
+        new UpdateTaskCommand(
+          'task-3b',
+          TaskStatusCode.COMPLETED,
+          undefined,
+          undefined,
+          'late cancellation'
+        )
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
   it('отменяет задачу и очищает отложенную очередь', async () => {
     const task: TaskEntity = {
       id: 'task-4',

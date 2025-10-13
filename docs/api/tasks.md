@@ -86,6 +86,7 @@
 - `scheduled` можно перевести в `pending`, `in_progress` или `cancelled`. Отложенная задача удаляется из очереди автоматически.
 - `pending` переходит в `in_progress`, `completed` или `cancelled`.
 - `in_progress` завершается (`completed`) или отменяется (`cancelled`).
+- `cancelledReason` можно создавать или обновлять только при отмене задачи или если задача уже находится в статусе `cancelled`.
 
 **Ответ 200** — `TaskResponseDto` с обновлёнными полями `statusCode`, `dueAt`, `completedAt`, `cancelledReason`.
 

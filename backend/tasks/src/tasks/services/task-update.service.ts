@@ -58,6 +58,16 @@ export class TaskUpdateService {
       throw new ConflictException('completedAt cannot be null when completing a task');
     }
 
+    if (
+      command.cancelledReason !== undefined &&
+      nextStatus !== TaskStatusCode.CANCELLED &&
+      previousStatus !== TaskStatusCode.CANCELLED
+    ) {
+      throw new ConflictException(
+        'cancelledReason can only be modified for cancelled tasks'
+      );
+    }
+
     if (nextStatus === TaskStatusCode.CANCELLED) {
       const reason = command.cancelledReason ?? task.cancelledReason ?? undefined;
       if (!reason || reason.trim().length === 0) {
