@@ -31,6 +31,8 @@ export class DriveService {
     const driveConfig = this.configService.get('drive', { infer: true });
 
     if (driveConfig.emulatorUrl) {
+      const baseMetadata = document.metadata ?? {};
+      const uploadMetadata = metadata ?? {};
       const response = await axios.post(
         new URL('/files', driveConfig.emulatorUrl).toString(),
         {
@@ -38,7 +40,7 @@ export class DriveService {
           description: document.description,
           mimeType: document.mimeType,
           parents: driveConfig.emulatorRoot ? [driveConfig.emulatorRoot] : undefined,
-          metadata: { ...document.metadata, ...metadata },
+          metadata: { ...baseMetadata, ...uploadMetadata },
         },
       );
 
@@ -66,6 +68,8 @@ export class DriveService {
 
     const media = await this.resolveMedia(document);
 
+    const uploadMetadata = metadata ?? {};
+
     const response = await drive.files.create({
       requestBody: fileMetadata,
       media: media ?? undefined,
@@ -83,7 +87,7 @@ export class DriveService {
       metadata: {
         size: file.size,
         md5Checksum: file.md5Checksum,
-        ...metadata,
+        ...uploadMetadata,
       },
     };
   }

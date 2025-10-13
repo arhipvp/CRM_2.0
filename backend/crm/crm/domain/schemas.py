@@ -4,7 +4,7 @@ from datetime import datetime, date
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ORMModel(BaseModel):
@@ -42,6 +42,7 @@ class DealBase(BaseModel):
     description: Optional[str] = None
     status: str = Field(default="draft")
     value: Optional[float] = None
+    next_review_at: date
 
 
 class DealCreate(DealBase):
@@ -54,6 +55,14 @@ class DealUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     value: Optional[float] = None
+    next_review_at: Optional[date] = Field(default=None)
+
+    @field_validator("next_review_at")
+    @classmethod
+    def _validate_next_review_at(cls, value: Optional[date]) -> Optional[date]:
+        if value is None:
+            raise ValueError("next_review_at cannot be null")
+        return value
 
 
 class DealRead(ORMModel, DealBase):

@@ -77,6 +77,18 @@ class ClientRepository(BaseRepository[models.Client]):
 class DealRepository(BaseRepository[models.Deal]):
     model = models.Deal
 
+    async def list(self, tenant_id: UUID) -> Iterable[models.Deal]:
+        stmt = (
+            select(self.model)
+            .where(
+                self.model.tenant_id == tenant_id,
+                self.model.is_deleted.is_(False),
+            )
+            .order_by(self.model.next_review_at.asc(), self.model.updated_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def mark_won(self, tenant_id: UUID, deal_id: UUID) -> models.Deal | None:
         stmt = (
             update(self.model)
