@@ -1,5 +1,5 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
-import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
+import { HomeDealFunnelBoard } from "@/components/deals/HomeDealFunnelBoard";
 import { TaskList } from "@/components/tasks/TaskList";
 import { dealsQueryOptions, tasksQueryOptions } from "@/lib/api/queries";
 import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
@@ -50,7 +50,7 @@ export default async function HomePage() {
               Все сделки
             </Link>
           </div>
-          <DealFunnelBoard forceViewMode="kanban" />
+          <HomeDealFunnelBoard forceViewMode="kanban" />
         </section>
 
         <section className="space-y-4">
