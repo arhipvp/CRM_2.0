@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from uuid import uuid4
 
 import pytest
@@ -33,10 +34,13 @@ async def test_crud_flow(api_client):
         "description": "Полис каско",
         "owner_id": str(owner_id),
         "value": 120000,
+        "next_review_at": date.today().isoformat(),
     }
     response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
     assert response.status_code == 201
     deal = schemas.DealRead.model_validate(response.json())
+    assert response.json()["next_review_at"] == deal_payload["next_review_at"]
+    assert deal.next_review_at.isoformat() == deal_payload["next_review_at"]
 
     policy_payload = {
         "client_id": str(client.id),
@@ -72,6 +76,7 @@ async def test_crud_flow(api_client):
     response = await api_client.get(f"/api/v1/deals/{deal.id}", headers=headers)
     assert response.status_code == 200
     assert response.json()["title"] == "Каско 2024"
+    assert response.json()["next_review_at"] == deal_payload["next_review_at"]
 
 
 @pytest.mark.asyncio
@@ -97,10 +102,12 @@ async def test_multiple_crud_requests_do_not_close_session(api_client):
             "description": "Полис каско",
             "owner_id": str(owner_id),
             "value": 120000 + index,
+            "next_review_at": (date.today() + timedelta(days=index)).isoformat(),
         }
         response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
         assert response.status_code == 201
         deal = schemas.DealRead.model_validate(response.json())
+        assert response.json()["next_review_at"] == deal_payload["next_review_at"]
 
         policy_payload = {
             "client_id": str(client.id),
@@ -136,3 +143,4 @@ async def test_multiple_crud_requests_do_not_close_session(api_client):
         response = await api_client.get(f"/api/v1/deals/{deal.id}", headers=headers)
         assert response.status_code == 200
         assert response.json()["title"] == f"Каско 2024-{index}"
+        assert response.json()["next_review_at"] == deal_payload["next_review_at"]

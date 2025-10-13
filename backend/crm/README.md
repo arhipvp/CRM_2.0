@@ -58,7 +58,7 @@ crm/
 ## REST API
 - `GET /api/v1/clients` — список клиентов.
 - `POST /api/v1/clients` — создание клиента.
-- `GET /api/v1/deals`, `POST /api/v1/deals` — работа со сделками.
+- `GET /api/v1/deals`, `POST /api/v1/deals` — работа со сделками (список отсортирован по `next_review_at`, затем по `updated_at`).
 - `GET /api/v1/policies`, `POST /api/v1/policies` — управление полисами.
 - `GET /api/v1/tasks`, `POST /api/v1/tasks` — задачи первого уровня.
 - `PATCH`-эндпоинты поддерживают частичные обновления для всех сущностей.
