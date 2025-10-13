@@ -79,6 +79,9 @@ export interface NotificationsConfiguration {
   sse: {
     retryInterval: number;
   };
+  templates: {
+    defaultLocale: string;
+  };
 }
 
 export default (): NotificationsConfiguration => {
@@ -132,6 +135,9 @@ export default (): NotificationsConfiguration => {
     },
     sse: {
       retryInterval: toNumber(process.env.NOTIFICATIONS_SSE_RETRY_MS, 5000)
+    },
+    templates: {
+      defaultLocale: process.env.NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE ?? 'ru-RU'
     }
   };
 };

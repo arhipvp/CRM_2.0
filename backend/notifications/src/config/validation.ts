@@ -35,5 +35,7 @@ export const validationSchema = Joi.object({
     .default('x-telegram-signature')
     .pattern(/^[a-z0-9\-]+$/i),
 
-  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000)
+  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000),
+
+  NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE: Joi.string().default('ru-RU')
 });
