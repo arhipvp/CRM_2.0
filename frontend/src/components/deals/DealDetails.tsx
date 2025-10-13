@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   dealQueryOptions,
-  dealsQueryOptions,
 } from "@/lib/api/queries";
 import { useDeal, useUpdateDeal } from "@/lib/api/hooks";
 import type { DealStage } from "@/types/crm";
@@ -106,7 +105,6 @@ export function DealDetails({ dealId }: { dealId: string }) {
   const [isHighlighted, setIsHighlighted] = useState(false);
 
   const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
-  const dealsKey = dealsQueryOptions().queryKey;
 
   useEffect(() => {
     if (!deal) {
@@ -172,7 +170,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
     });
 
     queryClient.setQueryData(dealKey, updated);
-    await queryClient.invalidateQueries({ queryKey: dealsKey });
+    await queryClient.invalidateQueries({ queryKey: ["deals"] });
     markDealUpdated(dealId);
   };
 
