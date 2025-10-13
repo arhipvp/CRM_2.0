@@ -3,11 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
-import {
-  dealQueryOptions,
-  dealStageMetricsQueryOptions,
-  paymentsQueryOptions,
-} from "@/lib/api/queries";
+import { dealQueryOptions, paymentsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
 
@@ -77,7 +73,7 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 
 const dealsQueryKey = ["deals"] as const;
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
-const dealStageMetricsQueryKey = dealStageMetricsQueryOptions().queryKey;
+const dealStageMetricsQueryKey = ["deal-stage-metrics"] as const;
 
 export function SSEBridge({
   apiBaseUrl,
