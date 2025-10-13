@@ -3,8 +3,12 @@ package com.crm.audit.stream
 import com.crm.audit.domain.AuditEventEntity
 import com.crm.audit.domain.AuditEventMessage
 import com.crm.audit.domain.AuditEventRepository
+import com.crm.audit.domain.AuditEventTagEntity
+import com.crm.audit.domain.AuditEventTagRepository
+import com.fasterxml.jackson.databind.JsonNode
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.util.UUID
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Component
@@ -12,7 +16,8 @@ import kotlinx.coroutines.runBlocking
 
 @Component
 open class AuditEventProcessor(
-    private val repository: AuditEventRepository
+    private val repository: AuditEventRepository,
+    private val tagRepository: AuditEventTagRepository
 ) {
 
     private val logger = LoggerFactory.getLogger(AuditEventProcessor::class.java)
@@ -48,7 +53,11 @@ open class AuditEventProcessor(
             )
 
             try {
-                repository.save(entity)
+                val saved = repository.save(entity)
+                val tags = extractTags(saved.id, event.payload)
+                if (tags.isNotEmpty()) {
+                    tagRepository.saveAll(tags)
+                }
                 logger.debug(
                     "Событие сохранено type={}, id={}, source={}, occurredAt={}",
                     event.eventType,
@@ -80,5 +89,40 @@ open class AuditEventProcessor(
                 event.source
             )
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun extractTags(eventId: UUID, payload: JsonNode?): List<AuditEventTagEntity> {
+        if (payload == null) {
+            return emptyList()
+        }
+
+        val tagsNode = when {
+            payload.has("tags") -> payload.get("tags")
+            payload.has("attributes") -> payload.get("attributes")
+            else -> null
+        }
+
+        if (tagsNode == null || !tagsNode.isObject) {
+            return emptyList()
+        }
+
+        val result = mutableListOf<AuditEventTagEntity>()
+        val fields = tagsNode.fields()
+        while (fields.hasNext()) {
+            val (key, value) = fields.next()
+            val normalizedValue = when {
+                value.isNull -> null
+                value.isValueNode -> value.asText()
+                else -> value.toString()
+            }
+            result += AuditEventTagEntity(
+                eventId = eventId,
+                tagKey = key,
+                tagValue = normalizedValue
+            )
+        }
+
+        return result
     }
 }

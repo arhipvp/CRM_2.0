@@ -192,13 +192,13 @@ erDiagram
 
 | Таблица | Назначение |
 | --- | --- |
-| `audit.events` | Централизованный журнал действий пользователей и сервисов. |
-| `audit.event_tags` | Дополнительные ключ-значение атрибуты событий. |
+| `audit.audit_events` | Централизованный журнал событий с метаданными источника и исходным payload. |
+| `audit.audit_event_tags` | Нормализованное хранение тегов события (`payload.tags`/`payload.attributes`). |
 
 ### Ключи и ограничения
 
-* `audit.events`: `PRIMARY KEY (id)`, индексы по `actor_id`, `(object_schema, object_id)`, `created_at`. Поле `actor_id` ссылается на `auth.users(id)` (nullable для системных событий).
-* `audit.event_tags`: составной первичный ключ `(event_id, key)`, `FOREIGN KEY (event_id)` → `audit.events(id)`.
+* `audit.audit_events`: `PRIMARY KEY (id)`, `UNIQUE (event_type, occurred_at, event_source)`, частичный уникальный индекс по `event_id` (только ненулевые значения), индексы `idx_audit_events_event_type`, `idx_audit_events_occurred_at`.
+* `audit.audit_event_tags`: составной первичный ключ `(event_id, tag_key)`, `FOREIGN KEY (event_id)` → `audit.audit_events(id)` с `ON DELETE CASCADE`, `ON UPDATE CASCADE`.
 
 ## Seed-данные и связи между схемами
 
@@ -217,7 +217,7 @@ erDiagram
 
 * Пользовательские ссылки (`sales_agent_id`, `assignee_id`, `recipient_id`, `recorded_by`) указывают на `auth.users`.
 * Бизнес-сущности `payments.payments`, `tasks.tasks`, `notifications.notifications` и `documents.document_links` привязываются к сделкам, полисам и платежам через ключи на таблицы схем `crm` и `payments`.
-* Audit фиксирует события по объектам любых схем через поля `object_schema`, `object_table`, `object_id` и ссылку на пользователя.
+* Audit фиксирует события с произвольным payload и тегами, которые можно связывать с объектами других схем через содержимое `payload`/`audit.audit_event_tags`.
 
 Seed-скрипты должны исполняться после базовых миграций каждой схемы и гарантировать целостность ссылок (например, напоминания задач опираются на справочник ролей, поэтому роли должны быть загружены первыми).
 
