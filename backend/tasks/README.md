@@ -31,6 +31,10 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 
 Все параметры необязательны и могут комбинироваться. Результат отсортирован по `dueAt`, затем по `createdAt`.
 
+Ответ содержит поля `TaskResponseDto`: базовые реквизиты задачи (`id`, `title`, `statusCode`, даты) и данные `payload`.
+Клиентам не нужно разбирать JSON вручную: `assigneeId`, `priority`, а также контекст (`context.dealId`/`context.policyId`)
+присутствуют как отдельные свойства DTO.
+
 ### Обновление статуса задачи
 `PATCH /api/tasks/:id` позволяет переводить задачу между статусами (`pending`, `scheduled`, `in_progress`, `completed`, `cancelled`) и обновлять дедлайн.
 
