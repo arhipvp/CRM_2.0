@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { DealFunnelHeader } from "@/components/deals/DealFunnelHeader";
 import { dealStageMetricsQueryOptions, dealsQueryOptions } from "@/lib/api/queries";
@@ -47,5 +48,52 @@ describe("DealFunnelHeader", () => {
     const negotiationCard = screen.getByRole("button", { name: /Переговоры/ });
     expect(within(negotiationCard).getByText("1")).toBeInTheDocument();
     expect(within(negotiationCard).getByTitle("Конверсия")).toHaveTextContent("50%");
+  });
+
+  it("сохраняет выбранных менеджеров доступными при последовательном выборе", async () => {
+    const client = createTestQueryClient();
+    const filters = useUiStore.getState().filters;
+
+    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
+    client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
+
+    const user = userEvent.setup();
+
+    renderWithQueryClient(<DealFunnelHeader />, client);
+
+    await user.click(screen.getByRole("button", { name: /Менеджеры/ }));
+
+    const annaCheckbox = await screen.findByLabelText("Анна Савельева");
+    const ivanCheckbox = screen.getByLabelText("Иван Плахов");
+
+    await user.click(annaCheckbox);
+    await user.click(ivanCheckbox);
+
+    expect(annaCheckbox).toBeChecked();
+    expect(ivanCheckbox).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Готово" }));
+
+    await act(async () => {
+      useUiStore.setState((state) => ({
+        filters: { ...state.filters, stage: "closedLost" },
+      }));
+    });
+
+    const updatedFilters = useUiStore.getState().filters;
+    client.setQueryData(dealsQueryOptions(updatedFilters).queryKey, []);
+    client.setQueryData(dealStageMetricsQueryOptions(updatedFilters).queryKey, []);
+
+    await user.click(screen.getByRole("button", { name: /Менеджеры/ }));
+
+    const annaAfterFilter = await screen.findByLabelText("Анна Савельева");
+    const ivanAfterFilter = screen.getByLabelText("Иван Плахов");
+
+    expect(annaAfterFilter).toBeChecked();
+    expect(ivanAfterFilter).toBeChecked();
+    expect(useUiStore.getState().filters.managers).toEqual(
+      expect.arrayContaining(["Анна Савельева", "Иван Плахов"]),
+    );
   });
 });
