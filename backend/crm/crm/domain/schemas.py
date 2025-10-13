@@ -5,6 +5,7 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
+from pydantic_core import PydanticUndefined
 
 
 class ORMModel(BaseModel):
@@ -55,11 +56,13 @@ class DealUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     value: Optional[float] = None
-    next_review_at: Optional[date] = Field(default=None)
+    next_review_at: Optional[date] = Field(default=PydanticUndefined)
 
-    @field_validator("next_review_at")
+    @field_validator("next_review_at", mode="before")
     @classmethod
-    def _validate_next_review_at(cls, value: Optional[date]) -> Optional[date]:
+    def _validate_next_review_at(cls, value: Optional[date]):
+        if value is PydanticUndefined:
+            return value
         if value is None:
             raise ValueError("next_review_at cannot be null")
         return value
