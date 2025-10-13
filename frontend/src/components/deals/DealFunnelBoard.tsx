@@ -16,6 +16,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { compareDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { Deal } from "@/types/crm";
 import { useDeals, useUpdateDealStage } from "@/lib/api/hooks";
@@ -60,26 +61,6 @@ const stageOrder: PipelineStageKey[] = [
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function safeTimestamp(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function compareDealsByNextReview(a: Deal, b: Deal) {
-  const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
-  const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
-
-  if (aValue === bValue) {
-    return a.name.localeCompare(b.name);
-  }
-
-  return aValue - bValue;
 }
 
 function groupByStage(deals: Deal[]) {

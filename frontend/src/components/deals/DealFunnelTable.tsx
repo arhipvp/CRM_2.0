@@ -9,9 +9,9 @@ import {
   DealBulkActions,
   buildBulkActionNotificationMessage,
 } from "@/components/deals/DealBulkActions";
+import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
-import type { Deal } from "@/types/crm";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -46,26 +46,6 @@ function formatShortDate(value: string) {
   } catch {
     return value;
   }
-}
-
-function safeTimestamp(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function compareDealsByNextReview(a: Deal, b: Deal) {
-  const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
-  const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
-
-  if (aValue === bValue) {
-    return a.name.localeCompare(b.name);
-  }
-
-  return aValue - bValue;
 }
 
 function getNextReviewTone(nextReviewAt: string) {
@@ -114,7 +94,7 @@ export function DealFunnelTable() {
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
-  const dealsForRender = useMemo(() => [...deals].sort(compareDealsByNextReview), [deals]);
+  const dealsForRender = useMemo(() => sortDealsByNextReview(deals), [deals]);
 
   if (viewMode !== "table") {
     return null;

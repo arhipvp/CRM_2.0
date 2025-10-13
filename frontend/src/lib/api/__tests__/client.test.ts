@@ -1,30 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sortDealsByNextReview } from "@/lib/utils/deals";
+
 const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 let fetchMock: ReturnType<typeof vi.fn>;
-
-function safeTimestamp(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function sortDealsByNextReview<T extends { nextReviewAt: string; updatedAt: string; name: string }>(deals: T[]) {
-  return [...deals].sort((a, b) => {
-    const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
-    const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
-
-    if (aValue === bValue) {
-      return a.name.localeCompare(b.name);
-    }
-
-    return aValue - bValue;
-  });
-}
 
 async function importClient() {
   return await import("../client");

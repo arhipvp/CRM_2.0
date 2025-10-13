@@ -46,6 +46,10 @@ export const dealDocumentsMock: DealDocument[] = [
   },
 ];
 
+const now = Date.now();
+const hourInMs = 3_600_000;
+const dayInMs = 86_400_000;
+
 export const dealsMock: Deal[] = [
   {
     id: "deal-1",
@@ -56,9 +60,9 @@ export const dealsMock: Deal[] = [
     probability: 0.65,
     stage: "qualification",
     owner: "Анна Савельева",
-    updatedAt: new Date().toISOString(),
-    nextReviewAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(),
-    expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+    updatedAt: new Date(now - hourInMs).toISOString(),
+    nextReviewAt: new Date(now + dayInMs * 2).toISOString(),
+    expectedCloseDate: new Date(now + dayInMs * 14).toISOString(),
     tasks: [],
     notes: [],
     documents: [],
@@ -74,9 +78,9 @@ export const dealsMock: Deal[] = [
     probability: 0.3,
     stage: "negotiation",
     owner: "Иван Плахов",
-    updatedAt: new Date().toISOString(),
-    nextReviewAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-    expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+    updatedAt: new Date(now - hourInMs * 2).toISOString(),
+    nextReviewAt: new Date(now + dayInMs).toISOString(),
+    expectedCloseDate: new Date(now + dayInMs * 7).toISOString(),
     tasks: [],
     notes: [],
     documents: [],
@@ -92,9 +96,9 @@ export const dealsMock: Deal[] = [
     probability: 0.8,
     stage: "proposal",
     owner: "Мария Орлова",
-    updatedAt: new Date().toISOString(),
-    nextReviewAt: new Date(Date.now() + 1000 * 60 * 60 * 12).toISOString(),
-    expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
+    updatedAt: new Date(now - hourInMs * 4).toISOString(),
+    nextReviewAt: new Date(now + dayInMs).toISOString(),
+    expectedCloseDate: new Date(now + dayInMs * 3).toISOString(),
     tasks: [],
     notes: [],
     documents: [],
@@ -110,9 +114,9 @@ export const dealsMock: Deal[] = [
     probability: 0.9,
     stage: "closedWon",
     owner: "Анна Савельева",
-    updatedAt: new Date().toISOString(),
-    nextReviewAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-    expectedCloseDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+    updatedAt: new Date(now - dayInMs * 3).toISOString(),
+    nextReviewAt: new Date(now - dayInMs * 2).toISOString(),
+    expectedCloseDate: new Date(now - dayInMs * 5).toISOString(),
     tasks: [],
     notes: [],
     documents: [],
