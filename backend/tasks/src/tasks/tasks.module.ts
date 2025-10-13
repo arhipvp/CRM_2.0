@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskEntity } from './entities/task.entity';
 import { TaskStatusEntity } from './entities/task-status.entity';
+import { TaskReminderEntity } from './entities/task-reminder.entity';
 import { CreateTaskHandler } from './commands/create-task.handler';
 import { CompleteTaskHandler } from './commands/complete-task.handler';
 import { ScheduleTaskHandler } from './commands/schedule-task.handler';
@@ -17,18 +18,21 @@ import { WorkerRegistrarService } from '../delayed/worker-registrar.service';
 import { ActivateScheduledTaskHandler } from './commands/activate-scheduled-task.handler';
 import { UpdateTaskHandler } from './commands/update-task.handler';
 import { TaskUpdateService } from './services/task-update.service';
+import { CreateTaskReminderHandler } from './commands/create-task-reminder.handler';
+import { TaskReminderQueueService } from './services/task-reminder-queue.service';
 
 const commandHandlers = [
   CreateTaskHandler,
   CompleteTaskHandler,
   ScheduleTaskHandler,
   ActivateScheduledTaskHandler,
-  UpdateTaskHandler
+  UpdateTaskHandler,
+  CreateTaskReminderHandler
 ];
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TaskEntity, TaskStatusEntity]),
+    TypeOrmModule.forFeature([TaskEntity, TaskStatusEntity, TaskReminderEntity]),
     CqrsModule,
     MessagingModule,
     RedisModule
@@ -39,6 +43,7 @@ const commandHandlers = [
     TaskEventsPublisher,
     TaskQueryService,
     TaskUpdateService,
+    TaskReminderQueueService,
     DelayedTaskQueueService,
     DelayedTasksProcessor,
     WorkerRegistrarService

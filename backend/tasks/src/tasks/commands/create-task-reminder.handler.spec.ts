@@ -1,0 +1,80 @@
+import { Repository } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
+import { CreateTaskReminderHandler } from './create-task-reminder.handler';
+import { TaskEntity } from '../entities/task.entity';
+import { TaskReminderEntity } from '../entities/task-reminder.entity';
+import { TaskReminderQueueService } from '../services/task-reminder-queue.service';
+import { CreateTaskReminderCommand } from './create-task-reminder.command';
+import { TaskReminderChannel } from '../constants/task-reminder-channel.constants';
+
+describe('CreateTaskReminderHandler', () => {
+  let handler: CreateTaskReminderHandler;
+  let taskRepository: jest.Mocked<Repository<TaskEntity>>;
+  let reminderRepository: jest.Mocked<Repository<TaskReminderEntity>>;
+  let reminderQueue: { schedule: jest.Mock };
+
+  beforeEach(() => {
+    taskRepository = {
+      findOneBy: jest.fn()
+    } as unknown as jest.Mocked<Repository<TaskEntity>>;
+
+    reminderRepository = {
+      create: jest.fn(),
+      save: jest.fn()
+    } as unknown as jest.Mocked<Repository<TaskReminderEntity>>;
+
+    reminderQueue = { schedule: jest.fn() };
+
+    handler = new CreateTaskReminderHandler(
+      taskRepository,
+      reminderRepository,
+      reminderQueue as unknown as TaskReminderQueueService
+    );
+  });
+
+  it('создаёт напоминание и планирует его в очереди', async () => {
+    const taskId = '56f7adcd-bc6b-4059-9fcb-4fb0f299a022';
+    const remindAt = new Date('2024-03-10T12:00:00.000Z');
+
+    taskRepository.findOneBy.mockResolvedValue({ id: taskId } as TaskEntity);
+
+    const savedReminder: TaskReminderEntity = {
+      id: '5f4f93f2-1965-4240-9a3d-6fdc54bb693c',
+      taskId,
+      remindAt,
+      channel: TaskReminderChannel.TELEGRAM,
+      createdAt: new Date('2024-03-09T12:00:00.000Z')
+    } as TaskReminderEntity;
+
+    reminderRepository.create.mockReturnValue(savedReminder);
+    reminderRepository.save.mockResolvedValue(savedReminder);
+
+    const command = new CreateTaskReminderCommand(taskId, remindAt, TaskReminderChannel.TELEGRAM);
+
+    const result = await handler.execute(command);
+
+    expect(taskRepository.findOneBy).toHaveBeenCalledWith({ id: taskId });
+    expect(reminderRepository.create).toHaveBeenCalledWith({
+      taskId,
+      remindAt,
+      channel: TaskReminderChannel.TELEGRAM
+    });
+    expect(reminderRepository.save).toHaveBeenCalledWith(savedReminder);
+    expect(reminderQueue.schedule).toHaveBeenCalledWith(savedReminder.id, remindAt);
+    expect(result).toBe(savedReminder);
+  });
+
+  it('бросает NotFoundException, если задача не найдена', async () => {
+    taskRepository.findOneBy.mockResolvedValue(null);
+
+    const command = new CreateTaskReminderCommand(
+      '56f7adcd-bc6b-4059-9fcb-4fb0f299a022',
+      new Date(),
+      TaskReminderChannel.SSE
+    );
+
+    await expect(handler.execute(command)).rejects.toBeInstanceOf(NotFoundException);
+    expect(reminderRepository.create).not.toHaveBeenCalled();
+    expect(reminderQueue.schedule).not.toHaveBeenCalled();
+  });
+});
