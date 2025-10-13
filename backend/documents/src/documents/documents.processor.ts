@@ -48,12 +48,14 @@ export class DocumentsProcessor extends WorkerHost {
     const document = await this.documentsService.findOne(documentId);
     try {
       const result = await this.driveService.uploadDocument(document, metadata);
+      const baseMetadata = document.metadata ?? {};
+      const resultMetadata = result.metadata ?? {};
       await this.documentsService.markSynced(documentId, {
         driveFileId: result.fileId,
         driveRevisionId: result.revisionId,
         uploadedAt: result.uploadedAt,
         syncedAt: result.syncedAt,
-        metadata: { ...document.metadata, ...result.metadata },
+        metadata: { ...baseMetadata, ...resultMetadata },
       });
       this.logger.log(`Документ ${documentId} синхронизирован с Google Drive (${result.fileId})`);
       return result;
@@ -74,11 +76,13 @@ export class DocumentsProcessor extends WorkerHost {
 
     try {
       const result = await this.driveService.syncDocument(document);
+      const baseMetadata = document.metadata ?? {};
+      const resultMetadata = result.metadata ?? {};
       await this.documentsService.markSynced(documentId, {
         driveRevisionId: result.revisionId ?? document.driveRevisionId,
         uploadedAt: document.uploadedAt ?? result.uploadedAt,
         syncedAt: result.syncedAt,
-        metadata: { ...document.metadata, ...result.metadata },
+        metadata: { ...baseMetadata, ...resultMetadata },
       });
       this.logger.log(`Метаданные документа ${documentId} обновлены`);
       return result;
