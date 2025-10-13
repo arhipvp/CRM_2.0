@@ -174,7 +174,7 @@ public class PaymentService {
         }
         if (request.getCurrency() != null) {
             if (!"RUB".equals(request.getCurrency())) {
-                return Mono.error(new IllegalArgumentException("Only RUB currency is supported"));
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "validation_error"));
             }
             if (!Objects.equals(entity.getCurrency(), request.getCurrency())) {
                 entity.setCurrency(request.getCurrency());
