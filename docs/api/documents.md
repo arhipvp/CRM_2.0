@@ -86,11 +86,11 @@
 **Параметры запроса**
 | Имя | Тип | Описание |
 | --- | --- | --- |
-| owner_id | UUID | Фильтр по сущности. |
-| owner_type | string | Ограничение на тип. |
-| document_type | array[string] | Фильтр по типу. |
-| search | string | Поиск по названию/заметкам. |
-| limit | integer | По умолчанию 50. |
+| owner_id | UUID | Фильтр по сущности (`metadata.ownerId`). |
+| owner_type | string | Ограничение на тип (`metadata.ownerType`). |
+| document_type | array[string] | Фильтр по типу документа (`metadata.documentType`). Можно передавать массив параметров `document_type[]=...` или через запятую. |
+| search | string | Поиск по названию, описанию и заметкам (`metadata.notes`). |
+| limit | integer | По умолчанию 25. |
 | offset | integer | Смещение. |
 
 **Ответ 200** — список документов с метаданными (мягко удалённые записи не возвращаются).
