@@ -207,7 +207,9 @@ export function useUpdateDealStage() {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["deals"] }),
-        queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey }),
+        queryClient.invalidateQueries({
+          queryKey: dealQueryOptions(variables.dealId).queryKey,
+        }),
         queryClient.invalidateQueries({ queryKey: ["deal-stage-metrics"] }),
       ]);
     },
