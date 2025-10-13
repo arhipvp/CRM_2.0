@@ -54,6 +54,7 @@ crm/
    ```bash
    poetry run python -m crm.app.events
    ```
+   Пока счётчик повторных попыток не достигнет `CRM_PAYMENTS_RETRY_LIMIT`, ошибки сервиса синхронизации должны приводить к повторной постановке сообщения в очередь (requeue) без публикации в DLX.
 
 ## REST API
 - `GET /api/v1/clients` — список клиентов.
