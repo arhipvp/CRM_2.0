@@ -76,11 +76,20 @@ docker compose --profile app up -d frontend
 ### CRM / Deals: быстрый старт
 
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
+
 - Выполните `../../scripts/sync-env.sh backend/crm` (при необходимости добавьте `--non-interactive`), чтобы скопировать шаблон `.env`. После синхронизации пересмотрите блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, очереди событий) и замените секреты на локальные значения.
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+### Tasks: быстрый старт
+
+- Перейдите в `backend/tasks` и установите зависимости `pnpm install`.
+- Выполните `../../scripts/sync-env.sh backend/tasks` (добавьте `--non-interactive` при запуске из bootstrap/CI). После синхронизации проверьте блок переменных `TASKS_*` (PostgreSQL, RabbitMQ, Redis, worker-настройки).
+- Примените миграции и сиды: `pnpm migration:run` и `pnpm seed:statuses`. Команды используют `TASKS_DATABASE_URL` и `TASKS_REDIS_URL` из `.env`.
+- Запустите API: `pnpm start:dev` (по умолчанию порт `TASKS_SERVICE_PORT`, маршрут `GET /api/health`).
+- Для обработки отложенных задач поднимите отдельный процесс: `TASKS_WORKER_ENABLED=true pnpm worker:dev`. Worker читает Redis-очередь `TASKS_DELAYED_QUEUE_KEY` и переводит задачи в статус `pending`.
+
 
 ### Reports: быстрый старт
 
