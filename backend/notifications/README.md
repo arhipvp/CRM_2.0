@@ -8,7 +8,7 @@ Notifications доставляет события и уведомления во
 ## Требования к окружению
 - Node.js LTS (18+) и pnpm 9 (через Corepack) для запуска NestJS и фоновых воркеров.【F:docs/local-setup.md†L43-L69】
 - PostgreSQL (схема `notifications`), RabbitMQ (`notifications.events`) и Redis с namespace `notifications:` для хранения статуса доставки и управления подписками.【F:docs/tech-stack.md†L287-L339】
-- Переменные окружения `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` и `NOTIFICATIONS_SSE_RETRY_MS` (см. [`env.example`](../../env.example)).
+- Переменные окружения `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` (включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_*`) и `NOTIFICATIONS_SSE_RETRY_MS` (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
 1. Перейдите в каталог `backend/notifications` и установите зависимости: `pnpm install`.
@@ -49,6 +49,7 @@ Notifications доставляет события и уведомления во
 
 * Для отладки webhook и Bot API включите mock-сервер, описанный в [docs/local-setup.md#интеграции](../../docs/local-setup.md#интеграции).
 * Переменная `NOTIFICATIONS_TELEGRAM_MOCK=true` разрешает безопасно логировать сообщения вместо фактических запросов в Bot API. Для реальных рассылок установите `NOTIFICATIONS_TELEGRAM_ENABLED=true`, заполните `NOTIFICATIONS_TELEGRAM_BOT_TOKEN` и `NOTIFICATIONS_TELEGRAM_CHAT_ID`, затем переведите `NOTIFICATIONS_TELEGRAM_MOCK=false`.
+* Webhook доставки Telegram (`POST /api/v1/telegram/delivery`) проверяет подпись `X-Telegram-Signature` (HMAC-SHA256 по телу запроса). Чтобы включить валидацию, установите `NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED=true` и задайте `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`.
 * Mock не проверяет квоты Telegram — массовые рассылки и работу с медиа перепроверьте в dev/stage.
 
 Архитектурные детали сервиса см. в [`docs/tech-stack.md`](../../docs/tech-stack.md).
