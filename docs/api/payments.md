@@ -115,7 +115,24 @@
 
 **Ответ 200** — обновлённый платёж.
 
-**Ошибки:** `404 payment_not_found`.
+**Пример запроса**
+```json
+{
+  "amount": 1250.50,
+  "currency": "RUB",
+  "comment": "Корректировка суммы"
+}
+```
+
+**Пример ошибки**
+```json
+{
+  "currency": "USD"
+}
+```
+→ **Ответ 400** с кодом `validation_error` (валюта может быть только `RUB`).
+
+**Ошибки:** `400 validation_error`, `404 payment_not_found`.
 
 ### POST `/payments/{payment_id}/status`
 Переводит платёж в новый статус.
