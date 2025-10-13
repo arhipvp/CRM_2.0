@@ -71,23 +71,29 @@
 **Ошибки:** `400 validation_error`, `404 context_not_found` (если указаны несуществующие сущности).
 
 ### PATCH `/tasks/{task_id}`
-Обновление статуса и фактических дат.
+Обновление статуса, дедлайна и фактических отметок выполнения.
 
 **Тело запроса**
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| status | string | Новый статус (`new`, `in_progress`, `waiting`, `done`, `cancelled`). |
-| completed_at | datetime | Заполняется при переводе в `done` («Выполнена»). |
-| cancelled_reason | string | Причина отмены, обязательна при `status = cancelled`. |
-| due_date | date | Перенос срока. |
+| status | string | Новый статус задачи. Допустимые значения: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. |
+| dueDate | datetime | Новая плановая дата завершения. `null` удаляет дедлайн. |
+| completedAt | datetime | Фактическое время завершения. При переводе в `completed` без значения используется текущее время. |
+| cancelledReason | string | Причина отмены. Обязательна при `status = cancelled`. |
 
-**Ответ 200** — обновлённая задача.
+**Правила переходов**
+- Из финальных статусов (`completed`, `cancelled`) возврат невозможен.
+- `scheduled` можно перевести в `pending`, `in_progress` или `cancelled`. Отложенная задача удаляется из очереди автоматически.
+- `pending` переходит в `in_progress`, `completed` или `cancelled`.
+- `in_progress` завершается (`completed`) или отменяется (`cancelled`).
+
+**Ответ 200** — `TaskResponseDto` с обновлёнными полями `statusCode`, `dueAt`, `completedAt`, `cancelledReason`.
 
 **Пример запроса**
 ```json
 {
   "status": "in_progress",
-  "due_date": "2024-03-12"
+  "dueDate": "2024-03-12"
 }
 ```
 
@@ -95,15 +101,14 @@
 ```json
 {
   "id": "uuid",
-  "status": "in_progress",
-  "subject": "Подготовить КП",
-  "assignee_id": "uuid",
-  "due_date": "2024-03-12",
-  "updated_at": "2024-03-06T09:00:00Z"
+  "statusCode": "in_progress",
+  "title": "Подготовить КП",
+  "dueAt": "2024-03-12T00:00:00.000Z",
+  "updatedAt": "2024-03-06T09:00:00Z"
 }
 ```
 
-**Ошибки:** `404 task_not_found`, `409 invalid_status_transition` (например, при попытке вернуть задачу из `done` в `new`).
+**Ошибки:** `400 validation_error`, `404 task_not_found`, `409 invalid_status_transition` (например, при попытке вернуть задачу из `completed` в `pending`).
 
 ### POST `/tasks/{task_id}/reminders`
 Создаёт напоминание.

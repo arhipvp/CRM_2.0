@@ -15,12 +15,15 @@ import { DelayedTaskQueueService } from '../delayed/delayed-task-queue.service';
 import { DelayedTasksProcessor } from '../delayed/delayed-tasks.processor';
 import { WorkerRegistrarService } from '../delayed/worker-registrar.service';
 import { ActivateScheduledTaskHandler } from './commands/activate-scheduled-task.handler';
+import { UpdateTaskHandler } from './commands/update-task.handler';
+import { TaskUpdateService } from './services/task-update.service';
 
 const commandHandlers = [
   CreateTaskHandler,
   CompleteTaskHandler,
   ScheduleTaskHandler,
-  ActivateScheduledTaskHandler
+  ActivateScheduledTaskHandler,
+  UpdateTaskHandler
 ];
 
 @Module({
@@ -35,6 +38,7 @@ const commandHandlers = [
     ...commandHandlers,
     TaskEventsPublisher,
     TaskQueryService,
+    TaskUpdateService,
     DelayedTaskQueueService,
     DelayedTasksProcessor,
     WorkerRegistrarService
