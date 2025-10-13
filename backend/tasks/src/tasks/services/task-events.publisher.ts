@@ -2,6 +2,7 @@ import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TaskEntity } from '../entities/task.entity';
+import { TaskReminderEntity } from '../entities/task-reminder.entity';
 
 @Injectable()
 export class TaskEventsPublisher {
@@ -18,38 +19,50 @@ export class TaskEventsPublisher {
   }
 
   async taskCreated(task: TaskEntity) {
-    await this.emit('tasks.created', task);
+    await this.publish('tasks.created', this.mapTaskPayload(task));
   }
 
   async taskScheduled(task: TaskEntity) {
-    await this.emit('tasks.scheduled', task);
+    await this.publish('tasks.scheduled', this.mapTaskPayload(task));
   }
 
   async taskReady(task: TaskEntity) {
-    await this.emit('tasks.ready', task);
+    await this.publish('tasks.ready', this.mapTaskPayload(task));
   }
 
   async taskCompleted(task: TaskEntity) {
-    await this.emit('tasks.completed', task);
+    await this.publish('tasks.completed', this.mapTaskPayload(task));
   }
 
-  private async emit(pattern: string, task: TaskEntity) {
+  async taskReminder(reminder: TaskReminderEntity) {
+    await this.publish('tasks.reminder', {
+      taskId: reminder.taskId,
+      remindAt: reminder.remindAt.toISOString(),
+      channel: reminder.channel
+    });
+  }
+
+  private mapTaskPayload(task: TaskEntity) {
+    return {
+      id: task.id,
+      title: task.title,
+      status: task.statusCode,
+      dueAt: task.dueAt?.toISOString() ?? null,
+      scheduledFor: task.scheduledFor?.toISOString() ?? null,
+      completedAt: task.completedAt?.toISOString() ?? null,
+      updatedAt: task.updatedAt.toISOString()
+    };
+  }
+
+  private async publish(pattern: string, payload: unknown) {
     try {
       await this.amqpConnection.publish(this.exchange, this.routingKey, {
         event: pattern,
-        payload: {
-          id: task.id,
-          title: task.title,
-          status: task.statusCode,
-          dueAt: task.dueAt?.toISOString() ?? null,
-          scheduledFor: task.scheduledFor?.toISOString() ?? null,
-          completedAt: task.completedAt?.toISOString() ?? null,
-          updatedAt: task.updatedAt.toISOString()
-        },
+        payload,
         occurredAt: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.warn(`Failed to emit ${pattern} event for task ${task.id}: ${error}`);
+      this.logger.warn(`Failed to emit ${pattern} event: ${error}`);
     }
   }
 }

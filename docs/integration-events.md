@@ -43,6 +43,8 @@
 | `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "in_progress", "new_status": "waiting", "changed_at": "datetime" }` | Повторы определяются по `event_id`. Доступные значения `old_status`/`new_status`: `new` (Новая), `in_progress` (В работе), `waiting` (В ожидании), `done` (Выполнена), `cancelled` (Отменена). |
 | `task.reminder` | `tasks.task.reminder` | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` | Notifications проверяет комбинацию (`task_id`, `remind_at`). |
 
+> Обработка напоминаний выполняется сервисом `TaskReminderProcessor`: он опрашивает Redis-очередь `TASKS_REMINDERS_QUEUE_KEY` каждые `TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд, публикуя событие и удаляя элемент из очереди; при ошибке напоминание переотправляется с задержкой.
+
 > Поле `channel` соответствует каналу доставки напоминания и принимает значения `sse` (значение по умолчанию) или `telegram` — в зависимости от параметра, который был передан при создании напоминания через Tasks API.
 
 ## События Notifications

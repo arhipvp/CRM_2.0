@@ -14,7 +14,7 @@ async function bootstrapWorker() {
   if (!workerEnabled) {
     Logger.warn('Worker launched with TASKS_WORKER_ENABLED=false; no delayed tasks will be processed.', 'TasksWorker');
   } else {
-    Logger.log('Tasks worker started and polling delayed queue.', 'TasksWorker');
+    Logger.log('Tasks worker started and polling delayed tasks and reminders queues.', 'TasksWorker');
   }
 
   await appContext.enableShutdownHooks();

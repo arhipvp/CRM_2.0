@@ -25,6 +25,9 @@ type TasksConfiguration = {
     pollIntervalMs: number;
     batchSize: number;
   };
+  reminders: {
+    pollIntervalMs: number;
+  };
 };
 
 export default registerAs('tasks', (): TasksConfiguration => ({
@@ -51,5 +54,8 @@ export default registerAs('tasks', (): TasksConfiguration => ({
     workerEnabled: (process.env.TASKS_WORKER_ENABLED ?? 'false').toLowerCase() === 'true',
     pollIntervalMs: parseInt(process.env.TASKS_WORKER_POLL_INTERVAL_MS ?? '5000', 10),
     batchSize: parseInt(process.env.TASKS_WORKER_BATCH_SIZE ?? '100', 10)
+  },
+  reminders: {
+    pollIntervalMs: parseInt(process.env.TASKS_REMINDERS_POLL_INTERVAL_MS ?? '5000', 10)
   }
 }));

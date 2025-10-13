@@ -61,16 +61,16 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 - Поле `dueDate` (ISO8601 дата) переносит срок исполнения, `null` удаляет дедлайн.
 
 ### Напоминания по задачам
-`POST /api/tasks/{task_id}/reminders` сохраняет момент напоминания в PostgreSQL (`tasks.task_reminders`) и планирует его выполнение в Redis-очереди `TASKS_REMINDERS_QUEUE_KEY`. Поле `remind_at` обязательно, `channel` принимает значения `sse` (по умолчанию) или `telegram`. В ответе сервис возвращает созданное напоминание с идентификатором, каналом и временными метками.
+`POST /api/tasks/{task_id}/reminders` сохраняет момент напоминания в PostgreSQL (`tasks.task_reminders`) и планирует его выполнение в Redis-очереди `TASKS_REMINDERS_QUEUE_KEY`. Поле `remind_at` обязательно, `channel` принимает значения `sse` (по умолчанию) или `telegram`. В ответе сервис возвращает созданное напоминание с идентификатором, каналом и временными метками. Отдельный процесс воркера выбирает просроченные напоминания и публикует событие `task.reminder` в RabbitMQ и SSE.
 
-### Воркеры отложенных задач
+### Воркеры отложенных задач и напоминаний
 Для активации отложенных задач поднимите отдельный процесс:
 
 ```bash
 TASKS_WORKER_ENABLED=true pnpm start:workers
 ```
 
-Команда запускает приложение в режиме `NestApplicationContext`, включает планировщик и каждые `TASKS_WORKER_POLL_INTERVAL_MS` миллисекунд считывает задания из Redis-очереди `TASKS_DELAYED_QUEUE_KEY`. Для продакшен-профиля используйте `pnpm start:workers:prod`.
+Команда запускает приложение в режиме `NestApplicationContext`, включает планировщик и каждые `TASKS_WORKER_POLL_INTERVAL_MS` миллисекунд считывает задания из Redis-очереди `TASKS_DELAYED_QUEUE_KEY`. Параллельно сервис `TaskReminderProcessor` каждые `TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд проверяет очередь `TASKS_REMINDERS_QUEUE_KEY`: для каждого напоминания он загружает запись из БД, публикует событие `task.reminder` и удаляет элемент из Redis. При ошибке напоминание автоматически переотправляется позже. Для продакшен-профиля используйте `pnpm start:workers:prod`.
 
 ## Модель данных
 Tasks использует схему `tasks` в PostgreSQL. Основные сущности описаны в каталоге [`src/tasks/entities`](src/tasks/entities/):
