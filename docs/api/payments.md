@@ -189,12 +189,19 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | event | string | Да | `payment.created` или `payment.updated`. |
-| payload | object | Да | Структура платежа из CRM. |
-| signature | string | Да | HMAC-подпись. |
+| payload | object | Да | Структура платежа из CRM. Для `payment.updated` обязательно поле `paymentId`. |
+| signature | string | Да | HMAC-подпись (см. алгоритм ниже). |
 
 **Ответ 202** — запись принята для обработки.
 
-**Ошибки:** `400 invalid_signature`, `409 stale_update` (версия устарела).
+**Алгоритм подписи**
+
+- Формируется строка `<event>:<payload_json>`, где `payload_json` — JSON-представление объекта `payload` без дополнительных
+  пробелов (по сути `JSON.stringify` в JavaScript или `ObjectMapper.writeValueAsString` в Java).
+- Строка подписывается алгоритмом `HMAC-SHA256` с использованием секрета `PAYMENTS_CRM_WEBHOOK_SECRET`.
+- Полученный бинарный хэш кодируется в нижнем регистре HEX и передаётся в поле `signature`.
+
+**Ошибки:** `401 invalid_signature`, `400 invalid_payload`, `404 payment_not_found`, `409 stale_update` (версия устарела).
 
 ## Стандартные ошибки Payments API
 

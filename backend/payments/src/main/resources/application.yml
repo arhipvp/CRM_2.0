@@ -32,6 +32,11 @@ spring:
 server:
   port: ${PAYMENTS_SERVICE_PORT:8083}
 
+payments:
+  crm:
+    webhook:
+      secret: ${PAYMENTS_CRM_WEBHOOK_SECRET:}
+
 management:
   endpoints:
     web:
