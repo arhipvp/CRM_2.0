@@ -16,19 +16,21 @@ export enum TaskPriority {
   HIGH = 'high'
 }
 
+const toArray = <T>(value: T | T[] | null | undefined) => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  return Array.isArray(value) ? value : [value];
+};
+
 export class ListTasksDto {
   @IsOptional()
   @IsUUID()
   assigneeId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) {
-      return undefined;
-    }
-
-    return Array.isArray(value) ? value : [value];
-  })
+  @Transform(({ value }) => toArray(value))
   @IsArray()
   @IsEnum(TaskStatusCode, { each: true })
   status?: TaskStatusCode[];
@@ -42,13 +44,7 @@ export class ListTasksDto {
   dueAfter?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) {
-      return undefined;
-    }
-
-    return Array.isArray(value) ? value : [value];
-  })
+  @Transform(({ value }) => toArray(value))
   @IsArray()
   @IsEnum(TaskPriority, { each: true })
   priority?: TaskPriority[];
