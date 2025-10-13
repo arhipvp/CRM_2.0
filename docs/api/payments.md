@@ -140,14 +140,16 @@
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| status | string | Да | Новый статус. |
-| actual_date | date | Нет | Дата фактического события (обязательно для `received` и `paid_out`). |
-| confirmation_reference | string | Нет | Номер платёжного документа. |
-| comment | string | Нет | Примечание. |
+| status | string | Да | Новый статус (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`). |
+| actual_date | datetime | Нет | Фактическая дата события; обязательна для `COMPLETED`. |
+| confirmation_reference | string | Нет | Номер платёжного документа (до 128 символов). |
+| comment | string | Нет | Служебное примечание (обязательно при переводе в `CANCELLED`). |
+
+Допустимые переходы: `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`. Возврат из `CANCELLED` невозможен. Любые попытки выйти за пределы этих правил завершаются ошибкой `invalid_status_transition`.
 
 **Ответ 200** — текущий платёж с историей.
 
-**Ошибки:** `400 invalid_status_transition`, `404 payment_not_found`.
+**Ошибки:** `400 validation_error`, `400 invalid_status_transition`, `404 payment_not_found`.
 
 ## Экспорт и отчёты
 

@@ -144,6 +144,73 @@ class PaymentsServiceApplicationIT {
         assertThat(secondPage.get(0).getId()).isEqualTo(first.getId());
     }
 
+    @Test
+    void updatePaymentStatusShouldSucceed() {
+        UUID dealId = UUID.randomUUID();
+        UUID anotherDealId = UUID.randomUUID();
+        UUID policyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        createReferenceData(dealId, anotherDealId, policyId, userId).block();
+
+        PaymentEntity entity = buildPayment(dealId, policyId, userId, PaymentStatus.PROCESSING,
+                PaymentType.INITIAL, OffsetDateTime.now().minusDays(1));
+        paymentRepository.deleteAll().then(paymentRepository.save(entity)).block();
+
+        OffsetDateTime actualDate = OffsetDateTime.now().minusHours(3).withNano(0);
+
+        PaymentResponse response = webTestClient.post()
+                .uri("/api/v1/payments/{id}/status", entity.getId())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"status\": \"COMPLETED\"," +
+                        "\"actual_date\": \"" + actualDate + "\"," +
+                        "\"confirmation_reference\": \"CONF-999\"," +
+                        "\"comment\": \"Факт оплаты подтверждён\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(PaymentResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(response.getProcessedAt()).isEqualTo(actualDate);
+        assertThat(response.getConfirmationReference()).isEqualTo("CONF-999");
+
+        PaymentEntity saved = paymentRepository.findById(entity.getId()).block();
+        assertThat(saved).isNotNull();
+        assertThat(saved.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(saved.getProcessedAt()).isEqualTo(actualDate);
+        assertThat(saved.getConfirmationReference()).isEqualTo("CONF-999");
+    }
+
+    @Test
+    void updatePaymentStatusShouldRejectInvalidTransition() {
+        UUID dealId = UUID.randomUUID();
+        UUID anotherDealId = UUID.randomUUID();
+        UUID policyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        createReferenceData(dealId, anotherDealId, policyId, userId).block();
+
+        PaymentEntity entity = buildPayment(dealId, policyId, userId, PaymentStatus.CANCELLED,
+                PaymentType.INSTALLMENT, OffsetDateTime.now().minusDays(1));
+        paymentRepository.deleteAll().then(paymentRepository.save(entity)).block();
+
+        webTestClient.post()
+                .uri("/api/v1/payments/{id}/status", entity.getId())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"status\": \"PROCESSING\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isBadRequest();
+
+        PaymentEntity reloaded = paymentRepository.findById(entity.getId()).block();
+        assertThat(reloaded).isNotNull();
+        assertThat(reloaded.getStatus()).isEqualTo(PaymentStatus.CANCELLED);
+    }
+
     private Mono<Void> createReferenceData(UUID dealId, UUID anotherDealId, UUID policyId, UUID userId) {
         return databaseClient.sql("INSERT INTO crm.deals (id) VALUES ($1) ON CONFLICT (id) DO NOTHING")
                         .bind(0, dealId)

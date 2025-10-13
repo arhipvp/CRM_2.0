@@ -18,6 +18,7 @@ public class PaymentResponse {
     private PaymentType paymentType;
     private OffsetDateTime dueDate;
     private OffsetDateTime processedAt;
+    private String confirmationReference;
     private String description;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -100,6 +101,14 @@ public class PaymentResponse {
 
     public void setProcessedAt(OffsetDateTime processedAt) {
         this.processedAt = processedAt;
+    }
+
+    public String getConfirmationReference() {
+        return confirmationReference;
+    }
+
+    public void setConfirmationReference(String confirmationReference) {
+        this.confirmationReference = confirmationReference;
     }
 
     public String getDescription() {

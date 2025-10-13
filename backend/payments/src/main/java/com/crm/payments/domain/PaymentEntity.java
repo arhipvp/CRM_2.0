@@ -37,6 +37,9 @@ public class PaymentEntity {
     @Column("processed_at")
     private OffsetDateTime processedAt;
 
+    @Column("confirmation_reference")
+    private String confirmationReference;
+
     private String description;
 
     @Column("created_at")
@@ -123,6 +126,14 @@ public class PaymentEntity {
 
     public void setProcessedAt(OffsetDateTime processedAt) {
         this.processedAt = processedAt;
+    }
+
+    public String getConfirmationReference() {
+        return confirmationReference;
+    }
+
+    public void setConfirmationReference(String confirmationReference) {
+        this.confirmationReference = confirmationReference;
     }
 
     public String getDescription() {

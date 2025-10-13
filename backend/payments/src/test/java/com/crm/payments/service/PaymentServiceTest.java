@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.crm.payments.api.dto.PaymentStatusRequest;
 import com.crm.payments.api.dto.PaymentStreamEvent;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.domain.PaymentEntity;
@@ -28,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
@@ -149,6 +151,109 @@ class PaymentServiceTest {
 
         StepVerifier.create(paymentService.update(paymentId, new UpdatePaymentRequest()))
                 .verifyComplete();
+
+        verify(paymentRepository, never()).save(any(PaymentEntity.class));
+        verify(paymentHistoryRepository, never()).save(any(PaymentHistoryEntity.class));
+        verify(streamBridge, never()).send(anyString(), any());
+    }
+
+    @Test
+    void updateStatusShouldApplyTransitionAndPublishEvents() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(paymentId);
+        entity.setDealId(UUID.randomUUID());
+        entity.setAmount(BigDecimal.valueOf(500));
+        entity.setCurrency("RUB");
+        entity.setStatus(PaymentStatus.PROCESSING);
+        entity.setPaymentType(PaymentType.INITIAL);
+        entity.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        entity.setUpdatedAt(entity.getCreatedAt());
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
+        when(paymentRepository.save(any(PaymentEntity.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+        when(paymentHistoryRepository.save(any(PaymentHistoryEntity.class)))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        OffsetDateTime actualDate = OffsetDateTime.now().minusHours(2).withNano(0);
+        PaymentStatusRequest request = new PaymentStatusRequest();
+        request.setStatus(PaymentStatus.COMPLETED);
+        request.setActualDate(actualDate);
+        request.setConfirmationReference("REF-123");
+        request.setComment("Подтверждено оператором");
+
+        StepVerifier.create(paymentService.updateStatus(paymentId, request))
+                .assertNext(response -> {
+                    assertThat(response.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+                    assertThat(response.getProcessedAt()).isEqualTo(actualDate);
+                    assertThat(response.getConfirmationReference()).isEqualTo("REF-123");
+                })
+                .verifyComplete();
+
+        ArgumentCaptor<PaymentEntity> savedCaptor = ArgumentCaptor.forClass(PaymentEntity.class);
+        verify(paymentRepository).save(savedCaptor.capture());
+        PaymentEntity saved = savedCaptor.getValue();
+        assertThat(saved.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(saved.getProcessedAt()).isEqualTo(actualDate);
+        assertThat(saved.getConfirmationReference()).isEqualTo("REF-123");
+
+        ArgumentCaptor<PaymentHistoryEntity> historyCaptor = ArgumentCaptor.forClass(PaymentHistoryEntity.class);
+        verify(paymentHistoryRepository).save(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getDescription()).isEqualTo("Подтверждено оператором");
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(streamBridge).send(eq("paymentEvents-out-0"), eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isInstanceOf(PaymentQueueEvent.class);
+        PaymentQueueEvent queueEvent = (PaymentQueueEvent) eventCaptor.getValue();
+        assertThat(queueEvent.getEventType()).isEqualTo("payment.status_changed");
+        assertThat(queueEvent.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(queueEvent.getMetadata()).isNotNull();
+        assertThat(queueEvent.getMetadata()).containsEntry("actualDate", actualDate)
+                .containsEntry("confirmationReference", "REF-123")
+                .containsEntry("comment", "Подтверждено оператором");
+    }
+
+    @Test
+    void updateStatusShouldRejectInvalidTransition() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(paymentId);
+        entity.setStatus(PaymentStatus.CANCELLED);
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
+
+        PaymentStatusRequest request = new PaymentStatusRequest();
+        request.setStatus(PaymentStatus.PROCESSING);
+
+        StepVerifier.create(paymentService.updateStatus(paymentId, request))
+                .expectErrorSatisfies(throwable -> assertThat(throwable)
+                        .isInstanceOf(InvalidStatusTransitionException.class)
+                        .hasMessageContaining("CANCELLED")
+                        .hasMessageContaining("PROCESSING"))
+                .verify();
+
+        verify(paymentRepository, never()).save(any(PaymentEntity.class));
+        verify(paymentHistoryRepository, never()).save(any(PaymentHistoryEntity.class));
+        verify(streamBridge, never()).send(anyString(), any());
+    }
+
+    @Test
+    void updateStatusShouldRequireCommentForCancelled() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(paymentId);
+        entity.setStatus(PaymentStatus.PROCESSING);
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
+
+        PaymentStatusRequest request = new PaymentStatusRequest();
+        request.setStatus(PaymentStatus.CANCELLED);
+
+        StepVerifier.create(paymentService.updateStatus(paymentId, request))
+                .expectErrorSatisfies(throwable -> assertThat(throwable)
+                        .isInstanceOf(ResponseStatusException.class)
+                        .hasMessageContaining("validation_error"))
+                .verify();
 
         verify(paymentRepository, never()).save(any(PaymentEntity.class));
         verify(paymentHistoryRepository, never()).save(any(PaymentHistoryEntity.class));
