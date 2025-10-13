@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone, date
+from datetime import date, datetime, timezone
 from uuid import UUID, uuid4
 
 import aio_pika

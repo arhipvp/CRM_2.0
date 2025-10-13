@@ -80,8 +80,11 @@ class DealRepository(BaseRepository[models.Deal]):
     async def list(self, tenant_id: UUID) -> Iterable[models.Deal]:
         stmt = (
             select(self.model)
-            .where(self.model.tenant_id == tenant_id, self.model.is_deleted.is_(False))
-            .order_by(self.model.next_review_at.asc(), self.model.updated_at.desc())
+            .where(
+                self.model.tenant_id == tenant_id,
+                self.model.is_deleted.is_(False),
+            )
+            .order_by(self.model.next_review_at.asc(), self.model.updated_at.asc())
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
