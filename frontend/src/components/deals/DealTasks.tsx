@@ -8,6 +8,7 @@ import {
   dealStageMetricsQueryKey,
   dealTasksQueryOptions,
   dealsQueryKey,
+  tasksQueryOptions,
 } from "@/lib/api/queries";
 import { useCreateDealTask, useDealTasks, useToggleTask } from "@/lib/api/hooks";
 import { Task } from "@/types/crm";
@@ -77,10 +78,13 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
       owner: owner.trim() || undefined,
     });
 
-    await queryClient.invalidateQueries({ queryKey: tasksKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey });
-    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: tasksKey }),
+      queryClient.invalidateQueries({ queryKey: dealKey }),
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
+    ]);
 
     setIsFormOpen(false);
     setTitle("");
