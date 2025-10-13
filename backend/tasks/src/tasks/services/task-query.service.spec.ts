@@ -139,6 +139,20 @@ describe('TaskQueryService', () => {
     expect(result.every((task) => task.statusCode === TaskStatusCode.PENDING)).toBe(true);
   });
 
+  it('returns only pending tasks when filtering with status=pending', async () => {
+    const dto = plainToInstance(ListTasksDto, { status: 'pending' });
+
+    const result = await service.findAll(dto);
+
+    expect(dto.status).toEqual([TaskStatusCode.PENDING]);
+    expect(result).toHaveLength(3);
+    expect(result.map((task) => task.title)).toEqual([
+      'Call customer',
+      'Prepare summary',
+      'Schedule follow-up'
+    ]);
+  });
+
   it('applies pagination with default sorting by due date', async () => {
     const dto: ListTasksDto = { limit: 2, offset: 1 };
 
