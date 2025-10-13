@@ -22,6 +22,9 @@ infra/redis_data/
 infra/*/data/
 infra/*.local.yml
 
+# Patch artifacts
+*.rej
+
 # Backups
 backups/**/*.gz
 backups/**/*.log
