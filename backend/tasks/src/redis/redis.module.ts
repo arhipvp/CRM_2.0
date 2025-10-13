@@ -1,22 +1,21 @@
+import { RedisModule as NestRedisModule } from '@nestjs-modules/ioredis';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
-import { TASKS_REDIS_CLIENT } from './constants';
 
 @Module({
-  providers: [
-    {
-      provide: TASKS_REDIS_CLIENT,
+  imports: [
+    NestRedisModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const url = configService.get<string>('tasks.redis.url');
-        return new Redis(url ?? 'redis://localhost:6379/6', {
+      useFactory: (configService: ConfigService) => ({
+        type: 'single',
+        url: configService.get<string>('tasks.redis.url') ?? 'redis://localhost:6379/6',
+        options: {
           lazyConnect: true,
           maxRetriesPerRequest: null
-        });
-      }
-    }
+        }
+      })
+    })
   ],
-  exports: [TASKS_REDIS_CLIENT]
+  exports: [NestRedisModule]
 })
 export class RedisModule {}

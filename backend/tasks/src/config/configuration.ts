@@ -13,6 +13,7 @@ type TasksConfiguration = {
     url: string;
     eventsQueue: string;
     eventsRoutingKey: string;
+    eventsExchange: string;
   };
   redis: {
     url: string;
@@ -37,7 +38,8 @@ export default registerAs('tasks', (): TasksConfiguration => ({
   rabbitmq: {
     url: process.env.TASKS_RABBITMQ_URL ?? process.env.RABBITMQ_URL ?? '',
     eventsQueue: process.env.TASKS_EVENTS_QUEUE ?? 'tasks.events',
-    eventsRoutingKey: process.env.TASKS_EVENTS_ROUTING_KEY ?? 'tasks.event'
+    eventsRoutingKey: process.env.TASKS_EVENTS_ROUTING_KEY ?? 'tasks.event',
+    eventsExchange: process.env.TASKS_EVENTS_EXCHANGE ?? 'tasks.events'
   },
   redis: {
     url: process.env.TASKS_REDIS_URL ?? process.env.REDIS_URL ?? 'redis://localhost:6379/6',

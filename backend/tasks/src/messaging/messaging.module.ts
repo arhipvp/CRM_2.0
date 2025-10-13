@@ -1,32 +1,36 @@
+import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
-import { TASKS_EVENTS_CLIENT } from './constants';
 
 @Module({
   imports: [
-    ClientsModule.registerAsync([
-      {
-        name: TASKS_EVENTS_CLIENT,
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => {
-          const url = configService.get<string>('tasks.rabbitmq.url');
-          const queue = configService.get<string>('tasks.rabbitmq.eventsQueue');
-          return {
-            transport: Transport.RMQ,
-            options: {
-              urls: url ? [url] : [],
-              queue,
-              persistent: true,
-              queueOptions: {
-                durable: true
-              }
-            }
-          };
+    RabbitMQModule.forRootAsync(RabbitMQModule, {
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const uri = configService.get<string>('tasks.rabbitmq.url');
+        const exchange = configService.get<string>('tasks.rabbitmq.eventsExchange');
+
+        if (!uri) {
+          throw new Error('TASKS_RABBITMQ_URL is not configured');
         }
+
+        if (!exchange) {
+          throw new Error('tasks.rabbitmq.eventsExchange is not configured');
+        }
+
+        return {
+          uri,
+          connectionInitOptions: { wait: true },
+          exchanges: [
+            {
+              name: exchange,
+              type: 'topic'
+            }
+          ]
+        };
       }
-    ])
+    })
   ],
-  exports: [ClientsModule]
+  exports: [RabbitMQModule]
 })
 export class MessagingModule {}
