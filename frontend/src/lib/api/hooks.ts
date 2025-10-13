@@ -86,6 +86,9 @@ export function useToggleTask() {
       if (task.dealId) {
         invalidations.push(
           queryClient.invalidateQueries({ queryKey: dealQueryOptions(task.dealId).queryKey }),
+          queryClient.invalidateQueries({
+            queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+          }),
         );
       }
 
