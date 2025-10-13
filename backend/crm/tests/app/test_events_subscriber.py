@@ -46,12 +46,12 @@ if "crm.app.config" not in sys.modules:
     setattr(app_module, "config", config_module)
 
 from crm.app.events import PaymentsEventsSubscriber
-from crm.domain.schemas import PaymentEventResult
+from crm.domain.schemas import PaymentEvent, PaymentEventResult
 
 
 @pytest.fixture()
 def subscriber() -> PaymentsEventsSubscriber:
-    settings = SimpleNamespace(payments_retry_limit=3)
+    settings = SimpleNamespace(payments_retry_limit=3, events_exchange="crm.events")
     # session factory is not used in these tests
     return PaymentsEventsSubscriber(settings, session_factory=None)  # type: ignore[arg-type]
 
@@ -181,6 +181,54 @@ async def test_handle_message_invalid_json_publishes_to_dlx(
     assert call.args[0] is message
     assert isinstance(call.kwargs["reason"], str)
     assert call.kwargs["reason"]
+
+
+@pytest.mark.asyncio()
+async def test_publish_event_uses_exchange(
+    subscriber: PaymentsEventsSubscriber, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    publish_mock = AsyncMock()
+    exchange_stub = SimpleNamespace(publish=publish_mock)
+    get_exchange_mock = AsyncMock(return_value=exchange_stub)
+
+    subscriber._channel = SimpleNamespace(get_exchange=get_exchange_mock)
+
+    event = PaymentEvent(
+        tenant_id=uuid4(),
+        event_id=uuid4(),
+        payment_id=uuid4(),
+        deal_id=None,
+        policy_id=None,
+        status="processed",
+        occurred_at=datetime.now(timezone.utc),
+        amount=100.0,
+        currency="USD",
+        payload={"source": "test"},
+    )
+
+    event_dump = event.model_dump(mode="json")
+    mock_model_dump = Mock(return_value=event_dump)
+
+    def _mocked_model_dump(self: PaymentEvent) -> dict:
+        return mock_model_dump(self)
+
+    monkeypatch.setattr(PaymentEvent, "model_dump", _mocked_model_dump)
+
+    routing_key = "payments.synced"
+
+    await subscriber._publish_event(routing_key, event)
+
+    get_exchange_mock.assert_awaited_once_with(subscriber._settings.events_exchange)
+
+    publish_mock.assert_awaited_once()
+    publish_call = publish_mock.await_args
+    message = publish_call.args[0]
+
+    assert json.loads(message.body.decode("utf-8")) == mock_model_dump.return_value
+    mock_model_dump.assert_called_once_with(event)
+    assert message.headers == {"event": routing_key}
+    assert message.content_type == "application/json"
+    assert publish_call.kwargs["routing_key"] == routing_key
 async def test_handle_message_publishes_synced(monkeypatch: pytest.MonkeyPatch) -> None:
     class StubPaymentSyncService:
         def __init__(self, *_: object, **__: object) -> None:
