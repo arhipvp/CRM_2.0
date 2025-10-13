@@ -1,10 +1,26 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 import { DriveService } from '../drive/drive.service';
+import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { DocumentStatus } from './document-status.enum';
 import { DocumentEntity } from './document.entity';
 import { DocumentsService } from './documents.service';
+
+const createRepositoryMock = (): jest.Mocked<Repository<DocumentEntity>> =>
+  ({
+    create: jest.fn(),
+    save: jest.fn(),
+    findAndCount: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
+    update: jest.fn(),
+  } as unknown as jest.Mocked<Repository<DocumentEntity>>);
+
+const createDriveServiceMock = (): jest.Mocked<DriveService> =>
+  ({
+    revokeDocument: jest.fn(),
+  } as unknown as jest.Mocked<DriveService>);
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
@@ -12,19 +28,8 @@ describe('DocumentsService', () => {
   let driveService: jest.Mocked<DriveService>;
 
   beforeEach(() => {
-    repository = {
-      create: jest.fn(),
-      save: jest.fn(),
-      findAndCount: jest.fn(),
-      findOne: jest.fn(),
-      remove: jest.fn(),
-      update: jest.fn(),
-    } as unknown as jest.Mocked<Repository<DocumentEntity>>;
-
-    driveService = {
-      revokeDocument: jest.fn(),
-    } as unknown as jest.Mocked<DriveService>;
-
+    repository = createRepositoryMock();
+    driveService = createDriveServiceMock();
     service = new DocumentsService(repository, driveService);
   });
 
@@ -68,30 +73,18 @@ describe('DocumentsService', () => {
     repository.findOne.mockResolvedValue(null);
 
     await expect(service.remove('missing')).rejects.toBeInstanceOf(NotFoundException);
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
-
-import { DocumentEntity } from './document.entity';
-import { DocumentsService } from './documents.service';
-import { DocumentStatus } from './document-status.enum';
-import { CompleteUploadDto } from './dto/complete-upload.dto';
+  });
+});
 
 describe('DocumentsService.completeUpload', () => {
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let service: DocumentsService;
-
-  const createRepositoryMock = (): jest.Mocked<Repository<DocumentEntity>> => ({
-    create: jest.fn(),
-    save: jest.fn(),
-    findAndCount: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-  }) as unknown as jest.Mocked<Repository<DocumentEntity>>;
+  let driveService: jest.Mocked<DriveService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
-    service = new DocumentsService(repository);
+    driveService = createDriveServiceMock();
+    service = new DocumentsService(repository, driveService);
   });
 
   it('переводит документ в статус uploaded и сохраняет атрибуты файла', async () => {
