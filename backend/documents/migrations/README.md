@@ -1,13 +1,21 @@
 # Миграции схемы `documents`
 
-## Порядок миграций
+Миграции описываются на TypeScript через TypeORM. Конфигурация подключения лежит в [`../typeorm.config.ts`](../typeorm.config.ts)
+и использует переменные `DOCUMENTS_DATABASE_URL` и `DOCUMENTS_DATABASE_SCHEMA`.
 
-1. `20240117120000_create_documents.sql` — таблица `documents` с уникальным индексом по `file_url`.
-2. `20240117121500_create_document_links.sql` — таблица `document_links`, добавление ограничений по `owner_schema`/`owner_id`.
-3. `20240117123000_seed_document_types.sql` — наполнение справочника типов документов.
+## Начальные миграции
 
-## Правила версионирования
+| Файл | Описание |
+| --- | --- |
+| `1737043200000-init-documents-table.ts` | Создаёт схему `documents`, перечисление статусов и таблицу `documents`. |
 
-* Таймстемпы — формат `YYYYMMDDHHMMSS` (UTC).
-* Для расширения перечня поддерживаемых владельцев документа необходимо синхронно обновлять `docs/data-model.md` и seed-скрипты.
-* Любые изменения в структуре требуют проверки миграций на существование связей с `crm` и `payments`.
+## Запуск
+```bash
+# Применить все миграции
+npx dotenv -e ../../.env pnpm typeorm migration:run -d typeorm.config.ts
+
+# Откатить последнюю миграцию
+npx dotenv -e ../../.env pnpm typeorm migration:revert -d typeorm.config.ts
+```
+
+> Убедитесь, что переменные окружения загружены (через `dotenv` или `source .env`), иначе TypeORM не увидит подключение к PostgreSQL.
