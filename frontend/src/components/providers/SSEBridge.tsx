@@ -40,6 +40,7 @@ interface CrmEventPayload {
   id?: string;
   message?: string;
   dealId?: string;
+  deal_id?: string;
   type?: string;
   level?: "info" | "success" | "warning" | "error";
 }
@@ -50,7 +51,30 @@ interface NotificationPayload extends CrmEventPayload {
 
 function parsePayload(event: MessageEvent<string>): CrmEventPayload {
   try {
-    return JSON.parse(event.data) as CrmEventPayload;
+    const parsed = JSON.parse(event.data) as CrmEventPayload & {
+      deal_id?: string | null;
+    };
+
+    if (parsed && typeof parsed === "object") {
+      const normalizedDealId = [parsed.dealId, parsed.deal_id]
+        .map((value) => {
+          if (value === null || value === undefined) {
+            return undefined;
+          }
+
+          const asString = typeof value === "string" ? value : String(value);
+          const trimmed = asString.trim();
+          return trimmed.length > 0 ? trimmed : undefined;
+        })
+        .find((value): value is string => Boolean(value));
+
+      return {
+        ...parsed,
+        dealId: normalizedDealId,
+      };
+    }
+
+    return parsed;
   } catch (error) {
     console.warn("Не удалось распарсить SSE сообщение", error);
     return { id: createRandomId(), message: event.data };
@@ -110,12 +134,13 @@ export function SSEBridge({
     (event: MessageEvent<string>) => {
       const payload = parsePayload(event);
       const id = payload.id ?? createRandomId();
+      const dealId = payload.dealId;
 
-      if (payload.dealId) {
-        highlightDeal(payload.dealId);
-        markDealUpdated(payload.dealId);
+      if (dealId) {
+        highlightDeal(dealId);
+        markDealUpdated(dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        void invalidateDealQueries(payload.dealId);
+        void invalidateDealQueries(dealId);
       }
 
       if (payload.message) {
