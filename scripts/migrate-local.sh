@@ -27,7 +27,23 @@ run_auth_migrations() {
   popd >/dev/null
 }
 
+run_notifications_migrations() {
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "[migrate-local] pnpm не найден, пропускаем миграции Notifications." >&2
+    return 0
+  fi
+
+  echo "[migrate-local] Применяем миграции Notifications (TypeORM)..."
+  pushd "$ROOT_DIR/backend/notifications" >/dev/null
+  if [[ ! -d node_modules ]]; then
+    pnpm install
+  fi
+  pnpm run migrations:run
+  popd >/dev/null
+}
+
 run_crm_migrations
 run_auth_migrations
+run_notifications_migrations
 
-echo "[migrate-local] Миграции CRM и Auth применены."
+echo "[migrate-local] Миграции CRM, Auth и Notifications применены."

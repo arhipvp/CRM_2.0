@@ -137,7 +137,7 @@ Redis для сессий и кеша
 
 Service Discovery через Consul
 
-@nestjs/platform-sse для серверных событий и `eventsource-parser`/RxJS для ретрансляции потоков SSE
+SSE реализованы через декоратор `@Sse()` из `@nestjs/common` и `eventsource-parser`/RxJS для ретрансляции потоков
 
 Тестирование и деплой:
 
@@ -306,27 +306,27 @@ Notifications
 
 Язык: TypeScript (Node.js LTS)
 
-Фреймворк: NestJS (@nestjs/platform-sse, @nestjs/event-emitter)
+Фреймворк: NestJS (@nestjs/platform-express, @nestjs/config, @golevelup/nestjs-rabbitmq)
 
-БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ)
+БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ), @liaoliaots/nestjs-redis (Redis)
 
-API: REST + SSE (однонаправленные каналы уведомлений), публикация уведомлений в RabbitMQ и webhook-и в Gateway/Telegram
+API: REST (`POST /notifications/events` для ручных публикаций) + SSE (`GET /notifications/stream`), подписчик очереди `notifications.events`, рассылка в Telegram через Bot API с поддержкой mock-режима
 
 Зависимости:
 
-PostgreSQL-схема notifications
+PostgreSQL-схема notifications (таблица `notification_events` для аудита доставок)
 
-RabbitMQ exchange `notifications.events`, очереди для Telegram-бота и внутреннего SSE-канала CRM
+RabbitMQ exchange `notifications.events` + очередь `notifications.events` с настройкой durability и routing key `notifications.*`
 
-Redis (ioredis) для rate limiting и хранения одноразовых токенов подтверждения
+Redis namespace `notifications:` для stateful-компонентов (повторные подключения SSE, throttling Telegram)
 
-Gateway для маршрутизации внешних webhook-ов Telegram, Tasks для статусов напоминаний
+Gateway маршрутизирует внешние webhook-и Telegram; Tasks и Payments публикуют события, на которые подписывается сервис
 
 Тестирование и деплой:
 
-Jest + Pact (контракты на очереди и webhook-и), нагрузочные тесты SSE-каналов
+TypeORM миграции, smoke-тесты SSE-канала, потребительские проверки очередей RabbitMQ
 
-TypeORM миграции, canary-релизы с мониторингом доставки сообщений
+Отдельные процессы для HTTP (`pnpm start:dev`) и воркеров (`pnpm start:workers`), canary-релизы с мониторингом доставки сообщений
 
 Telegram Bot
 
