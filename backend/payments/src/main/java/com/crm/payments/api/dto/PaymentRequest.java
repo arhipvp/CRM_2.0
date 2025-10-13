@@ -4,8 +4,8 @@ import com.crm.payments.domain.PaymentType;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -30,7 +30,8 @@ public class PaymentRequest {
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal amount;
 
-    @NotBlank
+    @NotNull
+    @Pattern(regexp = "RUB", message = "currency must be RUB")
     private String currency;
 
     @JsonProperty("planned_date")

@@ -8,6 +8,13 @@ import com.crm.payments.domain.PaymentType;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import java.math.BigDecimal;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class PaymentMapperTest {
@@ -38,3 +45,27 @@ class PaymentMapperTest {
         assertThat(entity.getDescription()).isEqualTo(request.getDescription());
     }
 }
+    private static Validator validator;
+
+    @BeforeAll
+    static void setUpValidator() {
+        validator = Validation.buildDefaultValidatorFactory().getValidator();
+    }
+
+    @Test
+    void shouldRejectNonRubCurrency() {
+        PaymentRequest request = new PaymentRequest();
+        request.setDealId(UUID.randomUUID());
+        request.setInitiatorUserId(UUID.randomUUID());
+        request.setAmount(BigDecimal.ONE);
+        request.setCurrency("USD");
+
+        Set<ConstraintViolation<PaymentRequest>> violations = validator.validate(request);
+
+        assertThat(violations).hasSize(1);
+        ConstraintViolation<PaymentRequest> violation = violations.iterator().next();
+        assertThat(violation.getPropertyPath().toString()).isEqualTo("currency");
+        assertThat(violation.getMessage()).contains("RUB");
+    }
+}
+
