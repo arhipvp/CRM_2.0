@@ -33,6 +33,8 @@ describe('TaskResponseDto', () => {
     const entity = buildEntity({
       assigneeId: 'user-123',
       priority: 'high',
+      deal_id: 'deal-legacy',
+      clientId: 'client-42',
       context: {
         dealId: 'deal-1',
         policy_id: 'policy-2'
@@ -50,6 +52,8 @@ describe('TaskResponseDto', () => {
       payload: {
         assigneeId: 'user-123',
         priority: 'high',
+        deal_id: 'deal-legacy',
+        clientId: 'client-42',
         context: {
           dealId: 'deal-1',
           policy_id: 'policy-2'
@@ -57,6 +61,8 @@ describe('TaskResponseDto', () => {
       },
       assigneeId: 'user-123',
       priority: 'high',
+      dealId: 'deal-legacy',
+      clientId: 'client-42',
       context: {
         dealId: 'deal-1',
         policyId: 'policy-2'
@@ -71,6 +77,20 @@ describe('TaskResponseDto', () => {
     expect(dto.payload).toBeNull();
     expect(dto.assigneeId).toBeNull();
     expect(dto.priority).toBeNull();
+    expect(dto.dealId).toBeNull();
+    expect(dto.clientId).toBeNull();
     expect(dto.context).toBeNull();
+  });
+
+  it('supports camelCase and snake_case for dealId and clientId', () => {
+    const entity = buildEntity({
+      dealId: 'deal-2',
+      client_id: 'client-99'
+    });
+
+    const dto = TaskResponseDto.fromEntity(entity);
+
+    expect(dto.dealId).toBe('deal-2');
+    expect(dto.clientId).toBe('client-99');
   });
 });

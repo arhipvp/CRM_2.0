@@ -30,6 +30,8 @@ export class TaskResponseDto {
   payload?: Record<string, unknown> | null;
   assigneeId?: NullableString;
   priority?: NullableString;
+  dealId?: NullableString;
+  clientId?: NullableString;
   context?: TaskContextResponseDto | null;
 
   static fromEntity(entity: TaskEntity): TaskResponseDto {
@@ -55,6 +57,12 @@ export class TaskResponseDto {
       const priority = extractString(payload.priority);
       dto.priority = priority;
 
+      const dealId = extractString(payload.dealId ?? payload['deal_id']);
+      dto.dealId = dealId;
+
+      const clientId = extractString(payload.clientId ?? payload['client_id']);
+      dto.clientId = clientId;
+
       const rawContext = payload.context;
       if (isRecord(rawContext)) {
         const dealId = extractString(rawContext.dealId ?? rawContext['deal_id']);
@@ -76,6 +84,8 @@ export class TaskResponseDto {
     } else {
       dto.assigneeId = null;
       dto.priority = null;
+      dto.dealId = null;
+      dto.clientId = null;
       dto.context = null;
     }
 
