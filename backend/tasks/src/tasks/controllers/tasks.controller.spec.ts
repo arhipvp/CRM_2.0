@@ -138,6 +138,26 @@ describe('TasksController (validation)', () => {
     });
   });
 
+  it('POST /api/tasks возвращает 400, если не указано обязательное описание', async () => {
+    const assigneeId = '0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613';
+    const authorId = '3c352b2e-73d0-4697-9b4b-91d4a7af8d9e';
+
+    const response = await request(app.getHttpServer())
+      .post(baseUrl)
+      .send({
+        subject: 'Подготовить КП',
+        assignee_id: assigneeId,
+        author_id: authorId
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      message: expect.arrayContaining([expect.stringContaining('description')])
+    });
+    expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
   it('POST /api/tasks/:id/schedule возвращает 400 при невалидном UUID', async () => {
     await request(app.getHttpServer())
       .post(`${baseUrl}/invalid/schedule`)
