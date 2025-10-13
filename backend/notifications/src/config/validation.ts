@@ -18,6 +18,12 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_RABBITMQ_ROUTING_KEY: Joi.string().default('notifications.*'),
   NOTIFICATIONS_RABBITMQ_QUEUE_DURABLE: Joi.boolean().default(true),
 
+  NOTIFICATIONS_DISPATCH_EXCHANGE: Joi.string().optional(),
+  NOTIFICATIONS_DISPATCH_ROUTING_KEY: Joi.string().default('notifications.dispatch'),
+  NOTIFICATIONS_DISPATCH_REDIS_CHANNEL: Joi.string().default('notifications:dispatch'),
+  NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS: Joi.number().integer().min(1).default(3),
+  NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS: Joi.number().integer().min(0).default(60000),
+
   NOTIFICATIONS_REDIS_HOST: Joi.string().default('localhost'),
   NOTIFICATIONS_REDIS_PORT: Joi.number().port().default(6379),
   NOTIFICATIONS_REDIS_USERNAME: Joi.string().allow('').optional(),

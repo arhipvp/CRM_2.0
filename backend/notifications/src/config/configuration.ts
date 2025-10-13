@@ -57,6 +57,15 @@ export interface NotificationsConfiguration {
       durable: boolean;
     };
   };
+  dispatch: {
+    exchange: string;
+    routingKey: string;
+    redisChannel: string;
+    retry: {
+      maxAttempts: number;
+      delayMs: number;
+    };
+  };
   redis: {
     host: string;
     port: number;
@@ -111,6 +120,20 @@ export default (): NotificationsConfiguration => {
       routingKey: process.env.NOTIFICATIONS_RABBITMQ_ROUTING_KEY ?? 'notifications.*',
       queueOptions: {
         durable: toBool(process.env.NOTIFICATIONS_RABBITMQ_QUEUE_DURABLE, true)
+      }
+    },
+    dispatch: {
+      exchange:
+        process.env.NOTIFICATIONS_DISPATCH_EXCHANGE ??
+        process.env.NOTIFICATIONS_RABBITMQ_EXCHANGE ??
+        'notifications.exchange',
+      routingKey:
+        process.env.NOTIFICATIONS_DISPATCH_ROUTING_KEY ?? 'notifications.dispatch',
+      redisChannel:
+        process.env.NOTIFICATIONS_DISPATCH_REDIS_CHANNEL ?? 'notifications:dispatch',
+      retry: {
+        maxAttempts: toNumber(process.env.NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS, 3),
+        delayMs: toNumber(process.env.NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS, 60000)
       }
     },
     redis: {

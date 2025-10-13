@@ -8,15 +8,31 @@ import { NotificationsQueueConsumer } from './notifications.queue.consumer';
 import { TelegramService } from './telegram.service';
 import { NotificationsIngressController } from './notifications.ingress.controller';
 import { TelegramDeliveryController } from './telegram-delivery.controller';
+import { NotificationsDispatchController } from './notifications.dispatch.controller';
+import { NotificationsService } from './notifications.service';
+import { NotificationEntity } from './notification.entity';
+import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([NotificationEventEntity])],
-  controllers: [NotificationsController, NotificationsIngressController, TelegramDeliveryController],
+  imports: [
+    TypeOrmModule.forFeature([
+      NotificationEventEntity,
+      NotificationEntity,
+      NotificationDeliveryAttemptEntity
+    ])
+  ],
+  controllers: [
+    NotificationsController,
+    NotificationsIngressController,
+    TelegramDeliveryController,
+    NotificationsDispatchController
+  ],
   providers: [
     NotificationStreamService,
     NotificationEventsService,
     NotificationsQueueConsumer,
-    TelegramService
+    TelegramService,
+    NotificationsService
   ]
 })
 export class NotificationsModule {}

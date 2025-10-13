@@ -8,7 +8,7 @@ Notifications доставляет события и уведомления во
 ## Требования к окружению
 - Node.js LTS (18+) и pnpm 9 (через Corepack) для запуска NestJS и фоновых воркеров.【F:docs/local-setup.md†L43-L69】
 - PostgreSQL (схема `notifications`), RabbitMQ (`notifications.events`) и Redis с namespace `notifications:` для хранения статуса доставки и управления подписками.【F:docs/tech-stack.md†L287-L339】
-- Переменные окружения `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` (включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_*`) и `NOTIFICATIONS_SSE_RETRY_MS` (см. [`env.example`](../../env.example)).
+- Переменные окружения `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_DISPATCH_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` (включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_*`) и `NOTIFICATIONS_SSE_RETRY_MS` (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
 1. Перейдите в каталог `backend/notifications` и установите зависимости: `pnpm install`.
@@ -31,6 +31,8 @@ Notifications доставляет события и уведомления во
 ### Таблицы
 
 - `notification_templates` — шаблоны уведомлений. Уникальный ключ составной: `key` + `channel`. Основные поля: `locale`, `body`, `metadata` (`jsonb`), `status` (`active`/`inactive`), `created_at`, `updated_at`.
+- `notifications` — заявки на доставку (API `/api/v1/notifications`). Содержат `eventKey`, получателей (`jsonb`), полезную нагрузку, переопределения каналов, `deduplicationKey`, счётчик попыток и технические поля (`status`, `lastAttemptAt`, `lastError`). Уникальный индекс по `deduplicationKey` обеспечивает идемпотентность.
+- `notification_delivery_attempts` — журнал попыток публикации (RabbitMQ, Redis, внутренний обработчик). Фиксируют канал, результат (`success`/`failure`), метаданные и текст ошибки.
 - `notification_events` — аудит доставки (исторический журнал событий).
 
 Значение по умолчанию для локали задаётся переменной `NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE` в `.env` и может быть переопределено при создании шаблона.
