@@ -33,7 +33,8 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 
 Сервис дописывает `assignee_id`/`author_id` в `payload` (в camelCase и snake_case) вместе с приоритетом и контекстом, поэтому
 в ответе `TaskResponseDto` эти значения возвращаются готовыми полями `assigneeId`, `priority`, `dealId`, `context` без ручного
-парсинга JSON.
+парсинга JSON. При наличии контекста он нормализуется в camelCase: `deal_id`/`dealId` и `client_id`/`clientId` дублируются в
+`payload.dealId`/`payload['deal_id']`, `payload.clientId`/`payload['client_id']`, а `payload.context` сохраняется с camelCase-ключами.
 
 ### Список задач
 `GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:

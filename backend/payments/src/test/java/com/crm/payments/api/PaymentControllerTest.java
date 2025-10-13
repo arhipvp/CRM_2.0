@@ -1,11 +1,13 @@
 package com.crm.payments.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.domain.PaymentStatus;
@@ -19,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
@@ -30,6 +33,55 @@ class PaymentControllerTest {
 
     @MockBean
     private PaymentService paymentService;
+
+    @Test
+    void postPaymentShouldAcceptSnakeCasePayload() {
+        UUID dealId = UUID.randomUUID();
+        UUID policyId = UUID.randomUUID();
+        UUID initiatorUserId = UUID.randomUUID();
+        OffsetDateTime dueDate = OffsetDateTime.now().plusDays(5).withNano(0);
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(UUID.randomUUID());
+        response.setDealId(dealId);
+        response.setPolicyId(policyId);
+        response.setInitiatorUserId(initiatorUserId);
+        response.setAmount(BigDecimal.valueOf(2500));
+        response.setCurrency("RUB");
+        response.setStatus(PaymentStatus.PENDING);
+        response.setPaymentType(PaymentType.INSTALLMENT);
+        response.setDueDate(dueDate);
+
+        when(paymentService.create(any(PaymentRequest.class))).thenReturn(Mono.just(response));
+
+        webTestClient.post()
+                .uri("/api/v1/payments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"deal_id\": \"" + dealId + "\"," +
+                        "\"policy_id\": \"" + policyId + "\"," +
+                        "\"initiator_user_id\": \"" + initiatorUserId + "\"," +
+                        "\"amount\": 2500," +
+                        "\"currency\": \"RUB\"," +
+                        "\"planned_date\": \"" + dueDate + "\"," +
+                        "\"payment_type\": \"INSTALLMENT\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.dealId").isEqualTo(dealId.toString())
+                .jsonPath("$.paymentType").isEqualTo(PaymentType.INSTALLMENT.name());
+
+        ArgumentCaptor<PaymentRequest> requestCaptor = ArgumentCaptor.forClass(PaymentRequest.class);
+        verify(paymentService).create(requestCaptor.capture());
+        PaymentRequest capturedRequest = requestCaptor.getValue();
+
+        assertThat(capturedRequest.getDealId()).isEqualTo(dealId);
+        assertThat(capturedRequest.getPolicyId()).isEqualTo(policyId);
+        assertThat(capturedRequest.getInitiatorUserId()).isEqualTo(initiatorUserId);
+        assertThat(capturedRequest.getDueDate()).isEqualTo(dueDate);
+        assertThat(capturedRequest.getPaymentType()).isEqualTo(PaymentType.INSTALLMENT);
+    }
 
     @Test
     void patchPaymentShouldReturn200() {

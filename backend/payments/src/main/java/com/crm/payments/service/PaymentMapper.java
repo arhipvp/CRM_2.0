@@ -20,7 +20,7 @@ public class PaymentMapper {
         entity.setAmount(request.getAmount());
         entity.setCurrency(request.getCurrency());
         entity.setStatus(PaymentStatus.PENDING);
-        entity.setPaymentType(null);
+        entity.setPaymentType(request.getPaymentType());
         entity.setDueDate(request.getDueDate());
         entity.setDescription(request.getDescription());
         OffsetDateTime now = OffsetDateTime.now();

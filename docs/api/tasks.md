@@ -48,7 +48,7 @@
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
 | dealId | UUID \| null | Идентификатор сделки из `payload.dealId`/`payload.deal_id`. |
 | clientId | UUID \| null | Идентификатор клиента из `payload.clientId`/`payload.client_id`. |
-| context | object \| null | Контекст задачи. Если указан, содержит `dealId`/`policyId` (camelCase) из `payload.context`. |
+| context | object \| null | Контекст задачи. Если указан, содержит данные из `payload.context` с camelCase-ключами (`dealId`, `policyId` и т.д.). |
 
 ### POST `/tasks`
 Создание задачи.
@@ -65,7 +65,8 @@
 | context | object | Нет | `{ "deal_id": "uuid", "policy_id": "uuid" }`. |
 
 > Поля `assignee_id` и `author_id` сохраняются внутри `payload` в формате `assigneeId`/`assignee_id` и `authorId`/`author_id`,
-> поэтому в ответе их можно получить без дополнительного парсинга JSON.
+> поэтому в ответе их можно получить без дополнительного парсинга JSON. Если передан `context`, сервис нормализует его ключи в
+> camelCase и дублирует `dealId`/`clientId` на верхний уровень `payload` (в camelCase и snake_case).
 
 **Ответ 201** — созданная задача. Ответ соответствует `TaskResponseDto`.
 
@@ -111,6 +112,8 @@
   "context": {"dealId": "uuid"}
 }
 ```
+
+> При отсутствии поля `description` или передаче пустого значения API вернёт `400 validation_error` с указанием обязательного поля.
 
 **Ошибки:** `400 validation_error`, `404 context_not_found` (если указаны несуществующие сущности).
 

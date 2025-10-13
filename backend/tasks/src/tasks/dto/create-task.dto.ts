@@ -17,9 +17,8 @@ export class CreateTaskDto {
   @IsUUID()
   authorId!: string;
 
-  @IsOptional()
   @IsString()
-  description?: string;
+  description!: string;
 
   @IsOptional()
   @Expose({ name: 'due_date' })
