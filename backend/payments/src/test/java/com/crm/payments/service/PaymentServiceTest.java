@@ -87,6 +87,7 @@ class PaymentServiceTest {
         request.setPaymentType(PaymentType.COMMISSION);
         request.setDescription("Updated description");
         request.setComment("manual adjustment");
+        request.setUpdatedAt(entity.getUpdatedAt());
 
         StepVerifier.create(paymentService.update(paymentId, request))
                 .assertNext(response -> {
@@ -119,6 +120,32 @@ class PaymentServiceTest {
         PaymentQueueEvent queueEvent = (PaymentQueueEvent) eventCaptor.getValue();
         assertThat(queueEvent.getEventType()).isEqualTo("payment.updated");
         assertThat(queueEvent.getAmount()).isEqualByComparingTo("150");
+    }
+
+    @Test
+    void updateShouldFailWhenVersionIsStale() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(paymentId);
+        entity.setUpdatedAt(OffsetDateTime.now());
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
+
+        UpdatePaymentRequest request = new UpdatePaymentRequest();
+        request.setUpdatedAt(entity.getUpdatedAt().minusMinutes(5));
+
+        StepVerifier.create(paymentService.update(paymentId, request))
+                .expectErrorSatisfies(error -> {
+                    assertThat(error)
+                            .isInstanceOf(ResponseStatusException.class);
+                    ResponseStatusException exception = (ResponseStatusException) error;
+                    assertThat(exception.getStatusCode().value()).isEqualTo(409);
+                    assertThat(exception.getReason()).isEqualTo("stale_update");
+                })
+                .verify();
+
+        verify(paymentRepository, never()).save(any(PaymentEntity.class));
+        verify(paymentHistoryRepository, never()).save(any(PaymentHistoryEntity.class));
     }
 
     @Test

@@ -56,9 +56,7 @@ describe('DocumentsService', () => {
 
     await service.remove(document.id);
 
-    expect(repository.findOne).toHaveBeenCalledWith({
-      where: expect.objectContaining({ deletedAt: expect.objectContaining({ _type: 'isNull' }) }),
-    });
+    expect(repository.findOne).toHaveBeenCalledWith({ where: { id: document.id } });
     expect(driveService.revokeDocument).toHaveBeenCalledWith(document);
     expect(repository.save).toHaveBeenCalled();
     const saved = repository.save.mock.calls[0][0];
@@ -73,6 +71,28 @@ describe('DocumentsService', () => {
     repository.findOne.mockResolvedValue(null);
 
     await expect(service.remove('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('бросает ConflictException с кодом already_deleted, если документ уже удалён', async () => {
+    const deletedAt = new Date('2024-01-02T00:00:00Z');
+    const document: DocumentEntity = {
+      id: 'doc-deleted',
+      name: 'Удалённый документ',
+      status: DocumentStatus.Draft,
+      deletedAt,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+    } as DocumentEntity;
+    repository.findOne.mockResolvedValue(document);
+
+    const promise = service.remove(document.id);
+
+    await expect(promise).rejects.toBeInstanceOf(ConflictException);
+
+    const error = (await promise.catch((err) => err)) as ConflictException;
+    expect(error.getResponse()).toMatchObject({ code: 'already_deleted' });
+    expect(driveService.revokeDocument).not.toHaveBeenCalled();
+    expect(repository.save).not.toHaveBeenCalled();
   });
 });
 

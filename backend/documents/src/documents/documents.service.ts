@@ -51,10 +51,20 @@ export class DocumentsService {
   }
 
   async findOne(id: string): Promise<DocumentEntity> {
-    const entity = await this.repository.findOne({ where: { id, deletedAt: IsNull() } });
+    const entity = await this.repository.findOne({ where: { id } });
+
     if (!entity) {
       throw new NotFoundException(`Документ ${id} не найден`);
     }
+
+    if (entity.deletedAt) {
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'already_deleted',
+        message: `Документ ${id} уже удалён`,
+      });
+    }
+
     return entity;
   }
 

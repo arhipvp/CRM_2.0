@@ -46,6 +46,23 @@ async def test_handle_payment_event_returns_processed_true(payment_event_factory
 
 
 @pytest.mark.asyncio
+async def test_handle_payment_event_returns_processed_false_when_no_log(payment_event_factory):
+    log_repository = AsyncMock()
+    deal_repository = AsyncMock()
+    log_repository.upsert_from_event = AsyncMock(return_value=None)
+    deal_repository.mark_won = AsyncMock()
+    service = PaymentSyncService(log_repository, deal_repository)
+
+    event = payment_event_factory(status="received")
+
+    result = await service.handle_payment_event(event)
+
+    assert result.processed is False
+    log_repository.upsert_from_event.assert_awaited_once_with(event.tenant_id, event)
+    deal_repository.mark_won.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("status", ["received", "paid_out"])
 async def test_mark_won_called_for_supported_statuses(payment_event_factory, status):
     log_repository = AsyncMock()

@@ -132,6 +132,6 @@ class PaymentSyncService:
 
     async def handle_payment_event(self, event: schemas.PaymentEvent) -> schemas.PaymentEventResult:
         record = await self.log_repository.upsert_from_event(event.tenant_id, event)
-        if event.deal_id and event.status in {"received", "paid_out"}:
+        if record and event.deal_id and event.status in {"received", "paid_out"}:
             await self.deal_repository.mark_won(event.tenant_id, event.deal_id)
         return schemas.PaymentEventResult(processed=record is not None)

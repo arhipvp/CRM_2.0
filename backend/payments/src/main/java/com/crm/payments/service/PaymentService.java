@@ -88,8 +88,19 @@ public class PaymentService {
 
     public Mono<PaymentResponse> update(UUID paymentId, UpdatePaymentRequest request) {
         return paymentRepository.findById(paymentId)
-                .flatMap(entity -> applyUpdates(entity, request))
+                .flatMap(entity -> verifyVersionAndApplyUpdates(entity, request))
                 .map(paymentMapper::toResponse);
+    }
+
+    private Mono<PaymentEntity> verifyVersionAndApplyUpdates(PaymentEntity entity, UpdatePaymentRequest request) {
+        OffsetDateTime requestVersion = request.getUpdatedAt();
+        OffsetDateTime currentVersion = entity.getUpdatedAt();
+
+        if (requestVersion != null && currentVersion != null && currentVersion.isAfter(requestVersion)) {
+            return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, "stale_update"));
+        }
+
+        return applyUpdates(entity, request);
     }
 
     public Mono<PaymentResponse> updateStatus(UUID paymentId, PaymentStatusRequest request) {
