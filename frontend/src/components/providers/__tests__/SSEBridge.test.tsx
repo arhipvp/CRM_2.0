@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SSEBridge } from "../SSEBridge";
+import { dealStageMetricsQueryKey, dealsQueryKey } from "@/lib/api/queries";
 import { createEventStream } from "@/lib/sse/createEventStream";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -141,6 +142,53 @@ describe("SSEBridge", () => {
     } finally {
       highlightDealSpy.mockRestore();
       markDealUpdatedSpy.mockRestore();
+      invalidateQueriesSpy.mockRestore();
+    }
+  });
+
+  it("сбрасывает кэш сделок и метрик при платежном событии без deal_id", async () => {
+    const queryClient = new QueryClient();
+    const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SSEBridge />
+        </QueryClientProvider>,
+      );
+
+      const paymentsHandlers = createEventStreamMock.mock.calls[2]?.[1];
+      expect(paymentsHandlers?.onMessage).toBeTypeOf("function");
+
+      const handleMessage = paymentsHandlers?.onMessage;
+      expect(handleMessage).toBeDefined();
+
+      await act(async () => {
+        handleMessage?.(
+          new MessageEvent("message", {
+            data: JSON.stringify({
+              event: "payment.created",
+              data: {
+                amount: 1500,
+                currency: "RUB",
+              },
+            }),
+          }),
+        );
+
+        await Promise.resolve();
+      });
+
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: dealsQueryKey }),
+      );
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: dealStageMetricsQueryKey }),
+      );
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ["payments"] }),
+      );
+    } finally {
       invalidateQueriesSpy.mockRestore();
     }
   });
