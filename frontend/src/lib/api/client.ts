@@ -13,6 +13,7 @@ import {
   Deal,
   DealDocument,
   DealNote,
+  DealStageMetrics,
   Payment,
   Task,
 } from "@/types/crm";
@@ -257,6 +258,15 @@ export class ApiClient {
   getDeals(filters?: DealFilters): Promise<Deal[]> {
     const query = this.buildQueryString(filters);
     return this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
+  }
+
+  getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
+    const query = this.buildQueryString(filters);
+    return this.request(
+      `/crm/deals/stage-metrics${query}`,
+      undefined,
+      async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
+    );
   }
 
   getDeal(id: string): Promise<Deal> {

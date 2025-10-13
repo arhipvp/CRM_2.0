@@ -23,6 +23,10 @@ export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
 }
 
+export function useDealStageMetrics(filters?: DealFilters) {
+  return useQuery(dealStageMetricsQueryOptions(filters));
+}
+
 export function useDeal(dealId: string) {
   return useQuery(dealQueryOptions(dealId));
 }
