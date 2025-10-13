@@ -59,19 +59,10 @@
 | policy_id | UUID | Нет | Связь с полисом (если применимо). |
 | initiator_user_id | UUID | Да | Пользователь, инициировавший создание платежа. |
 | amount | number | Да | Сумма платежа (> 0). |
-| currency | string | Да | Валюта ISO 4217 (по умолчанию используется `RUB`). |
+| currency | string | Да | Поддерживается только значение `RUB` (ISO 4217). |
 | payment_type | string | Да | Тип платежа (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
 | planned_date | datetime (ISO 8601) | Нет | Плановая дата платежа. |
 | description | string | Нет | Комментарий/описание. |
-| external_ref | string | Нет | ID в CRM (для синхронизации). |
-| deal_id | UUID | Да | Связь со сделкой. |
-| policy_id | UUID | Да | Связь с полисом. |
-| payment_type | string | Да | Тип платежа. |
-| planned_date | date | Нет | Плановая дата. |
-| amount | number | Да | Сумма. |
-| currency | string | Да | Валюта, фиксированное значение `RUB` (используется для совместимости, запросы с другой валютой завершаются ошибкой `400 validation_error`). |
-| direction | string | Да | `inbound` или `outbound`. |
-| notes | string | Нет | Примечание. |
 
 **Пример запроса**
 ```json
