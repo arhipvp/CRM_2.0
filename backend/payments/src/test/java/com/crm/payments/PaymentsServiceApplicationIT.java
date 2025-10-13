@@ -3,6 +3,7 @@ package com.crm.payments;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.crm.payments.config.PaymentsMessagingConfiguration;
+import com.crm.payments.messaging.PaymentStreamHandlers;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
@@ -55,5 +56,7 @@ class PaymentsServiceApplicationIT {
     void contextLoads(ApplicationContext context) {
         assertThat(context.containsBeanDefinition("paymentsEventsExchangeDeclarable")).isTrue();
         assertThat(context.getBean(PaymentsMessagingConfiguration.class)).isNotNull();
+        assertThat(context.getBean(PaymentStreamHandlers.class)).isNotNull();
+        assertThat(context.containsBean("paymentEventsConsumer")).isTrue();
     }
 }
