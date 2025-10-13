@@ -30,6 +30,11 @@ describe("ApiClient mock mode", () => {
     const {
       activitiesMock,
       clientsMock,
+      dealsMock,
+      paymentsMock,
+      tasksMock,
+      dealNotesMock,
+      dealDocumentsMock,
       dealDocumentsMock,
       dealNotesMock,
       dealsMock,
@@ -40,6 +45,16 @@ describe("ApiClient mock mode", () => {
     const clientId = clientsMock[0]?.id ?? "";
 
     await expect(apiClient.getDeals()).resolves.toEqual(dealsMock);
+
+    const deal = await apiClient.getDeal(dealId);
+    expect(deal).toMatchObject({
+      ...dealsMock[0],
+      tasks: tasksMock.filter((task) => task.dealId === dealId),
+      notes: dealNotesMock.filter((note) => note.dealId === dealId),
+      documents: dealDocumentsMock.filter((doc) => doc.dealId === dealId),
+      payments: paymentsMock.filter((payment) => payment.dealId === dealId),
+      activity: activitiesMock.filter((entry) => entry.dealId === dealId),
+    });
     const deal = await apiClient.getDeal(dealId);
     expect(deal).toMatchObject({
       id: dealsMock[0]?.id,

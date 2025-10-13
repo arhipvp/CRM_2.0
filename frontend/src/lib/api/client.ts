@@ -14,6 +14,7 @@ import type {
   DealDocument,
   DealFilters,
   DealNote,
+  DealStage,
   DealStageMetrics,
   Payment,
   Task,
