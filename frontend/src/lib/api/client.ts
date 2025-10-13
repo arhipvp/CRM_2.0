@@ -7,11 +7,12 @@ import {
   paymentsMock,
   tasksMock,
 } from "@/mocks/data";
-import {
+import type {
   ActivityLogEntry,
   Client,
   Deal,
   DealDocument,
+  DealFilters,
   DealNote,
   DealStageMetrics,
   Payment,
@@ -429,6 +430,17 @@ export class ApiClient {
 
         return this.getDeal(dealId);
       },
+    );
+  }
+
+  updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
+    return this.request(
+      `/crm/deals/${dealId}/stage`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ stage }),
+      },
+      async () => updateDealStageMock(dealId, stage),
     );
   }
 

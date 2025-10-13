@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createRandomId } from "@/lib/utils/id";
-import { DealPeriodFilter } from "@/types/crm";
+import type { DealFilters, DealPeriodFilter } from "@/types/crm";
 
 export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
 
@@ -30,12 +30,7 @@ export interface PaymentEventEffect {
   highlightDealId?: string;
 }
 
-interface FiltersState {
-  stage: PipelineStageKey | "all";
-  managers: string[];
-  period: DealPeriodFilter;
-  search: string;
-}
+type FiltersState = Required<Pick<DealFilters, "stage" | "managers" | "period" | "search">>;
 
 interface UiState {
   filters: FiltersState;
