@@ -10,6 +10,7 @@ from types import ModuleType, SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from aio_pika import Message
 from unittest.mock import ANY, AsyncMock
 
 if "crm.app.config" not in sys.modules:
@@ -198,9 +199,24 @@ async def test_handle_message_service_error_dead_letter(monkeypatch: pytest.Monk
     await subscriber._handle_message(message)  # type: ignore[arg-type]
 
     subscriber._publish_to_dlx.assert_awaited_once()
-    publish_call = subscriber._publish_to_dlx.await_args
-    assert publish_call.args[0] is message
-    assert isinstance(publish_call.kwargs["reason"], str)
+
+
+@pytest.mark.asyncio()
+async def test_publish_to_dlx_includes_original_headers(subscriber: PaymentsEventsSubscriber) -> None:
+    original_headers = {"foo": "bar"}
+    message = SimpleNamespace(body=b"payload", content_type="application/json", headers=original_headers)
+
+    exchange = SimpleNamespace(publish=AsyncMock())
+    subscriber._channel = SimpleNamespace(get_exchange=AsyncMock(return_value=exchange))  # type: ignore[assignment]
+    subscriber._settings.payments_dlx_exchange = "crm.payments-sync.dlx"
+
+    await subscriber._publish_to_dlx(message, reason="boom")
+
+    assert exchange.publish.await_count == 1
+    sent_message = exchange.publish.await_args.args[0]
+    assert isinstance(sent_message, Message)
+    assert sent_message.headers == {"foo": "bar", "dead-letter-reason": "boom"}
+    assert exchange.publish.await_args.kwargs["routing_key"] == "dead"
 
 
 @pytest.mark.asyncio()
