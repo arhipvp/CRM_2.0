@@ -21,12 +21,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 @WebFluxTest(PaymentController.class)
+@TestPropertySource(properties = "server.error.include-message=always")
 class PaymentControllerTest {
 
     @Autowired
@@ -125,7 +129,9 @@ class PaymentControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
     }
 
     @Test
@@ -184,7 +190,42 @@ class PaymentControllerTest {
                         "\"status\": \"PROCESSING\"" +
                         "}")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
+    }
+
+    @Test
+    void getPaymentShouldReturn404WhenNotFound() {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.findById(paymentId)).thenReturn(Mono.empty());
+
+        webTestClient.get()
+                .uri("/api/v1/payments/{paymentId}", paymentId)
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
+    }
+
+    @Test
+    void postPaymentStatusShouldReturn400WithInvalidTransitionReason() {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.updateStatus(eq(paymentId), any(PaymentStatusRequest.class)))
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_status_transition")));
+
+        webTestClient.post()
+                .uri("/api/v1/payments/{paymentId}/status", paymentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"status\": \"PROCESSING\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("invalid_status_transition");
+
+        verify(paymentService).updateStatus(eq(paymentId), any(PaymentStatusRequest.class));
     }
 
     @Test

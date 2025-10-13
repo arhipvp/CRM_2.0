@@ -179,6 +179,28 @@ describe('TasksController (validation)', () => {
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 
+  it('PATCH /api/tasks/:id возвращает 409 invalid_status_transition при нарушении правил перехода', async () => {
+    const taskId = '5dc631ad-3dbe-4bfa-bc7e-1a36fd6c3eb6';
+    commandBus.execute.mockRejectedValue(
+      new ConflictException({
+        statusCode: 409,
+        code: 'invalid_status_transition',
+        message: 'Task in status completed cannot transition to pending'
+      })
+    );
+
+    const response = await request(app.getHttpServer())
+      .patch(`${baseUrl}/${taskId}`)
+      .send({ status: 'pending' })
+      .expect(409);
+
+    expect(commandBus.execute).toHaveBeenCalledTimes(1);
+    expect(response.body).toMatchObject({
+      statusCode: 409,
+      code: 'invalid_status_transition'
+    });
+  });
+
   it('POST /api/tasks/:id/reminders создаёт напоминание и возвращает 201', async () => {
     const taskId = '2dc7ea49-2a4e-4f8e-bd3b-7de1fbd2b6a4';
     const remindAtIso = '2024-03-10T09:00:00.000Z';
