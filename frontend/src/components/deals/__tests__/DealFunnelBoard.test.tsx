@@ -175,6 +175,46 @@ describe("DealFunnelBoard — next review", () => {
       .filter((name): name is string => Boolean(name));
 
     expect(titles).toHaveLength(qualificationDeals.length);
-    expect(titles).toEqual(qualificationDeals.map((deal) => deal.name));
+    const expectedOrder = [...qualificationDeals].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
+  });
+
+  it("использует updatedAt как резервную сортировку, когда nextReviewAt совпадает", async () => {
+    const nextReview = new Date("2024-02-01T10:00:00.000Z").toISOString();
+    const qualificationDeals: Deal[] = dealsMock.slice(0, 3).map((deal, index) => ({
+      ...deal,
+      stage: "qualification",
+      nextReviewAt: nextReview,
+      updatedAt: new Date(Date.UTC(2024, 1, 1, index)).toISOString(),
+      name: `${deal.name} ${index + 1}`,
+    }));
+
+    const shuffledDeals = [qualificationDeals[1], qualificationDeals[2], qualificationDeals[0]];
+    useDealsMock.mockReturnValue({
+      data: shuffledDeals,
+      isLoading: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    render(<DealFunnelBoard />);
+
+    const column = await screen.findByRole("region", { name: "Квалификация" });
+    const cards = await within(column).findAllByRole("button", { name: /Сделка/i });
+
+    const titles = cards
+      .map((card) => card.getAttribute("aria-label") ?? "")
+      .map((label) => label.match(/^Сделка (.+?) для клиента/u)?.[1])
+      .filter((name): name is string => Boolean(name));
+
+    expect(titles).toHaveLength(qualificationDeals.length);
+    const expectedOrder = [...qualificationDeals].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
   });
 });

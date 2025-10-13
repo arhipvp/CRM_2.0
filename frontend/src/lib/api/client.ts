@@ -19,6 +19,7 @@ import type {
   Payment,
   Task,
 } from "@/types/crm";
+import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 
 export interface ApiClientConfig {
@@ -258,9 +259,10 @@ export class ApiClient {
     return query ? `?${query}` : "";
   }
 
-  getDeals(filters?: DealFilters): Promise<Deal[]> {
+  async getDeals(filters?: DealFilters): Promise<Deal[]> {
     const query = this.buildQueryString(filters);
-    return this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
+    const deals = await this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
+    return sortDealsByNextReview(deals);
   }
 
   getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
@@ -518,23 +520,6 @@ function getPeriodStart(period: DealPeriodFilter | undefined): number | undefine
   }
 }
 
-function safeTimestamp(value?: string): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value).getTime();
-  if (!Number.isFinite(parsed)) {
-    return null;
-  }
-
-  return parsed;
-}
-
-function getDealSortValue(deal: Deal): number {
-  return safeTimestamp(deal.nextReviewAt) ?? safeTimestamp(deal.updatedAt) ?? Number.POSITIVE_INFINITY;
-}
-
 function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
   const normalizedManagers = filters?.managers?.map((name) => name.toLowerCase());
   const search = filters?.search?.trim().toLowerCase();
@@ -569,14 +554,12 @@ function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
     })
     .map(({ deal, index }) => ({ deal: { ...deal }, index }))
     .sort((a, b) => {
-      const aValue = getDealSortValue(a.deal);
-      const bValue = getDealSortValue(b.deal);
-
-      if (aValue === bValue) {
-        return a.index - b.index;
+      const diff = compareDealsByNextReview(a.deal, b.deal);
+      if (diff !== 0) {
+        return diff;
       }
 
-      return aValue - bValue;
+      return a.index - b.index;
     })
     .map((entry) => entry.deal);
 }
