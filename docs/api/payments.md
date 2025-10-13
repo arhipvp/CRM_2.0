@@ -19,6 +19,17 @@
 
 > Справочник поддерживается в [модели данных](../data-model.md#справочник-статусов-платежей) и используется во всех доменных и API-описаниях.
 
+### Типы платежей
+
+| Код | Локализация | Описание |
+| --- | --- | --- |
+| `INITIAL` | «Первоначальный взнос» | Базовый платёж при старте сделки. |
+| `INSTALLMENT` | «Регулярный платёж» | Платёж в рамках графика/рассрочки. |
+| `COMMISSION` | «Комиссия» | Комиссионное вознаграждение CRM или партнёру. |
+| `REFUND` | «Возврат» | Возврат средств клиенту. |
+
+> Значения совпадают со справочником `payment_types` (см. миграции сервиса Payments).
+
 ### GET `/payments`
 Получение списка платежей с фильтрами.
 
@@ -41,51 +52,52 @@
 ### POST `/payments`
 Создаёт запись о платеже.
 
-**Тело запроса** (поддерживаются как `camelCase`, так и `snake_case` имена полей)
+**Тело запроса** (поддерживаются `snake_case` и `camelCase` имена)
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| external_ref | string | Нет | ID в CRM (для синхронизации). |
-| deal_id | UUID | Да | Связь со сделкой. |
-| policy_id | UUID | Да | Связь с полисом. |
-| payment_type | string | Да | Тип платежа. |
-| planned_date | date | Нет | Плановая дата. |
-| amount | number | Да | Сумма. |
-| currency | string | Да | Валюта, фиксированное значение `RUB` (используется для совместимости и не поддерживает другие значения). |
-| direction | string | Да | `inbound` или `outbound`. |
-| notes | string | Нет | Примечание. |
+| deal_id | UUID | Да | Связь со сделкой CRM. |
+| policy_id | UUID | Нет | Связь с полисом (если применимо). |
+| initiator_user_id | UUID | Да | Пользователь, инициировавший создание платежа. |
+| amount | number | Да | Сумма платежа (> 0). |
+| currency | string | Да | Валюта ISO 4217 (по умолчанию используется `RUB`). |
+| payment_type | string | Да | Тип платежа (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
+| planned_date | datetime (ISO 8601) | Нет | Плановая дата платежа. |
+| description | string | Нет | Комментарий/описание. |
 
 **Пример запроса**
 ```json
 {
-  "external_ref": "crm-payment-id",
-  "deal_id": "uuid",
-  "policy_id": "uuid",
-  "payment_type": "client_premium",
-  "planned_date": "2024-06-20",
-  "amount": 12345.67,
+  "deal_id": "c9a3d829-1adf-4d5c-9b38-9d34c1b79c5f",
+  "policy_id": "30a5fcd7-7ca7-4107-8ef4-89c63b8a5cb1",
+  "initiator_user_id": "d22d11e4-6a25-4b43-8a7f-7319bf7f685b",
+  "amount": 2500.00,
   "currency": "RUB",
-  "direction": "inbound"
+  "payment_type": "INSTALLMENT",
+  "planned_date": "2024-08-15T12:00:00+03:00",
+  "description": "Ежемесячный платёж по рассрочке"
 }
 ```
 
-**Ответ 201** — созданный платёж со статусом `planned`.
+**Ответ 201** — созданный платёж со статусом `PENDING`.
 
 **Пример ответа**
 ```json
 {
-  "id": "uuid",
-  "external_ref": "crm-payment-id",
-  "deal_id": "uuid",
-  "policy_id": "uuid",
-  "payment_type": "client_premium",
-  "status": "planned",
-  "amount": 12345.67,
+  "id": "11f6a3f5-4a71-46a8-9f32-4e90ac1959fa",
+  "dealId": "c9a3d829-1adf-4d5c-9b38-9d34c1b79c5f",
+  "policyId": "30a5fcd7-7ca7-4107-8ef4-89c63b8a5cb1",
+  "initiatorUserId": "d22d11e4-6a25-4b43-8a7f-7319bf7f685b",
+  "amount": 2500.00,
   "currency": "RUB",
-  "direction": "inbound"
+  "status": "PENDING",
+  "paymentType": "INSTALLMENT",
+  "dueDate": "2024-08-15T12:00:00+03:00",
+  "createdAt": "2024-07-24T09:30:00Z",
+  "updatedAt": "2024-07-24T09:30:00Z"
 }
 ```
 
-**Ошибки:** `400 validation_error`, `409 duplicate_payment` (по `external_ref`).
+**Ошибки:** `400 validation_error` (ошибка валидации входных данных).
 
 ### PATCH `/payments/{payment_id}`
 Частичное обновление платежа (сумма, валюта, даты, тип и описание). Любое изменённое поле или комментарий фиксируется в истории (`payment_history`) и транслируется наружу событием `payment.updated` (RabbitMQ `payments.events` + SSE `/streams/payments`).

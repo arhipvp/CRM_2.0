@@ -96,7 +96,7 @@
 | id | UUID | Да | Уникальный идентификатор платежа. |
 | deal_id | UUID | Да | Ссылка на сделку. |
 | policy_id | UUID | Да | Ссылка на полис, платёж всегда относится к одному полису. |
-| payment_type | Enum (`client_premium`, `commission_income`, `client_discount`, `executor_fee`) | Да | Тип платежа. |
+| payment_type | Enum (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`) | Да | Тип платежа. |
 | planned_date | Date | Нет | Плановая дата оплаты/выплаты. |
 | actual_date | Date | Нет | Фактическая дата выполнения. |
 | amount | Decimal | Да | Сумма платежа. |
