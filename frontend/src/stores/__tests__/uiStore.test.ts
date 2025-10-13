@@ -16,19 +16,23 @@ describe("useUiStore", () => {
       expect(useUiStore.getState().viewMode).toBe("table");
     });
 
-    it("обновляет стадию и менеджеров без мутаций", () => {
-      const managers = ["mgr-1", "mgr-2"];
+    it("обновляет фильтры и нормализует менеджеров", () => {
+      const managers = [" mgr-1 ", "mgr-2", "mgr-2"];
 
       useUiStore.getState().setSelectedStage("negotiation");
       useUiStore.getState().setManagersFilter(managers);
       useUiStore.getState().toggleManagerFilter("mgr-3");
-      useUiStore.getState().toggleManagerFilter("mgr-1");
+      useUiStore.getState().toggleManagerFilter(" mgr-1 ");
+      useUiStore.getState().setPeriodFilter("7d");
+      useUiStore.getState().setSearchFilter("Страхование");
 
       const { filters } = useUiStore.getState();
 
       expect(filters.stage).toBe("negotiation");
       expect(filters.managers).toEqual(["mgr-2", "mgr-3"]);
-      expect(managers).toEqual(["mgr-1", "mgr-2"]);
+      expect(filters.period).toBe("7d");
+      expect(filters.search).toBe("Страхование");
+      expect(managers).toEqual([" mgr-1 ", "mgr-2", "mgr-2"]);
     });
 
     it("сбрасывает фильтры и выделение", () => {
@@ -44,6 +48,7 @@ describe("useUiStore", () => {
         period: "30d",
         search: "",
       });
+      expect(state.filters).not.toBe(initialState.filters);
       expect(state.selectedDealIds).toEqual([]);
     });
   });
