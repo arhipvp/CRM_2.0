@@ -191,10 +191,27 @@
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | event | string | Да | `payment.created` или `payment.updated`. |
-| payload | object | Да | Структура платежа из CRM. Для `payment.updated` обязательно поле `paymentId`. |
+| payload | object | Да | Структура платежа из CRM. Для `payment.created` обязательны поля `deal_id`, `initiator_user_id`, `amount`, `currency`, `payment_type`. Для `payment.updated` дополнительно требуется `paymentId`. |
 | signature | string | Да | HMAC-подпись (см. алгоритм ниже). |
 
 **Ответ 202** — запись принята для обработки.
+
+> При отсутствии обязательных полей или неверных значениях сервис отвечает ошибкой `400 invalid_payload`.
+
+**Пример запроса для `payment.created`**
+```json
+{
+  "event": "payment.created",
+  "payload": {
+    "deal_id": "c9a3d829-1adf-4d5c-9b38-9d34c1b79c5f",
+    "initiator_user_id": "d22d11e4-6a25-4b43-8a7f-7319bf7f685b",
+    "amount": 2500.00,
+    "currency": "RUB",
+    "payment_type": "INSTALLMENT"
+  },
+  "signature": "<hex>"
+}
+```
 
 **Алгоритм подписи**
 
