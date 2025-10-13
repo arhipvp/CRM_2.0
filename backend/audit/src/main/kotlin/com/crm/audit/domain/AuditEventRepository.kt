@@ -15,7 +15,7 @@ interface AuditEventRepository : CoroutineCrudRepository<AuditEventEntity, UUID>
         FROM audit.audit_events
         WHERE event_type = :eventType
           AND occurred_at = :occurredAt
-          AND ((:eventSource IS NULL AND event_source IS NULL) OR event_source = :eventSource)
+          AND (event_source = :eventSource OR (event_source IS NULL AND :eventSource IS NULL))
         LIMIT 1
         """
     )
