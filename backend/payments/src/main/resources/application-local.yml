@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  r2dbc:
+    url: ${PAYMENTS_R2DBC_URL}
+    username: ${PAYMENTS_DB_USER}
+    password: ${PAYMENTS_DB_PASSWORD}
+  flyway:
+    enabled: true
+    url: ${PAYMENTS_JDBC_URL:${PAYMENTS_DATABASE_URL}}
+    user: ${PAYMENTS_DB_USER}
+    password: ${PAYMENTS_DB_PASSWORD}
+    default-schema: payments
+    locations: classpath:db/migration
+  rabbitmq:
+    uri: ${PAYMENTS_RABBITMQ_URL}
+
+logging:
+  level:
+    root: INFO
+    com.crm.payments: DEBUG

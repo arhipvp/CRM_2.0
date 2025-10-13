@@ -1,0 +1,64 @@
+diff a/scripts/bootstrap-local.sh b/scripts/bootstrap-local.sh	(rejected hunks)
+@@ -95,56 +95,58 @@ run_step_skip() {
+ 
+ step_check_dependencies() {
+   local status=0
+   require_command docker || status=1
+   if docker compose version >/dev/null 2>&1; then
+     :
+   else
+     log_error "Плагин 'docker compose' недоступен. Установите Docker Compose V2."
+     status=1
+   fi
+   require_command poetry || status=1
+   if require_command java "java (JDK 17+)"; then
+     :
+   else
+     status=1
+   fi
+   if require_command python3 "python3 (Python 3)"; then
+     :
+   else
+     log_error "Python 3 обязателен для bootstrap. Установите интерпретатор python3 из поставки вашей ОС (например, 'sudo apt install python3') и повторите попытку."
+     status=1
+   fi
+   check_optional_command psql "psql" "Отсутствует локальный CLI PostgreSQL — скрипты будут пытаться использовать docker compose exec."
+   check_optional_command redis-cli "redis-cli" "Для локальных проверок Redis используйте docker compose exec redis redis-cli."
+   check_optional_command curl "curl" "Smoke-проверки HTTP будут пропущены или потребуют альтернативные инструменты."
+-  if [[ -x "${ROOT_DIR}/backend/auth/gradlew" ]]; then
+-    :
+-  else
+-    log_warn "Делаем gradlew исполняемым"
++  if [[ ! -x "${ROOT_DIR}/backend/auth/gradlew" ]]; then
++    log_warn "Делаем gradlew исполняемым (auth)"
+     chmod +x "${ROOT_DIR}/backend/auth/gradlew"
+   fi
++  if [[ ! -x "${ROOT_DIR}/backend/payments/gradlew" ]]; then
++    log_warn "Делаем gradlew исполняемым (payments)"
++    chmod +x "${ROOT_DIR}/backend/payments/gradlew"
++  fi
+   return $status
+ }
+ 
+ step_sync_env() {
+   (cd "${ROOT_DIR}" && ./scripts/sync-env.sh --non-interactive)
+ }
+ 
+ step_compose_up() {
+   (cd "${INFRA_DIR}" && docker compose up -d)
+ }
+ 
+ step_wait_infra() {
+   (
+     cd "${INFRA_DIR}" || return 1
+     if docker compose wait >/dev/null 2>&1; then
+       echo "docker compose wait завершён успешно"
+       return 0
+     fi
+ 
+     echo "Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов"
+     local attempt=0
+     local max_attempts=30
+     local sleep_seconds=2
+     local ps_output=""
+ 

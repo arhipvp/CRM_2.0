@@ -1,0 +1,131 @@
+diff a/docs/local-setup.md b/docs/local-setup.md	(rejected hunks)
+@@ -206,65 +206,66 @@ docker compose --profile app up -d frontend
+ ./scripts/load-seeds.sh
+ ```
+ 
+ Скрипт применяет SQL-файлы в порядке Auth → CRM → Payments, выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить `payments`), воспользуйтесь фильтром по подстроке имени файла:
+ 
+ ```bash
+ ./scripts/load-seeds.sh --only payments
+ ```
+ 
+ В отсутствии локального `psql` сценарий автоматически выполнит `docker compose exec postgres psql`, перенаправив SQL внутрь контейнера. После успешного завершения появится сообщение `Готово.` — база содержит актуальные тестовые данные для smoke-проверок.
+ 
+ ## 3. Проверьте создание схем и ролей PostgreSQL
+ 
+ Скрипт `infra/postgres/init.sh` автоматически создаёт схемы и роли, указанные в `.env`. Чтобы убедиться, что всё применилось:
+ 
+ ```bash
+ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
+ ```
+ 
+ В выводе должны присутствовать схемы `auth`, `crm`, `payments`, `documents`, `tasks`, `notifications`, `audit`, `backup`.
+ 
+ ## 4. Запуск миграций
+ 
+ После подготовки инфраструктуры примените миграции сервисов согласно их README. Для CRM/Deals baseline (`2024031501_baseline.py`) уже опубликован, поэтому выполните `poetry run alembic upgrade head` в директории `backend/crm`. Остальные сервисы подключаются по мере появления ревизий.
+ 
+-#### Быстрый запуск миграций (CRM + Auth)
++#### Быстрый запуск миграций (CRM + Auth + Payments)
+ 
+ Чтобы не переключаться вручную между проектами, используйте скрипт из корня репозитория:
+ 
+ ```bash
+ ./scripts/migrate-local.sh
+ ```
+ 
+ Сценарий:
+ 
+-1. Загружает переменные из `.env` (убедитесь, что он создан на основе `env.example` и содержит заполненные блоки `CRM_*`, `AUTH_*`, `POSTGRES_*`, `REDIS_*`, `RABBITMQ_*`).
++1. Загружает переменные из `.env` (убедитесь, что он создан на основе `env.example` и содержит заполненные блоки `CRM_*`, `AUTH_*`, `PAYMENTS_*`, `POSTGRES_*`, `REDIS_*`, `RABBITMQ_*`).
+ 2. Запускает `poetry run alembic upgrade head` в `backend/crm`.
+ 3. Выполняет `./gradlew update` в `backend/auth`.
++4. Выполняет `./gradlew flywayMigrate -PspringProfile=local` в `backend/payments`.
+ 
+-> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
++> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth и Payments). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
+ 
+ ## 5. Проверка доступности сервисов
+ 
+ ### Основной сценарий: Docker Compose + smoke-check
+ 
+ После `docker compose up -d` (см. шаги bootstrap-скрипта) выполните `./scripts/check-local-infra.sh`, чтобы убедиться в готовности PostgreSQL, Redis, Consul и RabbitMQ Management UI.
+ 
+ - Скрипт ориентирован на тот же набор зависимостей, что и `./scripts/bootstrap-local.sh`: Docker Engine с Compose V2, `psql`, `redis-cli`, `curl` и актуальный `.env`, синхронизированный через [`scripts/sync-env.sh`](../scripts/sync-env.sh). Эти требования уже отражены в [`README.md`](../README.md) и проверяются в первом шаге bootstrap.
+ - При наличии Docker Compose проверки выполняются внутри контейнеров (`docker compose exec`) и завершаются ошибкой, если какие-то сервисы не запущены. Сообщение подскажет, какие контейнеры нужно поднять повторно.
+ - Результат выводится в виде таблицы. Статус `OK` подтверждает успешный `SELECT 1` в PostgreSQL, `PING → PONG` в Redis, наличие лидера Consul и доступность RabbitMQ UI.
+ 
+ Пример запуска:
+ 
+ ```bash
+ ./scripts/check-local-infra.sh
+ ```
+ 
+ ### Ручные проверки (fallback)
+ ### Автоматизированный smoke-check
+ 
+ 1. Убедитесь, что в корне репозитория лежит актуальный `.env` (обновлён через `./scripts/sync-env.sh`, при необходимости с флагом `--non-interactive`).
+ 2. Проверьте установку утилит, которые использует скрипт:
+    - `psql` (PostgreSQL client);
+    - `redis-cli`;
+    - `curl`.
+@@ -301,50 +302,59 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
+ - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
+ - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
+   - Для локального запуска все `NEXT_PUBLIC_*_SSE_URL` и `NEXT_PUBLIC_API_BASE_URL` уже указывают на `http://localhost:${GATEWAY_SERVICE_PORT}`;
+     дополнительных DNS-записей или кастомных доменов не требуется.
+ - Для фоновых заданий и уведомлений используйте очереди RabbitMQ и Redis из запущенного Docker Compose.
+ - Для проверки готовности можно запустить ключевые сервисы локально:
+   - **Gateway / BFF:**
+ 
+     ```bash
+     cd backend/gateway
+     pnpm install
+     pnpm start:dev
+     ```
+ 
+     После старта убедитесь, что `GET http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` возвращает `200 OK`.
+ 
+   - **Auth:**
+ 
+     ```bash
+     cd backend/auth
+     ./gradlew bootRun
+     ```
+ 
+     Перед запуском проверьте, что скопировали свежие значения `AUTH_*` из `env.example` в локальный `.env` (после изменений JWT-параметров вроде `AUTH_JWT_SECRET`, `AUTH_JWT_AUDIENCE`, `AUTH_ACCESS_TOKEN_TTL`, `AUTH_REFRESH_TOKEN_TTL` не забудьте пересоздать `.env`, чтобы подтянуть актуальные настройки). Для проверки доступности сервиса выполните `GET http://localhost:${AUTH_SERVICE_PORT}/actuator/health` — ответ должен быть `200 OK`.
+ 
++  - **Payments:**
++
++    ```bash
++    cd backend/payments
++    ./gradlew bootRun -PspringProfile=local
++    ```
++
++    Сервис ожидает параметры `PAYMENTS_R2DBC_URL`, `PAYMENTS_JDBC_URL` и `PAYMENTS_RABBITMQ_URL` из `.env`. После старта проверьте `GET http://localhost:${PAYMENTS_SERVICE_PORT}/actuator/health` и SSE-канал `GET http://localhost:${PAYMENTS_SERVICE_PORT}/streams/payments` — оба должны возвращать статус `200 OK`.
++
+   - **CRM / Deals:**
+ 
+     ```bash
+     cd backend/crm
+     poetry install
+     poetry run crm-api
+     ```
+ 
+     При необходимости поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
+ 
+   - **Frontend:**
+ 
+     ```bash
+     cd frontend
+     pnpm install
+     pnpm dev
+     ```
+ 
+     Приложение будет доступно на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`. Перед запуском можно задать `FRONTEND_SERVICE_PORT=3100` (или `PORT=3100`), чтобы запустить Next.js на другом порту; скрипты `pnpm dev` и `pnpm start` автоматически используют это значение.
+ 
+ ## 7. Очистка состояния
+ 
+ Если нужно полностью пересоздать окружение (например, после изменений схем):
+ 
+ ```bash

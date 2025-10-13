@@ -1,0 +1,23 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  r2dbc:
+    url: ${PAYMENTS_DEV_R2DBC_URL:${PAYMENTS_R2DBC_URL}}
+    username: ${PAYMENTS_DEV_DB_USER:${PAYMENTS_DB_USER}}
+    password: ${PAYMENTS_DEV_DB_PASSWORD:${PAYMENTS_DB_PASSWORD}}
+  flyway:
+    enabled: true
+    url: ${PAYMENTS_DEV_JDBC_URL:${PAYMENTS_JDBC_URL:${PAYMENTS_DATABASE_URL}}}
+    user: ${PAYMENTS_DEV_DB_USER:${PAYMENTS_DB_USER}}
+    password: ${PAYMENTS_DEV_DB_PASSWORD:${PAYMENTS_DB_PASSWORD}}
+    default-schema: payments
+    locations: classpath:db/migration
+  rabbitmq:
+    uri: ${PAYMENTS_DEV_RABBITMQ_URL:${PAYMENTS_RABBITMQ_URL}}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics,prometheus"

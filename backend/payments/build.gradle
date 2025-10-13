@@ -1,0 +1,83 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'org.flywaydb.flyway' version '9.22.3'
+}
+
+group = 'com.crm'
+version = '0.0.1-SNAPSHOT'
+description = 'CRM Payments Service'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springCloudVersion', '2023.0.1')
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'org.postgresql:r2dbc-postgresql'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:rabbitmq'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'migrations'
+        }
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'test'
+}
+
+// Позволяет запускать `./gradlew bootRun -PspringProfile=dev`
+tasks.named('bootRun') {
+    systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'local'
+}
+
+flyway {
+    def rawUrl = System.getenv('PAYMENTS_DATABASE_URL')
+    url = rawUrl == null ? null : (rawUrl.startsWith('jdbc:') ? rawUrl : 'jdbc:' + rawUrl)
+    user = System.getenv('PAYMENTS_DB_USER')
+    password = System.getenv('PAYMENTS_DB_PASSWORD')
+    schemas = ['payments']
+    locations = ["filesystem:${project.projectDir}/migrations/db/migration"]
+    cleanDisabled = true
+}

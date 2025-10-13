@@ -1,0 +1,73 @@
+diff a/scripts/check-local-infra.sh b/scripts/check-local-infra.sh	(rejected hunks)
+@@ -211,49 +211,71 @@ function check_rabbitmq() {
+       local output
+       if output=$(docker_exec rabbitmq rabbitmq-diagnostics -q check_running 2>&1); then
+         add_result "$name" "OK" "Нода запущена (rabbitmq-diagnostics)"
+       else
+         add_result "$name" "FAIL" "$output"
+       fi
+     fi
+     return
+   fi
+ 
+   local url_base="${RABBITMQ_MANAGEMENT_URL:-}"
+   local user="${RABBITMQ_DEFAULT_USER:-}"
+   local pass="${RABBITMQ_DEFAULT_PASS:-}"
+   if [[ -z "$url_base" || -z "$user" || -z "$pass" ]]; then
+     add_result "$name" "FAIL" "Требуются RABBITMQ_MANAGEMENT_URL, RABBITMQ_DEFAULT_USER, RABBITMQ_DEFAULT_PASS"
+     return
+   fi
+   local output
+   if output=$(curl -fsS -u "$user:$pass" "$url_base/api/overview" 2>&1); then
+     add_result "$name" "OK" "UI доступен"
+   else
+     add_result "$name" "FAIL" "$output"
+   fi
+ }
+ 
++function check_payments_service() {
++  local name="Payments API"
++  local base="${PAYMENTS_BASE_URL:-http://localhost:${PAYMENTS_SERVICE_PORT:-8083}}"
++  local health_url
++  if [[ -z "$base" ]]; then
++    add_result "$name" "FAIL" "PAYMENTS_BASE_URL не задан в .env"
++    return
++  fi
++  health_url="${base%/}/actuator/health"
++  local output
++  if output=$(curl -fsS "$health_url" 2>&1); then
++    if grep -q '"status"\s*:\s*"UP"' <<<"$output"; then
++      add_result "$name" "OK" "$health_url → UP"
++    else
++      add_result "$name" "FAIL" "Ответ: $output"
++    fi
++  else
++    add_result "$name" "FAIL" "$output"
++  fi
++}
++
+ function print_mode_message() {
+   if [[ "$CHECK_MODE" == "docker" ]]; then
+     return
+   fi
+   echo "[Инфо] Проверки выполняются локальными CLI-инструментами." >&2
+ }
+ 
+ detect_docker_compose
+ print_mode_message
+ 
+ check_postgres
+ check_redis
+ check_consul
+ check_rabbitmq
++check_payments_service
+ 
+ printf "\n%-18s | %-6s | %s\n" "Проверка" "Статус" "Комментарий"
+ printf '%s\n' "------------------+--------+--------------------------------"
+ for entry in "${REPORT[@]}"; do
+   IFS='|' read -r name status message <<<"$entry"
+   printf "%-18s | %-6s | %s\n" "$name" "$status" "$message"
+ 
+ done
+ 
+ exit $EXIT_CODE
