@@ -42,3 +42,10 @@
 - Для цветовых индикаторов статусов используются дополнительные текстовые метки.
 - Все уведомления попадают в `aria-live="polite"`, приоритетные — в `aria-live="assertive"`.
 - Настройки имеют понятные подписи и описания, доступные screen reader'у.
+
+## Инфраструктурные зависимости и запуск backend-сервиса
+
+- SSE-канал `/notifications/stream` обслуживается сервисом Notifications (NestJS). Для локальной разработки запустите `pnpm start:dev` в `backend/notifications` — эндпоинт отдаёт `text/event-stream` и пересылает события, поступающие из RabbitMQ или REST-хука `/notifications/events`.
+- Поток подключается к фронтенду через `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`; при запуске через Gateway используйте маршрут `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications`. Прямое подключение к сервису (`http://localhost:${NOTIFICATIONS_SERVICE_PORT}/notifications/stream`) допустимо для отладки без Gateway.
+- Доставка в Telegram настраивается переменными `NOTIFICATIONS_TELEGRAM_ENABLED`, `NOTIFICATIONS_TELEGRAM_CHAT_ID`, `NOTIFICATIONS_TELEGRAM_BOT_TOKEN` и флагом `NOTIFICATIONS_TELEGRAM_MOCK`. Значения по умолчанию включают mock-режим, поэтому фронтенд и вебхуки можно тестировать без реального бота.
+- Bootstrap-скрипт (`./scripts/bootstrap-local.sh`) автоматически применяет миграции Notifications через `scripts/migrate-local.sh` и создаёт пользователей RabbitMQ на основе переменных `NOTIFICATIONS_RABBITMQ_*`, поэтому после обновления `env.example` синхронизируйте `.env` и перезапустите скрипт.

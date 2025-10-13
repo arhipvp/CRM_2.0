@@ -82,6 +82,14 @@ docker compose --profile app up -d frontend
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+
+### Notifications: быстрый старт
+
+- Перейдите в `backend/notifications` и установите зависимости: `pnpm install` (понадобится Node.js 18+ и активированный Corepack).
+- Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications`. Проверьте блок `NOTIFICATIONS_*`, задайте `NOTIFICATIONS_TELEGRAM_ENABLED`/`NOTIFICATIONS_TELEGRAM_MOCK` и заполните токен/чат, если планируете реальные отправки.
+- Запустите HTTP-приложение c SSE: `pnpm start:dev`. Проверьте `GET http://localhost:${NOTIFICATIONS_SERVICE_PORT}/notifications/stream` — поток должен отдавать heartbeat-события при публикации в очередь.
+- Для фоновых подписчиков RabbitMQ выполните `pnpm start:workers`. Процесс использует те же конфигурации и автоматически обрабатывает очередь `notifications.events`, публикуя сообщения в SSE и (при включении) Telegram.
+- Миграции применяются через `pnpm run migrations:run`; bootstrap вызывает команду автоматически (см. [`scripts/migrate-local.sh`](../scripts/migrate-local.sh)).
 ### Tasks: быстрый старт
 
 - Перейдите в `backend/tasks` и установите зависимости `pnpm install`.
@@ -126,6 +134,7 @@ docker compose --profile app up -d frontend
    1. Откройте `.env` в корне и замените заглушки у всех `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_API_KEY` на значения из секретного хранилища.
    2. Сверьте `*_RABBITMQ_URL`, `*_REDIS_URL`, `POSTGRES_*` с локальными инстансами и обновите пароли, если они отличаются от шаблона.
    3. Проверьте блоки `AUTH_JWT_*`, `GATEWAY_UPSTREAM_*`, параметры webhook-ов и OAuth — убедитесь, что они соответствуют вашей среде разработки.
+   4. Для Notifications заполните `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*` и параметры Telegram (`NOTIFICATIONS_TELEGRAM_*`), чтобы worker мог публиковать события в SSE и бот.
 3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
    > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
 2. Обновите в `.env` чувствительные значения:
