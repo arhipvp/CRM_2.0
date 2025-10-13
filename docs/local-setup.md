@@ -87,8 +87,8 @@ docker compose --profile app up -d frontend
 
 - Перейдите в `backend/notifications` и установите зависимости: `pnpm install` (понадобится Node.js 18+ и активированный Corepack).
 - Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications`. Проверьте блок `NOTIFICATIONS_*`, задайте `NOTIFICATIONS_TELEGRAM_ENABLED`/`NOTIFICATIONS_TELEGRAM_MOCK` и заполните токен/чат, если планируете реальные отправки.
-- Запустите HTTP-приложение c SSE: `pnpm start:dev`. Проверьте `GET http://localhost:${NOTIFICATIONS_SERVICE_PORT}/notifications/stream` — поток должен отдавать heartbeat-события при публикации в очередь.
-- Для фоновых подписчиков RabbitMQ выполните `pnpm start:workers`. Процесс использует те же конфигурации и автоматически обрабатывает очередь `notifications.events`, публикуя сообщения в SSE и (при включении) Telegram.
+- Запустите HTTP-приложение c SSE: `pnpm start:api:dev`. Проверьте `GET http://localhost:${NOTIFICATIONS_SERVICE_PORT}/api/notifications/stream` и `GET /api/notifications/health` — поток должен отдавать события при публикации в очередь, а health-эндпоинт помогает в docker-compose и probes.
+- Для фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Процесс использует те же конфигурации и автоматически обрабатывает очередь `notifications.events`, публикуя сообщения в SSE и (при включении) Telegram. Сборка и запуск без watch выполняются командами `pnpm run build:all`, `pnpm start:api` и `pnpm start:workers`.
 - Миграции применяются через `pnpm run migrations:run`; bootstrap вызывает команду автоматически (см. [`scripts/migrate-local.sh`](../scripts/migrate-local.sh)).
 ### Tasks: быстрый старт
 
