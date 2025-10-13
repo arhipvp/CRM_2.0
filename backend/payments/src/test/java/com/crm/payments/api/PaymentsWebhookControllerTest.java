@@ -38,7 +38,10 @@ import reactor.core.publisher.Mono;
 
 @WebFluxTest(PaymentsWebhookController.class)
 @Import(PaymentsWebhookService.class)
-@TestPropertySource(properties = "payments.crm.webhook.secret=test-secret")
+@TestPropertySource(properties = {
+        "payments.crm.webhook.secret=test-secret",
+        "server.error.include-message=always"
+})
 class PaymentsWebhookControllerTest {
 
     private static final String SECRET = "test-secret";
@@ -133,6 +136,27 @@ class PaymentsWebhookControllerTest {
                 .expectStatus().isBadRequest();
 
         verify(paymentService, never()).create(any(PaymentRequest.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdatePayloadFailsValidation() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("paymentId", paymentId.toString());
+        payload.put("updatedAt", OffsetDateTime.now().toString());
+        payload.put("currency", "USD");
+
+        String signature = sign("payment.updated", payload);
+
+        webTestClient.post()
+                .uri("/api/v1/webhooks/crm")
+                .bodyValue(buildRequest("payment.updated", payload, signature))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("invalid_payload");
+
+        verify(paymentService, never()).update(any(UUID.class), any(UpdatePaymentRequest.class));
     }
 
     private JsonNode buildRequest(String event, JsonNode payload, String signature) {

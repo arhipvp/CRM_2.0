@@ -122,6 +122,10 @@ public class PaymentsWebhookService {
                 return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
             }
             updateRequest.setUpdatedAt(version);
+            Set<ConstraintViolation<UpdatePaymentRequest>> violations = validator.validate(updateRequest);
+            if (!violations.isEmpty()) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
+            }
             return paymentService.update(paymentId, updateRequest)
                     .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found")))
                     .then();
