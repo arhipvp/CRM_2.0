@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { createRandomId } from "@/lib/utils/id";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
-import type { DealFilters, DealPeriodFilter } from "@/types/crm";
+import type { DealPeriodFilter } from "@/types/crm";
+import { createDefaultDealFilters, type DealFiltersState } from "@/lib/utils/dealFilters";
 
 export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
 
@@ -31,21 +32,7 @@ export interface PaymentEventEffect {
   highlightDealId?: string;
 }
 
-type FiltersState = Required<Pick<DealFilters, "stage" | "managers" | "period" | "search">>;
-
-const DEFAULT_FILTERS: FiltersState = {
-  stage: "all",
-  managers: [],
-  period: "30d",
-  search: "",
-};
-
-function cloneDefaultFilters(): FiltersState {
-  return {
-    ...DEFAULT_FILTERS,
-    managers: [...DEFAULT_FILTERS.managers],
-  };
-}
+type FiltersState = DealFiltersState;
 
 function normalizeManagers(managers: string[]): string[] {
   const normalized: string[] = [];
@@ -95,7 +82,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
-  filters: cloneDefaultFilters(),
+  filters: createDefaultDealFilters(),
   viewMode: "kanban",
   selectedDealIds: [],
   notifications: [],
@@ -150,7 +137,7 @@ export const useUiStore = create<UiState>((set, get) => ({
     })),
   clearFilters: () =>
     set(() => ({
-      filters: cloneDefaultFilters(),
+      filters: createDefaultDealFilters(),
       selectedDealIds: [],
     })),
   setViewMode: (mode) => set({ viewMode: mode }),

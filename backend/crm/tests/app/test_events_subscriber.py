@@ -220,8 +220,12 @@ async def test_publish_to_dlx_includes_original_headers(subscriber: PaymentsEven
 
 
 @pytest.mark.asyncio()
-async def test_handle_message_service_error_requeue(monkeypatch: pytest.MonkeyPatch, subscriber: PaymentsEventsSubscriber) -> None:
+async def test_handle_message_service_error_requeue(
+    monkeypatch: pytest.MonkeyPatch, subscriber: PaymentsEventsSubscriber
+) -> None:
     class FailingPaymentSyncService:
+        pass
+
         def __init__(self, *_: object, **__: object) -> None:
             pass
 

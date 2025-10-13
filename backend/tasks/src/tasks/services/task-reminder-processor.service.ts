@@ -1,66 +1,22 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskReminderEntity } from '../entities/task-reminder.entity';
 import { TaskReminderQueueService } from './task-reminder-queue.service';
 import { TaskEventsPublisher } from './task-events.publisher';
 
-const REMINDERS_INTERVAL_NAME = 'tasks-reminders-poll';
-
 @Injectable()
-export class TaskReminderProcessor implements OnModuleInit, OnModuleDestroy {
+export class TaskReminderProcessor {
   private readonly logger = new Logger(TaskReminderProcessor.name);
-  private interval?: NodeJS.Timeout;
-  private processing = false;
 
   constructor(
     private readonly queue: TaskReminderQueueService,
     @InjectRepository(TaskReminderEntity)
     private readonly reminderRepository: Repository<TaskReminderEntity>,
     private readonly eventsPublisher: TaskEventsPublisher,
-    private readonly configService: ConfigService,
-    private readonly schedulerRegistry: SchedulerRegistry
+    private readonly configService: ConfigService
   ) {}
-
-  onModuleInit() {
-    const workerEnabled = this.configService.get<boolean>('tasks.scheduling.workerEnabled', false);
-    if (!workerEnabled) {
-      this.logger.debug('Task reminder processor disabled by configuration.');
-      return;
-    }
-
-    const pollInterval = this.configService.get<number>('tasks.reminders.pollIntervalMs', 5000);
-    this.interval = setInterval(async () => {
-      if (this.processing) {
-        this.logger.warn('Previous reminder poll is still running, skipping this iteration.');
-        return;
-      }
-
-      this.processing = true;
-      try {
-        const processed = await this.processDueReminders();
-        if (processed > 0) {
-          this.logger.log(`Published ${processed} task reminder event(s).`);
-        }
-      } catch (error) {
-        this.logger.error(`Failed to process task reminders: ${(error as Error).message}`, error as Error);
-      } finally {
-        this.processing = false;
-      }
-    }, pollInterval);
-
-    this.schedulerRegistry.addInterval(REMINDERS_INTERVAL_NAME, this.interval);
-    this.logger.log(`Task reminder processor started with interval ${pollInterval} ms.`);
-  }
-
-  onModuleDestroy() {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.schedulerRegistry.deleteInterval(REMINDERS_INTERVAL_NAME);
-    }
-  }
 
   async processDueReminders(): Promise<number> {
     const now = Date.now();

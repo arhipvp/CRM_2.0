@@ -7,11 +7,20 @@ import { DocumentStatus } from './document-status.enum';
 import { DocumentEntity } from './document.entity';
 import { DocumentsService } from './documents.service';
 
+const createQueryBuilderMock = () => ({
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  orderBy: jest.fn().mockReturnThis(),
+  skip: jest.fn().mockReturnThis(),
+  take: jest.fn().mockReturnThis(),
+  getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+});
+
 const createRepositoryMock = (): jest.Mocked<Repository<DocumentEntity>> =>
   ({
     create: jest.fn(),
     save: jest.fn(),
-    findAndCount: jest.fn(),
+    createQueryBuilder: jest.fn(),
     findOne: jest.fn(),
     remove: jest.fn(),
     update: jest.fn(),
@@ -33,13 +42,50 @@ describe('DocumentsService', () => {
     service = new DocumentsService(repository, driveService);
   });
 
-  it('исключает удалённые документы из поиска', async () => {
-    repository.findAndCount.mockResolvedValue([[], 0]);
+  it('исключает удалённые документы из поиска и применяет сортировку', async () => {
+    const qb = createQueryBuilderMock();
+    repository.createQueryBuilder.mockReturnValue(qb as any);
 
     await service.findAll({});
 
-    const args = repository.findAndCount.mock.calls[0][0] as Record<string, any>;
-    expect(args.where.deletedAt).toMatchObject({ _type: 'isNull' });
+    expect(repository.createQueryBuilder).toHaveBeenCalledWith('document');
+    expect(qb.where).toHaveBeenCalledWith('document.deletedAt IS NULL');
+    expect(qb.orderBy).toHaveBeenCalledWith('document.createdAt', 'DESC');
+    expect(qb.skip).toHaveBeenCalledWith(0);
+    expect(qb.take).toHaveBeenCalledWith(25);
+  });
+
+  it('фильтрует по статусу, владельцу и типу документа', async () => {
+    const qb = createQueryBuilderMock();
+    repository.createQueryBuilder.mockReturnValue(qb as any);
+
+    await service.findAll({
+      status: DocumentStatus.Synced,
+      ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+      ownerType: 'client',
+      documentType: ['policy', 'act'],
+    });
+
+    expect(qb.andWhere).toHaveBeenCalledWith('document.status = :status', { status: DocumentStatus.Synced });
+    expect(qb.andWhere).toHaveBeenCalledWith("(document.metadata ->> 'ownerId') = :ownerId", {
+      ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+    });
+    expect(qb.andWhere).toHaveBeenCalledWith("(document.metadata ->> 'ownerType') = :ownerType", { ownerType: 'client' });
+    expect(qb.andWhere).toHaveBeenCalledWith("(document.metadata ->> 'documentType') IN (:...documentTypes)", {
+      documentTypes: ['policy', 'act'],
+    });
+  });
+
+  it('фильтрует по текстовому поиску', async () => {
+    const qb = createQueryBuilderMock();
+    repository.createQueryBuilder.mockReturnValue(qb as any);
+
+    await service.findAll({ search: 'акт' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('document.name ILIKE :search'),
+      expect.objectContaining({ search: '%акт%' }),
+    );
   });
 
   it('помечает документ удалённым и отзывает файл', async () => {

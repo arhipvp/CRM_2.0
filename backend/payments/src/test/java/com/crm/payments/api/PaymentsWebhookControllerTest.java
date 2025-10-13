@@ -38,7 +38,10 @@ import reactor.core.publisher.Mono;
 
 @WebFluxTest(PaymentsWebhookController.class)
 @Import(PaymentsWebhookService.class)
-@TestPropertySource(properties = "payments.crm.webhook.secret=test-secret")
+@TestPropertySource(properties = {
+        "payments.crm.webhook.secret=test-secret",
+        "server.error.include-message=always"
+})
 class PaymentsWebhookControllerTest {
 
     private static final String SECRET = "test-secret";
@@ -101,6 +104,29 @@ class PaymentsWebhookControllerTest {
     }
 
     @Test
+    void shouldReturnNotFoundWhenPaymentMissing() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        OffsetDateTime updatedAt = OffsetDateTime.now().minusMinutes(2).withNano(0);
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("paymentId", paymentId.toString());
+        payload.put("updatedAt", updatedAt.toString());
+
+        String signature = sign("payment.updated", payload);
+
+        when(paymentService.update(eq(paymentId), any(UpdatePaymentRequest.class))).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri("/api/v1/webhooks/crm")
+                .bodyValue(buildRequest("payment.updated", payload, signature))
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
+
+        verify(paymentService).update(eq(paymentId), any(UpdatePaymentRequest.class));
+    }
+
+    @Test
     void shouldRejectEventWithInvalidSignature() throws Exception {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("deal_id", "e1b8f44c-7c39-4e5c-8cb7-60c79c7c7bb5");
@@ -113,7 +139,9 @@ class PaymentsWebhookControllerTest {
                 .uri("/api/v1/webhooks/crm")
                 .bodyValue(buildRequest("payment.created", payload, "invalid"))
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isUnauthorized()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("invalid_signature");
 
         verify(paymentService, never()).create(any(PaymentRequest.class));
     }
@@ -130,9 +158,32 @@ class PaymentsWebhookControllerTest {
                 .uri("/api/v1/webhooks/crm")
                 .bodyValue(buildRequest("payment.created", payload, signature))
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("invalid_payload");
 
         verify(paymentService, never()).create(any(PaymentRequest.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdatePayloadFailsValidation() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("paymentId", paymentId.toString());
+        payload.put("updatedAt", OffsetDateTime.now().toString());
+        payload.put("currency", "USD");
+
+        String signature = sign("payment.updated", payload);
+
+        webTestClient.post()
+                .uri("/api/v1/webhooks/crm")
+                .bodyValue(buildRequest("payment.updated", payload, signature))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("invalid_payload");
+
+        verify(paymentService, never()).update(any(UUID.class), any(UpdatePaymentRequest.class));
     }
 
     private JsonNode buildRequest(String event, JsonNode payload, String signature) {

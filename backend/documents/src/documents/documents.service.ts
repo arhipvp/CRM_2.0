@@ -36,17 +36,43 @@ export class DocumentsService {
   }
 
   async findAll(query: ListDocumentsDto): Promise<{ items: DocumentEntity[]; total: number }> {
-    const where: FindOptionsWhere<DocumentEntity> = { deletedAt: IsNull() };
+    const qb = this.repository.createQueryBuilder('document');
+    qb.where('document.deletedAt IS NULL');
+
     if (query.status) {
-      where.status = query.status;
+      qb.andWhere('document.status = :status', { status: query.status });
     }
 
-    const [items, total] = await this.repository.findAndCount({
-      where,
-      order: { createdAt: 'DESC' },
-      skip: query.offset ?? 0,
-      take: query.limit ?? 25,
-    });
+    if (query.ownerId) {
+      qb.andWhere("(document.metadata ->> 'ownerId') = :ownerId", { ownerId: query.ownerId });
+    }
+
+    if (query.ownerType) {
+      qb.andWhere("(document.metadata ->> 'ownerType') = :ownerType", { ownerType: query.ownerType });
+    }
+
+    if (query.documentType?.length) {
+      qb.andWhere("(document.metadata ->> 'documentType') IN (:...documentTypes)", {
+        documentTypes: query.documentType,
+      });
+    }
+
+    if (query.search) {
+      qb.andWhere(
+        `(
+          document.name ILIKE :search
+          OR document.description ILIKE :search
+          OR COALESCE(document.metadata->>'notes', '') ILIKE :search
+        )`,
+        { search: `%${query.search}%` },
+      );
+    }
+
+    qb.orderBy('document.createdAt', 'DESC');
+    qb.skip(query.offset ?? 0);
+    qb.take(query.limit ?? 25);
+
+    const [items, total] = await qb.getManyAndCount();
     return { items, total };
   }
 

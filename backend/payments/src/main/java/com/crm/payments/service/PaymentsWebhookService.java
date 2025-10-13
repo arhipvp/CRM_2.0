@@ -61,19 +61,18 @@ public class PaymentsWebhookService {
     public Mono<Void> processWebhook(CrmWebhookRequest request) {
         if (!isSignatureValid(request)) {
             log.warn("Получен webhook с некорректной подписью: событие {}", request.getEvent());
-            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid signature"));
+            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_signature"));
         }
 
         String event = request.getEvent();
         if (!StringUtils.hasText(event)) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event is required"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
         }
 
         return switch (event) {
             case "payment.created" -> handlePaymentCreated(request.getPayload());
             case "payment.updated" -> handlePaymentUpdated(request.getPayload());
-            default -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Unsupported event type: " + event));
+            default -> Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
         };
     }
 
@@ -84,7 +83,7 @@ public class PaymentsWebhookService {
             return paymentService.create(paymentRequest).then();
         } catch (JsonProcessingException e) {
             log.warn("Не удалось десериализовать payload вебхука payment.created", e);
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payload"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
         } catch (ConstraintViolationException e) {
             log.warn("Payload вебхука payment.created не прошёл валидацию: {}", e.getMessage());
             return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
@@ -101,16 +100,14 @@ public class PaymentsWebhookService {
     private Mono<Void> handlePaymentUpdated(JsonNode payload) {
         JsonNode paymentIdNode = payload.get("paymentId");
         if (paymentIdNode == null || !paymentIdNode.isTextual()) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "payload.paymentId is required for payment.updated"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
         }
 
         UUID paymentId;
         try {
             paymentId = UUID.fromString(paymentIdNode.asText());
         } catch (IllegalArgumentException ex) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "payload.paymentId must be a valid UUID"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload", ex));
         }
 
         try {
@@ -122,12 +119,16 @@ public class PaymentsWebhookService {
                 return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
             }
             updateRequest.setUpdatedAt(version);
+            Set<ConstraintViolation<UpdatePaymentRequest>> violations = validator.validate(updateRequest);
+            if (!violations.isEmpty()) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
+            }
             return paymentService.update(paymentId, updateRequest)
-                    .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found")))
+                    .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "payment_not_found")))
                     .then();
         } catch (IOException e) {
             log.warn("Не удалось десериализовать payload вебхука payment.updated", e);
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payload"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
         }
     }
 
@@ -180,7 +181,7 @@ public class PaymentsWebhookService {
             canonicalPayload = objectMapper.writeValueAsString(request.getPayload());
         } catch (JsonProcessingException e) {
             log.warn("Не удалось сериализовать payload вебхука для подписи", e);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payload");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload");
         }
 
         String dataToSign = request.getEvent() + ":" + canonicalPayload;

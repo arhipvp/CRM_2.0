@@ -172,8 +172,10 @@ export function DealDetails({ dealId }: { dealId: string }) {
     });
 
     queryClient.setQueryData(dealKey, updated);
-    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+    ]);
     markDealUpdated(dealId);
   };
 
