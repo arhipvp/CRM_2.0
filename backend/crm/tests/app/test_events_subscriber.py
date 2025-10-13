@@ -449,6 +449,31 @@ async def test_publish_to_dlx_includes_original_headers(subscriber: PaymentsEven
 
 
 @pytest.mark.asyncio()
+async def test_publish_to_dlx_does_not_mutate_message_headers(
+    subscriber: PaymentsEventsSubscriber,
+) -> None:
+    headers: dict[str, str] = {"foo": "bar"}
+    message = SimpleNamespace(body=b"payload", content_type="application/json", headers=headers)
+
+    exchange = SimpleNamespace(publish=AsyncMock())
+    subscriber._channel = SimpleNamespace(get_exchange=AsyncMock(return_value=exchange))  # type: ignore[assignment]
+    subscriber._settings.payments_dlx_exchange = "crm.payments-sync.dlx"
+
+    await subscriber._publish_to_dlx(message, reason="dead")
+
+    exchange.publish.assert_awaited_once()
+    publish_call = exchange.publish.await_args
+    published_message = publish_call.args[0]
+
+    assert isinstance(published_message, Message)
+    assert published_message.headers == {"foo": "bar", "dead-letter-reason": "dead"}
+    assert "dead-letter-reason" not in headers
+    assert publish_call.kwargs["routing_key"] == "dead"
+    assert published_message.body == message.body
+    assert published_message.content_type == message.content_type
+
+
+@pytest.mark.asyncio()
 async def test_handle_message_service_error_requeue(
     monkeypatch: pytest.MonkeyPatch, subscriber: PaymentsEventsSubscriber
 ) -> None:
