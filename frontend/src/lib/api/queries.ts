@@ -43,6 +43,15 @@ export const dealsQueryOptions = (filters?: DealFilters) => {
   });
 };
 
+export const dealStageMetricsQueryOptions = (filters?: DealFilters) => {
+  const sanitizedFilters = sanitizeDealFilters(filters);
+
+  return queryOptions({
+    queryKey: ["deal-stage-metrics", sanitizedFilters ?? emptyObject],
+    queryFn: () => apiClient.getDealStageMetrics(sanitizedFilters),
+  });
+};
+
 export const dealQueryOptions = (dealId: string) =>
   queryOptions({
     queryKey: ["deal", dealId],
