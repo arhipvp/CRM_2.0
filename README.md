@@ -25,7 +25,7 @@
 CRM предназначена для небольшой команды страховых агентов, которые ведут клиентов по долгосрочным страховым сделкам. Система концентрирует данные о клиентах, сделках, полисах, платежах и связанных документах, распределяет задачи между пользователями и обеспечивает контроль по ключевым событиям. Архитектурный черновик уже выделяет целевые сервисы (Gateway, Auth, CRM/Deals, Payments, Documents, Tasks, Notifications, Reports, Audit, Backup) — ниже зафиксированы их бизнес-требования и взаимосвязи. Состав первой поставки и критерии готовности описаны в документе [`docs/delivery-plan.md`](docs/delivery-plan.md). Подробные спецификации REST/SSE интерфейсов находятся в каталоге [`docs/api`](docs/api/README.md), а форматы интеграционных событий зафиксированы в [`docs/integration-events.md`](docs/integration-events.md).
 
 ### Текущее состояние репозитория
-В репозитории уже лежат рабочие сервисы и фронтенд первой волны: **Gateway/BFF** (NestJS + pnpm), **Auth** (Spring Boot + Gradle), **CRM/Deals** (FastAPI + Celery) и клиентский **Frontend** (Next.js + pnpm). Каркасы сервисов **Tasks**, **Payments**, **Documents**, **Notifications** и инфраструктурного набора **Backup** подготовлены вместе с миграциями и инструкциями, но прикладная логика ещё в разработке — ориентируйтесь на `docs/delivery-plan.md` и README соответствующих директорий при планировании задач. Каталоги **Reports** и **Audit** содержат документацию и заглушки под будущие реализации, запланированные после релиза [Этапа 1.1](docs/delivery-plan.md#2-приоритизация-последующих-этапов). Детали по окружению и API остаются в `docs/tech-stack.md`, `docs/api` и `env.example`.
+В репозитории уже лежат рабочие сервисы и фронтенд первой волны: **Gateway/BFF** (NestJS + pnpm), **Auth** (Spring Boot + Gradle), **CRM/Deals** (FastAPI + Celery) и клиентский **Frontend** (Next.js + pnpm). Каркасы сервисов **Tasks**, **Payments**, **Documents**, **Notifications** и инфраструктурного набора **Backup** подготовлены вместе с миграциями и инструкциями, но прикладная логика ещё в разработке — ориентируйтесь на `docs/delivery-plan.md` и README соответствующих директорий при планировании задач. Каталог **Reports** содержит рабочий каркас FastAPI-сервиса с подключением к PostgreSQL (см. [`backend/reports/README.md`](backend/reports/README.md)), а **Audit** остаётся заглушкой до этапа [1.1](docs/delivery-plan.md#2-приоритизация-последующих-этапов). Детали по окружению и API остаются в `docs/tech-stack.md`, `docs/api` и `env.example`.
 
 **Технологический стек и базовые архитектурные принципы** собраны в документе [`docs/tech-stack.md`](docs/tech-stack.md), который служит основой для детальных спецификаций сервисов и инфраструктуры.
 
@@ -40,7 +40,7 @@ CRM предназначена для небольшой команды стра
   - [`backend/documents/README.md`](backend/documents/README.md) — NestJS-сервис для Google Drive и BullMQ.【F:backend/documents/README.md†L1-L30】
   - [`backend/notifications/README.md`](backend/notifications/README.md) — SSE, очереди и отправка уведомлений.【F:backend/notifications/README.md†L1-L30】
   - [`backend/tasks/README.md`](backend/tasks/README.md) — обработка задач и отложенных событий.【F:backend/tasks/README.md†L1-L30】
-  - [`backend/reports/README.md`](backend/reports/README.md) — текущее состояние отчётного сервиса и временная заглушка.【F:backend/reports/README.md†L1-L28】
+  - [`backend/reports/README.md`](backend/reports/README.md) — FastAPI-сервис Reports и инструкции по подключению к CRM/Audit.【F:backend/reports/README.md†L1-L47】
   - [`backend/audit/README.md`](backend/audit/README.md) — журналирование и агрегаты для аналитики.【F:backend/audit/README.md†L1-L30】
 - Frontend: [`frontend/README.md`](frontend/README.md) — запуск Next.js и тестовые профили.【F:frontend/README.md†L1-L36】
 - Backups: [`backups/README.md`](backups/README.md) — скрипты и артефакты резервного копирования.【F:backups/README.md†L1-L8】
@@ -113,7 +113,7 @@ Notifications. Отправка уведомлений по событиям (Te
 
 Telegram Bot. Отдельный сервис, обеспечивающий персональные уведомления продавцов и исполнителей, а также быстрые сценарии: создание сделки из чат-команды, запуск напоминаний, подтверждение ключевых этапов. Архитектура и чек-листы на реализацию — в [`docs/architecture/bot.md`](docs/architecture/bot.md).
 
-Reports (отложено). На старте доступна только заглушка без развитой аналитики; расширение функций и метрик планируется позднее, см. [`backend/reports/README.md`](backend/reports/README.md).
+Reports. FastAPI-сервис с материализованными витринами PostgreSQL: отдаёт агрегаты по сделкам и предоставляет CLI для обновления витрин (подробности в [`backend/reports/README.md`](backend/reports/README.md)).
 
 Audit. Централизованный журнал действий пользователей и системных событий. Подробнее см. [`backend/audit/README.md`](backend/audit/README.md) и раздел [«Audit» технологического стека](docs/tech-stack.md#audit).
 

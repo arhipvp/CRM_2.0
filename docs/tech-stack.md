@@ -108,7 +108,7 @@ Telegram-бот
 
 Управление состоянием: React Query для работы с асинхронными данными Gateway/BFF, Zustand для локального UI-состояния и кэширования пользовательских настроек, Context API для тем и параметров локализации.
 
-Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); в первой поставке фронтенд открывает только три SSE-канала — сделки (`deals`), платежи (`payments`) и внутренние уведомления (`notifications`). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_PAYMENTS_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`). Значения по умолчанию в [`env.example`](../env.example) указывают на документированные маршруты Gateway — `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`, `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/payments` и `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/notifications` соответственно. Поток платежей дополнительно инициирует инвалидацию React Query и формирует тосты о статусах (`created`, `status_changed`, `overdue`), что позволяет таблице платежей и уведомлениям синхронно обновляться. Для окружения разработки (`dev`) фронтенд использует `http://localhost`, тогда как значения для stage/prod поступают из Kubernetes overlay (`infra/k8s/overlays`) и резолвятся в актуальные доменные имена. Внутренний upstream для CRM продолжает обозначаться как `crm`, однако публичный маршрут и фронтенд-конфигурация используют имя `deals` для единообразия. Отдельный поток задач появится после расширения сценариев напоминаний; в текущем релизе соединение с Tasks не открывается. Значения для окружений stage/prod подставляются через Kubernetes overlay, поэтому при переключении окружения обновлять `.env` вручную не требуется.
+Взаимодействие с Gateway/BFF: REST-запросы через обёртку вокруг `fetch` с автоматическим проставлением токена сессии (httpOnly cookie); в первой поставке фронтенд открывает только три SSE-канала — сделки (`deals`), платежи (`payments`) и внутренние уведомления (`notifications`). Все вызовы проходят через `/api` шлюз, домен и адреса стриминговых каналов задаются переменными окружения (`NEXT_PUBLIC_CRM_SSE_URL`, `NEXT_PUBLIC_PAYMENTS_SSE_URL`, `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL`). Значения по умолчанию в [`env.example`](../env.example) указывают на документированные маршруты Gateway в Docker-сети — `http://gateway:8080/api/v1/streams/deals`, `http://gateway:8080/api/v1/streams/payments` и `http://gateway:8080/api/v1/streams/notifications`. При запуске фронтенда вне Docker переопределите их на `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/...`, чтобы браузер обращался к шлюзу на хостовой машине. Поток платежей дополнительно инициирует инвалидацию React Query и формирует тосты о статусах (`created`, `status_changed`, `overdue`), что позволяет таблице платежей и уведомлениям синхронно обновляться. Для окружения разработки (`dev`) фронтенд использует `http://localhost`, тогда как значения для stage/prod поступают из Kubernetes overlay (`infra/k8s/overlays`) и резолвятся в актуальные доменные имена. Внутренний upstream для CRM продолжает обозначаться как `crm`, однако публичный маршрут и фронтенд-конфигурация используют имя `deals` для единообразия. Отдельный поток задач появится после расширения сценариев напоминаний; в текущем релизе соединение с Tasks не открывается. Значения для окружений stage/prod подставляются через Kubernetes overlay, поэтому при переключении окружения обновлять `.env` вручную не требуется.
 
 Тестирование: unit и компонентные тесты на Vitest + React Testing Library, визуальные снапшоты Storybook Chromatic, end-to-end сценарии в Playwright. Для всех команд зафиксирован менеджер пакетов `pnpm` версии 9 через Corepack. Smoke-тесты фронтенда запускаются после деплоя вместе с контрактными тестами Gateway/BFF.
 
@@ -137,7 +137,7 @@ Redis для сессий и кеша
 
 Service Discovery через Consul
 
-@nestjs/platform-sse для серверных событий и `eventsource-parser`/RxJS для ретрансляции потоков SSE
+SSE реализованы через декоратор `@Sse()` из `@nestjs/common` и `eventsource-parser`/RxJS для ретрансляции потоков
 
 Тестирование и деплой:
 
@@ -247,86 +247,84 @@ JUnit5 + Testcontainers для PostgreSQL и RabbitMQ
 
 Documents
 
-Язык: TypeScript (Node.js)
+Язык: TypeScript (Node.js 20 LTS)
 
-Фреймворк: NestJS + @googleapis/drive SDK
+Фреймворк: NestJS 10 (`@nestjs/config`, `@nestjs/typeorm`, `@nestjs/bullmq`) и официальный SDK `googleapis` для Drive.
 
-БД и очереди: TypeORM (PostgreSQL), BullMQ (Redis)
+БД и очереди: TypeORM (PostgreSQL, схема `documents`), BullMQ (Redis), очередь `documents:tasks` с заданиями `documents.upload` и `documents.sync`.
 
-API: REST + Webhook
+API: REST (CRUD метаданных, health-check), отдельный воркер BullMQ.
 
 Зависимости:
 
-PostgreSQL-схема documents
+PostgreSQL-схема `documents` (не забудьте включить `pgcrypto` для `gen_random_uuid()`).
 
-Redis кластер для синхронизации
+Redis (`DOCUMENTS_REDIS_URL`, `DOCUMENTS_REDIS_PREFIX`).
 
-Очереди BullMQ обслуживаются тем же высокодоступным Redis, что и Celery; требования к отказоустойчивости и мониторингу см. в разделе «Брокеры сообщений и кэши».
+Service account Google Drive (`GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`) либо локальный эмулятор (`GOOGLE_DRIVE_EMULATOR_URL`, `GOOGLE_DRIVE_EMULATOR_ROOT`).
 
-Общие сервисные аккаунты Google Drive
+Переменные `DOCUMENTS_QUEUE_NAME` и `DOCUMENTS_RUN_MIGRATIONS` управляют именем очереди BullMQ и автозапуском миграций TypeORM.
 
 Тестирование и деплой:
 
-Интеграционные тесты с песочницей Drive
-
-Проверка квот API, миграции TypeORM
+E2E-тесты NestJS, smoke-запуск воркера; миграции применяются командой `pnpm typeorm migration:run -d typeorm.config.ts`.
 
 Tasks и Notifications могут развёртываться в одной инфраструктурной связке (общий репозиторий, пайплайн, shared-модули NestJS),
 но остаются отдельными сервисами с собственными схемами БД и очередями. Ниже приведены их стек и зависимости.
 
 Tasks
 
-Первая поставка ограничивается ручным созданием и назначением задач без SLA-таймеров, повторяющихся задач и cron-триггеров; эти возможности запланированы на [Этап 1.1](delivery-plan.md#2-приоритизация-последующих-этаов).
+Поставляемая версия реализует REST-API, хранение задач в PostgreSQL и отложенные напоминания через Redis. Воркеры активируют задачи по расписанию, публикуя события в RabbitMQ; SLA и повторяющиеся сценарии остаются в плане [Этапа 1.1](delivery-plan.md#2-приоритизация-последующих-этаов).
 
 Язык: TypeScript (Node.js LTS)
 
-Фреймворк: NestJS (@nestjs/schedule, CQRS-модули для команд и событий)
+Фреймворк: NestJS (ConfigModule, @nestjs/schedule, CQRS-модуль и @nestjs/microservices для RabbitMQ)
 
-БД и очереди: TypeORM (PostgreSQL, схема `tasks`), @golevelup/nestjs-rabbitmq (RabbitMQ), BullMQ (Redis) для отложенных задач SLA (активируются с Этапа 1.1)
+БД и очереди: TypeORM (PostgreSQL, схема `tasks`), RabbitMQ transport NestJS, Redis (ioredis) для отложенной очереди
 
-API: REST (управление задачами) + внутренние webhook-и для уведомлений и подтверждений (поддержка SLA и повторов появится после Этапа 1.1)
+API: REST (`/api/tasks`) и фоновые воркеры (`pnpm worker`, включают `TASKS_WORKER_ENABLED`)
 
 Зависимости:
 
 PostgreSQL-схема tasks
 
-RabbitMQ очереди `tasks.command` и `tasks.events` (подписка на `payments.events.*`, `crm.deal.*`)
+Очередь RabbitMQ `tasks.events` для публикации событий задач (подписка на доменные события Payments/CRM запланирована отдельно)
 
-Redis (ioredis) для краткоживущих таймеров и блокировок повторного запуска
+Redis (sorted set `TASKS_DELAYED_QUEUE_KEY`) для хранения таймеров
 
-Notifications API для триггеров напоминаний
+Notifications API и CRM/Payments используют RabbitMQ события задач для синхронизации (подписчики подключаются через общую шину)
 
 Тестирование и деплой:
 
-Jest + supertest, потребительские контракты RabbitMQ, e2e-сценарии с Testcontainers
+Jest + supertest (при появлении тестов в репозитории), smoke-check REST и воркера в bootstrap
 
-TypeORM миграции, canary-релизы с прогревом очередей
+TypeORM миграции, запуск сидов статусов через `pnpm seed:statuses`
 
 Notifications
 
 Язык: TypeScript (Node.js LTS)
 
-Фреймворк: NestJS (@nestjs/platform-sse, @nestjs/event-emitter)
+Фреймворк: NestJS (@nestjs/platform-express, @nestjs/config, @golevelup/nestjs-rabbitmq)
 
-БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ)
+БД и очереди: TypeORM (PostgreSQL, схема `notifications`), @golevelup/nestjs-rabbitmq (RabbitMQ), @liaoliaots/nestjs-redis (Redis)
 
-API: REST + SSE (однонаправленные каналы уведомлений), публикация уведомлений в RabbitMQ и webhook-и в Gateway/Telegram
+API: REST (`POST /notifications/events` для ручных публикаций) + SSE (`GET /notifications/stream`), подписчик очереди `notifications.events`, рассылка в Telegram через Bot API с поддержкой mock-режима
 
 Зависимости:
 
-PostgreSQL-схема notifications
+PostgreSQL-схема notifications (таблица `notification_events` для аудита доставок)
 
-RabbitMQ exchange `notifications.events`, очереди для Telegram-бота и внутреннего SSE-канала CRM
+RabbitMQ exchange `notifications.events` + очередь `notifications.events` с настройкой durability и routing key `notifications.*`
 
-Redis (ioredis) для rate limiting и хранения одноразовых токенов подтверждения
+Redis namespace `notifications:` для stateful-компонентов (повторные подключения SSE, throttling Telegram)
 
-Gateway для маршрутизации внешних webhook-ов Telegram, Tasks для статусов напоминаний
+Gateway маршрутизирует внешние webhook-и Telegram; Tasks и Payments публикуют события, на которые подписывается сервис
 
 Тестирование и деплой:
 
-Jest + Pact (контракты на очереди и webhook-и), нагрузочные тесты SSE-каналов
+TypeORM миграции, smoke-тесты SSE-канала, потребительские проверки очередей RabbitMQ
 
-TypeORM миграции, canary-релизы с мониторингом доставки сообщений
+Отдельные процессы для HTTP (`pnpm start:dev`) и воркеров (`pnpm start:workers`), canary-релизы с мониторингом доставки сообщений
 
 Telegram Bot
 
@@ -381,6 +379,30 @@ API: REST endpoints для внутренних подписчиков; собы
 * Интеграционные тесты на JUnit5 + Testcontainers (PostgreSQL, RabbitMQ);
 * Развёртывание через Kubernetes StatefulSet с подстроенными ресурсными квотами, rolling update с прогревом кэша справочников;
 * Конфигурация очередей описывается в Helm-чарте и синхронизируется Argo CD; миграции схемы управляются через Liquibase в CI/CD.
+
+Reports
+
+Язык: Python 3.11
+
+Фреймворк: FastAPI + SQLAlchemy 2.0 (async)
+
+БД и источники: PostgreSQL (материализованные представления в схеме `reports`, чтение агрегатов `crm` и `audit`), asyncpg
+
+API: REST (`/api/v1/aggregates/**`), health-check `/health`
+
+Зависимости:
+
+PostgreSQL-схема reports и доступ на чтение к таблицам/представлениям CRM и Audit
+
+Материализованное представление `deal_pipeline_summary`, поддерживаемое SQL-миграциями и CLI `reports-refresh-views`
+
+Gateway подключит публичные маршруты отчётности (в планах интеграции)
+
+Тестирование и деплой:
+
+Pytest + HTTPX (юнит и contract-тесты REST API)
+
+Poetry-скрипты (`reports-api`, `reports-refresh-views`); миграции — SQL-файлы в `backend/reports/migrations`
 
 <a id="backup"></a>Backup
 

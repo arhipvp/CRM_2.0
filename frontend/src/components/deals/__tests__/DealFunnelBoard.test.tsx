@@ -127,11 +127,27 @@ vi.mock("@/stores/uiStore", async () => {
 import { apiClient } from "@/lib/api/client";
 import * as apiHooks from "@/lib/api/hooks";
 import { dealQueryOptions, dealsQueryOptions } from "@/lib/api/queries";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { act, screen } from "@testing-library/react";
+import { dealsQueryOptions } from "@/lib/api/queries";
 import { dealsMock } from "@/mocks/data";
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
 import { useUiStore } from "@/stores/uiStore";
 import { Deal, DealStage } from "@/types/crm";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
+import { useUiStore } from "@/stores/uiStore";
+
+vi.mock("@/lib/api/hooks", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/hooks")>("@/lib/api/hooks");
+
+  return {
+    ...actual,
+    useUpdateDealStage: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
 
 let resetMockUiStore: (() => void) | undefined;
 
@@ -154,6 +170,21 @@ afterEach(() => {
 });
 
 describe("DealFunnelBoard", () => {
+  beforeAll(() => {
+    act(() => {
+      useUiStore.setState({
+        isHintDismissed: () => true,
+        dismissHint: () => undefined,
+      });
+    });
+  });
+
+  afterEach(() => {
+    act(() => {
+      useUiStore.setState({ selectedDealIds: [] });
+    });
+  });
+
   it("отображает сделки по стадиям", async () => {
     const client = createTestQueryClient();
     client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
@@ -355,5 +386,20 @@ describe("DealFunnelBoard", () => {
     ).toBeInTheDocument();
 
     useUpdateDealStageSpy.mockRestore();
+  it("показывает панель массовых действий при выборе сделок", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+
+    renderWithQueryClient(<DealFunnelBoard />, client);
+
+    expect(await screen.findByText("Квалификация"));
+
+    act(() => {
+      const defaultSelection = dealsMock.slice(0, 2).map((deal) => deal.id);
+      useUiStore.setState({ selectedDealIds: defaultSelection });
+    });
+
+    expect(await screen.findByRole("button", { name: "Назначить менеджера" })).toBeInTheDocument();
+    expect(screen.getByText(/карточк/)).toBeInTheDocument();
   });
 });

@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: payments-service
+  main:
+    web-application-type: reactive
+  flyway:
+    enabled: true
+    default-schema: payments
+    locations: classpath:db/migration
+  rabbitmq:
+    uri: ${PAYMENTS_RABBITMQ_URL:}
+  cloud:
+    function:
+      definition: paymentEventsConsumer
+    stream:
+      defaultBinder: rabbit
+      bindings:
+        paymentEventsConsumer-in-0:
+          destination: payments.events
+          group: payments-service
+          contentType: application/json
+        paymentEvents-out-0:
+          destination: payments.events
+          contentType: application/json
+      rabbit:
+        bindings:
+          paymentEventsConsumer-in-0:
+            consumer:
+              autoBindDlq: true
+              deadLetterQueueName: payments.events.dlq
+              republishToDlq: true
+server:
+  port: ${PAYMENTS_SERVICE_PORT:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

@@ -17,10 +17,14 @@ import {
   paymentsQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import { Deal, DealFilters, DealStage } from "@/types/crm";
+import type { DealFilters } from "@/types/crm";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
+}
+
+export function useDealStageMetrics(filters?: DealFilters) {
+  return useQuery(dealStageMetricsQueryOptions(filters));
 }
 
 export function useDeal(dealId: string) {
@@ -113,6 +117,19 @@ interface UpdateDealStageContext {
   previousDeals: Array<[QueryKey, Deal[] | Deal | undefined]>;
   previousDeal?: Deal;
 }
+type UpdateDealStageVariables = {
+  dealId: string;
+  stage: DealStage;
+  optimisticUpdate?: (deal: Deal) => Deal;
+};
+
+type UpdateDealStageContext = {
+  previousDeals: Array<{
+    queryKey: readonly unknown[];
+    data: Deal[] | undefined;
+  }>;
+  previousDeal?: Deal;
+};
 
 export function useUpdateDealStage() {
   const queryClient = useQueryClient();
@@ -152,6 +169,49 @@ export function useUpdateDealStage() {
       return { previousDeals, previousDeal } satisfies UpdateDealStageContext;
     },
     onError: (_error, variables, context) => {
+  return useMutation<Deal, unknown, UpdateDealStageVariables, UpdateDealStageContext>({
+    mutationKey: ["update-deal-stage"],
+    mutationFn: ({ dealId, stage }) => apiClient.updateDeal(dealId, { stage }),
+    onMutate: async ({ dealId, optimisticUpdate, stage }) => {
+      await queryClient.cancelQueries({ queryKey: ["deals"] });
+      await queryClient.cancelQueries({ queryKey: dealQueryOptions(dealId).queryKey });
+
+      const dealsQueries = queryClient.getQueryCache().findAll({ queryKey: ["deals"] });
+      const previousDeals = dealsQueries.map((query) => ({
+        queryKey: query.queryKey,
+        data: query.state.data as Deal[] | undefined,
+      }));
+
+      const dealQueryKey = dealQueryOptions(dealId).queryKey;
+      const previousDeal = queryClient.getQueryData<Deal>(dealQueryKey);
+
+      const applyOptimisticUpdate = (deal: Deal): Deal => {
+        if (optimisticUpdate) {
+          return optimisticUpdate(deal);
+        }
+
+        return { ...deal, stage };
+      };
+
+      for (const query of dealsQueries) {
+        queryClient.setQueryData<Deal[]>(query.queryKey, (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return current.map((deal) =>
+            deal.id === dealId ? applyOptimisticUpdate(deal) : deal,
+          );
+        });
+      }
+
+      queryClient.setQueryData<Deal | undefined>(dealQueryKey, (current) =>
+        current ? applyOptimisticUpdate(current) : current,
+      );
+
+      return { previousDeals, previousDeal } satisfies UpdateDealStageContext;
+    },
+    onError: (_error, { dealId }, context) => {
       if (!context) {
         return;
       }
@@ -183,6 +243,16 @@ export function useUpdateDealStage() {
         queryClient.invalidateQueries({ queryKey: ["deals"] }),
         queryClient.invalidateQueries({ queryKey: ["deal", variables.dealId] }),
       ]);
+      for (const { queryKey, data } of context.previousDeals) {
+        queryClient.setQueryData(queryKey, data);
+      }
+
+      const dealQueryKey = dealQueryOptions(dealId).queryKey;
+      queryClient.setQueryData(dealQueryKey, context.previousDeal);
+    },
+    onSettled: async (_data, _error, { dealId }) => {
+      await queryClient.invalidateQueries({ queryKey: ["deals"] });
+      await queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey });
     },
   });
 }

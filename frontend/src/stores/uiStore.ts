@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createRandomId } from "@/lib/utils/id";
-import { DealPeriodFilter } from "@/types/crm";
+import type { DealFilters, DealPeriodFilter } from "@/types/crm";
 
 export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
 
@@ -30,11 +30,37 @@ export interface PaymentEventEffect {
   highlightDealId?: string;
 }
 
-interface FiltersState {
-  stage: PipelineStageKey | "all";
-  managers: string[];
-  period: DealPeriodFilter;
-  search: string;
+type FiltersState = Required<Pick<DealFilters, "stage" | "managers" | "period" | "search">>;
+
+const DEFAULT_FILTERS: FiltersState = {
+  stage: "all",
+  managers: [],
+  period: "30d",
+  search: "",
+};
+
+function cloneDefaultFilters(): FiltersState {
+  return {
+    ...DEFAULT_FILTERS,
+    managers: [...DEFAULT_FILTERS.managers],
+  };
+}
+
+function normalizeManagers(managers: string[]): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const manager of managers) {
+    const trimmed = manager.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
 }
 
 interface UiState {
@@ -45,6 +71,7 @@ interface UiState {
   previewDealId?: string;
   notifications: NotificationItem[];
   dealUpdates: Record<string, string>;
+  dismissedHints: Record<string, boolean>;
   setSelectedStage: (stage: PipelineStageKey | "all") => void;
   setManagersFilter: (managers: string[]) => void;
   toggleManagerFilter: (manager: string) => void;
@@ -67,17 +94,93 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
-  filters: {
-    stage: "all",
-    managers: [],
-    period: "30d",
-    search: "",
-  },
+  filters: cloneDefaultFilters(),
   viewMode: "kanban",
   selectedDealIds: [],
   notifications: [],
   dealUpdates: {},
-  setSelectedStage: (stage) => set({ selectedStage: stage }),
+  dismissedHints: {},
+  setSelectedStage: (stage) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        stage,
+      },
+    })),
+  setManagersFilter: (managers) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        managers: normalizeManagers(managers),
+      },
+    })),
+  toggleManagerFilter: (manager) =>
+    set((state) => {
+      const normalizedManager = manager.trim();
+      if (!normalizedManager) {
+        return { filters: { ...state.filters } };
+      }
+
+      const hasManager = state.filters.managers.includes(normalizedManager);
+      const managers = hasManager
+        ? state.filters.managers.filter((item) => item !== normalizedManager)
+        : [...state.filters.managers, normalizedManager];
+
+      return {
+        filters: {
+          ...state.filters,
+          managers,
+        },
+      };
+    }),
+  setPeriodFilter: (period) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        period,
+      },
+    })),
+  setSearchFilter: (value) =>
+    set((state) => ({
+      filters: {
+        ...state.filters,
+        search: value,
+      },
+    })),
+  clearFilters: () =>
+    set(() => ({
+      filters: cloneDefaultFilters(),
+      selectedDealIds: [],
+    })),
+  setViewMode: (mode) => set({ viewMode: mode }),
+  toggleDealSelection: (dealId) =>
+    set((state) => {
+      const isSelected = state.selectedDealIds.includes(dealId);
+      const selectedDealIds = isSelected
+        ? state.selectedDealIds.filter((id) => id !== dealId)
+        : [...state.selectedDealIds, dealId];
+
+      return { selectedDealIds };
+    }),
+  selectDeals: (dealIds) =>
+    set((state) => {
+      const selected = new Set(state.selectedDealIds);
+      for (const id of dealIds) {
+        selected.add(id);
+      }
+
+      return { selectedDealIds: Array.from(selected) };
+    }),
+  clearSelection: () => set({ selectedDealIds: [] }),
+  openDealPreview: (dealId) => set({ previewDealId: dealId ?? undefined }),
+  isHintDismissed: (key) => Boolean(get().dismissedHints[key]),
+  dismissHint: (key) =>
+    set((state) => ({
+      dismissedHints: {
+        ...state.dismissedHints,
+        [key]: true,
+      },
+    })),
   highlightDeal: (dealId) => set({ highlightedDealId: dealId ?? undefined }),
   pushNotification: (notification) =>
     set((state) => ({

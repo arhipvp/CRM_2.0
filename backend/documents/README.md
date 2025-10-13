@@ -1,45 +1,88 @@
 # Documents Service
 
-## Назначение
-Documents управляет метаданными файлов, синхронизацией с Google Drive и очередями обработки документов, предоставляя REST API и вебхуки для других сервисов.【F:docs/architecture.md†L15-L18】【F:docs/tech-stack.md†L232-L256】
+Сервис управляет метаданными клиентских документов, очередями загрузки и синхронизации с Google Drive и предоставляет REST API
+для других доменов CRM.【F:docs/architecture.md†L15-L18】
+
+## Основные возможности
+- CRUD API по метаданным документов (`/documents`).
+- Фоновые задачи BullMQ для загрузки (`documents.upload`) и синхронизации (`documents.sync`) файлов.
+- Интеграция с Google Drive через сервисный аккаунт либо локальный эмулятор (MinIO/LocalStack).
+- TypeORM миграции схемы `documents` и изолированное подключение к PostgreSQL.
 
 ## Требования к окружению
-- Node.js LTS (18+) с поддержкой NestJS и TypeScript, менеджер пакетов pnpm или npm.【F:docs/tech-stack.md†L232-L240】
-- PostgreSQL (схема `documents`), Redis/BullMQ для фоновых задач и доступ к сервисному аккаунту Google Drive.【F:docs/tech-stack.md†L238-L250】
-- Переменные окружения `DOCUMENTS_SERVICE_PORT`, `DOCUMENTS_DATABASE_URL`, `DOCUMENTS_REDIS_URL`, `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, `GOOGLE_DRIVE_SHARED_DRIVE_ID` и другие, описанные в [`env.example`](../../env.example).
+- Node.js 20 LTS, pnpm 9+ (`corepack prepare pnpm@9 --activate`).
+- PostgreSQL (схема `documents`) с включённой функцией `gen_random_uuid()` (`CREATE EXTENSION IF NOT EXISTS pgcrypto`).
+- Redis 6+ для очередей BullMQ.
+- Сервисный аккаунт Google Drive **или** локальный эмулятор, описанный в [`docs/local-setup.md`](../../docs/local-setup.md#интеграции).
 
-## Локальный запуск
-> **TODO:** развернуть проект NestJS через `@nestjs/cli`, добавить модули TypeORM и BullMQ, настроить pnpm-скрипты (`start:dev`, `start:worker`), интеграцию с Google Drive и загрузку секретов сервисного аккаунта.
+Минимальный набор переменных окружения описан в [`env.example`](../../env.example) и валидируется при старте.
 
-## Миграции и скрипты
-- Каталог [`migrations`](migrations/) предназначен для TypeORM миграций (SQL/TS).
-- Для фоновых воркеров BullMQ используйте отдельную команду `pnpm start:worker` (добавьте в `package.json` вместе с реализацией).
-- ⚠️ Миграции ещё не созданы и будут добавлены вместе с исходным кодом сервиса.
+## Установка зависимостей
+```bash
+cd backend/documents
+pnpm install
+```
 
-## Запуск в Docker
-1. Соберите образ (пример команды для стандартного Dockerfile NestJS):
-   ```bash
-   docker build -t documents-service:local -f docker/Dockerfile.documents .
-   ```
-2. Запустите контейнер, подключив переменные окружения и том с сервисным аккаунтом Google:
-   ```bash
-   docker run --rm -p ${DOCUMENTS_SERVICE_PORT:-8084}:8084 \
-     --env-file ../../env.example \
-     -v $PWD/credentials:/app/credentials:ro \
-     documents-service:local
-   ```
+## Команды
+| Команда | Назначение |
+| --- | --- |
+| `pnpm start:dev` | Запуск REST API с hot-reload на `http://localhost:${DOCUMENTS_SERVICE_PORT}`. |
+| `pnpm start` | Запуск API без watch. |
+| `pnpm start:worker` | Отдельный воркер BullMQ (обрабатывает очереди загрузки/синхронизации). |
+| `pnpm build` | Сборка в `dist/`. |
+| `pnpm test:e2e` | E2E-тестирование `/health`. |
 
-## Полезные ссылки
-- Архитектурный обзор домена документов: [`docs/architecture.md`](../../docs/architecture.md#1-общая-структура-сервисов).【F:docs/architecture.md†L15-L18】
-- Технологический стек и интеграции Google Drive: [`docs/tech-stack.md`](../../docs/tech-stack.md#documents).【F:docs/tech-stack.md†L232-L250】
-# Documents service
+> В development-режиме API и воркер можно запускать параллельно (`pnpm start:dev` + `pnpm start:worker:dev`).
 
-Сервис управляет метаданными файлов и взаимодействует с Google Drive.
+## Конфигурация
+| Переменная | Назначение |
+| --- | --- |
+| `DOCUMENTS_DATABASE_URL` | Подключение к PostgreSQL со схемой `documents`. |
+| `DOCUMENTS_DATABASE_SCHEMA` | Имя схемы (по умолчанию `documents`). |
+| `DOCUMENTS_RUN_MIGRATIONS` | Автоматически применять миграции при старте (false по умолчанию). |
+| `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
+| `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
+| `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
+| `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH` | JSON сервисного аккаунта или путь к файлу. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Альтернативный путь до JSON ключа (совместимо с SDK Google). |
+| `GOOGLE_DRIVE_SHARED_DRIVE_ID` | ID Shared Drive для реальной интеграции. |
+| `GOOGLE_DRIVE_EMULATOR_URL` | URL локального эмулятора (MinIO/LocalStack). |
+| `GOOGLE_DRIVE_EMULATOR_ROOT` | Корневая папка/идентификатор каталога эмулятора. |
 
-## Локальная разработка
+Переменные `GOOGLE_DRIVE_*` могут быть пустыми в dev-режиме — тогда используется эмулятор. В stage/prod требуется валидный
+сервисный аккаунт.
 
-* Для загрузки и скачивания файлов используйте локальный эмулятор Google Drive, описанный в разделе [docs/local-setup.md#интеграции](../../docs/local-setup.md#интеграции).
-* Установите `GOOGLE_DRIVE_EMULATOR_URL` и, при необходимости, `GOOGLE_DRIVE_EMULATOR_ROOT`. При работе с боевыми песочницами очистите эти переменные и задайте реальные ключи сервисного аккаунта.
-* Для проверки прав доступа и массовых операций загружайте изменения в dev/stage среду — локальный эмулятор не поддерживает шеринги и квоты.
+## Сервисный аккаунт Google Drive
+1. Получите JSON ключ сервисного аккаунта и сохраните его в `backend/documents/credentials/service-account.json` **или** укажите
+   путь в `GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`/`GOOGLE_APPLICATION_CREDENTIALS`.
+2. Чтобы передать содержимое напрямую, используйте `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` (подходит для CI).
+3. При запуске без этих переменных модуль `DriveService` попытается использовать эмулятор (`GOOGLE_DRIVE_EMULATOR_URL`).
 
-Дополнительные сведения о структуре данных приведены в [`docs/tech-stack.md`](../../docs/tech-stack.md) и доменной документации.
+## REST API
+- `GET /health` — состояние сервиса.
+- `GET /documents` — список документов (фильтрация по статусу, пагинация через `offset`/`limit`).
+- `GET /documents/:id` — детали документа.
+- `POST /documents` — создать запись. По умолчанию добавляет задание `documents.upload`.
+- `PATCH /documents/:id` — обновить метаданные.
+- `DELETE /documents/:id` — удалить документ и метаданные.
+- `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
+- `POST /documents/:id/sync` — обновить метаданные из Drive.
+
+Список статусов: `draft`, `pending_upload`, `uploading`, `synced`, `error`.
+
+## Миграции
+TypeORM-конфигурация расположена в [`typeorm.config.ts`](./typeorm.config.ts). Базовые команды:
+```bash
+pnpm typeorm migration:run -d typeorm.config.ts
+pnpm typeorm migration:revert -d typeorm.config.ts
+```
+
+Начальная миграция `1737043200000-init-documents-table.ts` создаёт схему `documents`, перечисление статусов и таблицу `documents`.
+
+## Локальный эмулятор Google Drive
+1. Поднимите MinIO/LocalStack и укажите `GOOGLE_DRIVE_EMULATOR_URL` (пример: `http://localhost:9000`).
+2. Задайте `GOOGLE_DRIVE_EMULATOR_ROOT` (папка верхнего уровня). Файл будет создан при первой загрузке.
+3. Оставьте пустыми `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` и `GOOGLE_DRIVE_SHARED_DRIVE_ID`.
+4. Для реального Google Drive очистите переменные эмулятора и добавьте сервисный аккаунт.
+
+Дополнительные шаги и требования к сервисному аккаунту описаны в [`docs/local-setup.md`](../../docs/local-setup.md#google-drive-сервисный-аккаунт).

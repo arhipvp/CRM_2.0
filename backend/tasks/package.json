@@ -1,0 +1,61 @@
+{
+  "name": "tasks-service",
+  "version": "0.1.0",
+  "description": "Tasks microservice for CRM 2.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "rimraf dist && nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "start:workers": "nest start --watch --entryFile worker",
+    "start:workers:prod": "node dist/worker.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d ./typeorm.config.ts",
+    "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d ./typeorm.config.ts",
+    "seed:statuses": "ts-node -r tsconfig-paths/register ./src/seeds/task-statuses.seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.7",
+    "@nestjs/config": "^3.2.2",
+    "@nestjs/core": "^10.3.7",
+    "@nestjs/cqrs": "^11.0.0",
+    "@nestjs/microservices": "^10.3.7",
+    "@nestjs/platform-express": "^10.3.7",
+    "@golevelup/nestjs-rabbitmq": "^4.1.0",
+    "@nestjs-modules/ioredis": "^2.0.2",
+    "@nestjs/schedule": "^3.0.2",
+    "@nestjs/typeorm": "^10.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20",
+    "uuid": "^9.0.1",
+    "joi": "^17.12.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@nestjs/schematics": "^10.1.3",
+    "@nestjs/testing": "^10.3.7",
+    "@types/ioredis": "^5.0.0",
+    "@types/node": "^20.11.17",
+    "@types/uuid": "^9.0.7",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "packageManager": "pnpm@9.1.0"
+}
