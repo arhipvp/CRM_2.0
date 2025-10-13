@@ -3,15 +3,13 @@ import importlib
 import json
 import sys
 from contextlib import asynccontextmanager
-from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock, Mock
 from datetime import datetime, timezone
 from types import ModuleType, SimpleNamespace
+from unittest.mock import ANY, AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from aio_pika import Message
-from unittest.mock import ANY, AsyncMock
+from aio_pika import ExchangeType, Message
 
 if "crm.app.config" not in sys.modules:
     config_module = ModuleType("crm.app.config")
@@ -95,6 +93,67 @@ def test_should_dead_letter_with_invalid_count(subscriber: PaymentsEventsSubscri
     message = make_message(headers={"x-death": [{"count": "oops"}]})
 
     assert subscriber._should_dead_letter(message) is False
+
+
+@pytest.mark.asyncio()
+async def test_setup_topology_declares_expected_entities() -> None:
+    settings = sys.modules["crm.app.config"].Settings()
+    subscriber = PaymentsEventsSubscriber(settings, session_factory=None)  # type: ignore[arg-type]
+
+    payments_exchange = SimpleNamespace(name="payments-exchange")
+    events_exchange = SimpleNamespace(name="events-exchange")
+    retry_exchange = SimpleNamespace(name="retry-exchange")
+    dlx_exchange = SimpleNamespace(name="dlx-exchange")
+
+    payments_queue = SimpleNamespace(bind=AsyncMock())
+    retry_queue = SimpleNamespace(bind=AsyncMock())
+    dlx_queue = SimpleNamespace(bind=AsyncMock())
+
+    def declare_exchange_side_effect(name: str, exchange_type: ExchangeType, *, durable: bool) -> SimpleNamespace:
+        assert durable is True
+        match name:
+            case settings.payments_exchange:
+                assert exchange_type is ExchangeType.TOPIC
+                return payments_exchange
+            case settings.events_exchange:
+                assert exchange_type is ExchangeType.TOPIC
+                return events_exchange
+            case settings.payments_retry_exchange:
+                assert exchange_type is ExchangeType.DIRECT
+                return retry_exchange
+            case settings.payments_dlx_exchange:
+                assert exchange_type is ExchangeType.FANOUT
+                return dlx_exchange
+        raise AssertionError(f"Unexpected exchange declaration: {name}")
+
+    declare_queue = AsyncMock(side_effect=[payments_queue, retry_queue, dlx_queue])
+    subscriber._channel = SimpleNamespace(
+        declare_exchange=AsyncMock(side_effect=declare_exchange_side_effect),
+        declare_queue=declare_queue,
+        get_queue=AsyncMock(return_value=payments_queue),
+        bind=AsyncMock(),
+    )
+
+    await subscriber._setup_topology()
+
+    queue_call = declare_queue.await_args_list[0]
+    assert queue_call.args[0] == settings.payments_queue
+    assert queue_call.kwargs["arguments"] == {
+        "x-dead-letter-exchange": retry_exchange.name,
+        "x-dead-letter-routing-key": "retry",
+    }
+
+    retry_call = declare_queue.await_args_list[1]
+    assert retry_call.args[0] == settings.payments_retry_queue
+    assert retry_call.kwargs["arguments"] == {
+        "x-dead-letter-exchange": payments_exchange.name,
+        "x-dead-letter-routing-key": "payments.retry",
+        "x-message-ttl": settings.payments_retry_delay_ms,
+    }
+
+    payments_queue.bind.assert_awaited_once_with(payments_exchange, routing_key="payments.*")
+    retry_queue.bind.assert_awaited_once_with(retry_exchange, routing_key="retry")
+    dlx_queue.bind.assert_awaited_once_with(dlx_exchange, routing_key="dead")
 
 
 @pytest.mark.asyncio()
