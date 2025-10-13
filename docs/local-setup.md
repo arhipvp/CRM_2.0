@@ -14,9 +14,9 @@
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
 3. ожидание готовности контейнеров (`docker compose wait` или резервный цикл проверки healthcheck в `infra/`).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`.
-5. `scripts/migrate-local.sh` — миграции CRM (Alembic) и Auth (Liquibase/Gradle).
+5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Reports (SQL через `psql`).
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
-7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI.
+7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
 
 После завершения bootstrap синхронизируйте фронтендовый `.env` и, при необходимости, поднимите Next.js-контейнер:
 
@@ -57,7 +57,7 @@ docker compose --profile app up -d frontend
 | Documents | Метаданные и интеграция с Google Drive.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
 | Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
 | Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
-| Reports | Аналитика и отчёты (заглушка на текущем этапе).【F:README.md†L53-L74】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
+| Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 | Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
 | Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
 
@@ -81,6 +81,15 @@ docker compose --profile app up -d frontend
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+
+### Reports: быстрый старт
+
+- Перейдите в `backend/reports` и установите зависимости `poetry install`.
+- Выполните `../../scripts/sync-env.sh backend/reports` (при необходимости добавьте `--non-interactive`). Проверьте значения `REPORTS_DATABASE_URL`, `REPORTS_SCHEMA`, `REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA` и `REPORTS_SERVICE_PORT`.
+- Примените миграции: запустите `../../scripts/migrate-local.sh` (bootstrap делает это автоматически) или выполните `psql "$REPORTS_DATABASE_URL" -v reports_schema=${REPORTS_SCHEMA} -v crm_schema=${REPORTS_CRM_SCHEMA} -f migrations/001_create_deal_pipeline_summary.sql`.
+- Запустите API: `poetry run reports-api`.
+- Для обновления материализованных представлений запустите `poetry run reports-refresh-views`.
+- Smoke-проверка: `curl http://localhost:${REPORTS_SERVICE_PORT:-8087}/health`.
 ## CI/CD: временно только локальные проверки
 
 - GitHub Actions приостановлены: пайплайны сохранены как `.github/workflows/ci.yml.disabled` и `.github/workflows/frontend.yml.disabled`, поэтому при пуше и открытии PR задачи не запускаются. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` у нужного файла и запушьте изменение в `main`.

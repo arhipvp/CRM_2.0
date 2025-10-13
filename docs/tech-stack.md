@@ -382,6 +382,30 @@ API: REST endpoints для внутренних подписчиков; собы
 * Развёртывание через Kubernetes StatefulSet с подстроенными ресурсными квотами, rolling update с прогревом кэша справочников;
 * Конфигурация очередей описывается в Helm-чарте и синхронизируется Argo CD; миграции схемы управляются через Liquibase в CI/CD.
 
+Reports
+
+Язык: Python 3.11
+
+Фреймворк: FastAPI + SQLAlchemy 2.0 (async)
+
+БД и источники: PostgreSQL (материализованные представления в схеме `reports`, чтение агрегатов `crm` и `audit`), asyncpg
+
+API: REST (`/api/v1/aggregates/**`), health-check `/health`
+
+Зависимости:
+
+PostgreSQL-схема reports и доступ на чтение к таблицам/представлениям CRM и Audit
+
+Материализованное представление `deal_pipeline_summary`, поддерживаемое SQL-миграциями и CLI `reports-refresh-views`
+
+Gateway подключит публичные маршруты отчётности (в планах интеграции)
+
+Тестирование и деплой:
+
+Pytest + HTTPX (юнит и contract-тесты REST API)
+
+Poetry-скрипты (`reports-api`, `reports-refresh-views`); миграции — SQL-файлы в `backend/reports/migrations`
+
 <a id="backup"></a>Backup
 
 Язык: Python 3.11
