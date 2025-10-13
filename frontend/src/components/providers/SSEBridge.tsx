@@ -93,6 +93,16 @@ export function SSEBridge({
   const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
 
+  const invalidateDealQueries = useCallback(
+    (dealId: string) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+      ]),
+    [queryClient],
+  );
+
   const handleCrmMessage = useCallback(
     (event: MessageEvent<string>) => {
       const payload = parsePayload(event);
@@ -102,9 +112,7 @@ export function SSEBridge({
         highlightDeal(payload.dealId);
         markDealUpdated(payload.dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-        queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+        void invalidateDealQueries(payload.dealId);
       }
 
       if (payload.message) {
@@ -117,7 +125,7 @@ export function SSEBridge({
         });
       }
     },
-    [highlightDeal, markDealUpdated, pushNotification, queryClient],
+    [highlightDeal, invalidateDealQueries, markDealUpdated, pushNotification],
   );
 
   const handleCrmError = useCallback((event: Event) => {
@@ -151,14 +159,14 @@ export function SSEBridge({
         highlightDeal(effect.highlightDealId);
         markDealUpdated(effect.highlightDealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        queryClient.invalidateQueries({ queryKey: dealQueryOptions(effect.highlightDealId).queryKey });
+        void invalidateDealQueries(effect.highlightDealId);
       }
 
       if (effect.shouldRefetch) {
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
       }
     },
-    [handlePaymentEvent, highlightDeal, markDealUpdated, queryClient],
+    [handlePaymentEvent, highlightDeal, invalidateDealQueries, markDealUpdated, queryClient],
   );
 
   const handlePaymentsError = useCallback((event: Event) => {
