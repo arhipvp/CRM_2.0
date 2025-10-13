@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import {
   dealActivityQueryOptions,
@@ -17,10 +17,14 @@ import {
   paymentsQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import { Deal, DealFilters, DealStage } from "@/types/crm";
+import type { DealFilters } from "@/types/crm";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
+}
+
+export function useDealStageMetrics(filters?: DealFilters) {
+  return useQuery(dealStageMetricsQueryOptions(filters));
 }
 
 export function useDeal(dealId: string) {

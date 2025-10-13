@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
-import { DealStageMetrics } from "@/types/crm";
-import { DealPeriodFilter } from "@/types/crm";
+import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
 const stageLabels: Record<PipelineStageKey, string> = {

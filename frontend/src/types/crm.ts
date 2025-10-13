@@ -1,5 +1,22 @@
 export type DealStage = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
 
+export type DealPeriodFilter = "7d" | "30d" | "90d" | "all";
+
+export interface DealFilters {
+  stage?: DealStage | "all";
+  managers?: string[];
+  period?: DealPeriodFilter;
+  search?: string;
+}
+
+export interface DealStageMetrics {
+  stage: DealStage;
+  count: number;
+  totalValue: number;
+  conversionRate: number;
+  avgCycleDurationDays: number | null;
+}
+
 export interface DealNote {
   id: string;
   dealId: string;

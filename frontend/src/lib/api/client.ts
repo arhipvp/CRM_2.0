@@ -7,12 +7,16 @@ import {
   paymentsMock,
   tasksMock,
 } from "@/mocks/data";
-import {
+import type {
   ActivityLogEntry,
   Client,
   Deal,
   DealDocument,
+  DealFilters,
   DealNote,
+  DealPeriodFilter,
+  DealStage,
+  DealStageMetrics,
   Payment,
   Task,
 } from "@/types/crm";
@@ -259,6 +263,15 @@ export class ApiClient {
     return this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
   }
 
+  getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
+    const query = this.buildQueryString(filters);
+    return this.request(
+      `/crm/deals/stage-metrics${query}`,
+      undefined,
+      async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
+    );
+  }
+
   getDeal(id: string): Promise<Deal> {
     return this.request(`/crm/deals/${id}`, undefined, async () => {
       const deal = dealsMock.find((item) => item.id === id);
@@ -419,6 +432,17 @@ export class ApiClient {
 
         return this.getDeal(dealId);
       },
+    );
+  }
+
+  updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
+    return this.request(
+      `/crm/deals/${dealId}/stage`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ stage }),
+      },
+      async () => updateDealStageMock(dealId, stage),
     );
   }
 
