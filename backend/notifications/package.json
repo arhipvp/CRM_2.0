@@ -19,7 +19,10 @@
     "typeorm": "typeorm-ts-node-commonjs --dataSource typeorm.config.ts",
     "migrations:run": "pnpm run typeorm migration:run",
     "migrations:revert": "pnpm run typeorm migration:revert",
-    "migrations:generate": "pnpm run typeorm migration:generate -d typeorm.config.ts"
+    "migrations:generate": "pnpm run typeorm migration:generate -d typeorm.config.ts",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --runInBand --coverage"
   },
   "dependencies": {
     "@golevelup/nestjs-rabbitmq": "5.7.0",
@@ -31,20 +34,27 @@
     "@nestjs/typeorm": "^10.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
+    "dotenv": "^16.3.1",
     "joi": "^17.10.0",
     "pg": "^8.11.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "typeorm": "^0.3.20",
-    "dotenv": "^16.3.1"
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.0",
     "@nestjs/schematics": "^10.0.0",
+    "@nestjs/testing": "^10.4.20",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
+    "sql.js": "^1.13.0",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.0",
-    "typeorm-ts-node-commonjs": "0.3.20"
+    "typeorm-ts-node-commonjs": "0.3.20",
+    "typescript": "^5.3.0"
   }
 }

@@ -17,14 +17,26 @@ Notifications доставляет события и уведомления во
    - `GET /api/notifications/health` — проверка готовности сервиса.
    - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
    - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
+   - `POST /api/v1/notifications` — постановка уведомления в очередь с идемпотентностью по `deduplication_key`.
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
 4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
+
+## HTTP API
+| Метод | Маршрут | Описание |
+| --- | --- | --- |
+| POST | `/api/v1/notifications` | Создание уведомления, запись в таблицу `notifications`, публикация в RabbitMQ (`notifications.created`) и Redis (`notifications:events`). Возвращает `202` и `notification_id`. Повторы с `deduplication_key` завершаются `409 duplicate_notification`. |
+| GET | `/api/notifications/stream` | SSE-стрим событий (ключ/плейлоад). |
+| POST | `/api/notifications/events` | Ручной вызов текущего обработчика событий (аналог сообщения из очереди). |
 
 ## Миграции и фоновые процессы
 - TypeORM конфигурация размещена в [`typeorm.config.ts`](typeorm.config.ts); миграции — в каталоге [`migrations`](migrations/).
 - Запуск миграций: `pnpm run migrations:run` (bootstrap вызывает команду автоматически через [`scripts/migrate-local.sh`](../../scripts/migrate-local.sh)).
 - Генерация новых миграций: `pnpm run migrations:generate -- <имя>` — файл появится в `migrations/`.
 - Для сборки артефактов используйте `pnpm run build:all` (собирает API и воркер). После релиза убедитесь, что HTTP-приложение (`pnpm start:api`) и воркеры (`pnpm start:workers`) запускаются как отдельные процессы и масштабируются независимо.
+
+## Тестирование
+- `pnpm test` — unit + e2e (sqlite in-memory, мок RabbitMQ/Redis).
+- `pnpm test:ci` — запуск тестов с покрытием.
 
 ## Запуск в Docker
 1. Соберите образ:

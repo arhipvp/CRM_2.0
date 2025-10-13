@@ -16,6 +16,7 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_RABBITMQ_EXCHANGE: Joi.string().default('notifications.exchange'),
   NOTIFICATIONS_RABBITMQ_QUEUE: Joi.string().default('notifications.events'),
   NOTIFICATIONS_RABBITMQ_ROUTING_KEY: Joi.string().default('notifications.*'),
+  NOTIFICATIONS_RABBITMQ_OUTGOING_ROUTING_KEY: Joi.string().default('notifications.created'),
   NOTIFICATIONS_RABBITMQ_QUEUE_DURABLE: Joi.boolean().default(true),
 
   NOTIFICATIONS_REDIS_HOST: Joi.string().default('localhost'),
@@ -24,11 +25,15 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_REDIS_PASSWORD: Joi.string().allow('').optional(),
   NOTIFICATIONS_REDIS_DB: Joi.number().integer().min(0).default(0),
   NOTIFICATIONS_REDIS_PREFIX: Joi.string().default('notifications:'),
+  NOTIFICATIONS_REDIS_NOTIFICATIONS_CHANNEL: Joi.string().default('notifications:events'),
 
   NOTIFICATIONS_TELEGRAM_ENABLED: Joi.boolean().default(false),
   NOTIFICATIONS_TELEGRAM_MOCK: Joi.boolean().default(true),
   NOTIFICATIONS_TELEGRAM_BOT_TOKEN: Joi.string().allow('', null).default(null),
   NOTIFICATIONS_TELEGRAM_CHAT_ID: Joi.string().allow('', null).default(null),
 
-  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000)
+  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000),
+
+  NOTIFICATIONS_DELIVERY_MAX_ATTEMPTS: Joi.number().integer().min(1).default(3),
+  NOTIFICATIONS_DELIVERY_RETRY_DELAY_MS: Joi.number().integer().min(0).default(30000)
 });

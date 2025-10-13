@@ -53,6 +53,7 @@ export interface NotificationsConfiguration {
     exchange: string;
     queue: string;
     routingKey: string;
+    outgoingRoutingKey: string;
     queueOptions: {
       durable: boolean;
     };
@@ -64,6 +65,7 @@ export interface NotificationsConfiguration {
     password?: string;
     db: number;
     keyPrefix: string;
+    notificationsChannel: string;
   };
   telegram: {
     enabled: boolean;
@@ -73,6 +75,10 @@ export interface NotificationsConfiguration {
   };
   sse: {
     retryInterval: number;
+  };
+  delivery: {
+    maxAttempts: number;
+    retryDelayMs: number;
   };
 }
 
@@ -101,6 +107,8 @@ export default (): NotificationsConfiguration => {
       exchange: process.env.NOTIFICATIONS_RABBITMQ_EXCHANGE ?? 'notifications.exchange',
       queue: process.env.NOTIFICATIONS_RABBITMQ_QUEUE ?? 'notifications.events',
       routingKey: process.env.NOTIFICATIONS_RABBITMQ_ROUTING_KEY ?? 'notifications.*',
+      outgoingRoutingKey:
+        process.env.NOTIFICATIONS_RABBITMQ_OUTGOING_ROUTING_KEY ?? 'notifications.created',
       queueOptions: {
         durable: toBool(process.env.NOTIFICATIONS_RABBITMQ_QUEUE_DURABLE, true)
       }
@@ -111,7 +119,9 @@ export default (): NotificationsConfiguration => {
       username: process.env.NOTIFICATIONS_REDIS_USERNAME ?? undefined,
       password: process.env.NOTIFICATIONS_REDIS_PASSWORD ?? undefined,
       db: toNumber(process.env.NOTIFICATIONS_REDIS_DB, 0),
-      keyPrefix: process.env.NOTIFICATIONS_REDIS_PREFIX ?? 'notifications:'
+      keyPrefix: process.env.NOTIFICATIONS_REDIS_PREFIX ?? 'notifications:',
+      notificationsChannel:
+        process.env.NOTIFICATIONS_REDIS_NOTIFICATIONS_CHANNEL ?? 'notifications:events'
     },
     telegram: {
       enabled: toBool(process.env.NOTIFICATIONS_TELEGRAM_ENABLED, false),
@@ -121,6 +131,10 @@ export default (): NotificationsConfiguration => {
     },
     sse: {
       retryInterval: toNumber(process.env.NOTIFICATIONS_SSE_RETRY_MS, 5000)
+    },
+    delivery: {
+      maxAttempts: toNumber(process.env.NOTIFICATIONS_DELIVERY_MAX_ATTEMPTS, 3),
+      retryDelayMs: toNumber(process.env.NOTIFICATIONS_DELIVERY_RETRY_DELAY_MS, 30000)
     }
   };
 };

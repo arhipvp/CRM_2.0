@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsConfiguration } from './config/configuration';
@@ -18,7 +18,13 @@ async function bootstrap() {
       transform: true,
       transformOptions: {
         enableImplicitConversion: true
-      }
+      },
+      exceptionFactory: (errors) =>
+        new BadRequestException({
+          code: 'validation_error',
+          message: 'Request validation failed.',
+          errors
+        })
     })
   );
 

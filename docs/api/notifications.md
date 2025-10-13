@@ -38,20 +38,42 @@
 ## Постановка уведомлений
 
 ### POST `/notifications`
-Формирует уведомление и ставит его в очередь доставки.
+Формирует уведомление, фиксирует запись в БД и публикует событие в очередь `notifications.created` и Redis-канал `notifications:events`.
 
-**Тело запроса**
+**Тело запроса** (snake_case)
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | event_key | string | Да | Ключ события, выбирает шаблон. |
-| recipients | array<object> | Да | Каждый объект содержит `user_id`, опционально `telegram_id`. |
-| channel_overrides | array<string> | Нет | Список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
-| payload | object | Да | Данные для подстановки. |
-| deduplication_key | string | Нет | Используется для идемпотентности (например, `task:uuid`). |
+| recipients | array<object> | Да | Каждый объект содержит `user_id`, опционально `telegram_id` для мгновенной отправки в Telegram. |
+| channel_overrides | array<string> | Нет | Явный список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
+| payload | object | Да | Данные для подстановки в шаблон и SSE/Telegram. |
+| deduplication_key | string | Нет | Идемпотентность постановки (например, `task:uuid`). Повтор с тем же ключом возвращает 409 без повторной отправки.
 
-**Ответ 202** — уведомление поставлено в очередь (`notification_id`).
+**Пример запроса**
+```json
+{
+  "event_key": "deal.status.changed",
+  "recipients": [
+    { "user_id": "agent-1", "telegram_id": "123456" }
+  ],
+  "payload": { "deal_id": "dea-42", "status": "won" },
+  "channel_overrides": ["telegram"],
+  "deduplication_key": "deal-42:won"
+}
+```
 
-**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplication_key`).
+**Ответ 202**
+```json
+{
+  "notification_id": "28e658e6-9a1f-455a-8a65-ef9f02d8f640"
+}
+```
+
+**Ошибки**
+| Код | Сообщение | Описание |
+| --- | --- | --- |
+| 400 | `validation_error` | Ошибка валидации тела запроса (ответ содержит массив `errors`). |
+| 409 | `duplicate_notification` | Уведомление с `deduplication_key` уже создано, возвращается исходный идентификатор. |
 
 ### GET `/notifications/{notification_id}`
 Проверка статуса доставки.
