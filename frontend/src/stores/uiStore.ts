@@ -32,6 +32,37 @@ export interface PaymentEventEffect {
 
 type FiltersState = Required<Pick<DealFilters, "stage" | "managers" | "period" | "search">>;
 
+const DEFAULT_FILTERS: FiltersState = {
+  stage: "all",
+  managers: [],
+  period: "30d",
+  search: "",
+};
+
+function cloneDefaultFilters(): FiltersState {
+  return {
+    ...DEFAULT_FILTERS,
+    managers: [...DEFAULT_FILTERS.managers],
+  };
+}
+
+function normalizeManagers(managers: string[]): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const manager of managers) {
+    const trimmed = manager.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
+}
+
 interface UiState {
   filters: FiltersState;
   viewMode: DealViewMode;
@@ -63,12 +94,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
-  filters: {
-    stage: "all",
-    managers: [],
-    period: "30d",
-    search: "",
-  },
+  filters: cloneDefaultFilters(),
   viewMode: "kanban",
   selectedDealIds: [],
   notifications: [],
@@ -85,15 +111,20 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((state) => ({
       filters: {
         ...state.filters,
-        managers: [...managers],
+        managers: normalizeManagers(managers),
       },
     })),
   toggleManagerFilter: (manager) =>
     set((state) => {
-      const hasManager = state.filters.managers.includes(manager);
+      const normalizedManager = manager.trim();
+      if (!normalizedManager) {
+        return { filters: { ...state.filters } };
+      }
+
+      const hasManager = state.filters.managers.includes(normalizedManager);
       const managers = hasManager
-        ? state.filters.managers.filter((item) => item !== manager)
-        : [...state.filters.managers, manager];
+        ? state.filters.managers.filter((item) => item !== normalizedManager)
+        : [...state.filters.managers, normalizedManager];
 
       return {
         filters: {
@@ -117,13 +148,8 @@ export const useUiStore = create<UiState>((set, get) => ({
       },
     })),
   clearFilters: () =>
-    set((state) => ({
-      filters: {
-        stage: "all",
-        managers: [],
-        period: "30d",
-        search: "",
-      },
+    set(() => ({
+      filters: cloneDefaultFilters(),
       selectedDealIds: [],
     })),
   setViewMode: (mode) => set({ viewMode: mode }),
@@ -138,8 +164,12 @@ export const useUiStore = create<UiState>((set, get) => ({
     }),
   selectDeals: (dealIds) =>
     set((state) => {
-      const uniqueIds = Array.from(new Set([...state.selectedDealIds, ...dealIds]));
-      return { selectedDealIds: uniqueIds };
+      const selected = new Set(state.selectedDealIds);
+      for (const id of dealIds) {
+        selected.add(id);
+      }
+
+      return { selectedDealIds: Array.from(selected) };
     }),
   clearSelection: () => set({ selectedDealIds: [] }),
   openDealPreview: (dealId) => set({ previewDealId: dealId ?? undefined }),
