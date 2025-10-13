@@ -122,6 +122,41 @@ async def test_start_stop_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:
     assert subscriber._closing.is_set() is False
 
 
+@pytest.mark.asyncio()
+async def test_stop_without_start_does_not_touch_uninitialized_resources() -> None:
+    settings = sys.modules["crm.app.config"].Settings()
+    subscriber = PaymentsEventsSubscriber(settings, session_factory=None)  # type: ignore[arg-type]
+
+    closing_mock = Mock()
+    closing_mock.set = Mock()
+    closing_mock.clear = Mock()
+    subscriber._closing = closing_mock  # type: ignore[assignment]
+
+    connection_mock = AsyncMock()
+    connection_mock.__bool__.return_value = False
+    connection_mock.close = AsyncMock()
+    subscriber._connection = connection_mock  # type: ignore[assignment]
+
+    channel_mock = AsyncMock()
+    channel_mock.__bool__.return_value = False
+    channel_mock.close = AsyncMock()
+    subscriber._channel = channel_mock  # type: ignore[assignment]
+
+    consume_task_mock = AsyncMock()
+    consume_task_mock.__bool__.return_value = False
+    subscriber._consume_task = consume_task_mock  # type: ignore[assignment]
+
+    await subscriber.stop()
+
+    closing_mock.set.assert_called_once_with()
+    closing_mock.clear.assert_called_once_with()
+    consume_task_mock.assert_not_awaited()
+    channel_mock.close.assert_not_awaited()
+    connection_mock.close.assert_not_awaited()
+    assert subscriber._connection is None
+    assert subscriber._channel is None
+    assert subscriber._consume_task is None
+
 def test_should_dead_letter_without_header(subscriber: PaymentsEventsSubscriber) -> None:
     message = make_message(headers=None)
 
