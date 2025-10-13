@@ -72,19 +72,29 @@
 ## Telegram webhook
 
 ### POST `/telegram/delivery`
-Принимает обратные вызовы от Telegram-бота (доставлено, прочитано).
+Принимает обратные вызовы от Telegram-бота (доставлено, ошибка). Эндпоинт доступен по адресу
+`POST https://notifications.internal/api/v1/telegram/delivery` и требует HMAC-подпись запроса.
+
+**Заголовки**
+
+| Имя | Тип | Описание |
+| --- | --- | --- |
+| `X-Telegram-Signature` | string | HMAC-SHA256 хеш тела запроса в шестнадцатеричном виде. Секрет задаётся через `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`. |
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| message_id | string | Да | Идентификатор сообщения. |
-| status | string | Да | `delivered`, `failed`. |
-| reason | string | Нет | Текст ошибки. |
-| occurred_at | datetime | Да | Время события. |
+| messageId | string | Да | Идентификатор сообщения Telegram. |
+| status | string | Да | `delivered` или `failed`. |
+| reason | string | Нет | Текст ошибки доставки. |
+| occurredAt | datetime | Да | Время события в формате ISO 8601. |
 
-**Ответ 204** — без тела.
+**Ответ 200**
+```json
+{ "status": "ok" }
+```
 
-**Ошибки:** `400 validation_error`, `401 invalid_signature`.
+**Ошибки:** `400 validation_error`, `401 invalid_signature`, `403 telegram_webhook_disabled`.
 
 > TODO: дополнить спецификацию эндпоинтами для экспорта журнала и управления автоподписками после реализации (см. `docs/delivery-plan.md`, раздел «Этап 1.1»).
 
