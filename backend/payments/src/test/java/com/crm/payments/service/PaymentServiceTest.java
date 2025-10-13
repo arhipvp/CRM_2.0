@@ -29,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -164,7 +165,7 @@ class PaymentServiceTest {
                 .expectErrorSatisfies(throwable -> {
                     assertThat(throwable).isInstanceOf(ResponseStatusException.class);
                     ResponseStatusException exception = (ResponseStatusException) throwable;
-                    assertThat(exception.getStatusCode().value()).isEqualTo(400);
+                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(exception.getReason()).isEqualTo("validation_error");
                 })
                 .verify();
@@ -256,10 +257,12 @@ class PaymentServiceTest {
         request.setStatus(PaymentStatus.PROCESSING);
 
         StepVerifier.create(paymentService.updateStatus(paymentId, request))
-                .expectErrorSatisfies(throwable -> assertThat(throwable)
-                        .isInstanceOf(InvalidStatusTransitionException.class)
-                        .hasMessageContaining("CANCELLED")
-                        .hasMessageContaining("PROCESSING"))
+                .expectErrorSatisfies(throwable -> {
+                    assertThat(throwable).isInstanceOf(ResponseStatusException.class);
+                    ResponseStatusException exception = (ResponseStatusException) throwable;
+                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(exception.getReason()).isEqualTo("invalid_status_transition");
+                })
                 .verify();
 
         verify(paymentRepository, never()).save(any(PaymentEntity.class));
