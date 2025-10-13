@@ -48,7 +48,7 @@ export default async function HomePage() {
               Все сделки
             </Link>
           </div>
-          <DealFunnelBoard />
+          <DealFunnelBoard forceViewMode="kanban" />
         </section>
 
         <section className="space-y-4">

@@ -26,7 +26,7 @@ import {
   DealBulkActions,
   buildBulkActionNotificationMessage,
 } from "@/components/deals/DealBulkActions";
-import { PipelineStageKey, useUiStore } from "@/stores/uiStore";
+import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
 const stageConfig: Record<PipelineStageKey, { title: string; description: string }> = {
   qualification: {
@@ -99,7 +99,11 @@ function formatError(error: unknown) {
   return "Произошла ошибка. Повторите попытку позже.";
 }
 
-export function DealFunnelBoard() {
+type DealFunnelBoardProps = {
+  forceViewMode?: DealViewMode;
+};
+
+export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
   const filters = useUiStore((state) => state.filters);
   const viewMode = useUiStore((state) => state.viewMode);
   const stageFilter = filters.stage;
@@ -191,7 +195,9 @@ export function DealFunnelBoard() {
     );
   };
 
-  if (viewMode !== "kanban") {
+  const effectiveViewMode = forceViewMode ?? viewMode;
+
+  if (effectiveViewMode !== "kanban") {
     return null;
   }
 
