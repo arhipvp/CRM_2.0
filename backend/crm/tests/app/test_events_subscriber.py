@@ -3,6 +3,8 @@ import importlib
 import json
 import sys
 from contextlib import asynccontextmanager
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 from datetime import datetime, timezone
 from types import ModuleType, SimpleNamespace
 from uuid import uuid4
@@ -84,6 +86,30 @@ def test_should_dead_letter_with_invalid_count(subscriber: PaymentsEventsSubscri
 
 
 @pytest.mark.asyncio()
+async def test_handle_message_invalid_json_publishes_to_dlx(
+    subscriber: PaymentsEventsSubscriber,
+) -> None:
+    @asynccontextmanager
+    async def dummy_process(**_: object):
+        yield
+
+    message = SimpleNamespace(
+        body=b"not-json",
+        content_type="application/json",
+        headers={},
+        process=lambda **kwargs: dummy_process(**kwargs),
+    )
+
+    subscriber._publish_to_dlx = AsyncMock()
+    subscriber._session_factory = Mock(side_effect=AssertionError("should not touch DB"))
+
+    await subscriber._handle_message(message)
+
+    assert subscriber._publish_to_dlx.await_count == 1
+    call = subscriber._publish_to_dlx.await_args
+    assert call.args[0] is message
+    assert isinstance(call.kwargs["reason"], str)
+    assert call.kwargs["reason"]
 async def test_handle_message_publishes_synced(monkeypatch: pytest.MonkeyPatch) -> None:
     class StubPaymentSyncService:
         def __init__(self, *_: object, **__: object) -> None:
