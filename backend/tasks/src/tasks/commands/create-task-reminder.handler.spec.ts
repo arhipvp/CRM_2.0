@@ -1,5 +1,5 @@
-import { Repository } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { Repository, QueryFailedError } from 'typeorm';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CreateTaskReminderHandler } from './create-task-reminder.handler';
 import { TaskEntity } from '../entities/task.entity';
 import { TaskReminderEntity } from '../entities/task-reminder.entity';
@@ -75,6 +75,38 @@ describe('CreateTaskReminderHandler', () => {
 
     await expect(handler.execute(command)).rejects.toBeInstanceOf(NotFoundException);
     expect(reminderRepository.create).not.toHaveBeenCalled();
+    expect(reminderQueue.schedule).not.toHaveBeenCalled();
+  });
+
+  it('бросает ConflictException с кодом conflict при попытке создать дубликат', async () => {
+    const taskId = '56f7adcd-bc6b-4059-9fcb-4fb0f299a022';
+    const remindAt = new Date('2024-03-10T12:00:00.000Z');
+
+    taskRepository.findOneBy.mockResolvedValue({ id: taskId } as TaskEntity);
+
+    const reminder: TaskReminderEntity = {
+      taskId,
+      remindAt,
+      channel: TaskReminderChannel.SSE
+    } as TaskReminderEntity;
+
+    reminderRepository.create.mockReturnValue(reminder);
+
+    const driverError = new Error('duplicate reminder') as Error & { code?: string };
+    driverError.code = '23505';
+    const uniqueError = new QueryFailedError('', [], driverError);
+    reminderRepository.save.mockRejectedValue(uniqueError);
+
+    const command = new CreateTaskReminderCommand(taskId, remindAt, TaskReminderChannel.SSE);
+
+    const execution = handler.execute(command);
+
+    await expect(execution).rejects.toBeInstanceOf(ConflictException);
+    await execution.catch((error) => {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toMatchObject({ code: 'conflict' });
+    });
+
     expect(reminderQueue.schedule).not.toHaveBeenCalled();
   });
 });

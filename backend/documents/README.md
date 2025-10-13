@@ -67,7 +67,7 @@ pnpm install
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
-- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, доступ Drive отзывается.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, доступ Drive отзывается (повторный вызов вернёт `409 already_deleted`).
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
 - `POST /documents/:id/complete` — подтвердить завершение загрузки и поставить задачу синхронизации.
 - `POST /documents/:id/sync` — обновить метаданные из Drive.

@@ -118,6 +118,23 @@ class PaymentsWebhookControllerTest {
         verify(paymentService, never()).create(any(PaymentRequest.class));
     }
 
+    @Test
+    void shouldReturnBadRequestWhenRequiredPaymentFieldsMissing() throws Exception {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("deal_id", "e1b8f44c-7c39-4e5c-8cb7-60c79c7c7bb5");
+        // обязательные поля initiator_user_id, amount, currency и payment_type отсутствуют
+
+        String signature = sign("payment.created", payload);
+
+        webTestClient.post()
+                .uri("/api/v1/webhooks/crm")
+                .bodyValue(buildRequest("payment.created", payload, signature))
+                .exchange()
+                .expectStatus().isBadRequest();
+
+        verify(paymentService, never()).create(any(PaymentRequest.class));
+    }
+
     private JsonNode buildRequest(String event, JsonNode payload, String signature) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("event", event);

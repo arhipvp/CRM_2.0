@@ -4,10 +4,10 @@ import com.crm.payments.api.dto.CrmWebhookRequest;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -19,8 +19,12 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.Set;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,14 +43,17 @@ public class PaymentsWebhookService {
 
     private final PaymentService paymentService;
     private final ObjectMapper objectMapper;
+    private final Validator validator;
     private final SecretKeySpec secretKey;
 
     public PaymentsWebhookService(
             PaymentService paymentService,
             ObjectMapper objectMapper,
+            Validator validator,
             @Value("${payments.crm.webhook.secret:}") String webhookSecret) {
         this.paymentService = paymentService;
         this.objectMapper = objectMapper;
+        this.validator = validator;
         Assert.hasText(webhookSecret, "payments.crm.webhook.secret must be configured");
         this.secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
     }
@@ -73,10 +80,21 @@ public class PaymentsWebhookService {
     private Mono<Void> handlePaymentCreated(JsonNode payload) {
         try {
             PaymentRequest paymentRequest = objectMapper.treeToValue(payload, PaymentRequest.class);
+            validatePaymentRequest(paymentRequest);
             return paymentService.create(paymentRequest).then();
         } catch (JsonProcessingException e) {
             log.warn("Не удалось десериализовать payload вебхука payment.created", e);
             return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payload"));
+        } catch (ConstraintViolationException e) {
+            log.warn("Payload вебхука payment.created не прошёл валидацию: {}", e.getMessage());
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
+        }
+    }
+
+    private void validatePaymentRequest(PaymentRequest paymentRequest) {
+        Set<ConstraintViolation<PaymentRequest>> violations = validator.validate(paymentRequest);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException("Invalid payment request", violations);
         }
     }
 
