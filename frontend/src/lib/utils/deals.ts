@@ -40,7 +40,7 @@ export function compareDealsByNextReview<T extends DealLike>(a: T, b: T): number
     return nextReviewDiff;
   }
 
-  const updatedDiff = compareTimestamps(b.updatedAt, a.updatedAt);
+  const updatedDiff = compareTimestamps(a.updatedAt, b.updatedAt);
   if (updatedDiff !== 0) {
     return updatedDiff;
   }

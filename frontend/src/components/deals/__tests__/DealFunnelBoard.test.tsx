@@ -176,7 +176,7 @@ describe("DealFunnelBoard — next review", () => {
 
     expect(titles).toHaveLength(qualificationDeals.length);
     const expectedOrder = [...qualificationDeals].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) => new Date(a.nextReviewAt!).getTime() - new Date(b.nextReviewAt!).getTime(),
     );
     expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
   });
@@ -213,7 +213,7 @@ describe("DealFunnelBoard — next review", () => {
 
     expect(titles).toHaveLength(qualificationDeals.length);
     const expectedOrder = [...qualificationDeals].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     );
     expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
   });
