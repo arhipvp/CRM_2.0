@@ -184,6 +184,77 @@ async def test_handle_message_invalid_json_publishes_to_dlx(
 
 
 @pytest.mark.asyncio()
+async def test_handle_message_uses_process_context_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    class StubPaymentSyncService:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        async def handle_payment_event(self, event: object) -> PaymentEventResult:
+            return PaymentEventResult(processed=False)
+
+    monkeypatch.setattr("crm.app.events.PaymentSyncService", StubPaymentSyncService)
+
+    subscriber = PaymentsEventsSubscriber(SimpleNamespace(payments_retry_limit=3), session_factory=None)  # type: ignore[arg-type]
+
+    @asynccontextmanager
+    async def fake_session_factory() -> SimpleNamespace:
+        yield SimpleNamespace()
+
+    subscriber._session_factory = fake_session_factory  # type: ignore[assignment]
+    subscriber._publish_event = AsyncMock()  # type: ignore[assignment]
+
+    payload = {
+        "tenant_id": str(uuid4()),
+        "event_id": str(uuid4()),
+        "payment_id": str(uuid4()),
+        "deal_id": None,
+        "policy_id": None,
+        "status": "processed",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "amount": 100.0,
+        "currency": "USD",
+        "payload": {},
+    }
+
+    class RecordingProcessContextManager:
+        def __init__(self) -> None:
+            self.calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+            self.enter_mock = AsyncMock(return_value=None)
+            self.exit_mock = AsyncMock(return_value=None)
+
+        def __call__(self, *args: object, **kwargs: object) -> "RecordingProcessContextManager":
+            self.calls.append((args, kwargs))
+            return self
+
+        async def __aenter__(self) -> None:
+            return await self.enter_mock()
+
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: object | None,
+        ) -> None:
+            return await self.exit_mock(exc_type, exc, tb)
+
+    process = RecordingProcessContextManager()
+    message = SimpleNamespace(
+        body=json.dumps(payload).encode("utf-8"),
+        content_type="application/json",
+        headers={},
+        process=process,
+    )
+
+    await subscriber._handle_message(message)  # type: ignore[arg-type]
+
+    assert len(process.calls) == 1
+    assert process.calls[0][1] == {"requeue": False}
+    process.enter_mock.assert_awaited_once()
+    process.exit_mock.assert_awaited_once()
+    subscriber._publish_event.assert_not_awaited()
+
+
+@pytest.mark.asyncio()
 async def test_publish_event_uses_exchange(
     subscriber: PaymentsEventsSubscriber, monkeypatch: pytest.MonkeyPatch
 ) -> None:
