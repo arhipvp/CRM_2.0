@@ -48,7 +48,7 @@
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
 | dealId | UUID \| null | Идентификатор сделки из `payload.dealId`/`payload.deal_id`. |
 | clientId | UUID \| null | Идентификатор клиента из `payload.clientId`/`payload.client_id`. |
-| context | object \| null | Контекст задачи. Если указан, содержит данные из `payload.context` с camelCase-ключами (`dealId`, `policyId` и т.д.). |
+| context | object \| null | Контекст задачи. Если указан, содержит все строковые поля из `payload.context` в camelCase-формате (`dealId`, `clientId`, `stageId` и т.д.). |
 
 ### POST `/tasks`
 Создание задачи.
@@ -66,7 +66,7 @@
 
 > Поля `assignee_id` и `author_id` сохраняются внутри `payload` в формате `assigneeId`/`assignee_id` и `authorId`/`author_id`,
 > поэтому в ответе их можно получить без дополнительного парсинга JSON. Если передан `context`, сервис нормализует его ключи в
-> camelCase и дублирует `dealId`/`clientId` на верхний уровень `payload` (в camelCase и snake_case).
+> camelCase и сохраняет весь объект (включая пользовательские поля) в `payload.context` и `TaskResponseDto.context`.
 
 **Ответ 201** — созданная задача. Ответ соответствует `TaskResponseDto`.
 

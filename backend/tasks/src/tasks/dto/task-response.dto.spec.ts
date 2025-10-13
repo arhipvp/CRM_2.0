@@ -37,7 +37,9 @@ describe('TaskResponseDto', () => {
       clientId: 'client-42',
       context: {
         dealId: 'deal-1',
-        policy_id: 'policy-2'
+        policy_id: 'policy-2',
+        stage_id: 'stage-3',
+        clientId: 'client-500'
       }
     });
 
@@ -65,8 +67,28 @@ describe('TaskResponseDto', () => {
       clientId: 'client-42',
       context: {
         dealId: 'deal-1',
-        policyId: 'policy-2'
+        policyId: 'policy-2',
+        stageId: 'stage-3',
+        clientId: 'client-500'
       }
+    });
+  });
+
+  it('keeps arbitrary context keys while normalizing snake_case to camelCase', () => {
+    const entity = buildEntity({
+      context: {
+        client_id: 'client-77',
+        stageId: 'stage-9',
+        region_code: 'north'
+      }
+    });
+
+    const dto = TaskResponseDto.fromEntity(entity);
+
+    expect(dto.context).toEqual({
+      clientId: 'client-77',
+      stageId: 'stage-9',
+      regionCode: 'north'
     });
   });
 
