@@ -43,7 +43,7 @@
 | cancelledReason | string \| null | Причина отмены. |
 | createdAt | datetime | Время создания. |
 | updatedAt | datetime | Время последнего обновления. |
-| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. |
+| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. Содержит `assigneeId`, `authorId`, приоритет, контекст и дополнительные пользовательские поля. |
 | assigneeId | UUID \| null | Исполнитель из `payload.assigneeId`/`payload.assignee_id`. |
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
 | dealId | UUID \| null | Идентификатор сделки из `payload.dealId`/`payload.deal_id`. |
@@ -63,6 +63,9 @@
 | due_date | date | Нет | Срок исполнения. |
 | priority | string | Нет | `low`, `normal`, `high`. |
 | context | object | Нет | `{ "deal_id": "uuid", "policy_id": "uuid" }`. |
+
+> Поля `assignee_id` и `author_id` сохраняются внутри `payload` в формате `assigneeId`/`assignee_id` и `authorId`/`author_id`,
+> поэтому в ответе их можно получить без дополнительного парсинга JSON.
 
 **Ответ 201** — созданная задача. Ответ соответствует `TaskResponseDto`.
 
@@ -95,6 +98,7 @@
   "updatedAt": "2024-03-05T11:00:00.000Z",
   "payload": {
     "assigneeId": "uuid",
+    "authorId": "uuid",
     "priority": "high",
     "dealId": "uuid",
     "clientId": "uuid",

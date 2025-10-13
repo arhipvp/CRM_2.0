@@ -26,12 +26,27 @@ export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand, Tas
       throw new BadRequestException(`Unknown task status: ${command.initialStatus}`);
     }
 
+    const payload: Record<string, unknown> = { ...(command.payload ?? {}) };
+
+    payload.assigneeId = command.assigneeId;
+    payload['assignee_id'] = command.assigneeId;
+    payload.authorId = command.authorId;
+    payload['author_id'] = command.authorId;
+
+    if (command.priority) {
+      payload.priority = command.priority;
+    }
+
+    if (command.context) {
+      payload.context = command.context;
+    }
+
     const task = this.taskRepository.create({
       title: command.title,
       description: command.description,
       dueAt: command.dueAt,
       scheduledFor: command.scheduledFor,
-      payload: command.payload,
+      payload,
       statusCode: command.initialStatus
     });
 

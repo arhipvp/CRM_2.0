@@ -7,6 +7,10 @@ export class CreateTaskCommand {
     public readonly dueAt: Date | undefined,
     public readonly scheduledFor: Date | undefined,
     public readonly payload: Record<string, unknown> | undefined,
-    public readonly initialStatus: TaskStatusCode
+    public readonly initialStatus: TaskStatusCode,
+    public readonly assigneeId: string,
+    public readonly authorId: string,
+    public readonly priority: string | undefined,
+    public readonly context: Record<string, unknown> | undefined
   ) {}
 }
