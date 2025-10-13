@@ -89,7 +89,7 @@ class PaymentControllerTest {
         PaymentResponse response = new PaymentResponse();
         response.setId(paymentId);
         response.setAmount(BigDecimal.valueOf(123));
-        response.setCurrency("USD");
+        response.setCurrency("RUB");
         response.setStatus(PaymentStatus.PENDING);
         response.setPaymentType(PaymentType.INSTALLMENT);
         response.setUpdatedAt(OffsetDateTime.now());
@@ -101,13 +101,17 @@ class PaymentControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{" +
                         "\"amount\": 123.0," +
-                        "\"currency\": \"USD\"" +
+                        "\"currency\": \"RUB\"" +
                         "}")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.id").isEqualTo(paymentId.toString())
-                .jsonPath("$.currency").isEqualTo("USD");
+                .jsonPath("$.currency").isEqualTo("RUB");
+
+        ArgumentCaptor<UpdatePaymentRequest> requestCaptor = ArgumentCaptor.forClass(UpdatePaymentRequest.class);
+        verify(paymentService).update(eq(paymentId), requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getCurrency()).isEqualTo("RUB");
     }
 
     @Test
@@ -121,6 +125,22 @@ class PaymentControllerTest {
                 .bodyValue("{}")
                 .exchange()
                 .expectStatus().isNotFound();
+    }
+
+    @Test
+    void patchPaymentShouldReturn400WhenCurrencyIsNotRub() {
+        UUID paymentId = UUID.randomUUID();
+
+        webTestClient.patch()
+                .uri("/api/v1/payments/{paymentId}", paymentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"currency\": \"USD\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isBadRequest();
+
+        verify(paymentService, never()).update(any(UUID.class), any(UpdatePaymentRequest.class));
     }
 
     @Test

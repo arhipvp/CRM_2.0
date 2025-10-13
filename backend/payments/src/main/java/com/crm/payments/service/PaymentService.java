@@ -134,9 +134,14 @@ public class PaymentService {
             entity.setAmount(request.getAmount());
             changed = true;
         }
-        if (request.getCurrency() != null && !Objects.equals(entity.getCurrency(), request.getCurrency())) {
-            entity.setCurrency(request.getCurrency());
-            changed = true;
+        if (request.getCurrency() != null) {
+            if (!"RUB".equals(request.getCurrency())) {
+                return Mono.error(new IllegalArgumentException("Only RUB currency is supported"));
+            }
+            if (!Objects.equals(entity.getCurrency(), request.getCurrency())) {
+                entity.setCurrency(request.getCurrency());
+                changed = true;
+            }
         }
         if (request.getDueDate() != null && !Objects.equals(entity.getDueDate(), request.getDueDate())) {
             entity.setDueDate(request.getDueDate());

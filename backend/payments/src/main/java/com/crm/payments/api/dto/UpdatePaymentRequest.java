@@ -12,7 +12,7 @@ public class UpdatePaymentRequest {
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal amount;
 
-    @Pattern(regexp = "^[A-Z]{3}$", message = "currency must be ISO 4217 alpha-3")
+    @Pattern(regexp = "^RUB$", message = "currency must be RUB")
     private String currency;
 
     private OffsetDateTime dueDate;

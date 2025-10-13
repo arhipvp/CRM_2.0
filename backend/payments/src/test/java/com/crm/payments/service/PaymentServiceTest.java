@@ -79,7 +79,7 @@ class PaymentServiceTest {
 
         UpdatePaymentRequest request = new UpdatePaymentRequest();
         request.setAmount(BigDecimal.valueOf(150));
-        request.setCurrency("USD");
+        request.setCurrency("RUB");
         request.setDueDate(OffsetDateTime.now().plusDays(5));
         request.setProcessedAt(OffsetDateTime.now());
         request.setPaymentType(PaymentType.COMMISSION);
@@ -89,7 +89,7 @@ class PaymentServiceTest {
         StepVerifier.create(paymentService.update(paymentId, request))
                 .assertNext(response -> {
                     assertThat(response.getAmount()).isEqualByComparingTo("150");
-                    assertThat(response.getCurrency()).isEqualTo("USD");
+                    assertThat(response.getCurrency()).isEqualTo("RUB");
                     assertThat(response.getPaymentType()).isEqualTo(PaymentType.COMMISSION);
                     assertThat(response.getDescription()).isEqualTo("Updated description");
                     assertThat(response.getProcessedAt()).isEqualTo(request.getProcessedAt());
@@ -101,7 +101,7 @@ class PaymentServiceTest {
         verify(paymentRepository).save(entityCaptor.capture());
         PaymentEntity savedEntity = entityCaptor.getValue();
         assertThat(savedEntity.getAmount()).isEqualByComparingTo("150");
-        assertThat(savedEntity.getCurrency()).isEqualTo("USD");
+        assertThat(savedEntity.getCurrency()).isEqualTo("RUB");
         assertThat(savedEntity.getPaymentType()).isEqualTo(PaymentType.COMMISSION);
         assertThat(savedEntity.getDescription()).isEqualTo("Updated description");
 
@@ -117,6 +117,29 @@ class PaymentServiceTest {
         PaymentQueueEvent queueEvent = (PaymentQueueEvent) eventCaptor.getValue();
         assertThat(queueEvent.getEventType()).isEqualTo("payment.updated");
         assertThat(queueEvent.getAmount()).isEqualByComparingTo("150");
+    }
+
+    @Test
+    void updateShouldRejectCurrencyOtherThanRub() {
+        UUID paymentId = UUID.randomUUID();
+        PaymentEntity entity = new PaymentEntity();
+        entity.setId(paymentId);
+        entity.setCurrency("RUB");
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
+
+        UpdatePaymentRequest request = new UpdatePaymentRequest();
+        request.setCurrency("USD");
+
+        StepVerifier.create(paymentService.update(paymentId, request))
+                .expectErrorSatisfies(throwable -> assertThat(throwable)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage("Only RUB currency is supported"))
+                .verify();
+
+        verify(paymentRepository, never()).save(any(PaymentEntity.class));
+        verify(paymentHistoryRepository, never()).save(any(PaymentHistoryEntity.class));
+        verify(streamBridge, never()).send(anyString(), any());
     }
 
     @Test
