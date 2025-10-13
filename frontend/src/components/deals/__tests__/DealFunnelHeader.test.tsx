@@ -7,6 +7,18 @@ import { dealStageMetricsQueryOptions, dealsQueryOptions } from "@/lib/api/queri
 import { dealsMock } from "@/mocks/data";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
 import { useUiStore } from "@/stores/uiStore";
+import type { DealFilters } from "@/types/crm";
+
+function createManagerFilters(
+  filters: ReturnType<typeof useUiStore.getState>["filters"],
+): DealFilters {
+  return {
+    stage: filters.stage,
+    period: filters.period,
+    search: filters.search,
+    managers: [],
+  };
+}
 
 describe("DealFunnelHeader", () => {
   const initialState = useUiStore.getState();
@@ -18,7 +30,9 @@ describe("DealFunnelHeader", () => {
   it("отображает полученные метрики стадий", async () => {
     const client = createTestQueryClient();
     const filters = useUiStore.getState().filters;
+    const managerFilters = createManagerFilters(filters);
 
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, dealsMock);
     client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, [
       {
@@ -53,8 +67,9 @@ describe("DealFunnelHeader", () => {
   it("сохраняет выбранных менеджеров доступными при последовательном выборе", async () => {
     const client = createTestQueryClient();
     const filters = useUiStore.getState().filters;
+    const managerFilters = createManagerFilters(filters);
 
-    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, dealsMock);
     client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
 
@@ -82,6 +97,9 @@ describe("DealFunnelHeader", () => {
     });
 
     const updatedFilters = useUiStore.getState().filters;
+    const updatedManagerFilters = createManagerFilters(updatedFilters);
+
+    client.setQueryData(dealsQueryOptions(updatedManagerFilters).queryKey, []);
     client.setQueryData(dealsQueryOptions(updatedFilters).queryKey, []);
     client.setQueryData(dealStageMetricsQueryOptions(updatedFilters).queryKey, []);
 
@@ -92,6 +110,7 @@ describe("DealFunnelHeader", () => {
 
     expect(annaAfterFilter).toBeChecked();
     expect(ivanAfterFilter).toBeChecked();
+    expect(screen.queryByLabelText("Мария Орлова")).not.toBeInTheDocument();
     expect(useUiStore.getState().filters.managers).toEqual(
       expect.arrayContaining(["Анна Савельева", "Иван Плахов"]),
     );
@@ -100,8 +119,9 @@ describe("DealFunnelHeader", () => {
   it("показывает новых менеджеров из общего кэша без изменения фильтров", async () => {
     const client = createTestQueryClient();
     const filters = useUiStore.getState().filters;
+    const managerFilters = createManagerFilters(filters);
 
-    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, dealsMock);
     client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
 
@@ -114,17 +134,50 @@ describe("DealFunnelHeader", () => {
     expect(screen.queryByLabelText("Дмитрий Сергеев")).not.toBeInTheDocument();
 
     await act(async () => {
-      client.setQueryData(dealsQueryOptions().queryKey, (currentDeals: typeof dealsMock = dealsMock) => [
-        ...currentDeals,
-        {
-          ...currentDeals[0],
-          id: "deal-new",
-          owner: "Дмитрий Сергеев",
-          name: "Новый корпоративный полис",
-        },
-      ]);
+      client.setQueryData(
+        dealsQueryOptions(managerFilters).queryKey,
+        (currentDeals: typeof dealsMock = dealsMock) => [
+          ...currentDeals,
+          {
+            ...currentDeals[0],
+            id: "deal-new",
+            owner: "Дмитрий Сергеев",
+            name: "Новый корпоративный полис",
+          },
+        ],
+      );
     });
 
     expect(await screen.findByLabelText("Дмитрий Сергеев")).toBeInTheDocument();
+  });
+
+  it("ограничивает список менеджеров согласно активным фильтрам", async () => {
+    const client = createTestQueryClient();
+
+    await act(async () => {
+      useUiStore.setState((state) => ({
+        filters: {
+          ...state.filters,
+          stage: "proposal",
+        },
+      }));
+    });
+
+    const filters = useUiStore.getState().filters;
+    const managerFilters = createManagerFilters(filters);
+    const proposalDeals = dealsMock.filter((deal) => deal.stage === "proposal");
+
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, proposalDeals);
+    client.setQueryData(dealsQueryOptions(filters).queryKey, proposalDeals);
+    client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
+
+    const user = userEvent.setup();
+
+    renderWithQueryClient(<DealFunnelHeader />, client);
+
+    await user.click(screen.getByRole("button", { name: /Менеджеры/ }));
+
+    expect(await screen.findByLabelText("Мария Орлова")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Анна Савельева")).not.toBeInTheDocument();
   });
 });
