@@ -147,18 +147,17 @@ export function useUpdateDealStage() {
     mutationKey: ["update-deal-stage"],
     mutationFn: ({ dealId, stage }) => apiClient.updateDealStage(dealId, stage),
     onMutate: async ({ dealId, optimisticUpdate, stage }) => {
-      const dealsQueryKey = ["deals"] as const;
-      const dealQueryKey = ["deal", dealId] as const;
+      const singleDealQueryKey = dealQueryOptions(dealId).queryKey;
 
       await Promise.all([
         queryClient.cancelQueries({ queryKey: dealsQueryKey }),
-        queryClient.cancelQueries({ queryKey: dealQueryKey }),
+        queryClient.cancelQueries({ queryKey: singleDealQueryKey }),
       ]);
 
       const previousDeals = queryClient.getQueriesData<Deal[] | Deal>({
         queryKey: dealsQueryKey,
       });
-      const previousDeal = queryClient.getQueryData<Deal>(dealQueryKey);
+      const previousDeal = queryClient.getQueryData<Deal>(singleDealQueryKey);
 
       const applyOptimisticUpdate = (deal: Deal): Deal => {
         if (optimisticUpdate) {
@@ -185,7 +184,10 @@ export function useUpdateDealStage() {
       }
 
       if (previousDeal) {
-        queryClient.setQueryData<Deal>(dealQueryKey, applyOptimisticUpdate(previousDeal));
+        queryClient.setQueryData<Deal>(
+          singleDealQueryKey,
+          applyOptimisticUpdate(previousDeal),
+        );
       }
 
       return { previousDeals, previousDeal } satisfies UpdateDealStageContext;
@@ -200,12 +202,15 @@ export function useUpdateDealStage() {
       }
 
       if (context.previousDeal) {
-        queryClient.setQueryData(["deal", dealId], context.previousDeal);
+        queryClient.setQueryData(
+          dealQueryOptions(dealId).queryKey,
+          context.previousDeal,
+        );
       }
     },
     onSuccess: (deal) => {
       for (const [queryKey, data] of queryClient.getQueriesData<Deal[] | Deal>({
-        queryKey: ["deals"],
+        queryKey: dealsQueryKey,
       })) {
         if (!Array.isArray(data)) {
           continue;
@@ -220,7 +225,7 @@ export function useUpdateDealStage() {
         });
       }
 
-      queryClient.setQueryData(["deal", deal.id], deal);
+      queryClient.setQueryData(dealQueryOptions(deal.id).queryKey, deal);
     },
     onSettled: async (_data, _error, variables) => {
       if (!variables) {
@@ -228,11 +233,11 @@ export function useUpdateDealStage() {
       }
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["deals"] }),
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
         queryClient.invalidateQueries({
           queryKey: dealQueryOptions(variables.dealId).queryKey,
         }),
-        queryClient.invalidateQueries({ queryKey: ["deal-stage-metrics"] }),
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ]);
     },
   });
