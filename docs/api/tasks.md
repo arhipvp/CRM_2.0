@@ -19,7 +19,7 @@
 **Параметры запроса**
 | Имя | Тип | Описание |
 | --- | --- | --- |
-| assigneeId | UUID | Фильтр по исполнителю (хранится в `payload`). |
+| assigneeId | UUID | Фильтр по исполнителю (поддерживаются `payload.assigneeId` и `payload.assignee_id`). |
 | status | string \| array[string] | Коды статусов: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. Одиночный параметр воспринимается как массив. |
 | dueBefore | date | Задачи со сроком до указанной даты (не включительно). |
 | dueAfter | date | Задачи со сроком после указанной даты (не включительно). |
