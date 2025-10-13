@@ -90,10 +90,12 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
       url: url.trim() || undefined,
     });
 
-    await queryClient.invalidateQueries({ queryKey: documentsKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey, exact: true });
-    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: documentsKey }),
+      queryClient.invalidateQueries({ queryKey: dealKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+    ]);
 
     setIsFormOpen(false);
   };

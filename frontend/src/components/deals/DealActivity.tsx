@@ -66,11 +66,13 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
     }
 
     await createNote({ content: content.trim() });
-    await queryClient.invalidateQueries({ queryKey: notesKey });
-    await queryClient.invalidateQueries({ queryKey: activityKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey, exact: true });
-    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
-    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: notesKey }),
+      queryClient.invalidateQueries({ queryKey: activityKey }),
+      queryClient.invalidateQueries({ queryKey: dealKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+    ]);
 
     setIsComposerOpen(false);
     setContent("");
