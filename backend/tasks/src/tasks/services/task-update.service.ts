@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskEntity } from '../entities/task.entity';
@@ -6,6 +6,7 @@ import { TaskStatusCode } from '../constants/task-status.constants';
 import { UpdateTaskCommand } from '../commands/update-task.command';
 import { TaskEventsPublisher } from './task-events.publisher';
 import { DelayedTaskQueueService } from '../../delayed/delayed-task-queue.service';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 const FINAL_STATUSES = new Set<TaskStatusCode>([
   TaskStatusCode.COMPLETED,
@@ -55,7 +56,7 @@ export class TaskUpdateService {
   async updateTask(command: UpdateTaskCommand): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({ where: { id: command.taskId } });
     if (!task) {
-      throw new NotFoundException(`Task ${command.taskId} not found`);
+      throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
     const previousStatus = task.statusCode;

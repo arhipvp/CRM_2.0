@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
@@ -15,6 +15,7 @@ import { UpdateTaskCommand } from '../commands/update-task.command';
 import { CreateReminderDto } from '../dto/create-reminder.dto';
 import { CreateTaskReminderCommand } from '../commands/create-task-reminder.command';
 import { TaskReminderResponseDto } from '../dto/task-reminder-response.dto';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 @Controller('tasks')
 export class TasksController {
@@ -54,7 +55,7 @@ export class TasksController {
   async getById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<TaskResponseDto> {
     const task = await this.taskQuery.findById(id);
     if (!task) {
-      throw new NotFoundException(`Task ${id} not found`);
+      throw new TaskNotFoundException(`Task ${id} not found`);
     }
     return TaskResponseDto.fromEntity(task);
   }

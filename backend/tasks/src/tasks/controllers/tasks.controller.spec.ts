@@ -51,6 +51,20 @@ describe('TasksController (validation)', () => {
     expect(taskQuery.findById).not.toHaveBeenCalled();
   });
 
+  it('GET /api/tasks/:id возвращает 404 с кодом task_not_found, если задача отсутствует', async () => {
+    const taskId = '2dc7ea49-2a4e-4f8e-bd3b-7de1fbd2b6a4';
+    taskQuery.findById.mockResolvedValue(null);
+
+    const response = await request(app.getHttpServer()).get(`${baseUrl}/${taskId}`).expect(404);
+
+    expect(taskQuery.findById).toHaveBeenCalledWith(taskId);
+    expect(response.body).toMatchObject({
+      statusCode: 404,
+      code: 'task_not_found',
+      message: `Task ${taskId} not found`
+    });
+  });
+
   it('POST /api/tasks создаёт задачу по контракту документации', async () => {
     const createdAt = new Date('2024-03-05T11:00:00.000Z');
     const dueAt = new Date('2024-03-10T00:00:00.000Z');
