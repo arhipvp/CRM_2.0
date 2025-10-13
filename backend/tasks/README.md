@@ -20,6 +20,9 @@ pnpm start:dev
 
 API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос, обновление и завершение задач выполняются через REST-команды `/api/tasks`.
 
+> При попытке обратиться к отсутствующей задаче API возвращает `404 task_not_found` с телом
+> `{ "statusCode": 404, "code": "task_not_found", "message": "Task {task_id} not found" }`.
+
 ### Создание задачи
 `POST /api/tasks` принимает JSON с основными атрибутами задачи:
 

@@ -1,5 +1,4 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ScheduleTaskCommand } from './schedule-task.command';
@@ -7,6 +6,7 @@ import { TaskEntity } from '../entities/task.entity';
 import { TaskStatusCode } from '../constants/task-status.constants';
 import { TaskEventsPublisher } from '../services/task-events.publisher';
 import { DelayedTaskQueueService } from '../../delayed/delayed-task-queue.service';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 @CommandHandler(ScheduleTaskCommand)
 export class ScheduleTaskHandler implements ICommandHandler<ScheduleTaskCommand, TaskEntity> {
@@ -20,7 +20,7 @@ export class ScheduleTaskHandler implements ICommandHandler<ScheduleTaskCommand,
   async execute(command: ScheduleTaskCommand): Promise<TaskEntity> {
     const task = await this.taskRepository.findOneBy({ id: command.taskId });
     if (!task) {
-      throw new NotFoundException(`Task ${command.taskId} not found`);
+      throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
     task.scheduledFor = command.scheduledFor;

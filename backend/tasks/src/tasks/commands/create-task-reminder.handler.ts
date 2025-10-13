@@ -1,11 +1,12 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { QueryFailedError, Repository } from 'typeorm';
 import { CreateTaskReminderCommand } from './create-task-reminder.command';
 import { TaskEntity } from '../entities/task.entity';
 import { TaskReminderEntity } from '../entities/task-reminder.entity';
 import { TaskReminderQueueService } from '../services/task-reminder-queue.service';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 @CommandHandler(CreateTaskReminderCommand)
 export class CreateTaskReminderHandler
@@ -22,7 +23,7 @@ export class CreateTaskReminderHandler
   async execute(command: CreateTaskReminderCommand): Promise<TaskReminderEntity> {
     const task = await this.taskRepository.findOneBy({ id: command.taskId });
     if (!task) {
-      throw new NotFoundException(`Task ${command.taskId} not found`);
+      throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
     const reminder = this.reminderRepository.create({

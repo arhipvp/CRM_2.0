@@ -1,11 +1,12 @@
 import { Repository, QueryFailedError } from 'typeorm';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { CreateTaskReminderHandler } from './create-task-reminder.handler';
 import { TaskEntity } from '../entities/task.entity';
 import { TaskReminderEntity } from '../entities/task-reminder.entity';
 import { TaskReminderQueueService } from '../services/task-reminder-queue.service';
 import { CreateTaskReminderCommand } from './create-task-reminder.command';
 import { TaskReminderChannel } from '../constants/task-reminder-channel.constants';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 describe('CreateTaskReminderHandler', () => {
   let handler: CreateTaskReminderHandler;
@@ -64,7 +65,7 @@ describe('CreateTaskReminderHandler', () => {
     expect(result).toBe(savedReminder);
   });
 
-  it('бросает NotFoundException, если задача не найдена', async () => {
+  it('бросает TaskNotFoundException, если задача не найдена', async () => {
     taskRepository.findOneBy.mockResolvedValue(null);
 
     const command = new CreateTaskReminderCommand(
@@ -73,7 +74,13 @@ describe('CreateTaskReminderHandler', () => {
       TaskReminderChannel.SSE
     );
 
-    await expect(handler.execute(command)).rejects.toBeInstanceOf(NotFoundException);
+    const execution = handler.execute(command);
+
+    await expect(execution).rejects.toBeInstanceOf(TaskNotFoundException);
+    await execution.catch((error) => {
+      expect(error).toBeInstanceOf(TaskNotFoundException);
+      expect((error as TaskNotFoundException).getResponse()).toMatchObject({ code: 'task_not_found' });
+    });
     expect(reminderRepository.create).not.toHaveBeenCalled();
     expect(reminderQueue.schedule).not.toHaveBeenCalled();
   });

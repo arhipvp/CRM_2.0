@@ -2,7 +2,7 @@
 
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { TaskUpdateService } from './task-update.service';
 import { TaskEntity } from '../entities/task.entity';
@@ -10,6 +10,7 @@ import { TaskStatusCode } from '../constants/task-status.constants';
 import { TaskEventsPublisher } from './task-events.publisher';
 import { DelayedTaskQueueService } from '../../delayed/delayed-task-queue.service';
 import { UpdateTaskCommand } from '../commands/update-task.command';
+import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 
 describe('TaskUpdateService', () => {
   let service: TaskUpdateService;
@@ -290,11 +291,15 @@ describe('TaskUpdateService', () => {
     expect(result.statusCode).toBe(TaskStatusCode.COMPLETED);
   });
 
-  it('бросает NotFoundException для несуществующей задачи', async () => {
+  it('бросает TaskNotFoundException для несуществующей задачи', async () => {
     repository.findOne.mockResolvedValueOnce(null);
 
-    await expect(service.updateTask(new UpdateTaskCommand('missing'))).rejects.toBeInstanceOf(
-      NotFoundException
-    );
+    const execution = service.updateTask(new UpdateTaskCommand('missing'));
+
+    await expect(execution).rejects.toBeInstanceOf(TaskNotFoundException);
+    await execution.catch((error) => {
+      expect(error).toBeInstanceOf(TaskNotFoundException);
+      expect((error as TaskNotFoundException).getResponse()).toMatchObject({ code: 'task_not_found' });
+    });
   });
 });
