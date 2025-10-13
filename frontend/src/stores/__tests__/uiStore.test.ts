@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
+import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
 const initialState = useUiStore.getState();
 
@@ -17,22 +18,40 @@ describe("useUiStore", () => {
     });
 
     it("обновляет фильтры и нормализует менеджеров", () => {
-      const managers = [" mgr-1 ", "mgr-2", "mgr-2"];
+      const managers = [" mgr-1 ", "mgr-2", "mgr-2", NO_MANAGER_VALUE];
 
       useUiStore.getState().setSelectedStage("negotiation");
       useUiStore.getState().setManagersFilter(managers);
+
+      expect(useUiStore.getState().filters.managers).toEqual(["mgr-1", "mgr-2", NO_MANAGER_VALUE]);
+
       useUiStore.getState().toggleManagerFilter("mgr-3");
+      expect(useUiStore.getState().filters.managers).toEqual([
+        "mgr-1",
+        "mgr-2",
+        NO_MANAGER_VALUE,
+        "mgr-3",
+      ]);
+
       useUiStore.getState().toggleManagerFilter(" mgr-1 ");
+      expect(useUiStore.getState().filters.managers).toEqual(["mgr-2", NO_MANAGER_VALUE, "mgr-3"]);
+
+      useUiStore.getState().toggleManagerFilter(NO_MANAGER_VALUE);
+      expect(useUiStore.getState().filters.managers).toEqual(["mgr-2", "mgr-3"]);
+
+      useUiStore.getState().toggleManagerFilter(NO_MANAGER_VALUE);
+      expect(useUiStore.getState().filters.managers).toEqual(["mgr-2", "mgr-3", NO_MANAGER_VALUE]);
+
       useUiStore.getState().setPeriodFilter("7d");
       useUiStore.getState().setSearchFilter("Страхование");
 
       const { filters } = useUiStore.getState();
 
       expect(filters.stage).toBe("negotiation");
-      expect(filters.managers).toEqual(["mgr-2", "mgr-3"]);
+      expect(filters.managers).toEqual(["mgr-2", "mgr-3", NO_MANAGER_VALUE]);
       expect(filters.period).toBe("7d");
       expect(filters.search).toBe("Страхование");
-      expect(managers).toEqual([" mgr-1 ", "mgr-2", "mgr-2"]);
+      expect(managers).toEqual([" mgr-1 ", "mgr-2", "mgr-2", NO_MANAGER_VALUE]);
     });
 
     it("сбрасывает фильтры и выделение", () => {

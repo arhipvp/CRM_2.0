@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createRandomId } from "@/lib/utils/id";
+import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 import type { DealFilters, DealPeriodFilter } from "@/types/crm";
 
 export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "closedWon" | "closedLost";
@@ -51,13 +52,13 @@ function normalizeManagers(managers: string[]): string[] {
   const seen = new Set<string>();
 
   for (const manager of managers) {
-    const trimmed = manager.trim();
-    if (!trimmed || seen.has(trimmed)) {
+    const normalizedManager = manager === NO_MANAGER_VALUE ? NO_MANAGER_VALUE : manager.trim();
+    if (!normalizedManager || seen.has(normalizedManager)) {
       continue;
     }
 
-    seen.add(trimmed);
-    normalized.push(trimmed);
+    seen.add(normalizedManager);
+    normalized.push(normalizedManager);
   }
 
   return normalized;
@@ -116,7 +117,7 @@ export const useUiStore = create<UiState>((set, get) => ({
     })),
   toggleManagerFilter: (manager) =>
     set((state) => {
-      const normalizedManager = manager.trim();
+      const normalizedManager = manager === NO_MANAGER_VALUE ? NO_MANAGER_VALUE : manager.trim();
       if (!normalizedManager) {
         return { filters: { ...state.filters } };
       }

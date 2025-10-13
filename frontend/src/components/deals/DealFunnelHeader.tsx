@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
+import { collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
 
 const stageLabels: Record<PipelineStageKey, string> = {
   qualification: "Квалификация",
@@ -76,9 +77,7 @@ export function DealFunnelHeader() {
   const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
 
   const managers = useMemo(() => {
-    const unique = Array.from(new Set(deals.map((deal) => deal.owner)));
-    unique.sort((a, b) => a.localeCompare(b));
-    return unique;
+    return collectManagerValues(deals.map((deal) => deal.owner));
   }, [deals]);
 
   const metricsMap = useMemo(() => {
@@ -129,6 +128,7 @@ export function DealFunnelHeader() {
                   {managers.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-500">Пока нет данных</p>}
                   {managers.map((manager) => {
                     const checked = filters.managers.includes(manager);
+                    const label = getManagerLabel(manager);
                     return (
                       <label key={manager} className="flex cursor-pointer items-center gap-2">
                         <input
@@ -137,7 +137,7 @@ export function DealFunnelHeader() {
                           checked={checked}
                           onChange={() => toggleManagerFilter(manager)}
                         />
-                        <span>{manager}</span>
+                        <span>{label}</span>
                       </label>
                     );
                   })}
