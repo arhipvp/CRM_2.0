@@ -1,9 +1,14 @@
 import importlib
 import importlib
+import json
 import sys
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from types import ModuleType, SimpleNamespace
+from uuid import uuid4
 
 import pytest
+from unittest.mock import ANY, AsyncMock
 
 if "crm.app.config" not in sys.modules:
     config_module = ModuleType("crm.app.config")
@@ -40,6 +45,7 @@ if "crm.app.config" not in sys.modules:
     setattr(app_module, "config", config_module)
 
 from crm.app.events import PaymentsEventsSubscriber
+from crm.domain.schemas import PaymentEventResult
 
 
 @pytest.fixture()
@@ -75,3 +81,53 @@ def test_should_dead_letter_with_invalid_count(subscriber: PaymentsEventsSubscri
     message = make_message(headers={"x-death": [{"count": "oops"}]})
 
     assert subscriber._should_dead_letter(message) is False
+
+
+@pytest.mark.asyncio()
+async def test_handle_message_publishes_synced(monkeypatch: pytest.MonkeyPatch) -> None:
+    class StubPaymentSyncService:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        async def handle_payment_event(self, event: object) -> PaymentEventResult:
+            return PaymentEventResult(processed=True)
+
+    monkeypatch.setattr("crm.app.events.PaymentSyncService", StubPaymentSyncService)
+
+    subscriber = PaymentsEventsSubscriber(SimpleNamespace(payments_retry_limit=3), session_factory=None)  # type: ignore[arg-type]
+
+    @asynccontextmanager
+    async def fake_session_factory() -> SimpleNamespace:
+        yield SimpleNamespace()
+
+    subscriber._session_factory = fake_session_factory  # type: ignore[assignment]
+    subscriber._publish_event = AsyncMock()  # type: ignore[assignment]
+
+    payload = {
+        "tenant_id": str(uuid4()),
+        "event_id": str(uuid4()),
+        "payment_id": str(uuid4()),
+        "deal_id": None,
+        "policy_id": None,
+        "status": "processed",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "amount": 100.0,
+        "currency": "USD",
+        "payload": {},
+    }
+
+    class DummyMessage:
+        def __init__(self, body: bytes) -> None:
+            self.body = body
+            self.headers = None
+            self.content_type = "application/json"
+
+        @asynccontextmanager
+        async def process(self, *, requeue: bool = False) -> "DummyMessage":  # noqa: FBT001
+            yield self
+
+    message = DummyMessage(json.dumps(payload).encode("utf-8"))
+
+    await subscriber._handle_message(message)  # type: ignore[arg-type]
+
+    subscriber._publish_event.assert_awaited_once_with("payments.synced", ANY)
