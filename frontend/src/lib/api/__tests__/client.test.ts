@@ -27,12 +27,36 @@ describe("ApiClient mock mode", () => {
 
   it("возвращает мок-данные при NEXT_PUBLIC_API_BASE_URL=mock", async () => {
     const { apiClient } = await importClient();
-    const { activitiesMock, clientsMock, dealsMock, paymentsMock, tasksMock } = await importMocks();
+    const {
+      activitiesMock,
+      clientsMock,
+      dealDocumentsMock,
+      dealNotesMock,
+      dealsMock,
+      paymentsMock,
+      tasksMock,
+    } = await importMocks();
     const dealId = dealsMock[0]?.id ?? "";
     const clientId = clientsMock[0]?.id ?? "";
 
     await expect(apiClient.getDeals()).resolves.toEqual(dealsMock);
-    await expect(apiClient.getDeal(dealId)).resolves.toEqual(dealsMock[0]);
+    const deal = await apiClient.getDeal(dealId);
+    expect(deal).toMatchObject({
+      id: dealsMock[0]?.id,
+      name: dealsMock[0]?.name,
+      clientId: dealsMock[0]?.clientId,
+      clientName: dealsMock[0]?.clientName,
+      value: dealsMock[0]?.value,
+      probability: dealsMock[0]?.probability,
+      stage: dealsMock[0]?.stage,
+      owner: dealsMock[0]?.owner,
+      expectedCloseDate: dealsMock[0]?.expectedCloseDate,
+    });
+    expect(deal.tasks).toEqual(tasksMock.filter((task) => task.dealId === dealId));
+    expect(deal.notes).toEqual(dealNotesMock.filter((note) => note.dealId === dealId));
+    expect(deal.documents).toEqual(dealDocumentsMock.filter((doc) => doc.dealId === dealId));
+    expect(deal.payments).toEqual(paymentsMock.filter((payment) => payment.dealId === dealId));
+    expect(deal.activity).toEqual(activitiesMock.filter((entry) => entry.dealId === dealId));
     await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
     await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);
     await expect(apiClient.getTasks()).resolves.toEqual(tasksMock);
@@ -40,8 +64,28 @@ describe("ApiClient mock mode", () => {
     await expect(apiClient.getClientActivities(clientId)).resolves.toEqual(
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );
+    await expect(apiClient.getDealStageMetrics()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ stage: "qualification" }),
+      ]),
+    );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("возвращает stage metrics с учётом фильтров", async () => {
+    const { apiClient } = await importClient();
+    const metrics = await apiClient.getDealStageMetrics({ stage: "closedWon" });
+
+    expect(metrics).toHaveLength(5);
+    const closedWonMetrics = metrics.find((item) => item.stage === "closedWon");
+    expect(closedWonMetrics).toBeDefined();
+    expect(closedWonMetrics?.count ?? 0).toBeGreaterThan(0);
+    expect(
+      metrics
+        .filter((item) => item.stage !== "closedWon")
+        .every((item) => item.count === 0 && item.totalValue === 0),
+    ).toBe(true);
   });
 
   it("использует fallback при ошибке формирования URL", async () => {
