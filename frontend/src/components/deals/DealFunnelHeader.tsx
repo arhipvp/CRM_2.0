@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import { dealsQueryOptions } from "@/lib/api/queries";
@@ -62,7 +62,6 @@ function formatConversionRate(value: number) {
 }
 
 export function DealFunnelHeader() {
-  const queryClient = useQueryClient();
   const filters = useUiStore((state) => state.filters);
   const viewMode = useUiStore((state) => state.viewMode);
   const setPeriodFilter = useUiStore((state) => state.setPeriodFilter);
@@ -73,26 +72,21 @@ export function DealFunnelHeader() {
   const setSelectedStage = useUiStore((state) => state.setSelectedStage);
 
   const dealsQuery = useDeals(filters);
+  const rawDealsQuery = useQuery(dealsQueryOptions());
   const metricsQuery = useDealStageMetrics(filters);
   const { data: deals = [] } = dealsQuery;
+  const { data: rawDeals = [] } = rawDealsQuery;
   const { data: metrics = [], isLoading: metricsLoading, isError: metricsError, error: metricsErrorValue } = metricsQuery;
 
   const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    if (!queryClient.getQueryData<Deal[]>(dealsQueryOptions().queryKey)) {
-      void queryClient.prefetchQuery(dealsQueryOptions());
-    }
-  }, [queryClient]);
-
   const managers = useMemo(() => {
-    const cachedDeals = queryClient.getQueryData<Deal[]>(dealsQueryOptions().queryKey) ?? [];
     return collectManagerValues([
-      ...cachedDeals.map((deal) => deal.owner),
+      ...rawDeals.map((deal) => deal.owner),
       ...deals.map((deal) => deal.owner),
       ...filters.managers,
     ]);
-  }, [deals, filters.managers, queryClient]);
+  }, [deals, filters.managers, rawDeals]);
 
   const metricsMap = useMemo(() => {
     const map = new Map<PipelineStageKey, DealStageMetrics>();

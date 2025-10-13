@@ -96,4 +96,35 @@ describe("DealFunnelHeader", () => {
       expect.arrayContaining(["Анна Савельева", "Иван Плахов"]),
     );
   });
+
+  it("показывает новых менеджеров из общего кэша без изменения фильтров", async () => {
+    const client = createTestQueryClient();
+    const filters = useUiStore.getState().filters;
+
+    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
+    client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
+
+    const user = userEvent.setup();
+
+    renderWithQueryClient(<DealFunnelHeader />, client);
+
+    await user.click(screen.getByRole("button", { name: /Менеджеры/ }));
+
+    expect(screen.queryByLabelText("Дмитрий Сергеев")).not.toBeInTheDocument();
+
+    await act(async () => {
+      client.setQueryData(dealsQueryOptions().queryKey, (currentDeals: typeof dealsMock = dealsMock) => [
+        ...currentDeals,
+        {
+          ...currentDeals[0],
+          id: "deal-new",
+          owner: "Дмитрий Сергеев",
+          name: "Новый корпоративный полис",
+        },
+      ]);
+    });
+
+    expect(await screen.findByLabelText("Дмитрий Сергеев")).toBeInTheDocument();
+  });
 });
