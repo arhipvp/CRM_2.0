@@ -26,6 +26,25 @@
 
 **Ответ 200** — список `TaskResponseDto`, отсортированный по `dueAt`, затем по `createdAt`.
 
+**Схема `TaskResponseDto`**
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| id | UUID | Идентификатор задачи. |
+| title | string | Название. |
+| description | string \| null | Полное описание. |
+| statusCode | string | Текущий статус: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. |
+| statusName | string \| null | Человекочитаемое название статуса. |
+| dueAt | datetime \| null | Плановый дедлайн. |
+| scheduledFor | datetime \| null | Время активации отложенной задачи. |
+| completedAt | datetime \| null | Фактическое завершение. |
+| cancelledReason | string \| null | Причина отмены. |
+| createdAt | datetime | Время создания. |
+| updatedAt | datetime | Время последнего обновления. |
+| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. |
+| assigneeId | UUID \| null | Исполнитель из `payload.assigneeId`/`payload.assignee_id`. |
+| priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
+| context | object \| null | Контекст задачи. Если указан, содержит `dealId`/`policyId` (camelCase) из `payload.context`. |
+
 ### POST `/tasks`
 Создание задачи.
 
@@ -40,7 +59,7 @@
 | priority | string | Нет | `low`, `normal`, `high`. |
 | context | object | Нет | `{ "deal_id": "uuid", "policy_id": "uuid" }`. |
 
-**Ответ 201** — созданная задача со статусом `new`.
+**Ответ 201** — созданная задача. Ответ соответствует `TaskResponseDto`.
 
 **Пример запроса**
 ```json
@@ -59,14 +78,24 @@
 ```json
 {
   "id": "uuid",
-  "status": "new",
-  "subject": "Подготовить КП",
-  "assignee_id": "uuid",
-  "author_id": "uuid",
-  "due_date": "2024-03-10",
+  "title": "Подготовить КП",
+  "description": "Согласовать условия и отправить клиенту",
+  "statusCode": "pending",
+  "statusName": "Pending",
+  "dueAt": "2024-03-10T00:00:00.000Z",
+  "scheduledFor": null,
+  "completedAt": null,
+  "cancelledReason": null,
+  "createdAt": "2024-03-05T11:00:00.000Z",
+  "updatedAt": "2024-03-05T11:00:00.000Z",
+  "payload": {
+    "assigneeId": "uuid",
+    "priority": "high",
+    "context": {"dealId": "uuid"}
+  },
+  "assigneeId": "uuid",
   "priority": "high",
-  "context": {"deal_id": "uuid"},
-  "created_at": "2024-03-05T11:00:00Z"
+  "context": {"dealId": "uuid"}
 }
 ```
 
