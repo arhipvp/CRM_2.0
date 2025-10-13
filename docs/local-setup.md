@@ -5,12 +5,22 @@
 ## Быстрый старт
 
 ```bash
-./scripts/bootstrap-local.sh
+./scripts/dev-up.sh
 ```
 
 > ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2.
 
-Скрипт автоматизирует основные шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и формирует агрегированный отчёт об ошибках. Последовательно выполняются:
+`dev-up` служит «однокнопочным» запуском локального окружения и последовательно выполняет:
+
+1. `scripts/bootstrap-local.sh` — полный bootstrap инфраструктуры и сервисов с агрегированным отчётом об ошибках.
+2. `scripts/sync-env.sh --non-interactive frontend` — синхронизацию фронтендового `.env` из актуального шаблона.
+3. `docker compose --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js c подключением к сети инфраструктуры.
+
+Флаги `--open-browser` и `--no-browser` управляют автоматическим открытием `http://localhost:${FRONTEND_SERVICE_PORT}` после запуска. Значение по умолчанию задаётся переменной `LOCAL_LAUNCH_OPEN_BROWSER` в корневом `.env`. Добавьте `--skip-frontend`, чтобы ограничиться bootstrap-скриптом без запуска контейнера.
+
+Если требуется выполнить шаги вручную (например, для отладки), используйте команды из списков выше: `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --profile app up -d frontend` в `infra/`.
+
+Справочно: `scripts/bootstrap-local.sh` по-прежнему автоматизирует ключевые шаги подготовки инфраструктуры и формирует агрегированный отчёт об ошибках. Внутри него выполняются:
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизация `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
@@ -19,16 +29,6 @@
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
 7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
-
-После завершения bootstrap синхронизируйте фронтендовый `.env` и, при необходимости, поднимите Next.js-контейнер:
-
-```bash
-./scripts/sync-env.sh frontend
-cd infra
-docker compose --profile app up -d frontend
-```
-
-Профиль `app` гарантирует, что фронтенд не стартует автоматически при стандартном `docker compose up -d` в bootstrap-скрипте. Контейнер подключается к сети `infra` и использует сервис `gateway` внутри сети (`http://gateway:8080`). Если вы запускаете Gateway на хостовой машине, оставьте переменную `GATEWAY_SERVICE_PORT` в `.env` и используйте проброс `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` (хост добавлен в `extra_hosts` для Linux).
 
 ### Режимы синхронизации `.env`
 
