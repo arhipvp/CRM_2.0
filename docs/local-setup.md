@@ -14,9 +14,9 @@
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
 3. ожидание готовности контейнеров (`docker compose wait` или резервный цикл проверки healthcheck в `infra/`).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`.
-5. `scripts/migrate-local.sh` — миграции CRM (Alembic) и Auth (Liquibase/Gradle).
-6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
-7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul и RabbitMQ Management UI.
+5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Tasks (TypeORM через pnpm).
+6. `scripts/load-seeds.sh` — загрузка seed-данных (PostgreSQL) и справочника статусов Tasks через `pnpm seed:statuses`.
+7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul, RabbitMQ Management UI и доступности Tasks API/worker.
 
 После завершения bootstrap синхронизируйте фронтендовый `.env` и, при необходимости, поднимите Next.js-контейнер:
 
@@ -76,11 +76,20 @@ docker compose --profile app up -d frontend
 ### CRM / Deals: быстрый старт
 
 - Перейдите в `backend/crm` и установите зависимости `poetry install`.
+
 - Выполните `../../scripts/sync-env.sh backend/crm` (при необходимости добавьте `--non-interactive`), чтобы скопировать шаблон `.env`. После синхронизации пересмотрите блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, очереди событий) и замените секреты на локальные значения.
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+### Tasks: быстрый старт
+
+- Перейдите в `backend/tasks` и установите зависимости `pnpm install`.
+- Выполните `../../scripts/sync-env.sh backend/tasks` (добавьте `--non-interactive` при запуске из bootstrap/CI). После синхронизации проверьте блок переменных `TASKS_*` (PostgreSQL, RabbitMQ, Redis, worker-настройки).
+- Примените миграции и сиды: `pnpm migration:run` и `pnpm seed:statuses`. Команды используют `TASKS_DATABASE_URL` и `TASKS_REDIS_URL` из `.env`.
+- Запустите API: `pnpm start:dev` (по умолчанию порт `TASKS_SERVICE_PORT`, маршрут `GET /api/health`).
+- Для обработки отложенных задач поднимите отдельный процесс: `TASKS_WORKER_ENABLED=true pnpm worker:dev`. Worker читает Redis-очередь `TASKS_DELAYED_QUEUE_KEY` и переводит задачи в статус `pending`.
+
 ## CI/CD: временно только локальные проверки
 
 - GitHub Actions приостановлены: пайплайны сохранены как `.github/workflows/ci.yml.disabled` и `.github/workflows/frontend.yml.disabled`, поэтому при пуше и открытии PR задачи не запускаются. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` у нужного файла и запушьте изменение в `main`.

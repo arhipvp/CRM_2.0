@@ -27,7 +27,23 @@ run_auth_migrations() {
   popd >/dev/null
 }
 
+run_tasks_migrations() {
+  echo "[migrate-local] Применяем миграции Tasks (TypeORM)..."
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "[migrate-local] pnpm не найден, пропускаем миграции Tasks. Установите pnpm и повторите."
+    return 0
+  fi
+  pushd "$ROOT_DIR/backend/tasks" >/dev/null
+  if [[ ! -d node_modules ]]; then
+    echo "[migrate-local] node_modules отсутствует, выполняем pnpm install..."
+    pnpm install --frozen-lockfile || { popd >/dev/null; return 1; }
+  fi
+  pnpm migration:run
+  popd >/dev/null
+}
+
 run_crm_migrations
 run_auth_migrations
+run_tasks_migrations
 
-echo "[migrate-local] Миграции CRM и Auth применены."
+echo "[migrate-local] Миграции CRM, Auth и Tasks применены."
