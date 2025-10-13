@@ -27,6 +27,8 @@ public class UpdatePaymentRequest {
     @Size(max = 1024)
     private String comment;
 
+    private OffsetDateTime updatedAt;
+
     public BigDecimal getAmount() {
         return amount;
     }
@@ -81,5 +83,13 @@ public class UpdatePaymentRequest {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

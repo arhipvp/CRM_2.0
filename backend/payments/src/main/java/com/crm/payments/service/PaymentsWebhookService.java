@@ -13,6 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.MessageDigest;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
 import java.util.UUID;
 import java.util.Set;
@@ -113,6 +117,11 @@ public class PaymentsWebhookService {
             ObjectReader reader = objectMapper.readerFor(UpdatePaymentRequest.class)
                     .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
             UpdatePaymentRequest updateRequest = reader.readValue(payload);
+            OffsetDateTime version = extractVersion(payload, updateRequest);
+            if (version == null) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload"));
+            }
+            updateRequest.setUpdatedAt(version);
             return paymentService.update(paymentId, updateRequest)
                     .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found")))
                     .then();
@@ -120,6 +129,44 @@ public class PaymentsWebhookService {
             log.warn("Не удалось десериализовать payload вебхука payment.updated", e);
             return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payload"));
         }
+    }
+
+    private OffsetDateTime extractVersion(JsonNode payload, UpdatePaymentRequest updateRequest) {
+        OffsetDateTime requestVersion = updateRequest.getUpdatedAt();
+        if (requestVersion != null) {
+            return requestVersion;
+        }
+
+        JsonNode updatedAtNode = payload.get("updatedAt");
+        if (updatedAtNode != null && !updatedAtNode.isNull()) {
+            if (!updatedAtNode.isTextual()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload");
+            }
+            try {
+                return OffsetDateTime.parse(updatedAtNode.asText());
+            } catch (DateTimeParseException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload", ex);
+            }
+        }
+
+        JsonNode revisionNode = payload.get("revision");
+        if (revisionNode != null && !revisionNode.isNull()) {
+            long revisionValue;
+            if (revisionNode.isNumber()) {
+                revisionValue = revisionNode.asLong();
+            } else if (revisionNode.isTextual()) {
+                try {
+                    revisionValue = Long.parseLong(revisionNode.asText());
+                } catch (NumberFormatException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload", ex);
+                }
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_payload");
+            }
+            return OffsetDateTime.ofInstant(Instant.ofEpochMilli(revisionValue), ZoneOffset.UTC);
+        }
+
+        return null;
     }
 
     private boolean isSignatureValid(CrmWebhookRequest request) {
