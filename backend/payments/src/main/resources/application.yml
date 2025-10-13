@@ -36,6 +36,14 @@ payments:
   crm:
     webhook:
       secret: ${PAYMENTS_CRM_WEBHOOK_SECRET:}
+  exports:
+    queue: ${PAYMENTS_EXPORTS_QUEUE:payments.exports}
+    status-queue: ${PAYMENTS_EXPORTS_STATUS_QUEUE:payments.exports.status}
+    storage:
+      bucket: ${PAYMENTS_EXPORTS_STORAGE_BUCKET:}
+      prefix: ${PAYMENTS_EXPORTS_STORAGE_PREFIX:payments/exports}
+      base-url: ${PAYMENTS_EXPORTS_STORAGE_BASE_URL:}
+      url-ttl: ${PAYMENTS_EXPORTS_STORAGE_URL_TTL:PT24H}
 
 management:
   endpoints:

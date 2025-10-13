@@ -5,8 +5,8 @@ Payments учитывает финансовые операции (платеж�
 
 ## Требования к окружению
 - JDK 17 и Gradle 8+ (Spring Boot WebFlux + Spring Cloud Stream).【F:docs/tech-stack.md†L204-L230】
-- PostgreSQL (схема `payments`) и RabbitMQ (exchange `payments.events`).【F:docs/architecture.md†L12-L13】【F:docs/tech-stack.md†L214-L236】
-- Переменные окружения `PAYMENTS_SERVICE_PORT`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_RABBITMQ_URL`, `PAYMENTS_CRM_WEBHOOK_SECRET` и связанные настройки (см. [`env.example`](../../env.example)).
+- PostgreSQL (схема `payments`) и RabbitMQ (exchange `payments.events`, очереди `payments.exports`/`payments.exports.status`).【F:docs/architecture.md†L12-L13】【F:docs/tech-stack.md†L214-L236】【F:docs/api/payments.md†L205-L239】
+- Переменные окружения `PAYMENTS_SERVICE_PORT`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_RABBITMQ_URL`, `PAYMENTS_CRM_WEBHOOK_SECRET`, `PAYMENTS_EXPORTS_QUEUE`, `PAYMENTS_EXPORTS_STATUS_QUEUE`, `PAYMENTS_EXPORTS_STORAGE_*` и связанные настройки (см. [`env.example`](../../env.example)).
 
 ## Локальный запуск
 
@@ -53,6 +53,10 @@ gradle test
 
 `POST /api/v1/payments/{paymentId}/status` переводит платёж в новый статус. Допустимы переходы `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`; возврат из `CANCELLED` запрещён. Для `COMPLETED` требуется `actual_date`, для `CANCELLED` — комментарий с причиной. При успешной смене статуса обновляется `processed_at`, при необходимости сохраняется `confirmation_reference`, создаётся запись в истории и публикуется событие `payment.status_changed` (RabbitMQ + SSE).
 
+### Экспорт платежей
+
+`GET /api/v1/payments/export` ставит задачу генерации выгрузки (CSV/XLSX) в очередь `PAYMENTS_EXPORTS_QUEUE` и возвращает `job_id` c начальным статусом `processing`. Настройки хранилища (`PAYMENTS_EXPORTS_STORAGE_*`) проксируются воркеру экспорта; статус обновляется через сообщения из `PAYMENTS_EXPORTS_STATUS_QUEUE` (`processing` → `done`/`failed`). `GET /api/v1/payments/export/{job_id}` отдаёт актуальный статус и ссылку на скачивание после завершения.【F:docs/api/payments.md†L205-L239】
+
 ### Вебхуки CRM
 
 События `payment.created` и `payment.updated` приходят через `/api/v1/webhooks/crm`. Для обновлений CRM обязана передавать идентификатор платежа и версию (`updatedAt` в ISO 8601 или числовой `revision` — миллисекунды Unix-эпохи). Если версия устарела относительно `payments.updated_at`, сервис отвечает `409 stale_update` и не изменяет данные. Это предотвращает перезапись актуальной информации более ранним состоянием.
@@ -71,7 +75,7 @@ gradle test
 ## Миграции и скрипты
 - Миграции Flyway хранятся в каталоге [`migrations`](migrations/) и запускаются автоматически при старте приложения либо вручную через `gradle flywayMigrate`.【F:docs/tech-stack.md†L226-L230】
 - Обмен `payments.events` и связанные сущности описаны в конфигурации Spring AMQP (`com.crm.payments.config`).
-- Пилотный набор миграций создаёт схему `payments` и базовые справочники (при необходимости расширяйте список).
+- Пилотный набор миграций создаёт схему `payments`, базовые справочники и таблицу `payment_exports` для очереди выгрузок (при необходимости расширяйте список).【F:backend/payments/migrations/db/migration/V20241005090000__create_payment_exports.sql†L1-L11】
 
 ## Запуск в Docker
 1. Соберите образ через Spring Boot buildpacks:

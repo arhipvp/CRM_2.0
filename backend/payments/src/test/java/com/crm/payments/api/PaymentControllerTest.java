@@ -14,6 +14,7 @@ import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.domain.PaymentStatus;
 import com.crm.payments.domain.PaymentType;
 import com.crm.payments.service.PaymentService;
+import com.crm.payments.service.export.PaymentExportService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -38,6 +39,9 @@ class PaymentControllerTest {
 
     @MockBean
     private PaymentService paymentService;
+
+    @MockBean
+    private PaymentExportService paymentExportService;
 
     @Test
     void postPaymentShouldAcceptSnakeCasePayload() {
