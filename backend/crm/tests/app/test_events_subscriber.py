@@ -71,6 +71,57 @@ class DummyMessage:
         yield self
 
 
+@pytest.mark.asyncio()
+async def test_start_stop_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = sys.modules["crm.app.config"].Settings()
+    subscriber = PaymentsEventsSubscriber(settings, session_factory=None)  # type: ignore[arg-type]
+
+    setup_topology_mock = AsyncMock()
+    subscriber._setup_topology = setup_topology_mock  # type: ignore[assignment]
+
+    queue_stub = SimpleNamespace(consume=AsyncMock())
+    channel_stub = SimpleNamespace(
+        declare_queue=AsyncMock(return_value=queue_stub),
+        close=AsyncMock(),
+    )
+    channel_mock = AsyncMock(return_value=channel_stub)
+
+    connection_stub = SimpleNamespace(channel=channel_mock, close=AsyncMock())
+    connect_mock = AsyncMock(return_value=connection_stub)
+    monkeypatch.setattr("crm.app.events.aio_pika.connect_robust", connect_mock)
+
+    await subscriber.start()
+
+    assert connect_mock.await_count == 1
+    assert connect_mock.await_args.args[0] == str(settings.rabbitmq_url)
+    assert channel_mock.await_count == 1
+    assert channel_mock.await_args.kwargs["publisher_confirms"] is True
+    setup_topology_mock.assert_awaited_once()
+
+    declare_call = channel_stub.declare_queue.await_args
+    assert declare_call.args[0] == settings.payments_queue
+    assert declare_call.kwargs["durable"] is True
+    queue_stub.consume.assert_awaited_once_with(subscriber._handle_message, no_ack=False)
+    assert subscriber._consume_task is not None
+
+    await subscriber.start()
+
+    assert connect_mock.await_count == 1
+    assert channel_mock.await_count == 1
+    assert channel_stub.declare_queue.await_count == 1
+    assert queue_stub.consume.await_count == 1
+    assert setup_topology_mock.await_count == 1
+
+    await subscriber.stop()
+
+    channel_stub.close.assert_awaited_once()
+    connection_stub.close.assert_awaited_once()
+    assert subscriber._connection is None
+    assert subscriber._channel is None
+    assert subscriber._consume_task is None
+    assert subscriber._closing.is_set() is False
+
+
 def test_should_dead_letter_without_header(subscriber: PaymentsEventsSubscriber) -> None:
     message = make_message(headers=None)
 
