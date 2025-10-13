@@ -337,8 +337,8 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
 - Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
-  - Для локального запуска все `NEXT_PUBLIC_*_SSE_URL` и `NEXT_PUBLIC_API_BASE_URL` уже указывают на `http://localhost:${GATEWAY_SERVICE_PORT}`;
-    дополнительных DNS-записей или кастомных доменов не требуется.
+  - По умолчанию шаблон ориентирован на Docker-сеть `infra`: `NEXT_PUBLIC_API_BASE_URL` и `NEXT_PUBLIC_*_SSE_URL` указывают на `http://gateway:8080`, чтобы фронтенд в контейнере обращался к сервису Gateway по имени.
+  - Если вы запускаете фронтенд на хостовой машине, переопределите значения в `.env.local`, используя `http://localhost:${GATEWAY_SERVICE_PORT}` для API и всех SSE-каналов.
 - Для фоновых заданий и уведомлений используйте очереди RabbitMQ и Redis из запущенного Docker Compose.
 - Для проверки готовности можно запустить ключевые сервисы локально:
   - **Gateway / BFF:**
