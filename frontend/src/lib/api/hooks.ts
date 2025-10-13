@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import {
   dealActivityQueryOptions,
@@ -207,7 +207,8 @@ export function useUpdateDealStage() {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["deals"] }),
-        queryClient.invalidateQueries({ queryKey: ["deal", variables.dealId] }),
+        queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: ["deal-stage-metrics"] }),
       ]);
     },
   });
