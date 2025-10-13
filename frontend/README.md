@@ -4,6 +4,8 @@
 
 ## Быстрый старт
 
+Для быстрого запуска во всей инфраструктуре используйте «однокнопочный» сценарий `../scripts/dev-up.sh`: он выполнит bootstrap корневых сервисов, синхронизирует `.env` и поднимет контейнер Next.js через `docker compose --profile app up -d frontend`. После запуска скрипт напечатает URL `http://localhost:${FRONTEND_SERVICE_PORT}` и при необходимости откроет браузер (см. переменную `LOCAL_LAUNCH_OPEN_BROWSER` и флаги `--open-browser`/`--no-browser`).
+
 Перед установкой зависимостей убедитесь, что используется Node.js 20 LTS и активирован Corepack:
 
 1. `corepack enable`
