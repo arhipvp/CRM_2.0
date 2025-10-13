@@ -5,13 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.domain.PaymentEntity;
 import com.crm.payments.domain.PaymentType;
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.UUID;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
@@ -19,7 +17,14 @@ import org.junit.jupiter.api.Test;
 
 class PaymentMapperTest {
 
+    private static Validator validator;
+
     private final PaymentMapper mapper = new PaymentMapper();
+
+    @BeforeAll
+    static void setUpValidator() {
+        validator = Validation.buildDefaultValidatorFactory().getValidator();
+    }
 
     @Test
     void fromRequestShouldPopulatePaymentType() {
@@ -44,13 +49,6 @@ class PaymentMapperTest {
         assertThat(entity.getDueDate()).isEqualTo(request.getDueDate());
         assertThat(entity.getDescription()).isEqualTo(request.getDescription());
     }
-}
-    private static Validator validator;
-
-    @BeforeAll
-    static void setUpValidator() {
-        validator = Validation.buildDefaultValidatorFactory().getValidator();
-    }
 
     @Test
     void shouldRejectNonRubCurrency() {
@@ -59,6 +57,7 @@ class PaymentMapperTest {
         request.setInitiatorUserId(UUID.randomUUID());
         request.setAmount(BigDecimal.ONE);
         request.setCurrency("USD");
+        request.setPaymentType(PaymentType.COMMISSION);
 
         Set<ConstraintViolation<PaymentRequest>> violations = validator.validate(request);
 
