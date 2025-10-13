@@ -125,7 +125,9 @@ class PaymentControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
     }
 
     @Test
@@ -184,7 +186,22 @@ class PaymentControllerTest {
                         "\"status\": \"PROCESSING\"" +
                         "}")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
+    }
+
+    @Test
+    void getPaymentShouldReturn404WhenNotFound() {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.findById(paymentId)).thenReturn(Mono.empty());
+
+        webTestClient.get()
+                .uri("/api/v1/payments/{paymentId}", paymentId)
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("payment_not_found");
     }
 
     @Test

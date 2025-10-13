@@ -9,6 +9,7 @@ import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.service.PaymentService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -42,7 +44,7 @@ public class PaymentController {
     public Mono<ResponseEntity<PaymentResponse>> getPayment(@PathVariable UUID paymentId) {
         return paymentService.findById(paymentId)
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "payment_not_found")));
     }
 
     @PostMapping("/payments")
@@ -56,7 +58,7 @@ public class PaymentController {
             @Valid @RequestBody UpdatePaymentRequest request) {
         return paymentService.update(paymentId, request)
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "payment_not_found")));
     }
 
     @PostMapping("/payments/{paymentId}/status")
@@ -64,7 +66,7 @@ public class PaymentController {
             @Valid @RequestBody PaymentStatusRequest request) {
         return paymentService.updateStatus(paymentId, request)
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "payment_not_found")));
     }
 
     @GetMapping(path = "/streams/payments", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
