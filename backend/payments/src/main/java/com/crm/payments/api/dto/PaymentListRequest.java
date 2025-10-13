@@ -59,12 +59,36 @@ public class PaymentListRequest {
         this.statuses = statuses;
     }
 
+    public PaymentStatus getStatus() {
+        return getStatuses().isEmpty() ? null : getStatuses().get(0);
+    }
+
+    public void setStatus(PaymentStatus status) {
+        if (status == null) {
+            this.statuses = null;
+        } else {
+            this.statuses = List.of(status);
+        }
+    }
+
     public List<PaymentType> getTypes() {
         return types == null ? Collections.emptyList() : types;
     }
 
     public void setTypes(List<PaymentType> types) {
         this.types = types;
+    }
+
+    public PaymentType getType() {
+        return getTypes().isEmpty() ? null : getTypes().get(0);
+    }
+
+    public void setType(PaymentType type) {
+        if (type == null) {
+            this.types = null;
+        } else {
+            this.types = List.of(type);
+        }
     }
 
     public OffsetDateTime getFromDate() {

@@ -27,8 +27,8 @@
 | --- | --- | --- |
 | `dealId` | UUID | Фильтр по сделке CRM. |
 | `policyId` | UUID | Фильтр по полису. |
-| `status` | array[string] | Значения из словаря `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`. |
-| `type` | array[string] | Значения словаря типов (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
+| `status`/`statuses` | array[string] | Значения из словаря `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED` (поддерживаются оба имени параметра). |
+| `type`/`types` | array[string] | Значения словаря типов (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`) (поддерживаются оба имени параметра). |
 | `fromDate` | datetime (ISO 8601) | Нижняя граница по `created_at` (включительно). |
 | `toDate` | datetime (ISO 8601) | Верхняя граница по `created_at` (включительно). |
 | `limit` | integer | Размер страницы (по умолчанию `50`, максимум `200`). |
