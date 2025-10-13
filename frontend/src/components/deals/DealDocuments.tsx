@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   dealDocumentsQueryOptions,
   dealQueryOptions,
+  dealStageMetricsQueryKey,
   dealsQueryKey,
 } from "@/lib/api/queries";
 import { useDealDocuments, useUploadDealDocument } from "@/lib/api/hooks";
@@ -92,6 +93,7 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
     await queryClient.invalidateQueries({ queryKey: documentsKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
     await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
 
     setIsFormOpen(false);
   };
