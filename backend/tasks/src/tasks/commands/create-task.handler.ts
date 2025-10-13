@@ -9,6 +9,22 @@ import { TaskEventsPublisher } from '../services/task-events.publisher';
 import { TaskStatusCode } from '../constants/task-status.constants';
 import { DelayedTaskQueueService } from '../../delayed/delayed-task-queue.service';
 
+const toCamelCase = (key: string): string =>
+  key
+    .replace(/^[A-Z]/, (char) => char.toLowerCase())
+    .replace(/[-_]+(\w)/g, (_, char: string) => char.toUpperCase());
+
+const normalizeContextKeys = (
+  context: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.entries(context).reduce<Record<string, unknown>>((acc, [key, value]) => {
+    acc[toCamelCase(key)] = value;
+    return acc;
+  }, {});
+
+const extractIdentifier = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+
 @CommandHandler(CreateTaskCommand)
 export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand, TaskEntity> {
   constructor(
@@ -38,7 +54,24 @@ export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand, Tas
     }
 
     if (command.context) {
-      payload.context = command.context;
+      const context = command.context;
+      const dealId = extractIdentifier(context['dealId'] ?? context['deal_id']);
+      const clientId = extractIdentifier(context['clientId'] ?? context['client_id']);
+      const normalizedContext = normalizeContextKeys(context);
+
+      if (dealId) {
+        payload.dealId = dealId;
+        payload['deal_id'] = dealId;
+        normalizedContext.dealId = dealId;
+      }
+
+      if (clientId) {
+        payload.clientId = clientId;
+        payload['client_id'] = clientId;
+        normalizedContext.clientId = clientId;
+      }
+
+      payload.context = normalizedContext;
     }
 
     const task = this.taskRepository.create({
