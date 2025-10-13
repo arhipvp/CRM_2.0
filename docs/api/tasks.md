@@ -156,6 +156,19 @@
 }
 ```
 
+**Пример ошибки 409**
+```json
+{
+  "statusCode": 409,
+  "code": "invalid_status_transition",
+  "message": "Task in status completed cannot transition to pending",
+  "details": {
+    "current": "completed",
+    "next": "pending"
+  }
+}
+```
+
 **Ошибки:** `400 validation_error`, `404 task_not_found`, `409 invalid_status_transition` (например, при попытке вернуть задачу из `completed` в `pending`).
 
 ### POST `/tasks/{task_id}/reminders`

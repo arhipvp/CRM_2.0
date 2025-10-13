@@ -104,7 +104,12 @@ describe('TaskUpdateService', () => {
 
     await expect(
       service.updateTask(new UpdateTaskCommand('task-2', TaskStatusCode.PENDING))
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        statusCode: 409,
+        code: 'invalid_status_transition'
+      })
+    });
     expect(repository.save).not.toHaveBeenCalled();
   });
 
@@ -185,7 +190,12 @@ describe('TaskUpdateService', () => {
           'updated reason'
         )
       )
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        statusCode: 409,
+        code: 'invalid_status_transition'
+      })
+    });
     expect(repository.save).not.toHaveBeenCalled();
   });
 
