@@ -40,6 +40,7 @@ public class PaymentRequest {
 
     private String description;
 
+    @NotNull
     @JsonProperty("payment_type")
     @JsonAlias("paymentType")
     private PaymentType paymentType;
