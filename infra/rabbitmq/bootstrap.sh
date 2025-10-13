@@ -71,31 +71,35 @@ PY
 }
 
 wait_for_rabbitmq_ready() {
-  echo "[Инфо] Ожидаем готовность RabbitMQ..."
-  local output state health attempt
-  if output=$(docker compose -f "${COMPOSE_FILE}" wait rabbitmq 2>&1); then
-    echo "[Инфо] RabbitMQ готов."
-    return 0
-  fi
+  echo "[Инфо] Ожидаем готовность RabbitMQ (healthcheck)..."
+  local -a status_lines=()
+  local state="" health="" attempt=0
+  local max_attempts=30
+  local delay_seconds=2
 
-  if grep -qiE 'unknown command|No help topic for "wait"' <<<"${output}"; then
-    echo "[Инфо] Команда 'docker compose wait' недоступна, проверяем состояние вручную..."
-    for attempt in {1..30}; do
-      local -a status_lines=()
-      mapfile -t status_lines < <(rabbitmq_status)
-      state="${status_lines[0]:-}"
-      health="${status_lines[1]:-}"
-      if [[ "${state}" == "running" && ( -z "${health}" || "${health}" == "healthy" ) ]]; then
-        echo "[Инфо] RabbitMQ готов (state='${state}', health='${health:-n/a}')."
-        return 0
-      fi
-      sleep 2
-    done
-    echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' в отведённое время." >&2
-    return 1
-  fi
+  while (( attempt < max_attempts )); do
+    ((attempt++))
+    mapfile -t status_lines < <(rabbitmq_status)
+    state="${status_lines[0]:-unknown}"
+    health="${status_lines[1]:-}"
 
-  echo "${output}" >&2
+    if [[ "${state}" == "running" && ( -z "${health}" || "${health}" == "healthy" ) ]]; then
+      echo "[Инфо] RabbitMQ готов (state='${state}', health='${health:-n/a}')."
+      return 0
+    fi
+
+    if [[ "${state}" == "exited" || "${state}" == "dead" ]]; then
+      echo "[Ошибка] Контейнер RabbitMQ завершился (state='${state}', health='${health:-n/a}'). Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs rabbitmq" >&2
+      return 1
+    fi
+
+    if (( attempt < max_attempts )); then
+      sleep "${delay_seconds}"
+    fi
+  done
+
+  local waited_seconds=$((max_attempts * delay_seconds))
+  echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за ${waited_seconds} секунд (state='${state:-unknown}', health='${health:-n/a}'). Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
   return 1
 }
 

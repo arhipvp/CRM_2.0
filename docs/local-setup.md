@@ -12,8 +12,8 @@
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизация `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
-3. ожидание готовности контейнеров (`docker compose wait` или резервный цикл проверки healthcheck в `infra/`).
-4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`.
+3. ожидание готовности контейнеров через healthcheck (`docker compose ps --format json` в инфраструктурных утилитах `infra/`).
+4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`.
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
 7. `scripts/check-local-infra.sh` — smoke-проверка PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
@@ -196,7 +196,7 @@ docker compose --profile app up -d frontend
 
 ### Создайте пользователей и vhost-ы RabbitMQ для сервисов
 
-Автоматизация оформлена в скрипте [`infra/rabbitmq/bootstrap.sh`](../infra/rabbitmq/bootstrap.sh). Он читает указанный `.env`, находит все переменные `*_RABBITMQ_URL` (единый источник правды прописан в [`env.example`](../env.example)) и через `rabbitmqctl` создаёт отсутствующие vhost-ы и пользователей, обновляя права при повторном запуске. Перед первым вызовом `rabbitmqctl` скрипт проверяет статус контейнера через `docker compose ps rabbitmq`, при необходимости автоматически выполняет `docker compose up -d rabbitmq`, а затем дожидается готовности сервиса (`docker compose wait rabbitmq` или резервный цикл проверки healthcheck). Если поднять контейнер не удалось, bootstrap завершится с подсказкой по логам. Пустые или неполные URL (без пользователя/vhost) пропускаются с предупреждением, поэтому заготовленные переменные в `.env` не прервут bootstrap.
+Автоматизация оформлена в скрипте [`infra/rabbitmq/bootstrap.sh`](../infra/rabbitmq/bootstrap.sh). Он читает указанный `.env`, находит все переменные `*_RABBITMQ_URL` (единый источник правды прописан в [`env.example`](../env.example)) и через `rabbitmqctl` создаёт отсутствующие vhost-ы и пользователей, обновляя права при повторном запуске. Перед первым вызовом `rabbitmqctl` скрипт проверяет статус контейнера через `docker compose ps rabbitmq`, при необходимости автоматически выполняет `docker compose up -d rabbitmq`, а затем дожидается готовности сервиса по healthcheck (`docker compose ps --format json`). Если поднять контейнер не удалось, bootstrap завершится с подсказкой по логам. Пустые или неполные URL (без пользователя/vhost) пропускаются с предупреждением, поэтому заготовленные переменные в `.env` не прервут bootstrap.
 
 1. Убедитесь, что локальный `.env` соответствует актуальному шаблону (см. шаг 1 выше).
 2. Если `rabbitmq` ещё не запущен, можно пропустить ручной `docker compose up -d rabbitmq`: скрипт проверит состояние контейнера и поднимет его самостоятельно, прежде чем запускать `rabbitmqctl`.
