@@ -1,11 +1,16 @@
 package com.crm.payments.service;
 
+import com.crm.payments.api.dto.PaymentHistoryResponse;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.domain.PaymentEntity;
 import com.crm.payments.domain.PaymentStatus;
+import com.crm.payments.domain.PaymentHistoryEntity;
 import java.time.OffsetDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,6 +35,22 @@ public class PaymentMapper {
     }
 
     public PaymentResponse toResponse(PaymentEntity entity) {
+        PaymentResponse response = createBaseResponse(entity);
+        response.setHistory(Collections.emptyList());
+        return response;
+    }
+
+    public PaymentResponse toResponse(PaymentEntity entity, List<PaymentHistoryEntity> history) {
+        PaymentResponse response = createBaseResponse(entity);
+        List<PaymentHistoryResponse> historyResponses = history == null ? Collections.emptyList()
+                : history.stream()
+                        .map(this::toHistoryResponse)
+                        .collect(Collectors.toList());
+        response.setHistory(historyResponses);
+        return response;
+    }
+
+    private PaymentResponse createBaseResponse(PaymentEntity entity) {
         PaymentResponse response = new PaymentResponse();
         response.setId(entity.getId());
         response.setDealId(entity.getDealId());
@@ -45,6 +66,15 @@ public class PaymentMapper {
         response.setDescription(entity.getDescription());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
+        return response;
+    }
+
+    private PaymentHistoryResponse toHistoryResponse(PaymentHistoryEntity entity) {
+        PaymentHistoryResponse response = new PaymentHistoryResponse();
+        response.setStatus(entity.getStatus());
+        response.setAmount(entity.getAmount());
+        response.setChangedAt(entity.getChangedAt());
+        response.setDescription(entity.getDescription());
         return response;
     }
 }

@@ -65,12 +65,12 @@ public class PaymentService {
 
     public Flux<PaymentResponse> findAll(PaymentListRequest request) {
         return paymentRepository.findAll(request)
-                .map(paymentMapper::toResponse);
+                .flatMapSequential(this::toResponseWithHistory);
     }
 
     public Mono<PaymentResponse> findById(UUID paymentId) {
         return paymentRepository.findById(paymentId)
-                .map(paymentMapper::toResponse);
+                .flatMap(this::toResponseWithHistory);
     }
 
     public Mono<PaymentResponse> create(PaymentRequest request) {
@@ -79,7 +79,7 @@ public class PaymentService {
                 .flatMap(saved -> recordHistory(saved, PAYMENT_CREATED_EVENT, saved.getAmount(), null)
                         .thenReturn(saved))
                 .doOnNext(saved -> publishQueueEvent(PAYMENT_CREATED_EVENT, saved, saved.getAmount()))
-                .map(paymentMapper::toResponse)
+                .flatMap(this::toResponseWithHistory)
                 .doOnNext(response -> emitStreamEvent(PAYMENT_CREATED_EVENT, response.getId(), response.getStatus(),
                         response.getAmount(), response.getDealId()))
                 .doOnSuccess(response -> log.info("Создан платёж {} для сделки {}", response.getId(),
@@ -89,7 +89,7 @@ public class PaymentService {
     public Mono<PaymentResponse> update(UUID paymentId, UpdatePaymentRequest request) {
         return paymentRepository.findById(paymentId)
                 .flatMap(entity -> verifyVersionAndApplyUpdates(entity, request))
-                .map(paymentMapper::toResponse);
+                .flatMap(this::toResponseWithHistory);
     }
 
     private Mono<PaymentEntity> verifyVersionAndApplyUpdates(PaymentEntity entity, UpdatePaymentRequest request) {
@@ -106,7 +106,7 @@ public class PaymentService {
     public Mono<PaymentResponse> updateStatus(UUID paymentId, PaymentStatusRequest request) {
         return paymentRepository.findById(paymentId)
                 .flatMap(entity -> applyStatusUpdate(entity, request))
-                .map(paymentMapper::toResponse);
+                .flatMap(this::toResponseWithHistory);
     }
 
     public Mono<Void> handleQueueEvent(PaymentQueueEvent event) {
@@ -313,6 +313,12 @@ public class PaymentService {
         history.setChangedAt(OffsetDateTime.now());
         history.setDescription(StringUtils.hasText(comment) ? comment : eventType);
         return paymentHistoryRepository.save(history);
+    }
+
+    private Mono<PaymentResponse> toResponseWithHistory(PaymentEntity entity) {
+        return paymentHistoryRepository.findAllByPaymentIdOrderByChangedAtAsc(entity.getId())
+                .collectList()
+                .map(history -> paymentMapper.toResponse(entity, history));
     }
 
     private void publishQueueEvent(String type, PaymentEntity entity, BigDecimal amount) {

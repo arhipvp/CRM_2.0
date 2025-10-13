@@ -47,6 +47,8 @@ gradle test
 
 Если заданы оба параметра дат, `fromDate` не может быть позже `toDate`. При превышении `limit` значения `200` используется верхняя граница.
 
+Все ответы `PaymentResponse` содержат поле `history` — упорядоченный по `changedAt` список событий из `payment_history` (статус после изменения, сумма, комментарий и отметка времени). Это позволяет фронтенду и внешним системам отображать актуальный журнал операций без дополнительных запросов.
+
 `PATCH /api/v1/payments/{paymentId}` позволяет частично обновлять платёж: сумму, валюту, даты (`dueDate`, `processedAt`), тип (`paymentType`) и описание. Любое изменение или переданный комментарий (`comment`) фиксируется в `payment_history`, а наружу отправляется событие `payment.updated` (RabbitMQ + SSE-поток). В теле достаточно передать только изменяемые поля.
 
 `POST /api/v1/payments/{paymentId}/status` переводит платёж в новый статус. Допустимы переходы `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`; возврат из `CANCELLED` запрещён. Для `COMPLETED` требуется `actual_date`, для `CANCELLED` — комментарий с причиной. При успешной смене статуса обновляется `processed_at`, при необходимости сохраняется `confirmation_reference`, создаётся запись в истории и публикуется событие `payment.status_changed` (RabbitMQ + SSE).

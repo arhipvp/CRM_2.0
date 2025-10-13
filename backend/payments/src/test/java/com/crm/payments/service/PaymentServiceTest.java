@@ -21,7 +21,9 @@ import com.crm.payments.repository.PaymentHistoryRepository;
 import com.crm.payments.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
@@ -52,6 +55,8 @@ class PaymentServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(streamBridge.send(anyString(), any())).thenReturn(true);
+        lenient().when(paymentHistoryRepository.findAllByPaymentIdOrderByChangedAtAsc(any(UUID.class)))
+                .thenReturn(Flux.empty());
         PaymentMapper mapper = new PaymentMapper();
         Sinks.Many<PaymentStreamEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
         paymentService = new PaymentService(paymentRepository, paymentHistoryRepository, mapper, streamBridge, sink);
@@ -77,8 +82,18 @@ class PaymentServiceTest {
             PaymentEntity saved = invocation.getArgument(0);
             return Mono.just(saved);
         });
+        AtomicReference<PaymentHistoryEntity> savedHistoryRef = new AtomicReference<>();
         when(paymentHistoryRepository.save(any(PaymentHistoryEntity.class)))
-                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+                .thenAnswer(invocation -> {
+                    PaymentHistoryEntity savedHistory = invocation.getArgument(0);
+                    savedHistoryRef.set(savedHistory);
+                    return Mono.just(savedHistory);
+                });
+        when(paymentHistoryRepository.findAllByPaymentIdOrderByChangedAtAsc(paymentId))
+                .thenAnswer(invocation -> {
+                    PaymentHistoryEntity savedHistory = savedHistoryRef.get();
+                    return savedHistory != null ? Flux.just(savedHistory) : Flux.empty();
+                });
 
         UpdatePaymentRequest request = new UpdatePaymentRequest();
         request.setAmount(BigDecimal.valueOf(150));
@@ -98,6 +113,11 @@ class PaymentServiceTest {
                     assertThat(response.getDescription()).isEqualTo("Updated description");
                     assertThat(response.getProcessedAt()).isEqualTo(request.getProcessedAt());
                     assertThat(response.getUpdatedAt()).isNotNull();
+                    assertThat(response.getHistory()).isNotNull();
+                    assertThat(response.getHistory()).hasSize(1);
+                    assertThat(response.getHistory().get(0).getAmount()).isEqualByComparingTo("150");
+                    assertThat(response.getHistory().get(0).getDescription()).isEqualTo("manual adjustment");
+                    assertThat(response.getHistory().get(0).getStatus()).isEqualTo(PaymentStatus.PENDING);
                 })
                 .verifyComplete();
 
@@ -203,8 +223,26 @@ class PaymentServiceTest {
 
         when(paymentRepository.findById(paymentId)).thenReturn(Mono.just(entity));
         when(paymentRepository.save(any(PaymentEntity.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+        AtomicReference<PaymentHistoryEntity> savedHistoryRef = new AtomicReference<>();
         when(paymentHistoryRepository.save(any(PaymentHistoryEntity.class)))
-                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+                .thenAnswer(invocation -> {
+                    PaymentHistoryEntity savedHistory = invocation.getArgument(0);
+                    savedHistoryRef.set(savedHistory);
+                    return Mono.just(savedHistory);
+                });
+        when(paymentHistoryRepository.findAllByPaymentIdOrderByChangedAtAsc(paymentId))
+                .thenAnswer(invocation -> {
+                    PaymentHistoryEntity savedHistory = savedHistoryRef.get();
+                    if (savedHistory == null) {
+                        return Flux.empty();
+                    }
+                    PaymentHistoryEntity previous = new PaymentHistoryEntity();
+                    previous.setStatus(PaymentStatus.PROCESSING);
+                    previous.setAmount(entity.getAmount());
+                    previous.setChangedAt(entity.getCreatedAt());
+                    previous.setDescription("payment.created");
+                    return Flux.fromIterable(Collections.singletonList(previous)).concatWith(Flux.just(savedHistory));
+                });
 
         OffsetDateTime actualDate = OffsetDateTime.now().minusHours(2).withNano(0);
         PaymentStatusRequest request = new PaymentStatusRequest();
@@ -218,6 +256,9 @@ class PaymentServiceTest {
                     assertThat(response.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
                     assertThat(response.getProcessedAt()).isEqualTo(actualDate);
                     assertThat(response.getConfirmationReference()).isEqualTo("REF-123");
+                    assertThat(response.getHistory()).isNotNull();
+                    assertThat(response.getHistory()).hasSize(2);
+                    assertThat(response.getHistory().get(1).getDescription()).isEqualTo("Подтверждено оператором");
                 })
                 .verifyComplete();
 

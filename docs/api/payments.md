@@ -49,6 +49,34 @@
 
 **Ответ 200** — массив платежей.
 
+#### Структура `PaymentResponse`
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `id` | UUID | Идентификатор платежа. |
+| `dealId` | UUID | Связь со сделкой CRM. |
+| `policyId` | UUID | Связь с полисом (если применимо). |
+| `initiatorUserId` | UUID | Пользователь, инициировавший платёж. |
+| `amount` | number | Текущая сумма платежа. |
+| `currency` | string | Всегда `RUB`. |
+| `status` | string | Текущий статус (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`). |
+| `paymentType` | string | Тип платежа (`INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`). |
+| `dueDate` | datetime | Плановая дата исполнения. |
+| `processedAt` | datetime | Фактическая дата обработки (если есть). |
+| `confirmationReference` | string | Идентификатор подтверждения операции. |
+| `description` | string | Пользовательский комментарий. |
+| `createdAt` | datetime | Дата создания записи. |
+| `updatedAt` | datetime | Дата последнего изменения. |
+| `history` | array[`PaymentHistoryItem`] | Хронологический список изменений, отсортированный по возрастанию `changedAt`. |
+
+`PaymentHistoryItem` описывает конкретное изменение платежа:
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `status` | string | Статус платежа после изменения. |
+| `amount` | number | Фиксируемая сумма (учитывает корректировки). |
+| `changedAt` | datetime | Момент фиксации изменения. |
+| `description` | string | Комментарий/источник события (`payment.created`, пользовательский комментарий и т.д.). |
 ### GET `/payments/{payment_id}`
 Получение платежа по идентификатору.
 
@@ -100,7 +128,15 @@
   "paymentType": "INSTALLMENT",
   "dueDate": "2024-08-15T12:00:00+03:00",
   "createdAt": "2024-07-24T09:30:00Z",
-  "updatedAt": "2024-07-24T09:30:00Z"
+  "updatedAt": "2024-07-24T09:30:00Z",
+  "history": [
+    {
+      "status": "PENDING",
+      "amount": 2500.00,
+      "changedAt": "2024-07-24T09:30:00Z",
+      "description": "payment.created"
+    }
+  ]
 }
 ```
 
@@ -154,7 +190,7 @@
 
 Допустимые переходы: `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`. Возврат из `CANCELLED` невозможен. Любые попытки выйти за пределы этих правил завершаются ошибкой `invalid_status_transition`.
 
-**Ответ 200** — текущий платёж с историей.
+**Ответ 200** — текущий платёж с историей (поле `history` всегда возвращается и содержит все записи из `payment_history`).
 
 **Ошибки:** `400 validation_error`, `400 invalid_status_transition`, `404 payment_not_found`.
 

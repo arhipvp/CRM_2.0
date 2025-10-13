@@ -4,6 +4,7 @@ import com.crm.payments.domain.PaymentStatus;
 import com.crm.payments.domain.PaymentType;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public class PaymentResponse {
@@ -22,6 +23,7 @@ public class PaymentResponse {
     private String description;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private List<PaymentHistoryResponse> history;
 
     public UUID getId() {
         return id;
@@ -133,5 +135,13 @@ public class PaymentResponse {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<PaymentHistoryResponse> getHistory() {
+        return history;
+    }
+
+    public void setHistory(List<PaymentHistoryResponse> history) {
+        this.history = history;
     }
 }
