@@ -43,6 +43,8 @@
 | payload | object \| null | Исходный `payload`, сохранённый при создании задачи. |
 | assigneeId | UUID \| null | Исполнитель из `payload.assigneeId`/`payload.assignee_id`. |
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
+| dealId | UUID \| null | Идентификатор сделки из `payload.dealId`/`payload.deal_id`. |
+| clientId | UUID \| null | Идентификатор клиента из `payload.clientId`/`payload.client_id`. |
 | context | object \| null | Контекст задачи. Если указан, содержит `dealId`/`policyId` (camelCase) из `payload.context`. |
 
 ### POST `/tasks`
@@ -91,10 +93,14 @@
   "payload": {
     "assigneeId": "uuid",
     "priority": "high",
+    "dealId": "uuid",
+    "clientId": "uuid",
     "context": {"dealId": "uuid"}
   },
   "assigneeId": "uuid",
   "priority": "high",
+  "dealId": "uuid",
+  "clientId": "uuid",
   "context": {"dealId": "uuid"}
 }
 ```
