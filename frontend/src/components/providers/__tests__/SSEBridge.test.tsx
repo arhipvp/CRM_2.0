@@ -118,8 +118,11 @@ describe("SSEBridge", () => {
       const crmHandlers = createEventStreamMock.mock.calls[0]?.[1];
       expect(crmHandlers?.onMessage).toBeTypeOf("function");
 
+      const handleMessage = crmHandlers?.onMessage;
+      expect(handleMessage).toBeDefined();
+
       act(() => {
-        crmHandlers?.onMessage(
+        handleMessage?.(
           new MessageEvent("message", {
             data: JSON.stringify({
               id: "event-1",

@@ -44,7 +44,7 @@ const dealsWithUnassignedOwner = dealsMock.map((deal, index) =>
   index === 0
     ? {
         ...deal,
-        owner: undefined,
+        owner: NO_MANAGER_VALUE,
       }
     : deal,
 );
@@ -67,7 +67,7 @@ export default meta;
 const WithData = () => {
   const client = useQueryClient();
   useEffect(() => {
-    client.setQueryData(dealsQueryOptions().queryKey, dealsWithUnassignedOwner);
+    client.setQueryData(dealsQueryOptions().queryKey, () => dealsWithUnassignedOwner);
   }, [client]);
 
   return <DealFunnelBoard />;
