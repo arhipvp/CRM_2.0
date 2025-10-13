@@ -37,6 +37,8 @@ const TABS: TabConfig[] = [
   { id: "finance", title: "Финансы" },
 ];
 
+const DEAL_STAGE_METRICS_QUERY_KEY = ["deal-stage-metrics"] as const;
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -171,6 +173,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
 
     queryClient.setQueryData(dealKey, updated);
     await queryClient.invalidateQueries({ queryKey: ["deals"] });
+    await queryClient.invalidateQueries({ queryKey: DEAL_STAGE_METRICS_QUERY_KEY });
     markDealUpdated(dealId);
   };
 
