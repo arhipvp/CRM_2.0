@@ -77,6 +77,7 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 
 const dealsQueryKey = ["deals"] as const;
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
+const dealStageMetricsQueryKey = dealStageMetricsQueryOptions().queryKey;
 
 export function SSEBridge({
   apiBaseUrl,
@@ -104,7 +105,7 @@ export function SSEBridge({
         setTimeout(() => highlightDeal(undefined), 3000);
         queryClient.invalidateQueries({ queryKey: dealsQueryKey });
         queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryOptions().queryKey });
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
       }
 
       if (payload.message) {
