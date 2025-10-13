@@ -4,6 +4,28 @@ const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
+function safeTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sortDealsByNextReview<T extends { nextReviewAt: string; updatedAt: string; name: string }>(deals: T[]) {
+  return [...deals].sort((a, b) => {
+    const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
+    const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
+
+    if (aValue === bValue) {
+      return a.name.localeCompare(b.name);
+    }
+
+    return aValue - bValue;
+  });
+}
+
 async function importClient() {
   return await import("../client");
 }
@@ -35,43 +57,31 @@ describe("ApiClient mock mode", () => {
       tasksMock,
       dealNotesMock,
       dealDocumentsMock,
-      dealDocumentsMock,
-      dealNotesMock,
-      dealsMock,
-      paymentsMock,
-      tasksMock,
     } = await importMocks();
-    const dealId = dealsMock[0]?.id ?? "";
-    const clientId = clientsMock[0]?.id ?? "";
 
-    await expect(apiClient.getDeals()).resolves.toEqual(dealsMock);
+    const dealId = dealsMock[0]?.id;
+    const clientId = clientsMock[0]?.id;
+
+    expect(await apiClient.getDeals()).toEqual(sortDealsByNextReview(dealsMock));
+
+    expect(dealId).toBeDefined();
+    expect(clientId).toBeDefined();
+    if (!dealId || !clientId) {
+      throw new Error("Тестовые данные сделок или клиентов не заданы");
+    }
 
     const deal = await apiClient.getDeal(dealId);
     expect(deal).toMatchObject({
       ...dealsMock[0],
+      nextReviewAt: dealsMock[0]?.nextReviewAt,
       tasks: tasksMock.filter((task) => task.dealId === dealId),
       notes: dealNotesMock.filter((note) => note.dealId === dealId),
       documents: dealDocumentsMock.filter((doc) => doc.dealId === dealId),
       payments: paymentsMock.filter((payment) => payment.dealId === dealId),
       activity: activitiesMock.filter((entry) => entry.dealId === dealId),
     });
-    const deal = await apiClient.getDeal(dealId);
-    expect(deal).toMatchObject({
-      id: dealsMock[0]?.id,
-      name: dealsMock[0]?.name,
-      clientId: dealsMock[0]?.clientId,
-      clientName: dealsMock[0]?.clientName,
-      value: dealsMock[0]?.value,
-      probability: dealsMock[0]?.probability,
-      stage: dealsMock[0]?.stage,
-      owner: dealsMock[0]?.owner,
-      expectedCloseDate: dealsMock[0]?.expectedCloseDate,
-    });
-    expect(deal.tasks).toEqual(tasksMock.filter((task) => task.dealId === dealId));
-    expect(deal.notes).toEqual(dealNotesMock.filter((note) => note.dealId === dealId));
-    expect(deal.documents).toEqual(dealDocumentsMock.filter((doc) => doc.dealId === dealId));
-    expect(deal.payments).toEqual(paymentsMock.filter((payment) => payment.dealId === dealId));
-    expect(deal.activity).toEqual(activitiesMock.filter((entry) => entry.dealId === dealId));
+    expect(typeof deal.nextReviewAt).toBe("string");
+
     await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
     await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);
     await expect(apiClient.getTasks()).resolves.toEqual(tasksMock);
@@ -109,7 +119,7 @@ describe("ApiClient mock mode", () => {
     const { dealsMock } = await importMocks();
     const client = createApiClient({ baseUrl: "http://[" });
 
-    await expect(client.getDeals()).resolves.toEqual(dealsMock);
+    await expect(client.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -119,7 +129,7 @@ describe("ApiClient mock mode", () => {
     const { apiClient } = await importClient();
     const { dealsMock } = await importMocks();
 
-    await expect(apiClient.getDeals()).resolves.toEqual(dealsMock);
+    await expect(apiClient.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

@@ -21,6 +21,47 @@ function formatProbability(probability: number) {
   return `${Math.round(probability * 100)}%`;
 }
 
+function formatShortDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function getNextReviewStyles(date: string) {
+  const timestamp = new Date(date).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return {
+      indicator: "bg-slate-300 dark:bg-slate-600",
+      text: "text-slate-500 dark:text-slate-400",
+    } as const;
+  }
+
+  const diff = timestamp - Date.now();
+  const dayInMs = 86_400_000;
+
+  if (diff < 0) {
+    return {
+      indicator: "bg-rose-500",
+      text: "text-rose-600 dark:text-rose-300",
+    } as const;
+  }
+
+  if (diff <= dayInMs * 2) {
+    return {
+      indicator: "bg-amber-400",
+      text: "text-amber-600 dark:text-amber-300",
+    } as const;
+  }
+
+  return {
+    indicator: "bg-emerald-400",
+    text: "text-emerald-600 dark:text-emerald-300",
+  } as const;
+}
+
 export interface DealCardProps {
   deal: Deal;
   highlighted?: boolean;
@@ -41,6 +82,7 @@ export function DealCard({
   showCheckbox = true,
 }: DealCardProps) {
   const isOverdue = deal.expectedCloseDate ? new Date(deal.expectedCloseDate).getTime() < Date.now() : false;
+  const nextReviewStyles = getNextReviewStyles(deal.nextReviewAt);
 
   const handleClick = () => {
     if (isDragging) {
@@ -115,6 +157,16 @@ export function DealCard({
             {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short" }).format(new Date(deal.expectedCloseDate))}
           </span>
         )}
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span className="flex items-center gap-2">
+          <span className={classNames("h-2 w-2 rounded-full", nextReviewStyles.indicator)} aria-hidden="true" />
+          <span className={classNames("font-medium", nextReviewStyles.text)}>Следующий просмотр</span>
+        </span>
+        <span className={classNames("font-medium", nextReviewStyles.text)}>
+          {formatShortDate(deal.nextReviewAt)}
+        </span>
       </div>
 
       <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">

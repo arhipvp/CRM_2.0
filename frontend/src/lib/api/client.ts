@@ -119,6 +119,7 @@ export interface UpdateDealPayload {
   probability?: number;
   expectedCloseDate?: string | null;
   owner?: string;
+  nextReviewAt: string;
 }
 
 export class ApiClient {
@@ -423,6 +424,8 @@ export class ApiClient {
           deal.owner = payload.owner;
         }
 
+        deal.nextReviewAt = payload.nextReviewAt;
+
         if (payload.expectedCloseDate !== undefined) {
           deal.expectedCloseDate = payload.expectedCloseDate ?? undefined;
         }
@@ -515,6 +518,23 @@ function getPeriodStart(period: DealPeriodFilter | undefined): number | undefine
   }
 }
 
+function safeTimestamp(value?: string): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value).getTime();
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getDealSortValue(deal: Deal): number {
+  return safeTimestamp(deal.nextReviewAt) ?? safeTimestamp(deal.updatedAt) ?? Number.POSITIVE_INFINITY;
+}
+
 function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
   const normalizedManagers = filters?.managers?.map((name) => name.toLowerCase());
   const search = filters?.search?.trim().toLowerCase();
@@ -522,7 +542,8 @@ function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
   const stageFilter = filters?.stage && filters.stage !== "all" ? filters.stage : undefined;
 
   return deals
-    .filter((deal) => {
+    .map((deal, index) => ({ deal, index }))
+    .filter(({ deal }) => {
       if (stageFilter && deal.stage !== stageFilter) {
         return false;
       }
@@ -546,7 +567,18 @@ function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
 
       return true;
     })
-    .map((deal) => ({ ...deal }));
+    .map(({ deal, index }) => ({ deal: { ...deal }, index }))
+    .sort((a, b) => {
+      const aValue = getDealSortValue(a.deal);
+      const bValue = getDealSortValue(b.deal);
+
+      if (aValue === bValue) {
+        return a.index - b.index;
+      }
+
+      return aValue - bValue;
+    })
+    .map((entry) => entry.deal);
 }
 
 function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {

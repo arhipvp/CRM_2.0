@@ -62,6 +62,26 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function safeTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function compareDealsByNextReview(a: Deal, b: Deal) {
+  const aValue = safeTimestamp(a.nextReviewAt) ?? safeTimestamp(a.updatedAt) ?? Number.POSITIVE_INFINITY;
+  const bValue = safeTimestamp(b.nextReviewAt) ?? safeTimestamp(b.updatedAt) ?? Number.POSITIVE_INFINITY;
+
+  if (aValue === bValue) {
+    return a.name.localeCompare(b.name);
+  }
+
+  return aValue - bValue;
+}
+
 function groupByStage(deals: Deal[]) {
   const map = new Map<PipelineStageKey, Deal[]>();
 
@@ -74,6 +94,13 @@ function groupByStage(deals: Deal[]) {
     const current = map.get(stage) ?? [];
     current.push(deal);
     map.set(stage, current);
+  }
+
+  for (const stage of stageOrder) {
+    const stageDeals = map.get(stage);
+    if (stageDeals) {
+      stageDeals.sort(compareDealsByNextReview);
+    }
   }
 
   return map;
