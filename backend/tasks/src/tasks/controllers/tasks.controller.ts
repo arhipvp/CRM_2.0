@@ -37,7 +37,7 @@ export class TasksController {
   }
 
   @Get(':id')
-  async getById(@Param('id', ParseUUIDPipe) id: string): Promise<TaskResponseDto> {
+  async getById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<TaskResponseDto> {
     const task = await this.taskQuery.findById(id);
     if (!task) {
       throw new NotFoundException(`Task ${id} not found`);
@@ -46,7 +46,7 @@ export class TasksController {
   }
 
   @Post(':id/schedule')
-  async schedule(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ScheduleTaskDto): Promise<TaskResponseDto> {
+  async schedule(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Body() dto: ScheduleTaskDto): Promise<TaskResponseDto> {
     const scheduledFor = new Date(dto.scheduledFor);
     const task = await this.commandBus.execute(
       new ScheduleTaskCommand(id, scheduledFor, dto.title, dto.description)
@@ -55,14 +55,14 @@ export class TasksController {
   }
 
   @Post(':id/complete')
-  async complete(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CompleteTaskDto): Promise<TaskResponseDto> {
+  async complete(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Body() dto: CompleteTaskDto): Promise<TaskResponseDto> {
     const completedAt = dto.completedAt ? new Date(dto.completedAt) : undefined;
     const task = await this.commandBus.execute(new CompleteTaskCommand(id, completedAt));
     return TaskResponseDto.fromEntity(task);
   }
 
   @Patch(':id')
-  async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskDto): Promise<TaskResponseDto> {
+  async update(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Body() dto: UpdateTaskDto): Promise<TaskResponseDto> {
     const dueAt = dto.dueDate === undefined ? undefined : dto.dueDate ? new Date(dto.dueDate) : null;
     const completedAt =
       dto.completedAt === undefined ? undefined : dto.completedAt ? new Date(dto.completedAt) : null;
