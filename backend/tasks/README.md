@@ -34,7 +34,7 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 Сервис дописывает `assignee_id`/`author_id` в `payload` (в camelCase и snake_case) вместе с приоритетом и контекстом, поэтому
 в ответе `TaskResponseDto` эти значения возвращаются готовыми полями `assigneeId`, `priority`, `dealId`, `context` без ручного
 парсинга JSON. При наличии контекста он нормализуется в camelCase: `deal_id`/`dealId` и `client_id`/`clientId` дублируются в
-`payload.dealId`/`payload['deal_id']`, `payload.clientId`/`payload['client_id']`, а `payload.context` сохраняется с camelCase-ключами.
+`payload.dealId`/`payload['deal_id']`, `payload.clientId`/`payload['client_id']`, а весь `payload.context` сохраняется с camelCase-ключами.
 
 ### Список задач
 `GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:
@@ -48,8 +48,8 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 Все параметры необязательны и могут комбинироваться. Результат отсортирован по `dueAt`, затем по `createdAt`.
 
 Ответ содержит поля `TaskResponseDto`: базовые реквизиты задачи (`id`, `title`, `statusCode`, даты) и данные `payload`.
-Клиентам не нужно разбирать JSON вручную: `assigneeId`, `priority`, `dealId`, `clientId`, а также контекст
-(`context.dealId`/`context.policyId`) присутствуют как отдельные свойства DTO.
+Клиентам не нужно разбирать JSON вручную: `assigneeId`, `priority`, `dealId`, `clientId`, а также нормализованный контекст
+(`context` с camelCase-ключами) присутствуют как отдельные свойства DTO.
 
 ### Обновление статуса задачи
 `PATCH /api/tasks/:id` позволяет переводить задачу между статусами (`pending`, `scheduled`, `in_progress`, `completed`, `cancelled`) и обновлять дедлайн.

@@ -2,17 +2,16 @@ import { TaskEntity } from '../entities/task.entity';
 
 type NullableString = string | null;
 
-export interface TaskContextResponseDto {
-  dealId?: string;
-  policyId?: string;
-}
-
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
 const extractString = (value: unknown): NullableString => {
   return typeof value === 'string' ? value : null;
+};
+
+const toCamelCase = (key: string): string => {
+  return key.replace(/_([a-zA-Z0-9])/g, (_, letter: string) => letter.toUpperCase());
 };
 
 export class TaskResponseDto {
@@ -32,7 +31,7 @@ export class TaskResponseDto {
   priority?: NullableString;
   dealId?: NullableString;
   clientId?: NullableString;
-  context?: TaskContextResponseDto | null;
+  context?: Record<string, string> | null;
 
   static fromEntity(entity: TaskEntity): TaskResponseDto {
     const dto = new TaskResponseDto();
@@ -65,19 +64,20 @@ export class TaskResponseDto {
 
       const rawContext = payload.context;
       if (isRecord(rawContext)) {
-        const dealId = extractString(rawContext.dealId ?? rawContext['deal_id']);
-        const policyId = extractString(rawContext.policyId ?? rawContext['policy_id']);
-        const context: TaskContextResponseDto = {};
+        const entries: [string, string][] = [];
 
-        if (dealId) {
-          context.dealId = dealId;
+        for (const [rawKey, rawValue] of Object.entries(rawContext)) {
+          const value = extractString(rawValue);
+
+          if (value === null) {
+            continue;
+          }
+
+          const key = toCamelCase(rawKey);
+          entries.push([key, value]);
         }
 
-        if (policyId) {
-          context.policyId = policyId;
-        }
-
-        dto.context = Object.keys(context).length > 0 ? context : null;
+        dto.context = entries.length > 0 ? Object.fromEntries(entries) : null;
       } else {
         dto.context = null;
       }
