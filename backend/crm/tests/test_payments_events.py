@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from uuid import UUID, uuid4
 
 import aio_pika
@@ -45,6 +45,7 @@ async def test_payments_event_processing(apply_migrations):
                 "status": "draft",
                 "owner_id": owner_id,
                 "value": 1000,
+                "next_review_at": date.today(),
             },
         )
 

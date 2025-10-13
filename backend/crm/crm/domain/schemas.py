@@ -42,6 +42,7 @@ class DealBase(BaseModel):
     description: Optional[str] = None
     status: str = Field(default="draft")
     value: Optional[float] = None
+    next_review_at: date
 
 
 class DealCreate(DealBase):
@@ -54,6 +55,7 @@ class DealUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     value: Optional[float] = None
+    next_review_at: Optional[date] = None
 
 
 class DealRead(ORMModel, DealBase):

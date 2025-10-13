@@ -62,11 +62,15 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")
     value: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    next_review_at: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
 
     client: Mapped[Client] = relationship(back_populates="deals")
     policies: Mapped[list["Policy"]] = relationship(back_populates="deal", cascade="all, delete-orphan")
 
-    __table_args__ = (Index("ix_deals_status", "status"),)
+    __table_args__ = (
+        Index("ix_deals_status", "status"),
+        Index("ix_deals_next_review_at", "next_review_at"),
+    )
 
 
 class Policy(CRMBase, TimestampMixin, OwnershipMixin):
