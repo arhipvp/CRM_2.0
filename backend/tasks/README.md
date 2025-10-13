@@ -20,6 +20,17 @@ pnpm start:dev
 
 API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос и завершение задач выполняются через REST-команды `/api/tasks`.
 
+### Список задач
+`GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:
+
+- `assigneeId` — UUID исполнителя (по данным в `payload`).
+- `status[]` — коды статусов (`pending`, `scheduled`, `in_progress`, `completed`, `cancelled`).
+- `dueBefore` / `dueAfter` — ISO8601 даты дедлайна.
+- `priority[]` — приоритет из `payload` (`low`, `normal`, `high`).
+- `limit` и `offset` — пагинация; по умолчанию `limit = 50`.
+
+Все параметры необязательны и могут комбинироваться. Результат отсортирован по `dueAt`, затем по `createdAt`.
+
 ### Воркеры отложенных задач
 Для активации отложенных задач поднимите отдельный процесс:
 

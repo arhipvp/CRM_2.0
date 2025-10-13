@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
@@ -8,6 +8,7 @@ import { ScheduleTaskDto } from '../dto/schedule-task.dto';
 import { ScheduleTaskCommand } from '../commands/schedule-task.command';
 import { CompleteTaskDto } from '../dto/complete-task.dto';
 import { CompleteTaskCommand } from '../commands/complete-task.command';
+import { ListTasksDto } from '../dto/list-tasks.dto';
 import { TaskQueryService } from '../services/task-query.service';
 
 @Controller('tasks')
@@ -25,6 +26,12 @@ export class TasksController {
     );
 
     return TaskResponseDto.fromEntity(task);
+  }
+
+  @Get()
+  async list(@Query() dto: ListTasksDto): Promise<TaskResponseDto[]> {
+    const tasks = await this.taskQuery.findAll(dto);
+    return tasks.map(TaskResponseDto.fromEntity);
   }
 
   @Get(':id')
