@@ -59,15 +59,32 @@
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| event_key | string | Да | Ключ события, выбирает шаблон. |
-| recipients | array<object> | Да | Каждый объект содержит `user_id`, опционально `telegram_id`. |
-| channel_overrides | array<string> | Нет | Список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
+| eventKey | string | Да | Ключ события, выбирает шаблон. |
+| recipients | array<object> | Да | Каждый объект содержит `userId`, опционально `telegramId`. |
 | payload | object | Да | Данные для подстановки. |
-| deduplication_key | string | Нет | Используется для идемпотентности (например, `task:uuid`). |
+| channelOverrides | array<string> | Нет | Список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
+| deduplicationKey | string | Нет | Используется для идемпотентности (например, `task:uuid`). |
 
-**Ответ 202** — уведомление поставлено в очередь (`notification_id`).
+**Ответ 202** — уведомление поставлено в очередь, тело содержит `notification_id` (UUID записи в таблице `notifications`).
 
-**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplication_key`).
+**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplicationKey`).
+
+> ⚙️ Постановка идемпотентна: если указать `deduplicationKey` и повторить запрос, сервис вернёт `409 duplicate_notification`, не создавая дублирующих записей и попыток доставки.
+
+#### Внутренний пайплайн
+
+1. **Сохранение записи.** Запрос создаёт строку в таблице `notifications` со статусом `pending`.
+2. **RabbitMQ.** Событие публикуется в `NOTIFICATIONS_DISPATCH_EXCHANGE` с ключом `NOTIFICATIONS_DISPATCH_ROUTING_KEY` (по умолчанию `notifications.dispatch`). Сообщение персистентное, что позволяет восстанавливать очередь после рестарта брокера.
+3. **Redis.** В канал `NOTIFICATIONS_DISPATCH_REDIS_CHANNEL` отправляется то же сообщение — используется для локальных слушателей и отладки.
+4. **Внутренний обработчик.** Сервис синхронно вызывает текущий `NotificationEventsService`, который создаёт записи в `notification_events` и транслирует событие в SSE/Telegram.
+5. **Статусы и попытки.** Каждое действие записывается в `notification_delivery_attempts` (канал, статус, метаданные, ошибка). Итоговый статус уведомления (`processed`, `failed`) отражается в таблице `notifications`, поле `attemptsCount` содержит общее число записанных попыток.
+
+Параметры повторов управляются переменными окружения:
+
+- `NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS` — максимальное количество повторных публикаций на асинхронных каналах (по умолчанию 3).
+- `NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS` — задержка между повторными публикациями в миллисекундах (по умолчанию 60000).
+
+Брокеру Redis требуется префикс `NOTIFICATIONS_REDIS_PREFIX`, по умолчанию `notifications:`.
 
 ### GET `/notifications/{notification_id}`
 Проверка статуса доставки.
