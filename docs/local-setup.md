@@ -96,7 +96,7 @@ docker compose --profile app up -d frontend
 - Выполните `../../scripts/sync-env.sh backend/tasks` (добавьте `--non-interactive` при запуске из bootstrap/CI). После синхронизации проверьте блок переменных `TASKS_*` (PostgreSQL, RabbitMQ, Redis, worker-настройки).
 - Примените миграции и сиды: `pnpm migration:run` и `pnpm seed:statuses`. Команды используют `TASKS_DATABASE_URL` и `TASKS_REDIS_URL` из `.env`.
 - Запустите API: `pnpm start:dev` (по умолчанию порт `TASKS_SERVICE_PORT`, маршрут `GET /api/health`).
-- Для обработки отложенных задач поднимите отдельный процесс: `TASKS_WORKER_ENABLED=true pnpm worker:dev`. Worker читает Redis-очередь `TASKS_DELAYED_QUEUE_KEY` и переводит задачи в статус `pending`.
+- Для обработки отложенных задач поднимите отдельный процесс: `TASKS_WORKER_ENABLED=true pnpm start:workers`. Worker читает Redis-очередь `TASKS_DELAYED_QUEUE_KEY` и переводит задачи в статус `pending`.
 
 
 ### Reports: быстрый старт

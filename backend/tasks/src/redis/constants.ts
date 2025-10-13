@@ -1,1 +1,0 @@
-export const TASKS_REDIS_CLIENT = 'TASKS_REDIS_CLIENT';

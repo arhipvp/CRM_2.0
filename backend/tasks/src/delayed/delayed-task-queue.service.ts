@@ -1,14 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { TASKS_REDIS_CLIENT } from '../redis/constants';
 
 @Injectable()
 export class DelayedTaskQueueService {
   private readonly queueKey: string;
 
   constructor(
-    @Inject(TASKS_REDIS_CLIENT)
+    @InjectRedis()
     private readonly redis: Redis,
     private readonly configService: ConfigService
   ) {

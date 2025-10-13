@@ -24,13 +24,21 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 Для активации отложенных задач поднимите отдельный процесс:
 
 ```bash
-TASKS_WORKER_ENABLED=true pnpm worker:dev
+TASKS_WORKER_ENABLED=true pnpm start:workers
 ```
 
-Команда запускает приложение в режиме `NestApplicationContext`, включает планировщик и каждые `TASKS_WORKER_POLL_INTERVAL_MS` миллисекунд считывает задания из Redis-очереди `TASKS_DELAYED_QUEUE_KEY`.
+Команда запускает приложение в режиме `NestApplicationContext`, включает планировщик и каждые `TASKS_WORKER_POLL_INTERVAL_MS` миллисекунд считывает задания из Redis-очереди `TASKS_DELAYED_QUEUE_KEY`. Для продакшен-профиля используйте `pnpm start:workers:prod`.
+
+## Модель данных
+Tasks использует схему `tasks` в PostgreSQL. Основные сущности описаны в каталоге [`src/tasks/entities`](src/tasks/entities/):
+
+- `TaskStatusEntity` (`task_statuses`) — справочник статусов с техническим кодом, названием, описанием и флагом `is_final` для завершённых состояний.
+- `TaskEntity` (`tasks`) — сами задачи с полями `title`, `description`, связью на статус, плановым дедлайном (`due_at`), моментом активации отложенной задачи (`scheduled_for`), произвольным `payload` и отметкой `completed_at`. Таймстемпы `created_at` и `updated_at` поддерживаются автоматически.
+
+Конфигурация TypeORM вынесена в [`typeorm.config.ts`](typeorm.config.ts), что позволяет выполнять миграции и seed-скрипты вне NestJS. Проверьте раздел ниже, чтобы подключить их к локальной базе.
 
 ## Миграции и seed-данные
-- Каталог [`migrations`](migrations/) содержит TypeORM миграции. Выполняйте их через `pnpm migration:run`.
+- Каталог [`migrations`](migrations/) содержит TypeORM миграции. Выполняйте их через `pnpm migration:run`; для отката используйте `pnpm migration:revert`.
 - Seed-скрипт `pnpm seed:statuses` обновляет справочник статусов на основе `DEFAULT_TASK_STATUSES` и используется в bootstrap-скриптах.
 
 ## Docker (опционально)
@@ -46,7 +54,7 @@ docker build -t tasks-service:local -f ../../infra/docker/node.Dockerfile .
 docker run --rm --env-file ../../env.example -p ${TASKS_SERVICE_PORT:-8086}:8086 tasks-service:local pnpm start:prod
 ```
 
-Для воркера укажите `pnpm worker` в качестве команды контейнера и включите `TASKS_WORKER_ENABLED=true`.
+Для воркера укажите `pnpm start:workers:prod` в качестве команды контейнера и включите `TASKS_WORKER_ENABLED=true`.
 
 ## Полезные ссылки
 - Доменные обязанности Tasks: [`docs/architecture.md`](../../docs/architecture.md#1-общая-структура-сервисов).【F:docs/architecture.md†L13-L17】
