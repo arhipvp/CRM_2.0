@@ -233,6 +233,28 @@ function check_rabbitmq() {
   fi
 }
 
+function check_reports_api() {
+  local name="Reports API"
+  local base_url="${REPORTS_BASE_URL:-}"
+  if [[ -z "$base_url" ]]; then
+    add_result "$name" "WARN" "REPORTS_BASE_URL не задан"
+    return
+  fi
+
+  local health_url
+  health_url="${base_url%/}/health"
+  local response
+  if response=$(curl -fsS -o /dev/null -w '%{http_code}' "$health_url" 2>&1); then
+    if [[ "$response" == "200" ]]; then
+      add_result "$name" "OK" "$health_url отвечает"
+    else
+      add_result "$name" "WARN" "HTTP $response от $health_url"
+    fi
+  else
+    add_result "$name" "WARN" "Недоступен: $response"
+  fi
+}
+
 function print_mode_message() {
   if [[ "$CHECK_MODE" == "docker" ]]; then
     return
@@ -247,6 +269,7 @@ check_postgres
 check_redis
 check_consul
 check_rabbitmq
+check_reports_api
 
 printf "\n%-18s | %-6s | %s\n" "Проверка" "Статус" "Комментарий"
 printf '%s\n' "------------------+--------+--------------------------------"
