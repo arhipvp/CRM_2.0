@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -22,6 +22,13 @@ export class ListTasksDto {
   assigneeId?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    return Array.isArray(value) ? value : [value];
+  })
   @IsArray()
   @IsEnum(TaskStatusCode, { each: true })
   status?: TaskStatusCode[];
@@ -35,6 +42,13 @@ export class ListTasksDto {
   dueAfter?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    return Array.isArray(value) ? value : [value];
+  })
   @IsArray()
   @IsEnum(TaskPriority, { each: true })
   priority?: TaskPriority[];

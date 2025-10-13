@@ -3,6 +3,7 @@
 import { randomUUID } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { DataType, newDb } from 'pg-mem';
+import { plainToInstance } from 'class-transformer';
 import { TaskQueryService } from './task-query.service';
 import { TaskEntity } from '../entities/task.entity';
 import { TaskStatusEntity } from '../entities/task-status.entity';
@@ -126,6 +127,16 @@ describe('TaskQueryService', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe('Schedule follow-up');
+  });
+
+  it('accepts single status value from query string', async () => {
+    const dto = plainToInstance(ListTasksDto, { status: TaskStatusCode.PENDING });
+
+    const result = await service.findAll(dto);
+
+    expect(dto.status).toEqual([TaskStatusCode.PENDING]);
+    expect(result).toHaveLength(3);
+    expect(result.every((task) => task.statusCode === TaskStatusCode.PENDING)).toBe(true);
   });
 
   it('applies pagination with default sorting by due date', async () => {

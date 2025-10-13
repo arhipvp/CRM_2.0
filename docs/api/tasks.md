@@ -15,10 +15,10 @@
 | Имя | Тип | Описание |
 | --- | --- | --- |
 | assigneeId | UUID | Фильтр по исполнителю (хранится в `payload`). |
-| status | array[string] | Коды статусов: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. |
+| status | string \| array[string] | Коды статусов: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. Одиночный параметр воспринимается как массив. |
 | dueBefore | date | Задачи со сроком до указанной даты (не включительно). |
 | dueAfter | date | Задачи со сроком после указанной даты (не включительно). |
-| priority | array[string] | Приоритет `low`, `normal`, `high`. |
+| priority | string \| array[string] | Приоритет `low`, `normal`, `high`. Допускается одно или несколько значений. |
 | limit | integer | Количество элементов на странице, по умолчанию `50`. |
 | offset | integer | Смещение для пагинации. |
 
