@@ -19,7 +19,9 @@
     "typeorm": "typeorm-ts-node-commonjs --dataSource typeorm.config.ts",
     "migrations:run": "pnpm run typeorm migration:run",
     "migrations:revert": "pnpm run typeorm migration:revert",
-    "migrations:generate": "pnpm run typeorm migration:generate -d typeorm.config.ts"
+    "migrations:generate": "pnpm run typeorm migration:generate -d typeorm.config.ts",
+    "test": "pnpm exec jest",
+    "test:watch": "pnpm exec jest --watch"
   },
   "dependencies": {
     "@golevelup/nestjs-rabbitmq": "5.7.0",
@@ -41,7 +43,14 @@
   "devDependencies": {
     "@nestjs/cli": "^10.3.0",
     "@nestjs/schematics": "^10.0.0",
+    "@nestjs/testing": "^10.4.0",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^2.0.16",
+    "jest": "^29.7.0",
+    "pg-mem": "^3.0.5",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.0",

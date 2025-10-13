@@ -30,5 +30,7 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_TELEGRAM_BOT_TOKEN: Joi.string().allow('', null).default(null),
   NOTIFICATIONS_TELEGRAM_CHAT_ID: Joi.string().allow('', null).default(null),
 
-  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000)
+  NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000),
+
+  NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE: Joi.string().default('ru-RU')
 });

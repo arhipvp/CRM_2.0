@@ -13,27 +13,43 @@
 **Параметры запроса**
 | Имя | Тип | Описание |
 | --- | --- | --- |
-| channel | array[string] | `sse`, `telegram`. |
-| active | boolean | Только активные шаблоны. |
+| channel | string | Фильтр по каналу (`sse`, `telegram`). |
+| active | boolean | `true` — только активные, `false` — только выключенные. |
 
-**Ответ 200** — список шаблонов с версиями.
+**Ответ 200** — список шаблонов.
+
+```json
+[
+  {
+    "id": "6a5f9e46-262a-4b3e-bc92-9732bb0c027e",
+    "key": "deal.status.changed",
+    "channel": "telegram",
+    "locale": "ru-RU",
+    "body": "Здравствуйте, {{name}}!",
+    "metadata": { "preview": "Статус изменён" },
+    "status": "active",
+    "createdAt": "2024-05-10T08:00:00.000Z",
+    "updatedAt": "2024-05-10T08:00:00.000Z"
+  }
+]
+```
 
 ### POST `/templates`
-Создание/обновление шаблона.
+Создание шаблона.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | key | string | Да | Уникальный идентификатор (`deal.status.changed`). |
 | channel | string | Да | Канал (`sse` или `telegram`). |
-| locale | string | Нет | Код локали (по умолчанию `ru-RU`). |
-| subject | string | Нет | Заголовок (для отображения в SSE-лентах). |
-| body | string | Да | Шаблон в формате Mustache. |
-| metadata | object | Нет | Доп. параметры. |
+| locale | string | Нет | Код локали. Если не передан — используется значение из `NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE`. |
+| body | string | Да | Тело шаблона (Mustache или plain text). |
+| metadata | object | Нет | Дополнительные параметры для рендера или описания. |
+| status | string | Нет | `active` (по умолчанию) или `inactive`. |
 
-**Ответ 201** — созданный шаблон.
+**Ответ 201** — созданный шаблон с полями, перечисленными выше.
 
-**Ошибки:** `400 validation_error`, `409 template_conflict`.
+**Ошибки:** `400 validation_error`, `409 template_conflict` (конфликт по паре `key` + `channel`).
 
 ## Постановка уведомлений
 

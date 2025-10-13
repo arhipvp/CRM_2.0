@@ -6,6 +6,7 @@ import { RedisModule, RedisModuleOptions } from '@liaoliaots/nestjs-redis';
 import configuration, { NotificationsConfiguration } from './config/configuration';
 import { validationSchema } from './config/validation';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -73,7 +74,8 @@ import { NotificationsModule } from './notifications/notifications.module';
         };
       }
     }),
-    NotificationsModule
+    NotificationsModule,
+    TemplatesModule
   ]
 })
 export class AppModule {}

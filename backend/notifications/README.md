@@ -17,6 +17,8 @@ Notifications доставляет события и уведомления во
    - `GET /api/notifications/health` — проверка готовности сервиса.
    - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
    - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
+   - `GET /api/v1/templates` — чтение шаблонов уведомлений с фильтрами по каналу и активности.
+   - `POST /api/v1/templates` — создание шаблонов, конфликтует по паре `key` + `channel`.
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
 4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
 
@@ -25,6 +27,13 @@ Notifications доставляет события и уведомления во
 - Запуск миграций: `pnpm run migrations:run` (bootstrap вызывает команду автоматически через [`scripts/migrate-local.sh`](../../scripts/migrate-local.sh)).
 - Генерация новых миграций: `pnpm run migrations:generate -- <имя>` — файл появится в `migrations/`.
 - Для сборки артефактов используйте `pnpm run build:all` (собирает API и воркер). После релиза убедитесь, что HTTP-приложение (`pnpm start:api`) и воркеры (`pnpm start:workers`) запускаются как отдельные процессы и масштабируются независимо.
+
+### Таблицы
+
+- `notification_templates` — шаблоны уведомлений. Уникальный ключ составной: `key` + `channel`. Основные поля: `locale`, `body`, `metadata` (`jsonb`), `status` (`active`/`inactive`), `created_at`, `updated_at`.
+- `notification_events` — аудит доставки (исторический журнал событий).
+
+Значение по умолчанию для локали задаётся переменной `NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE` в `.env` и может быть переопределено при создании шаблона.
 
 ## Запуск в Docker
 1. Соберите образ:
