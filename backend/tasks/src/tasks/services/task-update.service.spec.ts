@@ -157,11 +157,43 @@ describe('TaskUpdateService', () => {
     expect(repository.save).not.toHaveBeenCalled();
   });
 
-  it('не позволяет добавить причину отмены при смене на активный статус', async () => {
+  it('не позволяет обновить причину отмены при возобновлении задачи', async () => {
     const task: TaskEntity = {
       id: 'task-3b',
+      title: 'Cancelled task',
+      statusCode: TaskStatusCode.CANCELLED,
+      description: null,
+      dueAt: null,
+      scheduledFor: null,
+      payload: null,
+      completedAt: null,
+      cancelledReason: 'initial reason',
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-02T00:00:00Z'),
+      status: undefined as any
+    };
+
+    repository.findOne.mockResolvedValueOnce(task);
+
+    await expect(
+      service.updateTask(
+        new UpdateTaskCommand(
+          'task-3b',
+          TaskStatusCode.IN_PROGRESS,
+          undefined,
+          undefined,
+          'updated reason'
+        )
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('не позволяет добавить причину отмены при смене на активный статус', async () => {
+    const task: TaskEntity = {
+      id: 'task-3c',
       title: 'In progress',
-      statusCode: TaskStatusCode.IN_PROGRESS,
+      statusCode: TaskStatusCode.PENDING,
       description: null,
       dueAt: null,
       scheduledFor: null,
@@ -178,8 +210,8 @@ describe('TaskUpdateService', () => {
     await expect(
       service.updateTask(
         new UpdateTaskCommand(
-          'task-3b',
-          TaskStatusCode.COMPLETED,
+          'task-3c',
+          TaskStatusCode.IN_PROGRESS,
           undefined,
           undefined,
           'late cancellation'
