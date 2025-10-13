@@ -11,6 +11,7 @@ export const validationSchema = Joi.object({
   TASKS_EVENTS_EXCHANGE: Joi.string().default('tasks.events'),
   TASKS_REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).optional(),
   TASKS_DELAYED_QUEUE_KEY: Joi.string().default('tasks:delayed'),
+  TASKS_REMINDERS_POLL_INTERVAL_MS: Joi.number().min(500).default(5000),
   TASKS_WORKER_ENABLED: Joi.boolean().default(false),
   TASKS_WORKER_POLL_INTERVAL_MS: Joi.number().min(500).default(5000),
   TASKS_WORKER_BATCH_SIZE: Joi.number().min(1).max(5000).default(100)

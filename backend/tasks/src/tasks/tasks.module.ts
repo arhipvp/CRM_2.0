@@ -20,6 +20,7 @@ import { UpdateTaskHandler } from './commands/update-task.handler';
 import { TaskUpdateService } from './services/task-update.service';
 import { CreateTaskReminderHandler } from './commands/create-task-reminder.handler';
 import { TaskReminderQueueService } from './services/task-reminder-queue.service';
+import { TaskReminderProcessor } from './services/task-reminder-processor.service';
 
 const commandHandlers = [
   CreateTaskHandler,
@@ -44,6 +45,7 @@ const commandHandlers = [
     TaskQueryService,
     TaskUpdateService,
     TaskReminderQueueService,
+    TaskReminderProcessor,
     DelayedTaskQueueService,
     DelayedTasksProcessor,
     WorkerRegistrarService
