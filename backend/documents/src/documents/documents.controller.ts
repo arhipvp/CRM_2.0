@@ -5,6 +5,7 @@ import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { CompleteUploadDto } from './dto/complete-upload.dto';
 
 @Controller('documents')
 export class DocumentsController {
@@ -47,6 +48,13 @@ export class DocumentsController {
   async upload(@Param('id') id: string) {
     await this.documentsQueue.enqueueUpload(id);
     return { id, status: 'queued' };
+  }
+
+  @Post(':id/complete')
+  async complete(@Param('id') id: string, @Body() dto: CompleteUploadDto) {
+    const document = await this.documentsService.completeUpload(id, dto);
+    await this.documentsQueue.enqueueSync(document.id);
+    return document;
   }
 
   @Post(':id/sync')
