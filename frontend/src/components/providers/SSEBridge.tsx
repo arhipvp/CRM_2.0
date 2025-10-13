@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
-import { dealQueryOptions, dealsQueryOptions, paymentsQueryOptions } from "@/lib/api/queries";
+import { dealQueryOptions, paymentsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
 
@@ -72,7 +72,6 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
 }
 
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
-const dealsQueryKey = dealsQueryOptions().queryKey;
 
 export function SSEBridge({
   apiBaseUrl,
@@ -98,7 +97,7 @@ export function SSEBridge({
         highlightDeal(payload.dealId);
         markDealUpdated(payload.dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+        queryClient.invalidateQueries({ queryKey: ["deals"] });
         queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
       }
 
