@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { DocumentsQueueService } from './documents-queue.service';
 import { DocumentsService } from './documents.service';
@@ -39,9 +39,9 @@ export class DocumentsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  @HttpCode(204)
+  async remove(@Param('id') id: string): Promise<void> {
     await this.documentsService.remove(id);
-    return { id };
   }
 
   @Post(':id/upload')

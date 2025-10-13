@@ -133,6 +133,31 @@ export class DriveService {
     };
   }
 
+  async revokeDocument(document: DocumentEntity): Promise<void> {
+    if (!document.driveFileId) {
+      return;
+    }
+
+    const driveConfig = this.configService.get('drive', { infer: true });
+
+    if (driveConfig.emulatorUrl) {
+      await axios.delete(
+        new URL(`/files/${document.driveFileId}`, driveConfig.emulatorUrl).toString(),
+      );
+      return;
+    }
+
+    const drive = await this.getDriveClient();
+    if (!drive) {
+      this.logger.warn(
+        `Не удалось отозвать файл ${document.driveFileId}: Google Drive не настроен`,
+      );
+      return;
+    }
+
+    await drive.files.delete({ fileId: document.driveFileId, supportsAllDrives: true });
+  }
+
   private async resolveMedia(document: DocumentEntity): Promise<{ mimeType?: string; body: Readable } | null> {
     if (!document.sourceUri) {
       return null;
