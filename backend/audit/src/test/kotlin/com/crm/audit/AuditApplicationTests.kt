@@ -156,4 +156,28 @@ class AuditApplicationTests {
         assertEquals(payload.source, saved.eventSource)
         assertEquals(1L, auditEventRepository.count())
     }
+
+    @Test
+    fun `should deduplicate by type and time when source is absent`() = runBlocking {
+        val payload = AuditEventMessage(
+            eventId = null,
+            eventType = "crm.user.logout",
+            source = null,
+            occurredAt = Instant.parse("2024-11-23T15:30:00Z"),
+            payload = null
+        )
+
+        auditEventConsumer.accept(payload)
+        auditEventConsumer.accept(payload)
+
+        val saved = auditEventRepository.findByEventTypeAndOccurredAtAndEventSource(
+            payload.eventType,
+            payload.occurredAt.atOffset(ZoneOffset.UTC),
+            payload.source
+        )
+        assertNotNull(saved)
+        assertEquals(payload.eventType, saved.eventType)
+        assertEquals(payload.source, saved.eventSource)
+        assertEquals(1L, auditEventRepository.count())
+    }
 }
