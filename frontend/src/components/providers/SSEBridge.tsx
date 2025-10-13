@@ -6,7 +6,6 @@ import { useEventStream } from "@/hooks/useEventStream";
 import {
   dealQueryOptions,
   dealStageMetricsQueryOptions,
-  dealsQueryOptions,
   paymentsQueryOptions,
 } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
@@ -76,6 +75,7 @@ function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
   }
 }
 
+const dealsQueryKey = ["deals"] as const;
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
 
 export function SSEBridge({
@@ -102,7 +102,7 @@ export function SSEBridge({
         highlightDeal(payload.dealId);
         markDealUpdated(payload.dealId);
         setTimeout(() => highlightDeal(undefined), 3000);
-        queryClient.invalidateQueries({ queryKey: ["deals"] });
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey });
         queryClient.invalidateQueries({ queryKey: dealQueryOptions(payload.dealId).queryKey });
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryOptions().queryKey });
       }
