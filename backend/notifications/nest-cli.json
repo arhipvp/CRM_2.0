@@ -1,0 +1,18 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "tsConfigPath": "tsconfig.build.json"
+  },
+  "projects": {
+    "workers": {
+      "type": "application",
+      "root": "src",
+      "entryFile": "worker",
+      "sourceRoot": "src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.build.json"
+      }
+    }
+  }
+}
