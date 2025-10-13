@@ -16,7 +16,9 @@ public class PaymentStreamHandlers {
 
     @Bean
     public Consumer<Flux<PaymentQueueEvent>> paymentEventsConsumer(PaymentService paymentService) {
-        return flux -> flux.flatMap(paymentService::handleQueueEvent)
+        return flux -> flux
+                .doOnNext(event -> log.debug("Получено событие оплаты: {}", event))
+                .flatMap(paymentService::handleQueueEvent)
                 .doOnError(error -> log.error("Ошибка обработки события payments.events", error))
                 .onErrorResume(error -> Flux.empty())
                 .subscribe();

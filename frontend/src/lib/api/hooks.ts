@@ -114,10 +114,7 @@ type UpdateDealStageVariables = {
 };
 
 type UpdateDealStageContext = {
-  previousDeals: Array<{
-    queryKey: readonly unknown[];
-    data: Deal[] | undefined;
-  }>;
+  previousDeals: Array<[QueryKey, Deal[] | Deal | undefined]>;
   previousDeal?: Deal;
 };
 
@@ -126,18 +123,19 @@ export function useUpdateDealStage() {
 
   return useMutation<Deal, unknown, UpdateDealStageVariables, UpdateDealStageContext>({
     mutationKey: ["update-deal-stage"],
-    mutationFn: ({ dealId, stage }) => apiClient.updateDeal(dealId, { stage }),
+    mutationFn: ({ dealId, stage }) => apiClient.updateDealStage(dealId, stage),
     onMutate: async ({ dealId, optimisticUpdate, stage }) => {
-      await queryClient.cancelQueries({ queryKey: ["deals"] });
-      await queryClient.cancelQueries({ queryKey: dealQueryOptions(dealId).queryKey });
+      const dealsQueryKey = ["deals"] as const;
+      const dealQueryKey = ["deal", dealId] as const;
 
-      const dealsQueries = queryClient.getQueryCache().findAll({ queryKey: ["deals"] });
-      const previousDeals = dealsQueries.map((query) => ({
-        queryKey: query.queryKey,
-        data: query.state.data as Deal[] | undefined,
-      }));
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: dealsQueryKey }),
+        queryClient.cancelQueries({ queryKey: dealQueryKey }),
+      ]);
 
-      const dealQueryKey = dealQueryOptions(dealId).queryKey;
+      const previousDeals = queryClient.getQueriesData<Deal[] | Deal>({
+        queryKey: dealsQueryKey,
+      });
       const previousDeal = queryClient.getQueryData<Deal>(dealQueryKey);
 
       const applyOptimisticUpdate = (deal: Deal): Deal => {
@@ -148,21 +146,25 @@ export function useUpdateDealStage() {
         return { ...deal, stage };
       };
 
-      for (const query of dealsQueries) {
-        queryClient.setQueryData<Deal[]>(query.queryKey, (current) => {
-          if (!current) {
-            return current;
+      for (const [queryKey, data] of previousDeals) {
+        if (!Array.isArray(data)) {
+          continue;
+        }
+
+        queryClient.setQueryData<Deal[] | undefined>(queryKey, (currentDeals) => {
+          if (!currentDeals) {
+            return currentDeals;
           }
 
-          return current.map((deal) =>
+          return currentDeals.map((deal) =>
             deal.id === dealId ? applyOptimisticUpdate(deal) : deal,
           );
         });
       }
 
-      queryClient.setQueryData<Deal | undefined>(dealQueryKey, (current) =>
-        current ? applyOptimisticUpdate(current) : current,
-      );
+      if (previousDeal) {
+        queryClient.setQueryData<Deal>(dealQueryKey, applyOptimisticUpdate(previousDeal));
+      }
 
       return { previousDeals, previousDeal } satisfies UpdateDealStageContext;
     },
@@ -171,32 +173,38 @@ export function useUpdateDealStage() {
         return;
       }
 
-      for (const { queryKey, data } of context.previousDeals) {
+      for (const [queryKey, data] of context.previousDeals) {
         queryClient.setQueryData(queryKey, data);
       }
 
       if (context.previousDeal) {
-        queryClient.setQueryData(
-          dealQueryOptions(dealId).queryKey,
-          context.previousDeal,
-        );
+        queryClient.setQueryData(["deal", dealId], context.previousDeal);
       }
     },
-    onSuccess: (deal, { dealId }) => {
-      for (const [queryKey, deals] of queryClient.getQueriesData<Deal[] | Deal>(["deals"])) {
-        if (!Array.isArray(deals)) {
+    onSuccess: (deal) => {
+      for (const [queryKey, data] of queryClient.getQueriesData<Deal[] | Deal>({
+        queryKey: ["deals"],
+      })) {
+        if (!Array.isArray(data)) {
           continue;
         }
 
-        const updatedDeals = deals.some((item) => item.id === deal.id)
-          ? deals.map((item) => (item.id === deal.id ? deal : item))
-          : deals;
-        queryClient.setQueryData(queryKey, updatedDeals);
+        queryClient.setQueryData(queryKey, (currentDeals?: Deal[]) => {
+          if (!currentDeals) {
+            return currentDeals;
+          }
+
+          return currentDeals.map((item) => (item.id === deal.id ? deal : item));
+        });
       }
 
-      queryClient.setQueryData(dealQueryOptions(dealId).queryKey, deal);
+      queryClient.setQueryData(["deal", deal.id], deal);
     },
-    onSettled: async (_data, _error, { dealId }) => {
+    onSettled: async (_data, _error, variables) => {
+      if (!variables) {
+        return;
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["deals"] }),
         queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey }),
