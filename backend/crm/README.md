@@ -19,6 +19,7 @@ crm/
 ## Требования к окружению
 - Python 3.11 (Poetry рекомендуем устанавливать глобально: https://python-poetry.org/docs/).
 - PostgreSQL (схема `crm`), Redis и RabbitMQ — URL подключений настраиваются через переменные `CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL` и дополнительные параметры очередей (см. `env.example`).【F:env.example†L78-L118】
+- Для указания тенанта по умолчанию задайте `CRM_DEFAULT_TENANT_ID` (UUID) или оставьте переменную пустой, чтобы требовать заголовок `X-Tenant-ID`.【F:env.example†L118-L120】
 - Для фоновых задач Celery используется Redis (по умолчанию `CRM_CELERY_BROKER_URL=${REDIS_CELERY_URL}`).
 
 ## Быстрый запуск (локально)
@@ -55,6 +56,7 @@ crm/
    poetry run python -m crm.app.events
    ```
    Пока счётчик повторных попыток не достигнет `CRM_PAYMENTS_RETRY_LIMIT`, ошибки сервиса синхронизации должны приводить к повторной постановке сообщения в очередь (requeue) без публикации в DLX.
+   При публикации в DLX подписчик добавляет заголовок `dead-letter-reason` в новый объект `Message`, сохраняя при этом оригинальный словарь заголовков сообщения без изменений для дальнейшей диагностики.
 
 ## REST API
 - `GET /api/v1/clients` — список клиентов.

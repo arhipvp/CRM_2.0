@@ -19,6 +19,18 @@ export class NotificationEventEntity {
   @Column({ type: 'boolean', default: false })
   deliveredToTelegram!: boolean;
 
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  telegramMessageId!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  telegramDeliveryStatus!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  telegramDeliveryReason!: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  telegramDeliveryOccurredAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt!: Date;
 }

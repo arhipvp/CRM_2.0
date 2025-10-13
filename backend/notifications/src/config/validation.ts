@@ -29,6 +29,11 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_TELEGRAM_MOCK: Joi.boolean().default(true),
   NOTIFICATIONS_TELEGRAM_BOT_TOKEN: Joi.string().allow('', null).default(null),
   NOTIFICATIONS_TELEGRAM_CHAT_ID: Joi.string().allow('', null).default(null),
+  NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED: Joi.boolean().default(false),
+  NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET: Joi.string().allow('', null).default(null),
+  NOTIFICATIONS_TELEGRAM_WEBHOOK_SIGNATURE_HEADER: Joi.string()
+    .default('x-telegram-signature')
+    .pattern(/^[a-z0-9\-]+$/i),
 
   NOTIFICATIONS_SSE_RETRY_MS: Joi.number().integer().min(0).default(5000),
 

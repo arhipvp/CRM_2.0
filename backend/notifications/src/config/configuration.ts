@@ -70,6 +70,11 @@ export interface NotificationsConfiguration {
     mock: boolean;
     botToken: string | null;
     defaultChatId: string | null;
+    webhook: {
+      enabled: boolean;
+      secret: string | null;
+      signatureHeader: string;
+    };
   };
   sse: {
     retryInterval: number;
@@ -120,7 +125,13 @@ export default (): NotificationsConfiguration => {
       enabled: toBool(process.env.NOTIFICATIONS_TELEGRAM_ENABLED, false),
       mock: toBool(process.env.NOTIFICATIONS_TELEGRAM_MOCK, true),
       botToken: process.env.NOTIFICATIONS_TELEGRAM_BOT_TOKEN ?? null,
-      defaultChatId: process.env.NOTIFICATIONS_TELEGRAM_CHAT_ID ?? null
+      defaultChatId: process.env.NOTIFICATIONS_TELEGRAM_CHAT_ID ?? null,
+      webhook: {
+        enabled: toBool(process.env.NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED, false),
+        secret: process.env.NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET ?? null,
+        signatureHeader:
+          process.env.NOTIFICATIONS_TELEGRAM_WEBHOOK_SIGNATURE_HEADER ?? 'x-telegram-signature'
+      }
     },
     sse: {
       retryInterval: toNumber(process.env.NOTIFICATIONS_SSE_RETRY_MS, 5000)

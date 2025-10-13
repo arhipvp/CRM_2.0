@@ -8,6 +8,8 @@
 ./scripts/bootstrap-local.sh
 ```
 
+> ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2.
+
 Скрипт автоматизирует основные шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и формирует агрегированный отчёт об ошибках. Последовательно выполняются:
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизация `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
@@ -86,7 +88,7 @@ docker compose --profile app up -d frontend
 ### Notifications: быстрый старт
 
 - Перейдите в `backend/notifications` и установите зависимости: `pnpm install` (понадобится Node.js 18+ и активированный Corepack).
-- Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications`. Проверьте блок `NOTIFICATIONS_*`, задайте `NOTIFICATIONS_TELEGRAM_ENABLED`/`NOTIFICATIONS_TELEGRAM_MOCK` и заполните токен/чат, если планируете реальные отправки.
+- Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications`. Проверьте блок `NOTIFICATIONS_*`, задайте `NOTIFICATIONS_TELEGRAM_ENABLED`/`NOTIFICATIONS_TELEGRAM_MOCK`, заполните токен/чат для рассылок и секрет вебхука (`NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`), если тестируете обратные вызовы Telegram.
 - Запустите HTTP-приложение c SSE: `pnpm start:api:dev`. Проверьте `GET http://localhost:${NOTIFICATIONS_SERVICE_PORT}/api/notifications/stream` и `GET /api/notifications/health` — поток должен отдавать события при публикации в очередь, а health-эндпоинт помогает в docker-compose и probes.
 - Для фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Процесс использует те же конфигурации и автоматически обрабатывает очередь `notifications.events`, публикуя сообщения в SSE и (при включении) Telegram. Сборка и запуск без watch выполняются командами `pnpm run build:all`, `pnpm start:api` и `pnpm start:workers`.
 - Миграции применяются через `pnpm run migrations:run`; bootstrap вызывает команду автоматически (см. [`scripts/migrate-local.sh`](../scripts/migrate-local.sh)).
@@ -134,7 +136,7 @@ docker compose --profile app up -d frontend
    1. Откройте `.env` в корне и замените заглушки у всех `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_API_KEY` на значения из секретного хранилища.
    2. Сверьте `*_RABBITMQ_URL`, `*_REDIS_URL`, `POSTGRES_*` с локальными инстансами и обновите пароли, если они отличаются от шаблона.
    3. Проверьте блоки `AUTH_JWT_*`, `GATEWAY_UPSTREAM_*`, параметры webhook-ов и OAuth — убедитесь, что они соответствуют вашей среде разработки.
-   4. Для Notifications заполните `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*` и параметры Telegram (`NOTIFICATIONS_TELEGRAM_*`), чтобы worker мог публиковать события в SSE и бот.
+   4. Для Notifications заполните `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*` и параметры Telegram (`NOTIFICATIONS_TELEGRAM_*`, включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`), чтобы worker мог публиковать события в SSE и бот.
    3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
       > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
       - Для Payments убедитесь, что задан `PAYMENTS_CRM_WEBHOOK_SECRET` — он используется для проверки HMAC-подписи CRM вебхуков (`POST /api/v1/webhooks/crm`).
