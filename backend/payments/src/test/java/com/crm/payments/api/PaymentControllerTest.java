@@ -2,6 +2,8 @@ package com.crm.payments.api;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.crm.payments.api.dto.PaymentResponse;
@@ -67,5 +69,25 @@ class PaymentControllerTest {
                 .bodyValue("{}")
                 .exchange()
                 .expectStatus().isNotFound();
+    }
+
+    @Test
+    void createPaymentShouldReturn400WhenCurrencyIsNotRub() {
+        String dealId = UUID.randomUUID().toString();
+        String initiatorId = UUID.randomUUID().toString();
+
+        webTestClient.post()
+                .uri("/api/v1/payments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{" +
+                        "\"dealId\": \"" + dealId + "\"," +
+                        "\"initiatorUserId\": \"" + initiatorId + "\"," +
+                        "\"amount\": 1000," +
+                        "\"currency\": \"USD\"" +
+                        "}")
+                .exchange()
+                .expectStatus().isBadRequest();
+
+        verify(paymentService, never()).create(any());
     }
 }
