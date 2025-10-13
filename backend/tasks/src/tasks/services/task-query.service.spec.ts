@@ -89,6 +89,14 @@ describe('TaskQueryService', () => {
         statusCode: TaskStatusCode.PENDING,
         dueAt: new Date('2024-03-04T15:00:00.000Z'),
         payload: { assigneeId: 'user-3', priority: TaskPriority.HIGH }
+      },
+      {
+        id: randomUUID(),
+        title: 'Handle vip escalation',
+        description: 'Coordinate with success team',
+        statusCode: TaskStatusCode.PENDING,
+        dueAt: new Date('2024-03-02T11:00:00.000Z'),
+        payload: { assignee_id: 'user-4', priority: TaskPriority.NORMAL }
       }
     ];
 
@@ -115,6 +123,15 @@ describe('TaskQueryService', () => {
     ).toBe(true);
   });
 
+  it('filters tasks when payload uses snake_case assignee key', async () => {
+    const dto: ListTasksDto = { assigneeId: 'user-4' };
+
+    const result = await service.findAll(dto);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].payload).toMatchObject({ assignee_id: 'user-4' });
+  });
+
   it('filters by status, priority and due date range', async () => {
     const dto: ListTasksDto = {
       status: [TaskStatusCode.PENDING],
@@ -135,7 +152,7 @@ describe('TaskQueryService', () => {
     const result = await service.findAll(dto);
 
     expect(dto.status).toEqual([TaskStatusCode.PENDING]);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
     expect(result.every((task) => task.statusCode === TaskStatusCode.PENDING)).toBe(true);
   });
 
@@ -145,9 +162,10 @@ describe('TaskQueryService', () => {
     const result = await service.findAll(dto);
 
     expect(dto.status).toEqual([TaskStatusCode.PENDING]);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
     expect(result.map((task) => task.title)).toEqual([
       'Call customer',
+      'Handle vip escalation',
       'Prepare summary',
       'Schedule follow-up'
     ]);
@@ -159,6 +177,6 @@ describe('TaskQueryService', () => {
     const result = await service.findAll(dto);
 
     expect(result).toHaveLength(2);
-    expect(result.map((task) => task.title)).toEqual(['Prepare summary', 'Schedule follow-up']);
+    expect(result.map((task) => task.title)).toEqual(['Handle vip escalation', 'Prepare summary']);
   });
 });
