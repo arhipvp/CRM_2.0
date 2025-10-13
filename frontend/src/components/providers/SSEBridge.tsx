@@ -97,7 +97,10 @@ export function SSEBridge({
     (dealId: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey }),
+        queryClient.invalidateQueries({
+          queryKey: dealQueryOptions(dealId).queryKey,
+          exact: true,
+        }),
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ]),
     [queryClient],

@@ -91,7 +91,7 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
     });
 
     await queryClient.invalidateQueries({ queryKey: documentsKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey });
+    await queryClient.invalidateQueries({ queryKey: dealKey, exact: true });
     await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
     await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
 

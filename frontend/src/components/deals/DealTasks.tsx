@@ -80,7 +80,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: tasksKey }),
-      queryClient.invalidateQueries({ queryKey: dealKey }),
+      queryClient.invalidateQueries({ queryKey: dealKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
       queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),

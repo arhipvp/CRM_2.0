@@ -68,7 +68,7 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
     await createNote({ content: content.trim() });
     await queryClient.invalidateQueries({ queryKey: notesKey });
     await queryClient.invalidateQueries({ queryKey: activityKey });
-    await queryClient.invalidateQueries({ queryKey: dealKey });
+    await queryClient.invalidateQueries({ queryKey: dealKey, exact: true });
     await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
     await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
 
