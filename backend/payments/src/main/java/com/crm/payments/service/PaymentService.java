@@ -4,6 +4,7 @@ import com.crm.payments.api.dto.PaymentListRequest;
 import com.crm.payments.api.dto.PaymentRequest;
 import com.crm.payments.api.dto.PaymentResponse;
 import com.crm.payments.api.dto.PaymentStreamEvent;
+import com.crm.payments.api.dto.PaymentStatusRequest;
 import com.crm.payments.api.dto.UpdatePaymentRequest;
 import com.crm.payments.domain.PaymentEntity;
 import com.crm.payments.domain.PaymentHistoryEntity;
@@ -13,14 +14,21 @@ import com.crm.payments.repository.PaymentHistoryRepository;
 import com.crm.payments.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -32,6 +40,9 @@ public class PaymentService {
     private static final String PAYMENT_EVENTS_OUTPUT = "paymentEvents-out-0";
     private static final String PAYMENT_CREATED_EVENT = "payment.created";
     private static final String PAYMENT_UPDATED_EVENT = "payment.updated";
+    private static final String PAYMENT_STATUS_CHANGED_EVENT = "payment.status_changed";
+
+    private static final Map<PaymentStatus, Set<PaymentStatus>> ALLOWED_TRANSITIONS = buildTransitions();
 
     private final PaymentRepository paymentRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
@@ -81,6 +92,12 @@ public class PaymentService {
                 .map(paymentMapper::toResponse);
     }
 
+    public Mono<PaymentResponse> updateStatus(UUID paymentId, PaymentStatusRequest request) {
+        return paymentRepository.findById(paymentId)
+                .flatMap(entity -> applyStatusUpdate(entity, request))
+                .map(paymentMapper::toResponse);
+    }
+
     public Mono<Void> handleQueueEvent(PaymentQueueEvent event) {
         if (event == null || event.getPaymentId() == null) {
             log.warn("Получено пустое событие очереди payments.events: {}", event);
@@ -114,8 +131,18 @@ public class PaymentService {
         if (event.getAmount() != null) {
             entity.setAmount(event.getAmount());
         }
+        if (event.getMetadata() != null) {
+            Object actualDate = event.getMetadata().get("actualDate");
+            if (actualDate instanceof OffsetDateTime actualDateTime) {
+                entity.setProcessedAt(actualDateTime);
+            }
+            Object confirmation = event.getMetadata().get("confirmationReference");
+            if (confirmation instanceof String reference && StringUtils.hasText(reference)) {
+                entity.setConfirmationReference(reference);
+            }
+        }
         entity.setUpdatedAt(OffsetDateTime.now());
-        if (event.getStatus() == PaymentStatus.COMPLETED) {
+        if (event.getStatus() == PaymentStatus.COMPLETED && entity.getProcessedAt() == null) {
             entity.setProcessedAt(Optional.ofNullable(event.getOccurredAt()).orElseGet(OffsetDateTime::now));
         }
 
@@ -176,6 +203,86 @@ public class PaymentService {
                 .doOnNext(saved -> log.info("Обновлён платёж {} для сделки {}", saved.getId(), saved.getDealId()));
     }
 
+    private Mono<PaymentEntity> applyStatusUpdate(PaymentEntity entity, PaymentStatusRequest request) {
+        PaymentStatus currentStatus = entity.getStatus();
+        PaymentStatus targetStatus = request.getStatus();
+
+        if (targetStatus == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "validation_error"));
+        }
+
+        if (currentStatus == targetStatus) {
+            log.debug("Игнорируем обновление статуса {} для платежа {} — статус не изменился", targetStatus,
+                    entity.getId());
+            return Mono.just(entity);
+        }
+
+        if (!isTransitionAllowed(currentStatus, targetStatus)) {
+            return Mono.error(new InvalidStatusTransitionException(currentStatus, targetStatus));
+        }
+
+        if (targetStatus == PaymentStatus.COMPLETED && request.getActualDate() == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "validation_error"));
+        }
+
+        if (targetStatus == PaymentStatus.CANCELLED && !StringUtils.hasText(request.getComment())) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "validation_error"));
+        }
+
+        entity.setStatus(targetStatus);
+        if (request.getActualDate() != null) {
+            entity.setProcessedAt(request.getActualDate());
+        } else if (targetStatus == PaymentStatus.COMPLETED && entity.getProcessedAt() == null) {
+            entity.setProcessedAt(OffsetDateTime.now());
+        }
+
+        if (StringUtils.hasText(request.getConfirmationReference())) {
+            entity.setConfirmationReference(request.getConfirmationReference());
+        }
+
+        entity.setUpdatedAt(OffsetDateTime.now());
+
+        Map<String, Object> finalMetadata = buildStatusMetadata(request);
+
+        return paymentRepository.save(entity)
+                .flatMap(saved -> recordHistory(saved, PAYMENT_STATUS_CHANGED_EVENT, saved.getAmount(), request.getComment())
+                        .thenReturn(saved))
+                .doOnNext(saved -> publishQueueEvent(PAYMENT_STATUS_CHANGED_EVENT, saved, null, finalMetadata))
+                .doOnNext(saved -> emitStreamEvent(PAYMENT_STATUS_CHANGED_EVENT, saved.getId(), saved.getStatus(),
+                        saved.getAmount(), saved.getDealId()))
+                .doOnNext(saved -> log.info("Платёж {} переведён в статус {}", saved.getId(), saved.getStatus()));
+    }
+
+    private Map<String, Object> buildStatusMetadata(PaymentStatusRequest request) {
+        Map<String, Object> metadata = new HashMap<>();
+        if (request.getActualDate() != null) {
+            metadata.put("actualDate", request.getActualDate());
+        }
+        if (StringUtils.hasText(request.getConfirmationReference())) {
+            metadata.put("confirmationReference", request.getConfirmationReference());
+        }
+        if (StringUtils.hasText(request.getComment())) {
+            metadata.put("comment", request.getComment());
+        }
+        return metadata.isEmpty() ? null : metadata;
+    }
+
+    private static Map<PaymentStatus, Set<PaymentStatus>> buildTransitions() {
+        Map<PaymentStatus, Set<PaymentStatus>> transitions = new EnumMap<>(PaymentStatus.class);
+        transitions.put(PaymentStatus.PENDING, EnumSet.of(PaymentStatus.PROCESSING, PaymentStatus.CANCELLED));
+        transitions.put(PaymentStatus.PROCESSING,
+                EnumSet.of(PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED));
+        transitions.put(PaymentStatus.FAILED, EnumSet.of(PaymentStatus.PROCESSING, PaymentStatus.CANCELLED));
+        transitions.put(PaymentStatus.COMPLETED, EnumSet.of(PaymentStatus.CANCELLED));
+        transitions.put(PaymentStatus.CANCELLED, EnumSet.noneOf(PaymentStatus.class));
+        return transitions;
+    }
+
+    private boolean isTransitionAllowed(PaymentStatus currentStatus, PaymentStatus targetStatus) {
+        return ALLOWED_TRANSITIONS.getOrDefault(currentStatus, EnumSet.noneOf(PaymentStatus.class))
+                .contains(targetStatus);
+    }
+
     private boolean amountEquals(BigDecimal left, BigDecimal right) {
         if (left == null && right == null) {
             return true;
@@ -198,6 +305,10 @@ public class PaymentService {
     }
 
     private void publishQueueEvent(String type, PaymentEntity entity, BigDecimal amount) {
+        publishQueueEvent(type, entity, amount, null);
+    }
+
+    private void publishQueueEvent(String type, PaymentEntity entity, BigDecimal amount, Map<String, Object> metadata) {
         PaymentQueueEvent event = new PaymentQueueEvent();
         event.setEventType(type);
         event.setPaymentId(entity.getId());
@@ -205,6 +316,9 @@ public class PaymentService {
         event.setStatus(entity.getStatus());
         event.setAmount(amount != null ? amount : entity.getAmount());
         event.setOccurredAt(OffsetDateTime.now());
+        if (metadata != null && !metadata.isEmpty()) {
+            event.setMetadata(metadata);
+        }
         boolean sent = streamBridge.send(PAYMENT_EVENTS_OUTPUT, event);
         if (!sent) {
             log.warn("Не удалось опубликовать событие {} в payments.events", type);

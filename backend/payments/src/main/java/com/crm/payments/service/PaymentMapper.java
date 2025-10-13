@@ -41,6 +41,7 @@ public class PaymentMapper {
         response.setPaymentType(entity.getPaymentType());
         response.setDueDate(entity.getDueDate());
         response.setProcessedAt(entity.getProcessedAt());
+        response.setConfirmationReference(entity.getConfirmationReference());
         response.setDescription(entity.getDescription());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());

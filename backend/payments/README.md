@@ -49,6 +49,8 @@ gradle test
 
 `PATCH /api/v1/payments/{paymentId}` позволяет частично обновлять платёж: сумму, валюту, даты (`dueDate`, `processedAt`), тип (`paymentType`) и описание. Любое изменение или переданный комментарий (`comment`) фиксируется в `payment_history`, а наружу отправляется событие `payment.updated` (RabbitMQ + SSE-поток). В теле достаточно передать только изменяемые поля.
 
+`POST /api/v1/payments/{paymentId}/status` переводит платёж в новый статус. Допустимы переходы `PENDING → PROCESSING/CANCELLED`, `PROCESSING → COMPLETED/FAILED/CANCELLED`, `FAILED → PROCESSING/CANCELLED`, `COMPLETED → CANCELLED`; возврат из `CANCELLED` запрещён. Для `COMPLETED` требуется `actual_date`, для `CANCELLED` — комментарий с причиной. При успешной смене статуса обновляется `processed_at`, при необходимости сохраняется `confirmation_reference`, создаётся запись в истории и публикуется событие `payment.status_changed` (RabbitMQ + SSE).
+
 ### Справочник типов платежей
 
 `paymentType` обязателен при создании платежа и принимает одно из следующих значений:
