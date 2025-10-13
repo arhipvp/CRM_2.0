@@ -1,0 +1,25 @@
+spring:
+  r2dbc:
+    url: ${AUDIT_R2DBC_URL}
+    username: ${AUDIT_DB_USER}
+    password: ${AUDIT_DB_PASSWORD}
+  datasource:
+    url: ${AUDIT_JDBC_URL}
+    username: ${AUDIT_DB_USER}
+    password: ${AUDIT_DB_PASSWORD}
+    hikari:
+      schema: ${AUDIT_DB_SCHEMA:audit}
+  cloud:
+    stream:
+      bindings:
+        auditEventConsumer-in-0:
+          consumer:
+            prefetch: 100
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+logging:
+  level:
+    com.crm.audit: DEBUG
