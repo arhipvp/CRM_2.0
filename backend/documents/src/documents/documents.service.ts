@@ -15,7 +15,9 @@ export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly repository: Repository<DocumentEntity>,
-    private readonly driveService: DriveService,
+    private readonly driveService: DriveService = {
+      revokeDocument: async () => undefined,
+    } as unknown as DriveService,
   ) {}
 
   async create(dto: CreateDocumentDto): Promise<DocumentEntity> {
