@@ -85,7 +85,10 @@ export function useToggleTask() {
 
       if (task.dealId) {
         invalidations.push(
-          queryClient.invalidateQueries({ queryKey: dealQueryOptions(task.dealId).queryKey }),
+          queryClient.invalidateQueries({
+            queryKey: dealQueryOptions(task.dealId).queryKey,
+            exact: true,
+          }),
           queryClient.invalidateQueries({
             queryKey: dealTasksQueryOptions(task.dealId).queryKey,
           }),
@@ -236,6 +239,7 @@ export function useUpdateDealStage() {
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
         queryClient.invalidateQueries({
           queryKey: dealQueryOptions(variables.dealId).queryKey,
+          exact: true,
         }),
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ]);
