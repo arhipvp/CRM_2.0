@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "reports"
+version = "0.1.0"
+description = "Aggregated analytics service for CRM 2.0"
+authors = ["CRM Platform Team <devs@example.com>"]
+readme = "README.md"
+packages = [{ include = "reports" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110.0"
+uvicorn = { extras = ["standard"], version = "^0.27.1" }
+sqlalchemy = "^2.0.29"
+asyncpg = "^0.29.0"
+pydantic = "^2.6.4"
+pydantic-settings = "^2.2.1"
+alembic = "^1.13.1"
+python-dotenv = "^1.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
+httpx = "^0.27.0"
+
+[tool.poetry.scripts]
+reports-api = "reports.main:run"
+reports-refresh-views = "reports.scripts.refresh_views:main"
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
