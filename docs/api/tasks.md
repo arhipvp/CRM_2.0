@@ -191,7 +191,7 @@ Content-Type: application/json
 }
 ```
 
-**Ошибки:** `400 validation_error`, `404 task_not_found`.
+**Ошибки:** `400 validation_error`, `404 task_not_found`, `409 conflict` (если для задачи уже есть напоминание с теми же `remind_at` и `channel`).
 
 ## SLA и автоматические переходы (Этап 1.1)
 

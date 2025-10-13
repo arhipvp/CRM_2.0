@@ -1,4 +1,4 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ConflictException, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommandBus } from '@nestjs/cqrs';
 import request from 'supertest';
@@ -228,5 +228,25 @@ describe('TasksController (validation)', () => {
       message: expect.arrayContaining([expect.stringContaining('remindAt')])
     });
     expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/tasks/:id/reminders возвращает 409 при попытке создать дубликат', async () => {
+    const taskId = '2dc7ea49-2a4e-4f8e-bd3b-7de1fbd2b6a4';
+    const remindAtIso = '2024-03-10T09:00:00.000Z';
+
+    commandBus.execute.mockRejectedValue(
+      new ConflictException({ statusCode: 409, code: 'conflict', message: 'duplicate reminder' })
+    );
+
+    const response = await request(app.getHttpServer())
+      .post(`${baseUrl}/${taskId}/reminders`)
+      .send({ remind_at: remindAtIso, channel: 'sse' })
+      .expect(409);
+
+    expect(commandBus.execute).toHaveBeenCalledTimes(1);
+    expect(response.body).toMatchObject({
+      statusCode: 409,
+      code: 'conflict'
+    });
   });
 });
