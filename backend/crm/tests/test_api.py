@@ -144,3 +144,44 @@ async def test_multiple_crud_requests_do_not_close_session(api_client):
         assert response.status_code == 200
         assert response.json()["title"] == f"Каско 2024-{index}"
         assert response.json()["next_review_at"] == deal_payload["next_review_at"]
+
+
+@pytest.mark.asyncio
+async def test_deal_patch_next_review_at_validation(api_client):
+    tenant_id = uuid4()
+    owner_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Ромашка",
+        "email": "info@example.com",
+        "phone": "+7-900-123-45-67",
+        "owner_id": str(owner_id),
+    }
+    response = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert response.status_code == 201
+    client = schemas.ClientRead.model_validate(response.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "Каско 2024",
+        "description": "Полис каско",
+        "owner_id": str(owner_id),
+        "value": 120000,
+        "next_review_at": date.today().isoformat(),
+    }
+    response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert response.status_code == 201
+    deal = schemas.DealRead.model_validate(response.json())
+
+    patch_payload = {"status": "won"}
+    response = await api_client.patch(
+        f"/api/v1/deals/{deal.id}", json=patch_payload, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["next_review_at"] == deal_payload["next_review_at"]
+
+    response = await api_client.patch(
+        f"/api/v1/deals/{deal.id}", json={"next_review_at": None}, headers=headers
+    )
+    assert response.status_code == 422
