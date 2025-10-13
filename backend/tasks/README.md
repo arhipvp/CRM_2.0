@@ -24,7 +24,7 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 `POST /api/tasks` принимает JSON с основными атрибутами задачи:
 
 - `subject` — заголовок (до 255 символов).
-- `description` — подробности (опционально).
+- `description` — подробности (обязательное поле; отсутствие или пустое значение приведёт к `400 validation_error`).
 - `assignee_id` — UUID исполнителя.
 - `author_id` — UUID постановщика.
 - `due_date` — плановая дата завершения (ISO8601, например `2024-03-10`).
@@ -34,7 +34,7 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 Сервис дописывает `assignee_id`/`author_id` в `payload` (в camelCase и snake_case) вместе с приоритетом и контекстом, поэтому
 в ответе `TaskResponseDto` эти значения возвращаются готовыми полями `assigneeId`, `priority`, `dealId`, `context` без ручного
 парсинга JSON. При наличии контекста он нормализуется в camelCase: `deal_id`/`dealId` и `client_id`/`clientId` дублируются в
-`payload.dealId`/`payload['deal_id']`, `payload.clientId`/`payload['client_id']`, а `payload.context` сохраняется с camelCase-ключами.
+`payload.dealId`/`payload['deal_id']`, `payload.clientId`/`payload['client_id']`, а `payload.context` сохраняется с camelCase-ключами. При отсутствии поля `description` или передаче пустого значения API вернёт `400 validation_error` с указанием обязательного поля.
 
 ### Список задач
 `GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:
