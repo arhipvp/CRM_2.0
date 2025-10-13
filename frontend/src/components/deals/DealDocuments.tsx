@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   dealDocumentsQueryOptions,
   dealQueryOptions,
-  dealsQueryOptions,
+  dealsQueryKey,
 } from "@/lib/api/queries";
 import { useDealDocuments, useUploadDealDocument } from "@/lib/api/hooks";
 import type { DealDocument } from "@/types/crm";
@@ -57,7 +57,6 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
 
   const documentsKey = useMemo(() => dealDocumentsQueryOptions(dealId).queryKey, [dealId]);
   const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
-  const dealsKey = dealsQueryOptions().queryKey;
 
   useEffect(() => {
     if (createRequestKey) {
@@ -92,7 +91,7 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
 
     await queryClient.invalidateQueries({ queryKey: documentsKey });
     await queryClient.invalidateQueries({ queryKey: dealKey });
-    await queryClient.invalidateQueries({ queryKey: dealsKey });
+    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
 
     setIsFormOpen(false);
   };

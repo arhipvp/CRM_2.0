@@ -4,6 +4,8 @@ import { DealFilters } from "@/types/crm";
 
 const emptyObject = {} as const;
 
+export const dealsQueryKey = ["deals"] as const;
+
 function sanitizeDealFilters(filters?: DealFilters): DealFilters | undefined {
   if (!filters) {
     return undefined;
@@ -38,7 +40,7 @@ export const dealsQueryOptions = (filters?: DealFilters) => {
   const sanitizedFilters = sanitizeDealFilters(filters);
 
   return queryOptions({
-    queryKey: ["deals", sanitizedFilters ?? emptyObject],
+    queryKey: [...dealsQueryKey, sanitizedFilters ?? emptyObject] as const,
     queryFn: () => apiClient.getDeals(sanitizedFilters),
   });
 };
