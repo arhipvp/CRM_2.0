@@ -36,8 +36,8 @@ gradle test
 | --- | --- | --- |
 | `dealId` | `UUID` | Идентификатор сделки CRM. |
 | `policyId` | `UUID` | Идентификатор полиса. |
-| `status` | `array[enum]` | Допустимые значения: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`. |
-| `type` | `array[enum]` | Допустимые значения: `INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`. |
+| `status`/`statuses` | `array[enum]` | Допустимые значения: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`. |
+| `type`/`types` | `array[enum]` | Допустимые значения: `INITIAL`, `INSTALLMENT`, `COMMISSION`, `REFUND`. |
 | `fromDate` | `OffsetDateTime` | Нижняя граница по `created_at` (включительно). |
 | `toDate` | `OffsetDateTime` | Верхняя граница по `created_at` (включительно). |
 | `limit` | `integer` | Размер страницы (по умолчанию `50`, максимум `200`). |

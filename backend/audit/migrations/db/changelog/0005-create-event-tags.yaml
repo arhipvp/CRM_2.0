@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0005-create-audit-event-tags
+      author: crm-platform
+      changes:
+        - createTable:
+            tableName: audit_event_tags
+            schemaName: audit
+            remarks: "Ключ-значение теги для аудиторских событий"
+            columns:
+              - column:
+                  name: event_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tag_key
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tag_value
+                  type: TEXT
+        - addPrimaryKey:
+            tableName: audit_event_tags
+            schemaName: audit
+            columnNames: event_id, tag_key
+            constraintName: pk_audit_event_tags
+        - addForeignKeyConstraint:
+            baseTableName: audit_event_tags
+            baseTableSchemaName: audit
+            baseColumnNames: event_id
+            referencedTableName: audit_events
+            referencedTableSchemaName: audit
+            referencedColumnNames: id
+            constraintName: fk_audit_event_tags_event
+            onDelete: CASCADE
+            onUpdate: CASCADE

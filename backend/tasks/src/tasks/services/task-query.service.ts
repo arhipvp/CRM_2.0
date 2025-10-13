@@ -19,7 +19,10 @@ export class TaskQueryService {
       .addOrderBy('task.createdAt', 'ASC');
 
     if (dto.assigneeId) {
-      query.andWhere("task.payload ->> 'assigneeId' = :assigneeId", { assigneeId: dto.assigneeId });
+      query.andWhere(
+        "(task.payload ->> 'assigneeId' = :assigneeId OR task.payload ->> 'assignee_id' = :assigneeId)",
+        { assigneeId: dto.assigneeId }
+      );
     }
 
     if (dto.status?.length) {
