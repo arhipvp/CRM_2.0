@@ -1,43 +1,69 @@
 # Reports Service
 
 ## Назначение
-Reports агрегирует показатели CRM и Audit для построения управленческих дашбордов и выгрузок. Первый инкремент предоставляет FastAPI‑endpoint `/api/v1/aggregates/deal-pipeline`, который читает материализованное представление `deal_pipeline_summary` и отдаёт сумму и количество сделок по статусам.【F:backend/reports/reports/api/routes.py†L7-L24】【F:backend/reports/reports/models.py†L6-L16】
+Сервис Reports агрегирует показатели из CRM и Audit, готовя витрины для управленческих дашбордов и экспортов. Первый инкремент реализует FastAPI-приложение, которое считывает материализованное представление `deal_pipeline_summary` и отдаёт сумму и количество сделок по статусам.
 
-## Выбор стека
-- **Бэкенд:** FastAPI + SQLAlchemy 2.0 (async) — решение принято на архитектурном ревью, чтобы унифицировать Python‑сервисы и упростить доступ к материализованным представлениям Postgres.
-- **Упаковка:** Poetry (по аналогии с CRM) и CLI-скрипты (`reports-api`, `reports-refresh-views`) для запуска API и обновления витрин.
+## Архитектурный стек
+- **Бэкенд:** FastAPI + асинхронный SQLAlchemy 2.0 поверх `asyncpg` для чтения из PostgreSQL.
+- **Конфигурация:** `pydantic-settings` с префиксом `REPORTS_` для всех переменных окружения (см. `reports/config.py`).
+- **Упаковка и зависимости:** Poetry; точка входа `reports-api` запускает Uvicorn, `reports-refresh-views` обновляет витрины.
 
-## Требования к окружению
-- Python 3.11, Poetry ≥1.5.
-- Доступ к схемам CRM/Audit в общем PostgreSQL-кластере и созданный пользователь/схема `reports` (см. миграции).【F:backend/reports/migrations/001_create_deal_pipeline_summary.sql†L1-L33】
-- Переменные окружения `REPORTS_DATABASE_URL`, `REPORTS_SERVICE_PORT`, `REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA`, `REPORTS_SCHEMA`, `REPORTS_SOURCE_SCHEMAS` описаны в [`env.example`](../../env.example).
+## Подключения к CRM и Audit
+- Основной URL к кластерам PostgreSQL задаётся через `REPORTS_DATABASE_URL`. При запуске сервис автоматически конвертирует синхронный URL `postgresql://` в асинхронный `postgresql+asyncpg://`.
+- Настройки схем для чтения исходных данных (`REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA`) и целевой схемы отчётного сервиса (`REPORTS_SCHEMA`) доступны в `reports/config.py`. Вспомогательное свойство `source_schema_list` удобно для обработки нескольких источников в одном цикле.
+- SQLAlchemy `MetaData` фиксирует схему `REPORTS_SCHEMA`, чтобы запросы не требовали явного указания `search_path`. Модель `deal_pipeline_summary_view` описывает материализованное представление, а репозиторий `fetch_deal_pipeline_summary` использует её для выборки данных по воронке сделок.
+
+## API
+- `GET /health` — проверка подключения к базе данных (простое выполнение `SELECT 1`).
+- `GET /api/v1/aggregates/deal-pipeline` — отдаёт агрегаты по сделкам из витрины `deal_pipeline_summary` в формате `DealPipelineSummary`.
 
 ## Локальный запуск
 ```bash
 cd backend/reports
 poetry install
-poetry run reports-api
+REPORTS_DATABASE_URL="postgresql://reports:reports@localhost:5432/crm?search_path=reports" \
+  REPORTS_CRM_SCHEMA=crm REPORTS_AUDIT_SCHEMA=audit \
+  poetry run reports-api
 ```
-По умолчанию сервис слушает `0.0.0.0:${REPORTS_SERVICE_PORT:-8087}`. Для горячего обновления витрины используйте `poetry run reports-refresh-views` (выполняет `REFRESH MATERIALIZED VIEW` для `deal_pipeline_summary`).【F:backend/reports/reports/scripts/refresh_views.py†L1-L31】
+По умолчанию Uvicorn слушает `0.0.0.0:${REPORTS_SERVICE_PORT:-8087}` и использует переменные из `.env` или окружения.
 
-## API
-- `GET /health` — проверка подключения к базе данных.
-- `GET /api/v1/aggregates/deal-pipeline` — агрегированная статистика сделок CRM по статусам.
+### Обновление витрин
+```bash
+REPORTS_DATABASE_URL=... poetry run reports-refresh-views
+```
+Скрипт выполняет `REFRESH MATERIALIZED VIEW CONCURRENTLY reports.deal_pipeline_summary`, что полезно для фоновой регенерации отчётных данных.
 
-## Миграции и скрипты
-- SQL-скрипт [`migrations/001_create_deal_pipeline_summary.sql`](migrations/001_create_deal_pipeline_summary.sql) создаёт схему `reports` и материализованное представление. Запуск через `psql`:
-  ```bash
-  cd backend/reports/migrations
-  psql "$DATABASE_URL" \
-    -v reports_schema=${REPORTS_SCHEMA:-reports} \
-    -v crm_schema=${REPORTS_CRM_SCHEMA:-crm} \
-    -f 001_create_deal_pipeline_summary.sql
-  ```
-- Для пересчёта витрин предусмотрен Python-скрипт [`reports/scripts/refresh_views.py`](reports/scripts/refresh_views.py) (запускается через `poetry run reports-refresh-views`).
+## Миграции
+Каталог `migrations/` содержит шаблонные SQL-скрипты. Первый скрипт `001_create_deal_pipeline_summary.sql` создаёт схему `reports`, материализованное представление и уникальный индекс по статусу сделок.
 
-## Запуск в Docker
-Отдельный образ и профиль Compose будут добавлены после интеграции с CI/CD. До этого момента сервис можно запускать локально через Poetry.
+Запуск через `psql`:
+```bash
+cd backend/reports/migrations
+psql "$DATABASE_URL" \
+  -v reports_schema=${REPORTS_SCHEMA:-reports} \
+  -v crm_schema=${REPORTS_CRM_SCHEMA:-crm} \
+  -f 001_create_deal_pipeline_summary.sql
+```
+Дополняйте каталог новыми файлами по мере роста витрин и интеграций с Audit.
 
-## Полезные ссылки
-- Общее описание домена и текущие ограничения: [`README.md`](../../README.md#4-ответственность-сервисов).【F:README.md†L53-L74】
-- Источник агрегированных событий в Audit: [`docs/tech-stack.md`](../../docs/tech-stack.md#audit).【F:docs/tech-stack.md†L351-L353】
+## Структура проекта
+```
+backend/reports/
+├── migrations/                # SQL-скрипты инициализации витрин
+├── reports/
+│   ├── api/                   # FastAPI маршруты
+│   ├── config.py              # Загрузка переменных окружения
+│   ├── db.py                  # Создание async engine и сессий
+│   ├── main.py                # Точка входа Uvicorn
+│   ├── models.py              # SQLAlchemy-таблицы и представления
+│   ├── repositories/          # Слой доступа к данным
+│   ├── schemas.py             # Pydantic-схемы ответов
+│   └── scripts/refresh_views.py
+├── pyproject.toml
+└── README.md
+```
+
+## Дальнейшие шаги
+- Добавить дополнительные витрины и агрегаты из CRM и Audit.
+- Настроить автоматический запуск миграций и обновление витрин в CI/CD.
+- Протянуть авторизацию и контроль доступа для управленческих отчётов.
