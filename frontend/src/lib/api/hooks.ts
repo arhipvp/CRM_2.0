@@ -17,7 +17,7 @@ import {
   paymentsQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import type { DealFilters } from "@/types/crm";
+import type { Deal, DealFilters, DealStage } from "@/types/crm";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
