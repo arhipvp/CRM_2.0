@@ -60,8 +60,7 @@ export class TaskUpdateService {
 
     if (
       command.cancelledReason !== undefined &&
-      nextStatus !== TaskStatusCode.CANCELLED &&
-      previousStatus !== TaskStatusCode.CANCELLED
+      nextStatus !== TaskStatusCode.CANCELLED
     ) {
       throw new ConflictException(
         'cancelledReason can only be modified for cancelled tasks'
