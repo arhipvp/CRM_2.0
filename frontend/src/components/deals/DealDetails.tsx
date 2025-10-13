@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   dealQueryOptions,
+  dealsQueryKey,
+  dealStageMetricsQueryKey,
 } from "@/lib/api/queries";
 import { useDeal, useUpdateDeal } from "@/lib/api/hooks";
 import type { DealStage } from "@/types/crm";
@@ -36,8 +38,6 @@ const TABS: TabConfig[] = [
   { id: "documents", title: "Документы" },
   { id: "finance", title: "Финансы" },
 ];
-
-const DEAL_STAGE_METRICS_QUERY_KEY = ["deal-stage-metrics"] as const;
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ru-RU", {
@@ -172,8 +172,8 @@ export function DealDetails({ dealId }: { dealId: string }) {
     });
 
     queryClient.setQueryData(dealKey, updated);
-    await queryClient.invalidateQueries({ queryKey: ["deals"] });
-    await queryClient.invalidateQueries({ queryKey: DEAL_STAGE_METRICS_QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+    await queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey });
     markDealUpdated(dealId);
   };
 
