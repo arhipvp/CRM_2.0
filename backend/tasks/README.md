@@ -20,6 +20,21 @@ pnpm start:dev
 
 API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос, обновление и завершение задач выполняются через REST-команды `/api/tasks`.
 
+### Создание задачи
+`POST /api/tasks` принимает JSON с основными атрибутами задачи:
+
+- `subject` — заголовок (до 255 символов).
+- `description` — подробности (опционально).
+- `assignee_id` — UUID исполнителя.
+- `author_id` — UUID постановщика.
+- `due_date` — плановая дата завершения (ISO8601, например `2024-03-10`).
+- `priority` — `low`/`normal`/`high` (опционально).
+- `context` — объект с доменными идентификаторами (`deal_id`, `policy_id` и т.п.).
+
+Сервис дописывает `assignee_id`/`author_id` в `payload` (в camelCase и snake_case) вместе с приоритетом и контекстом, поэтому
+в ответе `TaskResponseDto` эти значения возвращаются готовыми полями `assigneeId`, `priority`, `dealId`, `context` без ручного
+парсинга JSON.
+
 ### Список задач
 `GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:
 

@@ -20,11 +20,22 @@ export class TasksController {
   @Post()
   async create(@Body() dto: CreateTaskDto): Promise<TaskResponseDto> {
     const scheduledFor = dto.scheduledFor ? new Date(dto.scheduledFor) : undefined;
-    const dueAt = dto.dueAt ? new Date(dto.dueAt) : undefined;
+    const dueAt = dto.dueDate ? new Date(dto.dueDate) : undefined;
     const status = scheduledFor && scheduledFor.getTime() > Date.now() ? TaskStatusCode.SCHEDULED : TaskStatusCode.PENDING;
 
     const task = await this.commandBus.execute(
-      new CreateTaskCommand(dto.title, dto.description, dueAt, scheduledFor, dto.payload, status)
+      new CreateTaskCommand(
+        dto.subject,
+        dto.description,
+        dueAt,
+        scheduledFor,
+        dto.payload,
+        status,
+        dto.assigneeId,
+        dto.authorId,
+        dto.priority,
+        dto.context
+      )
     );
 
     return TaskResponseDto.fromEntity(task);
