@@ -4,6 +4,11 @@ import Link from "next/link";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
+import {
+  DealBulkActions,
+  buildBulkActionNotificationMessage,
+} from "@/components/deals/DealBulkActions";
+import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -42,6 +47,7 @@ export function DealFunnelTable() {
   const clearFilters = useUiStore((state) => state.clearFilters);
   const openDealPreview = useUiStore((state) => state.openDealPreview);
   const highlightedDealId = useUiStore((state) => state.highlightedDealId);
+  const pushNotification = useUiStore((state) => state.pushNotification);
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
@@ -102,28 +108,38 @@ export function DealFunnelTable() {
   }
 
   const hasDeals = deals.length > 0;
+  const hasBulkSelection = selectedDealIds.length > 0;
+
+  const triggerBulkActionNotification = (actionLabel: string, level: "info" | "warning" = "info") => {
+    if (selectedDealIds.length === 0) {
+      return;
+    }
+
+    pushNotification({
+      id: createRandomId(),
+      message: buildBulkActionNotificationMessage(actionLabel, selectedDealIds),
+      type: level,
+      timestamp: new Date().toISOString(),
+      source: "crm",
+    });
+
+    clearSelection();
+  };
+
+  const handleAssignManager = () => triggerBulkActionNotification("Назначить менеджера");
+  const handleChangeStage = () => triggerBulkActionNotification("Изменить этап");
+  const handleAddTask = () => triggerBulkActionNotification("Добавить задачу");
+  const handleDelete = () => triggerBulkActionNotification("Удалить", "warning");
+
+  const containerClassName = classNames(
+    "flex flex-col gap-6 lg:flex-row",
+    hasBulkSelection && "pb-28",
+  );
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="flex-1 space-y-4">
-        {selectedDealIds.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
-                {selectedDealIds.length}
-              </span>
-              <span>карточ{selectedDealIds.length === 1 ? "ка" : selectedDealIds.length < 5 ? "ки" : "ек"} выбрано</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => clearSelection()}
-              className="text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline dark:text-slate-300"
-            >
-              Очистить выбор
-            </button>
-          </div>
-        )}
-
+    <>
+      <div className={containerClassName}>
+        <div className="flex-1 space-y-4">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
             <span>Список сделок</span>
@@ -231,9 +247,18 @@ export function DealFunnelTable() {
             </div>
           )}
         </div>
-      </div>
+        </div>
 
-      <DealPreviewSidebar />
-    </div>
+        <DealPreviewSidebar />
+      </div>
+      <DealBulkActions
+        selectedDealIds={selectedDealIds}
+        onAssignManager={handleAssignManager}
+        onChangeStage={handleChangeStage}
+        onAddTask={handleAddTask}
+        onDelete={handleDelete}
+        onClearSelection={clearSelection}
+      />
+    </>
   );
 }

@@ -21,6 +21,10 @@ import { Deal } from "@/types/crm";
 import { useDeals, useUpdateDealStage } from "@/lib/api/hooks";
 import { DealCard } from "@/components/deals/DealCard";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
+import {
+  DealBulkActions,
+  buildBulkActionNotificationMessage,
+} from "@/components/deals/DealBulkActions";
 import { PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
 const stageConfig: Record<PipelineStageKey, { title: string; description: string }> = {
@@ -215,12 +219,40 @@ export function DealFunnelBoard() {
   }
 
   const hasDeals = deals.length > 0;
+  const hasBulkSelection = selectedDealIds.length > 0;
+
+  const triggerBulkActionNotification = (actionLabel: string, level: "info" | "warning" = "info") => {
+    if (selectedDealIds.length === 0) {
+      return;
+    }
+
+    pushNotification({
+      id: createRandomId(),
+      message: buildBulkActionNotificationMessage(actionLabel, selectedDealIds),
+      type: level,
+      timestamp: new Date().toISOString(),
+      source: "crm",
+    });
+
+    clearSelection();
+  };
+
+  const handleAssignManager = () => triggerBulkActionNotification("Назначить менеджера");
+  const handleChangeStage = () => triggerBulkActionNotification("Изменить этап");
+  const handleAddTask = () => triggerBulkActionNotification("Добавить задачу");
+  const handleDelete = () => triggerBulkActionNotification("Удалить", "warning");
+
+  const containerClassName = classNames(
+    "flex flex-col gap-6 lg:flex-row",
+    hasBulkSelection && "pb-28",
+  );
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="flex-1 space-y-4">
-        {!hintDismissed && (
-          <div className="rounded-lg border border-dashed border-sky-300 bg-sky-50/80 p-4 text-sm text-slate-700 dark:border-sky-500/60 dark:bg-slate-900/40 dark:text-slate-200">
+    <>
+      <div className={containerClassName}>
+        <div className="flex-1 space-y-4">
+          {!hintDismissed && (
+            <div className="rounded-lg border border-dashed border-sky-300 bg-sky-50/80 p-4 text-sm text-slate-700 dark:border-sky-500/60 dark:bg-slate-900/40 dark:text-slate-200">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-medium text-slate-800 dark:text-white">Перетаскивайте карточки, чтобы менять стадию</p>
@@ -236,24 +268,6 @@ export function DealFunnelBoard() {
                 Понятно
               </button>
             </div>
-          </div>
-        )}
-
-        {selectedDealIds.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
-                {selectedDealIds.length}
-              </span>
-              <span>карточ{selectedDealIds.length === 1 ? "ка" : selectedDealIds.length < 5 ? "ки" : "ек"} выбрано</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => clearSelection()}
-              className="text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline dark:text-slate-300"
-            >
-              Очистить выбор
-            </button>
           </div>
         )}
 
@@ -348,8 +362,17 @@ export function DealFunnelBoard() {
         )}
       </div>
 
-      <DealPreviewSidebar key={previewDealId ?? "preview"} />
-    </div>
+        <DealPreviewSidebar key={previewDealId ?? "preview"} />
+      </div>
+      <DealBulkActions
+        selectedDealIds={selectedDealIds}
+        onAssignManager={handleAssignManager}
+        onChangeStage={handleChangeStage}
+        onAddTask={handleAddTask}
+        onDelete={handleDelete}
+        onClearSelection={clearSelection}
+      />
+    </>
   );
 }
 
