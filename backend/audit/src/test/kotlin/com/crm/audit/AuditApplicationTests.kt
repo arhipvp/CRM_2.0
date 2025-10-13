@@ -1,7 +1,13 @@
 package com.crm.audit
 
 import com.crm.audit.domain.AuditEventMessage
+import com.crm.audit.domain.AuditEventRepository
 import com.crm.audit.stream.AuditEventProcessor
+import java.time.Instant
+import java.time.ZoneOffset
+import java.util.function.Consumer
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.timeout
@@ -17,8 +23,8 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.RabbitMQContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.time.Instant
-import java.util.function.Consumer
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -62,8 +68,16 @@ class AuditApplicationTests {
     @Autowired
     private lateinit var auditEventConsumer: Consumer<AuditEventMessage>
 
+    @Autowired
+    private lateinit var auditEventRepository: AuditEventRepository
+
     @SpyBean
     private lateinit var processor: AuditEventProcessor
+
+    @BeforeEach
+    fun cleanDatabase() = runBlocking {
+        auditEventRepository.deleteAll()
+    }
 
     @Test
     fun `should forward incoming events to processor`() {
@@ -81,5 +95,41 @@ class AuditApplicationTests {
         verify(processor, timeout(5000)).process(eventCaptor.capture())
         LoggerFactory.getLogger(AuditApplicationTests::class.java)
             .info("Получено событие {} в тесте", eventCaptor.firstValue.eventType)
+    }
+
+    @Test
+    fun `should persist event when message received`() = runBlocking {
+        val payload = AuditEventMessage(
+            eventId = "evt-001",
+            eventType = "crm.deal.created",
+            source = "crm-service",
+            occurredAt = Instant.parse("2024-11-21T10:15:30Z"),
+            payload = null
+        )
+
+        auditEventConsumer.accept(payload)
+
+        val saved = auditEventRepository.findByEventId("evt-001")
+        assertNotNull(saved)
+        assertEquals("crm.deal.created", saved.eventType)
+        assertEquals("crm-service", saved.eventSource)
+        assertEquals(payload.occurredAt.atOffset(ZoneOffset.UTC), saved.occurredAt)
+    }
+
+    @Test
+    fun `should ignore duplicate events by id`() = runBlocking {
+        val payload = AuditEventMessage(
+            eventId = "evt-duplicate",
+            eventType = "crm.user.updated",
+            source = "crm-service",
+            occurredAt = Instant.parse("2024-11-22T10:15:30Z"),
+            payload = null
+        )
+
+        auditEventConsumer.accept(payload)
+        auditEventConsumer.accept(payload)
+
+        val count = auditEventRepository.count()
+        assertEquals(1L, count)
     }
 }

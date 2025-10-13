@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0004-add-event-id-column
+      author: crm-platform
+      changes:
+        - addColumn:
+            tableName: audit_events
+            schemaName: audit
+            columns:
+              - column:
+                  name: event_id
+                  type: VARCHAR(128)
+        - createIndex:
+            tableName: audit_events
+            schemaName: audit
+            indexName: uq_audit_events_event_id
+            unique: true
+            columns:
+              - column:
+                  name: event_id
+            where: event_id IS NOT NULL
+      rollback:
+        - dropIndex:
+            tableName: audit_events
+            schemaName: audit
+            indexName: uq_audit_events_event_id
+        - dropColumn:
+            tableName: audit_events
+            schemaName: audit
+            columnName: event_id
