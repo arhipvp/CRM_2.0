@@ -67,7 +67,7 @@ pnpm install
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
-- `DELETE /documents/:id` — удалить документ и метаданные.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, доступ Drive отзывается.
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
 - `POST /documents/:id/sync` — обновить метаданные из Drive.
 
@@ -81,6 +81,7 @@ pnpm typeorm migration:revert -d typeorm.config.ts
 ```
 
 Начальная миграция `1737043200000-init-documents-table.ts` создаёт схему `documents`, перечисление статусов и таблицу `documents`.
+Миграция `1738886400000-add-deleted-at-to-documents.ts` добавляет колонку `deleted_at` и индекс для мягкого удаления.
 
 ## Локальный эмулятор Google Drive
 1. Поднимите MinIO/LocalStack и укажите `GOOGLE_DRIVE_EMULATOR_URL` (пример: `http://localhost:9000`).

@@ -72,4 +72,26 @@ describe('DriveService', () => {
       },
     });
   });
+
+  it('отзывает файл в эмуляторе', async () => {
+    const document = {
+      driveFileId: 'drive-file-id',
+    } as DocumentEntity;
+
+    mockedAxios.delete.mockResolvedValue({ status: 204 } as never);
+
+    await service.revokeDocument(document);
+
+    expect(mockedAxios.delete).toHaveBeenCalledWith(
+      new URL(`/files/${document.driveFileId}`, 'http://localhost:9000').toString(),
+    );
+  });
+
+  it('пропускает отзыв, если файл не связан', async () => {
+    const document = { driveFileId: null } as DocumentEntity;
+
+    await service.revokeDocument(document);
+
+    expect(mockedAxios.delete).not.toHaveBeenCalled();
+  });
 });

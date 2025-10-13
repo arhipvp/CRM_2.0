@@ -55,6 +55,9 @@ export class DocumentEntity {
   @Column({ name: 'synced_at', type: 'timestamptz', nullable: true })
   syncedAt?: Date | null;
 
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

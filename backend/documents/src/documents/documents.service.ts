@@ -1,18 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
 import { DocumentEntity } from './document.entity';
 import { DocumentStatus } from './document-status.enum';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { DriveService } from '../drive/drive.service';
 
 @Injectable()
 export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly repository: Repository<DocumentEntity>,
+    private readonly driveService: DriveService,
   ) {}
 
   async create(dto: CreateDocumentDto): Promise<DocumentEntity> {
@@ -31,7 +33,7 @@ export class DocumentsService {
   }
 
   async findAll(query: ListDocumentsDto): Promise<{ items: DocumentEntity[]; total: number }> {
-    const where: FindOptionsWhere<DocumentEntity> = {};
+    const where: FindOptionsWhere<DocumentEntity> = { deletedAt: IsNull() };
     if (query.status) {
       where.status = query.status;
     }
@@ -46,7 +48,7 @@ export class DocumentsService {
   }
 
   async findOne(id: string): Promise<DocumentEntity> {
-    const entity = await this.repository.findOne({ where: { id } });
+    const entity = await this.repository.findOne({ where: { id, deletedAt: IsNull() } });
     if (!entity) {
       throw new NotFoundException(`Документ ${id} не найден`);
     }
@@ -71,16 +73,32 @@ export class DocumentsService {
 
   async remove(id: string): Promise<void> {
     const entity = await this.findOne(id);
-    await this.repository.remove(entity);
+    if (entity.driveFileId) {
+      await this.driveService.revokeDocument(entity);
+    }
+
+    Object.assign(entity, {
+      deletedAt: new Date(),
+      driveFileId: null,
+      driveRevisionId: null,
+      status: DocumentStatus.Draft,
+      syncedAt: null,
+      uploadedAt: null,
+    });
+
+    await this.repository.save(entity);
   }
 
   async markUploading(id: string): Promise<void> {
-    await this.repository.update({ id }, { status: DocumentStatus.Uploading, lastError: null });
+    await this.repository.update(this.withoutDeleted(id), {
+      status: DocumentStatus.Uploading,
+      lastError: null,
+    });
   }
 
   async markSynced(id: string, payload: Partial<DocumentEntity>): Promise<DocumentEntity> {
     await this.repository.update(
-      { id },
+      this.withoutDeleted(id),
       {
         ...payload,
         status: DocumentStatus.Synced,
@@ -94,6 +112,10 @@ export class DocumentsService {
 
   async markFailed(id: string, error: Error | string): Promise<void> {
     const lastError = typeof error === 'string' ? error : error.message;
-    await this.repository.update({ id }, { status: DocumentStatus.Error, lastError });
+    await this.repository.update(this.withoutDeleted(id), { status: DocumentStatus.Error, lastError });
+  }
+
+  private withoutDeleted(id: string): FindOptionsWhere<DocumentEntity> {
+    return { id, deletedAt: IsNull() };
   }
 }
