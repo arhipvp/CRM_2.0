@@ -360,7 +360,7 @@ End-to-end сценарии в staging, blue/green деплой
 
 БД и очереди: Spring Data R2DBC (PostgreSQL), Spring AMQP (RabbitMQ)
 
-API: REST endpoints для внутренних подписчиков; события доставляются через Spring Cloud Stream
+API: REST endpoints для внутренних подписчиков (`GET /api/audit/events` с пагинацией и фильтрами по типу/времени); события доставляются через Spring Cloud Stream
 
 Интеграция с PostgreSQL:
 
