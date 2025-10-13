@@ -3,6 +3,12 @@ spring:
     name: payments-service
   main:
     web-application-type: reactive
+  flyway:
+    enabled: true
+    default-schema: payments
+    locations: classpath:db/migration
+  rabbitmq:
+    uri: ${PAYMENTS_RABBITMQ_URL:}
   cloud:
     function:
       definition: paymentEventsConsumer

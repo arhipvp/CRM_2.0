@@ -34,6 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
     implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.postgresql:postgresql'
@@ -67,7 +68,7 @@ tasks.withType(Test).configureEach {
     systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'test'
 }
 
-// Позволяет запускать `./gradlew bootRun -PspringProfile=dev`
+// Позволяет запускать `gradle bootRun -PspringProfile=dev`
 tasks.named('bootRun') {
     systemProperty 'spring.profiles.active', project.findProperty('springProfile') ?: 'local'
 }
