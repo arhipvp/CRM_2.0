@@ -27,12 +27,29 @@ describe("ApiClient mock mode", () => {
 
   it("возвращает мок-данные при NEXT_PUBLIC_API_BASE_URL=mock", async () => {
     const { apiClient } = await importClient();
-    const { activitiesMock, clientsMock, dealsMock, paymentsMock, tasksMock } = await importMocks();
+    const {
+      activitiesMock,
+      clientsMock,
+      dealsMock,
+      paymentsMock,
+      tasksMock,
+      dealNotesMock,
+      dealDocumentsMock,
+    } = await importMocks();
     const dealId = dealsMock[0]?.id ?? "";
     const clientId = clientsMock[0]?.id ?? "";
 
     await expect(apiClient.getDeals()).resolves.toEqual(dealsMock);
-    await expect(apiClient.getDeal(dealId)).resolves.toEqual(dealsMock[0]);
+
+    const deal = await apiClient.getDeal(dealId);
+    expect(deal).toMatchObject({
+      ...dealsMock[0],
+      tasks: tasksMock.filter((task) => task.dealId === dealId),
+      notes: dealNotesMock.filter((note) => note.dealId === dealId),
+      documents: dealDocumentsMock.filter((doc) => doc.dealId === dealId),
+      payments: paymentsMock.filter((payment) => payment.dealId === dealId),
+      activity: activitiesMock.filter((entry) => entry.dealId === dealId),
+    });
     await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
     await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);
     await expect(apiClient.getTasks()).resolves.toEqual(tasksMock);

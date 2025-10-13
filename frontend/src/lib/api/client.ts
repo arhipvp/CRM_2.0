@@ -13,6 +13,7 @@ import {
   Deal,
   DealDocument,
   DealNote,
+  DealStage,
   Payment,
   Task,
 } from "@/types/crm";
@@ -419,6 +420,17 @@ export class ApiClient {
 
         return this.getDeal(dealId);
       },
+    );
+  }
+
+  updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
+    return this.request(
+      `/crm/deals/${dealId}/stage`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ stage }),
+      },
+      async () => updateDealStageMock(dealId, stage),
     );
   }
 
