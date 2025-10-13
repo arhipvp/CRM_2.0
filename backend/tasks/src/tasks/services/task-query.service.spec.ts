@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import { randomUUID } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { DataType, newDb } from 'pg-mem';

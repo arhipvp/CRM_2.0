@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
@@ -10,6 +10,8 @@ import { CompleteTaskDto } from '../dto/complete-task.dto';
 import { CompleteTaskCommand } from '../commands/complete-task.command';
 import { ListTasksDto } from '../dto/list-tasks.dto';
 import { TaskQueryService } from '../services/task-query.service';
+import { UpdateTaskDto } from '../dto/update-task.dto';
+import { UpdateTaskCommand } from '../commands/update-task.command';
 
 @Controller('tasks')
 export class TasksController {
@@ -56,6 +58,22 @@ export class TasksController {
   async complete(@Param('id') id: string, @Body() dto: CompleteTaskDto): Promise<TaskResponseDto> {
     const completedAt = dto.completedAt ? new Date(dto.completedAt) : undefined;
     const task = await this.commandBus.execute(new CompleteTaskCommand(id, completedAt));
+    return TaskResponseDto.fromEntity(task);
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto): Promise<TaskResponseDto> {
+    const dueAt = dto.dueDate === undefined ? undefined : dto.dueDate ? new Date(dto.dueDate) : null;
+    const completedAt =
+      dto.completedAt === undefined ? undefined : dto.completedAt ? new Date(dto.completedAt) : null;
+
+    const cancelledReason =
+      dto.cancelledReason === undefined ? undefined : dto.cancelledReason ?? null;
+
+    const task = await this.commandBus.execute(
+      new UpdateTaskCommand(id, dto.status, dueAt, completedAt, cancelledReason)
+    );
+
     return TaskResponseDto.fromEntity(task);
   }
 }

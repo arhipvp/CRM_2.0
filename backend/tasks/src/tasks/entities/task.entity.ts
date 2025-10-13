@@ -40,6 +40,9 @@ export class TaskEntity {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt?: Date | null;
 
+  @Column({ name: 'cancelled_reason', type: 'text', nullable: true })
+  cancelledReason?: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

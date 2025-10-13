@@ -9,6 +9,7 @@ export class TaskResponseDto {
   dueAt?: string | null;
   scheduledFor?: string | null;
   completedAt?: string | null;
+  cancelledReason?: string | null;
   createdAt!: string;
   updatedAt!: string;
 
@@ -22,6 +23,7 @@ export class TaskResponseDto {
     dto.dueAt = entity.dueAt?.toISOString() ?? null;
     dto.scheduledFor = entity.scheduledFor?.toISOString() ?? null;
     dto.completedAt = entity.completedAt?.toISOString() ?? null;
+    dto.cancelledReason = entity.cancelledReason ?? null;
     dto.createdAt = entity.createdAt.toISOString();
     dto.updatedAt = entity.updatedAt.toISOString();
     return dto;

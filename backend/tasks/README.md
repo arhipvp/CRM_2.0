@@ -18,7 +18,7 @@ pnpm seed:statuses
 pnpm start:dev
 ```
 
-API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос и завершение задач выполняются через REST-команды `/api/tasks`.
+API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос, обновление и завершение задач выполняются через REST-команды `/api/tasks`.
 
 ### Список задач
 `GET /api/tasks` возвращает массив `TaskResponseDto` и поддерживает фильтрацию:
@@ -30,6 +30,14 @@ API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api
 - `limit` и `offset` — пагинация; по умолчанию `limit = 50`.
 
 Все параметры необязательны и могут комбинироваться. Результат отсортирован по `dueAt`, затем по `createdAt`.
+
+### Обновление статуса задачи
+`PATCH /api/tasks/:id` позволяет переводить задачу между статусами (`pending`, `scheduled`, `in_progress`, `completed`, `cancelled`) и обновлять дедлайн.
+
+- Переходы доступны только в сторону "вперёд": например, из `completed` или `cancelled` вернуться в `in_progress` нельзя.
+- Для статуса `completed` разрешено передавать `completedAt` (без поля автоматически проставляется текущее время).
+- При переводе в `cancelled` обязательна `cancelledReason`, очередь отложенных задач очищается автоматически.
+- Поле `dueDate` (ISO8601 дата) переносит срок исполнения, `null` удаляет дедлайн.
 
 ### Воркеры отложенных задач
 Для активации отложенных задач поднимите отдельный процесс:
@@ -44,7 +52,7 @@ TASKS_WORKER_ENABLED=true pnpm start:workers
 Tasks использует схему `tasks` в PostgreSQL. Основные сущности описаны в каталоге [`src/tasks/entities`](src/tasks/entities/):
 
 - `TaskStatusEntity` (`task_statuses`) — справочник статусов с техническим кодом, названием, описанием и флагом `is_final` для завершённых состояний.
-- `TaskEntity` (`tasks`) — сами задачи с полями `title`, `description`, связью на статус, плановым дедлайном (`due_at`), моментом активации отложенной задачи (`scheduled_for`), произвольным `payload` и отметкой `completed_at`. Таймстемпы `created_at` и `updated_at` поддерживаются автоматически.
+- `TaskEntity` (`tasks`) — сами задачи с полями `title`, `description`, связью на статус, плановым дедлайном (`due_at`), моментом активации отложенной задачи (`scheduled_for`), произвольным `payload`, отметками `completed_at` и `cancelled_reason`. Таймстемпы `created_at` и `updated_at` поддерживаются автоматически.
 
 Конфигурация TypeORM вынесена в [`typeorm.config.ts`](typeorm.config.ts), что позволяет выполнять миграции и seed-скрипты вне NestJS. Проверьте раздел ниже, чтобы подключить их к локальной базе.
 
