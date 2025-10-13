@@ -65,6 +65,7 @@ class PaymentsServiceApplicationIT {
             "spring.cloud.stream.binders.rabbit.environment.spring.rabbitmq.addresses",
             rabbit::getAmqpUrl
         );
+        registry.add("payments.crm.webhook.secret", () -> "test-secret");
     }
 
     @Autowired
