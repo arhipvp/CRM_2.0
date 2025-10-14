@@ -21,6 +21,16 @@ export interface DocumentsConfiguration {
     emulatorRoot?: string;
     credentialsPath?: string;
   };
+  folders: {
+    templates: {
+      default: string;
+      client: string;
+      deal: string;
+      policy: string;
+      payment: string;
+    };
+    webBaseUrl: string;
+  };
 }
 
 const toBoolean = (value?: string, defaultValue = false) => {
@@ -53,5 +63,16 @@ export default (): DocumentsConfiguration => ({
       process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH ??
       process.env.GOOGLE_APPLICATION_CREDENTIALS ??
       join(process.cwd(), 'credentials/service-account.json'),
+  },
+  folders: {
+    templates: {
+      default: process.env.DOCUMENTS_FOLDERS_TEMPLATE_DEFAULT ?? '{title}',
+      client: process.env.DOCUMENTS_FOLDERS_TEMPLATE_CLIENT ?? 'Client {ownerId}',
+      deal: process.env.DOCUMENTS_FOLDERS_TEMPLATE_DEAL ?? 'Deal {ownerId}',
+      policy: process.env.DOCUMENTS_FOLDERS_TEMPLATE_POLICY ?? 'Policy {ownerId}',
+      payment: process.env.DOCUMENTS_FOLDERS_TEMPLATE_PAYMENT ?? 'Payment {ownerId}',
+    },
+    webBaseUrl:
+      process.env.DOCUMENTS_FOLDERS_WEB_BASE_URL ?? 'https://drive.google.com/drive/folders/',
   },
 });
