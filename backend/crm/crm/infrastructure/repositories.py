@@ -216,7 +216,7 @@ class CalculationRepository:
                 models.Calculation.is_deleted.is_(False),
             )
             .order_by(
-                models.Calculation.calculation_date.desc(),
+                models.Calculation.updated_at.desc(),
                 models.Calculation.created_at.desc(),
             )
         )

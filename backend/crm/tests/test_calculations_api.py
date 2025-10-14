@@ -23,6 +23,90 @@ async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, 
 
 
 @pytest.mark.asyncio()
+async def test_calculations_list_sorted_by_updated_at(api_client, configure_environment):
+    tenant_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Альфа",
+        "email": "alpha@example.com",
+        "phone": "+7-900-000-00-00",
+        "owner_id": str(uuid4()),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "КАСКО для руководства",
+        "description": "Подбор программы",
+        "owner_id": str(uuid4()),
+        "value": 250000,
+        "next_review_at": date.today().isoformat(),
+    }
+    deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert deal_resp.status_code == 201
+    deal = schemas.DealRead.model_validate(deal_resp.json())
+
+    validity_start = date.today()
+    validity_end = validity_start + timedelta(days=365)
+
+    def build_payload(company: str, program_suffix: str, premium: str, file_name: str, comment: str) -> dict[str, object]:
+        return {
+            "insurance_company": company,
+            "program_name": f"КАСКО {program_suffix}",
+            "premium_amount": premium,
+            "coverage_sum": "5000000.00",
+            "calculation_date": validity_start.isoformat(),
+            "validity_period": {
+                "start": validity_start.isoformat(),
+                "end": validity_end.isoformat(),
+            },
+            "files": [file_name],
+            "comments": comment,
+            "owner_id": str(uuid4()),
+        }
+
+    calc1_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("Ингосстрах", "Базовый", "120000.00", "calc-101.pdf", "Первый расчёт"),
+        headers=headers,
+    )
+    assert calc1_resp.status_code == 201
+    calc1 = schemas.CalculationRead.model_validate(calc1_resp.json())
+
+    calc2_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("Росгосстрах", "Стандарт", "130000.00", "calc-102.pdf", "Второй расчёт"),
+        headers=headers,
+    )
+    assert calc2_resp.status_code == 201
+    calc2 = schemas.CalculationRead.model_validate(calc2_resp.json())
+
+    calc3_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("Согласие", "Премиум", "140000.00", "calc-103.pdf", "Третий расчёт"),
+        headers=headers,
+    )
+    assert calc3_resp.status_code == 201
+    calc3 = schemas.CalculationRead.model_validate(calc3_resp.json())
+
+    update_resp = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/calculations/{calc1.id}",
+        json={"comments": "Первый расчёт (обновлён)", "files": ["calc-101.pdf", "calc-101-v2.pdf"]},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+
+    list_resp = await api_client.get(f"/api/v1/deals/{deal.id}/calculations", headers=headers)
+    assert list_resp.status_code == 200
+    items = list_resp.json()
+    ids_in_response = [item["id"] for item in items]
+    assert ids_in_response == [str(calc1.id), str(calc3.id), str(calc2.id)]
+
+
+@pytest.mark.asyncio()
 async def test_calculations_flow(api_client, configure_environment):
     settings = configure_environment
     tenant_id = uuid4()
