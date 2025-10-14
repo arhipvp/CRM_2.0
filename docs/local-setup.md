@@ -8,7 +8,7 @@
 ./scripts/dev-up.sh
 ```
 
-> ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2.
+> ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2. Bootstrap-скрипты теперь корректно работают и с устаревшими инсталляциями Docker Compose без поддержки `docker compose ps --format json`, однако рекомендуется обновиться до Compose V2, чтобы сохранить совместимость с инфраструктурными сценариями и профилями.
 
 `dev-up` служит «однокнопочным» запуском локального окружения и последовательно выполняет:
 
@@ -24,7 +24,7 @@
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизация `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
 2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
-3. ожидание готовности контейнеров через healthcheck (`docker compose ps --format json` в инфраструктурных утилитах `infra/`).
+3. ожидание готовности контейнеров через healthcheck (используется `docker compose ps --format json`, а при отсутствии этой опции — табличный вывод старых версий Compose).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
 6. `scripts/load-seeds.sh` — загрузка seed-данных, если скрипт присутствует в репозитории.
