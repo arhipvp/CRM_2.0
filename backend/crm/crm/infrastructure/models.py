@@ -58,10 +58,34 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
 
     client: Mapped[Client] = relationship(back_populates="deals")
     policies: Mapped[list["Policy"]] = relationship(back_populates="deal", cascade="all, delete-orphan")
+    journal_entries: Mapped[list["DealJournalEntry"]] = relationship(
+        back_populates="deal",
+        cascade="all, delete-orphan",
+        order_by="DealJournalEntry.created_at.asc()",
+    )
 
     __table_args__ = (
         Index("ix_deals_status", "status"),
         Index("ix_deals_next_review_at", "next_review_at"),
+    )
+
+
+class DealJournalEntry(CRMBase):
+    __tablename__ = "deal_journal"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    deal_id: Mapped[UUID] = mapped_column(ForeignKey("crm.deals.id", ondelete="CASCADE"), nullable=False)
+    author_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    deal: Mapped[Deal] = relationship(back_populates="journal_entries")
+
+    __table_args__ = (
+        Index("ix_deal_journal_deal_id", "deal_id"),
+        Index("ix_deal_journal_created_at", "created_at"),
     )
 
 

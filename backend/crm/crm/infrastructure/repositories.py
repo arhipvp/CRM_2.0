@@ -110,6 +110,57 @@ class DealRepository(BaseRepository[models.Deal]):
         return deal
 
 
+class DealJournalRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list_entries(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[models.DealJournalEntry], int]:
+        filters = (
+            models.DealJournalEntry.deal_id == deal_id,
+            models.Deal.tenant_id == tenant_id,
+            models.Deal.is_deleted.is_(False),
+        )
+        stmt = (
+            select(models.DealJournalEntry)
+            .join(models.Deal, models.Deal.id == models.DealJournalEntry.deal_id)
+            .where(*filters)
+            .order_by(models.DealJournalEntry.created_at.asc(), models.DealJournalEntry.id.asc())
+        )
+        result = await self.session.execute(stmt.limit(limit).offset(offset))
+        items = list(result.scalars().all())
+        total_stmt = select(func.count()).select_from(models.DealJournalEntry).join(models.Deal).where(*filters)
+        total = await self.session.scalar(total_stmt)
+        return items, int(total or 0)
+
+    async def create_entry(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        data: dict[str, object],
+    ) -> models.DealJournalEntry | None:
+        deal_exists = await self.session.scalar(
+            select(models.Deal.id).where(
+                models.Deal.id == deal_id,
+                models.Deal.tenant_id == tenant_id,
+                models.Deal.is_deleted.is_(False),
+            )
+        )
+        if deal_exists is None:
+            return None
+        entry = models.DealJournalEntry(deal_id=deal_id, **data)
+        self.session.add(entry)
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
+
 class PolicyRepository(BaseRepository[models.Policy]):
     model = models.Policy
 

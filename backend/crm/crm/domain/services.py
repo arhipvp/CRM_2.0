@@ -69,6 +69,65 @@ class DealService:
         return schemas.DealRead.model_validate(entity)
 
 
+class DealJournalService:
+    def __init__(
+        self,
+        repository: repositories.DealJournalRepository,
+        events_publisher: EventsPublisherProtocol,
+    ) -> None:
+        self.repository = repository
+        self.events = events_publisher
+
+    async def list_entries(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> schemas.DealJournalEntryList:
+        items, total = await self.repository.list_entries(
+            tenant_id,
+            deal_id,
+            limit=limit,
+            offset=offset,
+        )
+        entries = [schemas.DealJournalEntryRead.model_validate(item) for item in items]
+        return schemas.DealJournalEntryList(items=entries, total=total)
+
+    async def append_entry(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        payload: schemas.DealJournalEntryCreate,
+    ) -> schemas.DealJournalEntryRead | None:
+        entry = await self.repository.create_entry(
+            tenant_id,
+            deal_id,
+            payload.model_dump(),
+        )
+        if entry is None:
+            return None
+        dto = schemas.DealJournalEntryRead.model_validate(entry)
+        await self._publish_event(tenant_id, dto)
+        return dto
+
+    async def _publish_event(
+        self,
+        tenant_id: UUID,
+        entry: schemas.DealJournalEntryRead,
+    ) -> None:
+        payload = {
+            "tenant_id": str(tenant_id),
+            "deal_id": str(entry.deal_id),
+            "entry_id": str(entry.id),
+            "author_id": str(entry.author_id),
+            "body": entry.body,
+            "created_at": entry.created_at.isoformat(),
+        }
+        await self.events.publish("deal.journal.appended", payload)
+
+
 class PolicyService:
     def __init__(self, repository: repositories.PolicyRepository):
         self.repository = repository

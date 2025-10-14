@@ -78,6 +78,26 @@ class DealRead(ORMModel, DealBase):
     updated_at: datetime
 
 
+class DealJournalEntryBase(BaseModel):
+    body: str = Field(min_length=1, max_length=5000)
+
+
+class DealJournalEntryCreate(DealJournalEntryBase):
+    author_id: UUID
+
+
+class DealJournalEntryRead(ORMModel, DealJournalEntryBase):
+    id: UUID
+    deal_id: UUID
+    author_id: UUID
+    created_at: datetime
+
+
+class DealJournalEntryList(BaseModel):
+    items: list[DealJournalEntryRead]
+    total: int
+
+
 class PolicyBase(BaseModel):
     policy_number: str = Field(min_length=1, max_length=64)
     status: str = Field(default="draft")
