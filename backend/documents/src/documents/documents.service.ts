@@ -35,7 +35,7 @@ export class DocumentsService {
     return this.repository.save(entity);
   }
 
-  async findAll(query: ListDocumentsDto): Promise<{ items: DocumentEntity[]; total: number }> {
+  async findAll(query: ListDocumentsDto): Promise<[DocumentEntity[], number]> {
     const qb = this.repository.createQueryBuilder('document');
     qb.where('document.deletedAt IS NULL');
 
@@ -72,8 +72,7 @@ export class DocumentsService {
     qb.skip(query.offset ?? 0);
     qb.take(query.limit ?? 25);
 
-    const [items, total] = await qb.getManyAndCount();
-    return { items, total };
+    return qb.getManyAndCount();
   }
 
   async findOne(id: string): Promise<DocumentEntity> {
