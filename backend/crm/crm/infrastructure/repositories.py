@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from datetime import date
 from decimal import Decimal
-from typing import Generic, TypeVar
+from typing import Generic, Iterable, Sequence, TypeVar
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -113,10 +114,122 @@ class DealRepository(BaseRepository[models.Deal]):
 class PolicyRepository(BaseRepository[models.Policy]):
     model = models.Policy
 
+    async def assign_calculation(
+        self,
+        tenant_id: UUID,
+        policy_id: UUID,
+        calculation_id: UUID | None,
+    ) -> models.Policy | None:
+        stmt = (
+            update(self.model)
+            .where(
+                self.model.tenant_id == tenant_id,
+                self.model.id == policy_id,
+                self.model.is_deleted.is_(False),
+            )
+            .values(calculation_id=calculation_id)
+            .returning(self.model)
+        )
+        result = await self.session.execute(stmt)
+        policy = result.scalar_one_or_none()
+        if policy is None:
+            await self.session.rollback()
+            return None
+        await self.session.commit()
+        return policy
+
 
 class TaskRepository(BaseRepository[models.Task]):
     model = models.Task
 
+
+class CalculationRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        *,
+        statuses: Sequence[str] | None = None,
+        insurance_company: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> list[models.Calculation]:
+        stmt = (
+            select(models.Calculation)
+            .where(
+                models.Calculation.tenant_id == tenant_id,
+                models.Calculation.deal_id == deal_id,
+                models.Calculation.is_deleted.is_(False),
+            )
+            .order_by(
+                models.Calculation.calculation_date.desc(),
+                models.Calculation.created_at.desc(),
+            )
+        )
+        if statuses:
+            stmt = stmt.where(models.Calculation.status.in_(list(statuses)))
+        if insurance_company:
+            stmt = stmt.where(models.Calculation.insurance_company.ilike(f"%{insurance_company}%"))
+        if date_from:
+            stmt = stmt.where(models.Calculation.calculation_date >= date_from)
+        if date_to:
+            stmt = stmt.where(models.Calculation.calculation_date <= date_to)
+        stmt = stmt.options(selectinload(models.Calculation.policy))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    async def get(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+    ) -> models.Calculation | None:
+        stmt = (
+            select(models.Calculation)
+            .where(
+                models.Calculation.tenant_id == tenant_id,
+                models.Calculation.deal_id == deal_id,
+                models.Calculation.id == calculation_id,
+                models.Calculation.is_deleted.is_(False),
+            )
+            .options(selectinload(models.Calculation.policy))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
+    async def create(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        data: dict[str, object],
+    ) -> models.Calculation:
+        calculation = models.Calculation(tenant_id=tenant_id, deal_id=deal_id, **data)
+        self.session.add(calculation)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:  # pragma: no cover - defensive
+            await self.session.rollback()
+            raise RepositoryError(str(exc)) from exc
+        await self.session.refresh(calculation)
+        return calculation
+
+    async def update(
+        self,
+        calculation: models.Calculation,
+        data: dict[str, object],
+    ) -> models.Calculation:
+        for key, value in data.items():
+            setattr(calculation, key, value)
+        await self.session.commit()
+        await self.session.refresh(calculation)
+        return calculation
+
+    async def delete(self, calculation: models.Calculation) -> None:
+        calculation.is_deleted = True
+        await self.session.commit()
 
 class PaymentRepository:
     def __init__(self, session: AsyncSession):

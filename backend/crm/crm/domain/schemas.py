@@ -104,9 +104,84 @@ class PolicyRead(ORMModel, PolicyBase):
     tenant_id: UUID
     client_id: UUID
     deal_id: Optional[UUID]
+    calculation_id: Optional[UUID]
     owner_id: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class DateRange(BaseModel):
+    start: Optional[date] = None
+    end: Optional[date] = None
+
+    @model_validator(mode="after")
+    def _validate_range(self) -> "DateRange":
+        if self.start and self.end and self.end < self.start:
+            raise ValueError("end_before_start")
+        return self
+
+
+CalculationStatus = Literal["draft", "ready", "confirmed", "archived"]
+
+
+class CalculationBase(BaseModel):
+    insurance_company: str = Field(min_length=1, max_length=255)
+    program_name: Optional[str] = Field(default=None, max_length=255)
+    premium_amount: Optional[Decimal] = Field(default=None, decimal_places=2, max_digits=14)
+    coverage_sum: Optional[Decimal] = Field(default=None, decimal_places=2, max_digits=14)
+    calculation_date: date
+    validity_period: Optional[DateRange] = None
+    files: list[str] = Field(default_factory=list)
+    comments: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("premium_amount", "coverage_sum")
+    @classmethod
+    def _validate_positive_decimal(cls, value: Optional[Decimal]) -> Optional[Decimal]:
+        if value is None:
+            return value
+        if value <= 0:
+            raise ValueError("must_be_positive")
+        return value
+
+
+class CalculationCreate(CalculationBase):
+    owner_id: UUID
+
+
+class CalculationUpdate(BaseModel):
+    insurance_company: Optional[str] = Field(default=PydanticUndefined, min_length=1, max_length=255)
+    program_name: Optional[str] = Field(default=PydanticUndefined, max_length=255)
+    premium_amount: Optional[Decimal] = Field(default=PydanticUndefined, decimal_places=2, max_digits=14)
+    coverage_sum: Optional[Decimal] = Field(default=PydanticUndefined, decimal_places=2, max_digits=14)
+    calculation_date: Optional[date] = Field(default=PydanticUndefined)
+    validity_period: Optional[DateRange | None] = Field(default=PydanticUndefined)
+    files: Optional[list[str]] = Field(default=PydanticUndefined)
+    comments: Optional[str] = Field(default=PydanticUndefined, max_length=2000)
+
+    @field_validator("premium_amount", "coverage_sum")
+    @classmethod
+    def _validate_positive_decimal(cls, value: Optional[Decimal]) -> Optional[Decimal]:
+        if value is None:
+            return value
+        if value <= 0:
+            raise ValueError("must_be_positive")
+        return value
+
+
+class CalculationRead(ORMModel, CalculationBase):
+    id: UUID
+    tenant_id: UUID
+    deal_id: UUID
+    owner_id: UUID
+    status: CalculationStatus
+    linked_policy_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CalculationStatusChange(BaseModel):
+    status: Literal["ready", "confirmed", "archived"]
+    policy_id: Optional[UUID] = None
 
 
 class TaskBase(BaseModel):

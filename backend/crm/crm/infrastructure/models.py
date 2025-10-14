@@ -4,10 +4,15 @@ from datetime import datetime, date
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, JSON, Numeric, String, Text, func, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, Text, func, Integer
+from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.schema import MetaData
+
+try:  # pragma: no cover - optional dependency guard for typing
+    from asyncpg.pgproto.pgproto import Range as PgRange
+except ModuleNotFoundError:  # pragma: no cover - fallback for type checking
+    from typing import Any as PgRange  # type: ignore[assignment]
 
 
 class CRMBase(DeclarativeBase):
@@ -58,6 +63,9 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
 
     client: Mapped[Client] = relationship(back_populates="deals")
     policies: Mapped[list["Policy"]] = relationship(back_populates="deal", cascade="all, delete-orphan")
+    calculations: Mapped[list["Calculation"]] = relationship(
+        back_populates="deal", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_deals_status", "status"),
@@ -73,6 +81,9 @@ class Policy(CRMBase, TimestampMixin, OwnershipMixin):
     deal_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("crm.deals.id", ondelete="SET NULL"), nullable=True
     )
+    calculation_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("crm.calculations.id", ondelete="SET NULL"), nullable=True
+    )
     policy_number: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")
     premium: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
@@ -81,10 +92,37 @@ class Policy(CRMBase, TimestampMixin, OwnershipMixin):
 
     client: Mapped[Client] = relationship()
     deal: Mapped[Deal | None] = relationship(back_populates="policies")
+    calculation: Mapped["Calculation" | None] = relationship(back_populates="policy")
 
     __table_args__ = (
         Index("ix_policies_status", "status"),
         Index("ix_policies_client", "client_id"),
+        Index("ix_policies_calculation_id", "calculation_id"),
+    )
+
+
+class Calculation(CRMBase, TimestampMixin, OwnershipMixin):
+    __tablename__ = "calculations"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    deal_id: Mapped[UUID] = mapped_column(ForeignKey("crm.deals.id", ondelete="RESTRICT"), nullable=False)
+    insurance_company: Mapped[str] = mapped_column(String(255), nullable=False)
+    program_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    premium_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    coverage_sum: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    calculation_date: Mapped[date] = mapped_column(Date, nullable=False)
+    validity_period: Mapped[PgRange | None] = mapped_column(DATERANGE, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    files: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    deal: Mapped[Deal] = relationship(back_populates="calculations")
+    policy: Mapped["Policy" | None] = relationship(back_populates="calculation", uselist=False)
+
+    __table_args__ = (
+        Index("ix_calculations_status", "status"),
+        Index("ix_calculations_calculation_date", "calculation_date"),
+        Index("ix_calculations_insurance_company", "insurance_company"),
     )
 
 

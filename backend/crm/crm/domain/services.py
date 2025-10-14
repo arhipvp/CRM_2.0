@@ -1,9 +1,26 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
 from uuid import UUID
+
+try:  # pragma: no cover - optional dependency guard
+    from asyncpg.pgproto.pgproto import Range as PgRange
+except ModuleNotFoundError:  # pragma: no cover - lightweight fallback for typing
+    class PgRange:  # type: ignore[override]
+        def __init__(
+            self,
+            *,
+            lower: date | None = None,
+            upper: date | None = None,
+            lower_inc: bool = False,
+            upper_inc: bool = False,
+        ) -> None:
+            self.lower = lower
+            self.upper = upper
+            self.lower_inc = lower_inc
+            self.upper_inc = upper_inc
 
 from crm.domain import schemas
 from crm.infrastructure import models, repositories
@@ -80,6 +97,237 @@ class PolicyService:
     async def create_policy(self, tenant_id: UUID, payload: schemas.PolicyCreate) -> schemas.PolicyRead:
         entity = await self.repository.create(tenant_id, payload.model_dump())
         return schemas.PolicyRead.model_validate(entity)
+
+
+class CalculationService:
+    def __init__(
+        self,
+        repository: repositories.CalculationRepository,
+        policy_repository: repositories.PolicyRepository,
+        events_publisher: EventsPublisherProtocol,
+    ) -> None:
+        self.repository = repository
+        self.policies = policy_repository
+        self.events = events_publisher
+
+    async def list_calculations(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        *,
+        statuses: Sequence[str] | None = None,
+        insurance_company: str | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> Iterable[schemas.CalculationRead]:
+        items = await self.repository.list(
+            tenant_id,
+            deal_id,
+            statuses=statuses,
+            insurance_company=insurance_company,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return [self._to_schema(calculation) for calculation in items]
+
+    async def create_calculation(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        payload: schemas.CalculationCreate,
+    ) -> schemas.CalculationRead:
+        range_value = payload.validity_period
+        data = payload.model_dump(exclude={"validity_period"})
+        data["validity_period"] = self._date_range_to_pg(range_value)
+        calculation = await self.repository.create(tenant_id, deal_id, data)
+        calculation = await self.repository.get(tenant_id, deal_id, calculation.id) or calculation
+        result = self._to_schema(calculation)
+        await self._publish_event("deal.calculation.created", calculation)
+        return result
+
+    async def get_calculation(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+    ) -> schemas.CalculationRead | None:
+        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        if calculation is None:
+            return None
+        return self._to_schema(calculation)
+
+    async def update_calculation(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+        payload: schemas.CalculationUpdate,
+    ) -> schemas.CalculationRead | None:
+        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        if calculation is None:
+            return None
+        data = payload.model_dump(exclude_unset=True, exclude={"validity_period"})
+        if "validity_period" in payload.model_fields_set:
+            data["validity_period"] = self._date_range_to_pg(payload.validity_period)
+        updated = await self.repository.update(calculation, data)
+        result = self._to_schema(updated)
+        await self._publish_event("deal.calculation.updated", updated)
+        return result
+
+    async def delete_calculation(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+    ) -> bool:
+        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        if calculation is None:
+            return False
+        if calculation.policy is not None:
+            await self.policies.assign_calculation(tenant_id, calculation.policy.id, None)
+            calculation.policy = None
+        await self.repository.delete(calculation)
+        await self._publish_event("deal.calculation.deleted", calculation)
+        return True
+
+    async def change_status(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+        payload: schemas.CalculationStatusChange,
+    ) -> schemas.CalculationRead | None:
+        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        if calculation is None:
+            return None
+
+        current_status = calculation.status
+        new_status = payload.status
+        if not self._is_transition_allowed(current_status, new_status):
+            raise repositories.RepositoryError("invalid_status_transition")
+
+        if new_status == "ready":
+            self._ensure_ready_prerequisites(calculation)
+
+        linked_policy = None
+        detach_policy = False
+        if new_status == "confirmed":
+            linked_policy = await self._resolve_policy(tenant_id, deal_id, calculation.id, payload.policy_id)
+            if linked_policy is None and payload.policy_id is not None:
+                raise repositories.RepositoryError("policy_not_found")
+            if linked_policy is not None:
+                await self.policies.assign_calculation(tenant_id, linked_policy.id, calculation.id)
+        elif new_status == "archived" and calculation.policy is not None:
+            detach_policy = True
+
+        updated = await self.repository.update(calculation, {"status": new_status})
+
+        if detach_policy and updated.policy is not None:
+            await self.policies.assign_calculation(tenant_id, updated.policy.id, None)
+
+        updated = await self.repository.get(tenant_id, deal_id, calculation_id) or updated
+
+        await self._publish_event(f"deal.calculation.status.{new_status}", updated)
+        return self._to_schema(updated)
+
+    def _ensure_ready_prerequisites(self, calculation: models.Calculation) -> None:
+        if not calculation.files:
+            raise repositories.RepositoryError("files_required_for_ready")
+        if not calculation.program_name:
+            raise repositories.RepositoryError("program_required_for_ready")
+        if calculation.premium_amount is None:
+            raise repositories.RepositoryError("premium_required_for_ready")
+        if calculation.validity_period is None:
+            raise repositories.RepositoryError("validity_period_required_for_ready")
+        if getattr(calculation.validity_period, "lower", None) is None or getattr(
+            calculation.validity_period, "upper", None
+        ) is None:
+            raise repositories.RepositoryError("validity_period_required_for_ready")
+
+    async def _resolve_policy(
+        self,
+        tenant_id: UUID,
+        deal_id: UUID,
+        calculation_id: UUID,
+        policy_id: UUID | None,
+    ) -> models.Policy | None:
+        if policy_id is None:
+            return None
+        policy = await self.policies.get(tenant_id, policy_id)
+        if policy is None or policy.deal_id != deal_id:
+            return None
+        if policy.calculation_id and policy.calculation_id != calculation_id:
+            raise repositories.RepositoryError("policy_already_linked")
+        return policy
+
+    @staticmethod
+    def _is_transition_allowed(current: str, target: str) -> bool:
+        allowed = {
+            "draft": {"ready"},
+            "ready": {"confirmed", "archived"},
+            "confirmed": {"archived"},
+            "archived": set(),
+        }
+        return target in allowed.get(current, set())
+
+    @staticmethod
+    def _date_range_to_pg(range_value: schemas.DateRange | None) -> PgRange | None:
+        if range_value is None:
+            return None
+        start = range_value.start
+        end = range_value.end
+        if start is None and end is None:
+            return None
+        lower_inc = start is not None
+        upper_inc = end is not None
+        return PgRange(lower=start, upper=end, lower_inc=lower_inc, upper_inc=upper_inc)
+
+    @staticmethod
+    def _date_range_from_pg(range_value: PgRange | None) -> schemas.DateRange | None:
+        if range_value is None:
+            return None
+        if getattr(range_value, "lower", None) is None and getattr(range_value, "upper", None) is None:
+            return None
+        return schemas.DateRange(start=range_value.lower, end=range_value.upper)
+
+    def _to_schema(self, calculation: models.Calculation) -> schemas.CalculationRead:
+        validity_period = self._date_range_from_pg(calculation.validity_period)
+        linked_policy_id = calculation.policy.id if calculation.policy else None
+        return schemas.CalculationRead(
+            id=calculation.id,
+            tenant_id=calculation.tenant_id,
+            deal_id=calculation.deal_id,
+            owner_id=calculation.owner_id,
+            insurance_company=calculation.insurance_company,
+            program_name=calculation.program_name,
+            premium_amount=calculation.premium_amount,
+            coverage_sum=calculation.coverage_sum,
+            calculation_date=calculation.calculation_date,
+            validity_period=validity_period,
+            files=list(calculation.files or []),
+            comments=calculation.comments,
+            status=calculation.status,
+            linked_policy_id=linked_policy_id,
+            created_at=calculation.created_at,
+            updated_at=calculation.updated_at,
+        )
+
+    async def _publish_event(self, routing_key: str, calculation: models.Calculation) -> None:
+        payload = {
+            "calculation_id": str(calculation.id),
+            "deal_id": str(calculation.deal_id),
+            "tenant_id": str(calculation.tenant_id),
+            "status": calculation.status,
+            "insurance_company": calculation.insurance_company,
+            "calculation_date": calculation.calculation_date.isoformat(),
+        }
+        if calculation.program_name:
+            payload["program_name"] = calculation.program_name
+        if calculation.premium_amount is not None:
+            payload["premium_amount"] = str(calculation.premium_amount)
+        if calculation.policy is not None:
+            payload["policy_id"] = str(calculation.policy.id)
+        await self.events.publish(routing_key, payload)
 
     async def get_policy(self, tenant_id: UUID, policy_id: UUID) -> schemas.PolicyRead | None:
         entity = await self.repository.get(tenant_id, policy_id)

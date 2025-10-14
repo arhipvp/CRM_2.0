@@ -112,6 +112,79 @@
 | value | number | Нет | Новая планируемая сумма. |
 | next_review_at | date (`YYYY-MM-DD`) | Нет | Новая дата следующего обзора. При передаче не может быть `null`; чтобы оставить дату без изменений, не указывайте поле. |
 
+## Расчёты
+
+### GET `/deals/{deal_id}/calculations`
+Возвращает расчёты конкретной сделки. Выдача отсортирована по дате получения (`calculation_date` по убыванию) и времени создания.
+
+**Параметры запроса**
+| Параметр | Тип | Обязательный | Описание |
+| --- | --- | --- | --- |
+| `status[]` | array<string> | Нет | Фильтр по статусам (`draft`, `ready`, `confirmed`, `archived`). |
+| `insurance_company` | string | Нет | Подстрочный поиск по названию страховой компании. |
+| `calculation_date_from` | date | Нет | Нижняя граница даты получения расчёта. |
+| `calculation_date_to` | date | Нет | Верхняя граница даты получения расчёта. |
+
+**Пример ответа**
+```json
+[
+  {
+    "id": "38e47d5c-207d-4b73-8e0f-22c7c873cc26",
+    "deal_id": "8b1b9c9f-987a-4c1a-b0f4-a1d88f3d1eb4",
+    "tenant_id": "1c54c7ba-ea78-44ec-9f40-5861ab6b0107",
+    "owner_id": "6d5c0686-7a7f-4f98-9b3c-1e1fbb44aa01",
+    "insurance_company": "Ингосстрах",
+    "program_name": "КАСКО Премиум",
+    "premium_amount": 150000,
+    "coverage_sum": 5000000,
+    "calculation_date": "2025-05-18",
+    "validity_period": { "start": "2025-05-18", "end": "2026-05-18" },
+    "files": ["calc-001.pdf", "calc-002.pdf"],
+    "comments": "Вариант для директора",
+    "status": "ready",
+    "linked_policy_id": null,
+    "created_at": "2025-05-18T12:03:00Z",
+    "updated_at": "2025-05-19T08:10:00Z"
+  }
+]
+```
+
+### POST `/deals/{deal_id}/calculations`
+Создаёт расчёт.
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| insurance_company | string | Да | Название страховой компании. |
+| program_name | string | Нет | Название программы. |
+| premium_amount | number | Нет | Страховая премия (положительное число). |
+| coverage_sum | number | Нет | Страховая сумма. |
+| calculation_date | date | Да | Дата получения расчёта. |
+| validity_period | object | Нет | Диапазон действия: `{ "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }`. |
+| files | array<string> | Нет | Пути или идентификаторы файлов расчёта. |
+| comments | string | Нет | Внутренние комментарии. |
+| owner_id | UUID | Да | Ответственный пользователь. |
+
+Ответ возвращает объект `Calculation` со статусом `draft`.
+
+### PATCH `/deals/{deal_id}/calculations/{calculation_id}`
+Частично обновляет расчёт. Допустимы поля из тела запроса создания; отсутствие поля означает «оставить без изменений». Передача `validity_period: null` очищает диапазон действия.
+
+### POST `/deals/{deal_id}/calculations/{calculation_id}/status`
+Меняет статус расчёта. Допустимые переходы: `draft → ready`, `ready → confirmed`, `ready → archived`, `confirmed → archived`. Архивные расчёты изменить нельзя.
+
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| status | string | Да | Новый статус (`ready`, `confirmed`, `archived`). |
+| policy_id | UUID | Нет | Требуется при подтверждении (`status=confirmed`), если расчёт привязывается к существующему полису сделки. |
+
+При переводе в статус `ready` CRM проверяет наличие заполненных полей (`program_name`, `premium_amount`, диапазон действия) и хотя бы одного файла. При подтверждении расчёт привязывается к полису (`crm.policies.calculation_id`) и публикует событие `deal.calculation.status.confirmed`. Попытка привязать полис другой сделки или уже занятый расчётом вернёт ошибку `400` с кодом `policy_not_found`/`policy_already_linked`.
+
+### DELETE `/deals/{deal_id}/calculations/{calculation_id}`
+Помечает расчёт удалённым. Связь с полисом очищается автоматически. Повторное обращение к карточке вернёт `404`.
+
+> **События:** при операциях над расчётами CRM публикует `deal.calculation.created`, `deal.calculation.updated`, `deal.calculation.status.<status>` и `deal.calculation.deleted` в обменник `crm.events` (тип `topic`).
+
 ## Полисы
 
 ### GET `/policies`
