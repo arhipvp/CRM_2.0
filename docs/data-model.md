@@ -135,20 +135,41 @@ erDiagram
 
 ```mermaid
 erDiagram
-    DOCUMENTS_DOCUMENTS ||--o{ DOCUMENTS_LINKS : ""
+    DOCUMENTS_DOCUMENTS
 ```
 
 ### Таблицы
 
 | Таблица | Назначение |
 | --- | --- |
-| `documents.documents` | Метаданные файлов локального хранилища (относительные пути, размеры и владельцы). |
-| `documents.document_links` | Перекрёстные ссылки документов на сущности других схем. |
+| `documents.documents` | Метаданные файлов локального хранилища: имя, описание, пути в каталоге хранения, публичные ссылки и произвольные атрибуты владельца. |
 
-### Ключи и ограничения
+#### Поля `documents.documents`
 
-* `documents.documents`: `PRIMARY KEY (id)`, `UNIQUE (storage_path)`, индексы по `owner_type`, `uploaded_at`.
-* `documents.document_links`: `PRIMARY KEY (id)`, `FOREIGN KEY (document_id)` → `documents.documents(id)`, поля `owner_schema`, `owner_table`, `owner_id` фиксируют связь. Уникальное ограничение `(document_id, owner_schema, owner_id)`.
+* `id` (`uuid`, PK) — идентификатор документа.
+* `name` (`varchar(255)`, NOT NULL) — отображаемое имя файла; индекс `documents_name_idx` поддерживает поиск.
+* `description` (`text`, NULL) — произвольное описание.
+* `storage_path` (`varchar(2048)`, NULL) — относительный путь в файловом хранилище (индекс `documents_storage_path_idx`).
+* `public_url` (`varchar(2048)`, NULL) — публичная ссылка на файл, если доступен внешний адрес.
+* `mime_type` (`varchar(255)`, NULL) — медиатип контента.
+* `size` (`bigint`, NULL) — фактический размер в байтах.
+* `checksum_md5` (`varchar(32)`, NULL) — контрольная сумма загруженного файла.
+* `source_uri` (`text`, NULL) — исходный URI, откуда загружен документ.
+* `metadata` (`jsonb`, NULL) — структурированные метаданные, включая привязки к владельцам (например, `deal_id`, `policy_id` и другие идентификаторы).
+* `status` (`documents_documents_status_enum`, NOT NULL, default `pending_upload`) — состояние файла; допустимые значения: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
+* `last_error` (`text`, NULL) — текст последней ошибки при обработке.
+* `uploaded_at` (`timestamptz`, NULL) — отметка времени успешной загрузки.
+* `synced_at` (`timestamptz`, NULL) — отметка завершённой синхронизации прав/метаданных.
+* `deleted_at` (`timestamptz`, NULL) — признак мягкого удаления; индекс `documents_deleted_at_idx` ускоряет выборки по активным/удалённым файлам.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`) — дата создания записи.
+* `updated_at` (`timestamptz`, NOT NULL, default `now()`) — дата последнего обновления.
+
+### Индексы
+
+* `documents_name_idx` — по столбцу `name`.
+* `documents_storage_path_idx` — по столбцу `storage_path`.
+* `documents_status_idx` — по столбцу `status`.
+* `documents_deleted_at_idx` — по столбцу `deleted_at` (используется для soft delete).
 
 ## Схема `notifications`
 
@@ -222,7 +243,7 @@ erDiagram
 Связи между схемами обеспечиваются внешними ключами:
 
 * Пользовательские ссылки (`sales_agent_id`, `assignee_id`, `recipient_id`, `created_by_id`, `updated_by_id`) указывают на `auth.users`.
-* Бизнес-сущности `crm.payments`, `crm.payment_incomes`, `crm.payment_expenses`, `tasks.tasks`, `notifications.notifications` и `documents.document_links` привязываются к сделкам и полисам через ключи на таблицы схем `crm`.
+* Бизнес-сущности `crm.payments`, `crm.payment_incomes`, `crm.payment_expenses`, `tasks.tasks`, `notifications.notifications` привязываются к сделкам и полисам через ключи на таблицы схем `crm`. Документы хранят ссылки на владельцев внутри поля `documents.documents.metadata`.
 * Audit фиксирует события с произвольным payload и тегами, которые можно связывать с объектами других схем через содержимое `payload`/`audit.audit_event_tags`.
 
 Seed-скрипты должны исполняться после базовых миграций каждой схемы и гарантировать целостность ссылок (например, напоминания задач опираются на справочник ролей, поэтому роли должны быть загружены первыми).
