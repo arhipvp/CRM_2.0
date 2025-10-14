@@ -55,7 +55,7 @@
 | 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L9-L66】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
 | 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L9-L18】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы и доменные события CRM.【F:docs/architecture.md†L11-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
-| 4. Documents | Метаданные и интеграция с Google Drive.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
+| 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
 | 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
 | 6. Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
 | 7. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
@@ -168,7 +168,7 @@
      - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SESSION_SECRET` (Gateway).
      - `AUTH_JWT_SECRET`, `AUTH_JWT_ISSUER`, `AUTH_JWT_AUDIENCE`, `AUTH_ACCESS_TOKEN_TTL`, `AUTH_REFRESH_TOKEN_TTL` (Auth).
        Убедитесь, что `AUTH_JWT_ISSUER` совпадает с базовым URL сервиса авторизации (`AUTH_BASE_URL`) без дополнительного суффикса.
-   - Интеграционные токены (Google Drive, Telegram Bot и т.д.), если планируете проверки соответствующих сервисов.
+   - Интеграционные токены (Telegram Bot и т.д.) и параметры файлового хранилища (`DOCUMENTS_STORAGE_*`), если планируете проверки соответствующих сервисов.
    - При выделении отдельных прав для сервисов добавляйте собственные `*_RABBITMQ_URL` (см. примеры в `env.example`).
    - Проверьте, что `AUTH_DATABASE_URL` использует формат `r2dbc:postgresql://.../${POSTGRES_DB}?schema=auth` (или эквивалент с `search_path=auth`); если в локальном `.env` остался старый `postgresql://`, обновите значение по образцу из `env.example`, например `r2dbc:postgresql://auth:auth@localhost:5432/crm?schema=auth`.
 3. Убедитесь, что переменные портов (`POSTGRES_PORT`, `RABBITMQ_PORT`, `REDIS_PORT`, `CONSUL_*`, `PGADMIN_PORT`) не конфликтуют с уже занятыми на вашей машине.
@@ -178,23 +178,96 @@
 
 ### Documents: быстрый старт
 
-- Перейдите в `backend/documents` и установите зависимости (`pnpm install`).
-- Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/documents` (при необходимости добавьте `--non-interactive`). Проверьте блок `DOCUMENTS_*` и `GOOGLE_DRIVE_*`.
-- Примените миграции TypeORM: `npx dotenv -e ../../.env pnpm typeorm migration:run -d typeorm.config.ts` или укажите актуальный `.env`.
-- Запустите REST API: `pnpm start:dev` — сервис слушает порт `DOCUMENTS_SERVICE_PORT` (по умолчанию 8084).
-- Запустите воркер очередей отдельно: `pnpm start:worker:dev`. Он использует Redis из `DOCUMENTS_REDIS_URL` и обрабатывает задания `documents.upload`/`documents.sync`.
-- Для работы без реального Google Drive установите `GOOGLE_DRIVE_EMULATOR_URL` и `GOOGLE_DRIVE_EMULATOR_ROOT`. При получении сервисного аккаунта заполните `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` или укажите путь `GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`, а переменную эмулятора очистите.
+1. Перейдите в `backend/documents` и установите зависимости (`pnpm install`).
+2. Подготовьте каталог хранения документов на хосте (по умолчанию `/var/lib/crm/documents`):
+   ```bash
+   sudo mkdir -p /var/lib/crm/documents
+   sudo chown 1000:1000 /var/lib/crm/documents   # замените 1000:1000 на UID/GID пользователя внутри контейнера
+   sudo chmod 770 /var/lib/crm/documents
+   ```
+   - Узнать UID/GID контейнера можно командой `docker compose run --rm documents id` или по спецификации k8s. Для нестандартных образов уточняйте пользователя в Dockerfile.
+   - При включённом SELinux/AppArmor используйте соответствующие контексты (`:Z`/`:z` в Docker Compose, `securityContext` и `fsGroup` в Kubernetes) либо выполните `sudo chcon -Rt svirt_sandbox_file_t /var/lib/crm/documents`.
+3. Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/documents` (добавьте `--non-interactive` при необходимости). Проверьте значения `DOCUMENTS_STORAGE_DRIVER`, `DOCUMENTS_STORAGE_ROOT`, при необходимости задайте квоту `DOCUMENTS_STORAGE_QUOTA_MB` и публичный URL (`DOCUMENTS_STORAGE_PUBLIC_BASE_URL`).
+4. Примените миграции TypeORM: `npx dotenv -e ../../.env pnpm typeorm migration:run -d typeorm.config.ts` или укажите путь к актуальному `.env`.
+5. Запустите REST API: `pnpm start:dev` — сервис слушает порт `DOCUMENTS_SERVICE_PORT` (по умолчанию `8084`).
+6. Запустите воркер очередей отдельно: `pnpm start:worker:dev`. Он использует Redis из `DOCUMENTS_REDIS_URL` и обрабатывает задания `documents.upload` и `documents.sync`.
+7. Настройте регулярное резервное копирование каталога (`/var/lib/crm/documents`) вместе с базой `documents`, чтобы исключить рассинхронизацию метаданных и файлов (см. рекомендации ниже).
 
 
 ### Интеграции
 
-#### Google Drive (сервисный аккаунт)
+#### Файловое хранилище документов
 
-1. **Кто создаёт.** Обратитесь в команду инфраструктуры (`infra@company.local`) — они владеют Google Workspace и создают сервисные аккаунты.
-2. **Запрос доступа.** Заполните заявку в Jira по шаблону «Google Drive Service Account» и укажите перечень необходимых папок/Shared Drive. К заявке приложите согласование от тимлида продукта.
-3. **Создание ключа.** Инфраструктура генерирует JSON-ключ согласно официальной [инструкции Google](https://developers.google.com/drive/api/guides/service-accounts) и публикует его в секретном хранилище (1Password/HashiCorp Vault).
-4. **Требуемые права.** У сервисного аккаунта должен быть доступ `Content manager` к Shared Drive с документами клиентов. Права на уровне Workspace выдаёт администратор Google (группа `workspace-admins`).
-5. **Получение ключа.** Заберите JSON через выделенный секретный канал и поместите его содержимое в `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` либо сохраните файл и укажите путь в `GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH`. ID общего диска добавьте в `GOOGLE_DRIVE_SHARED_DRIVE_ID`.
+Documents хранит бинарные файлы локально или на self-hosted volume. Сервис читает конфигурацию из `DOCUMENTS_STORAGE_*`, а база данных содержит относительные пути. Такой подход рассчитан на VPS и on-premise окружения без внешнего облака.
+
+**Подготовка каталога**
+
+- Создайте директорию на хосте и назначьте владельца с UID/GID, совпадающим с пользователем процесса внутри контейнера (см. шаги в «Documents: быстрый старт»). При необходимости задайте `fsGroup` в Kubernetes, чтобы `kubelet` автоматически выставил группу тома.
+- Для SELinux добавьте флаг `:Z`/`:z` к bind-монту или выполните `chcon`. AppArmor-профиль должен разрешать доступ к каталогу (проверьте `profile.d` или используйте `unconfined`).
+
+**Docker Compose**
+
+```yaml
+services:
+  documents:
+    environment:
+      DOCUMENTS_STORAGE_DRIVER: "local"
+      DOCUMENTS_STORAGE_ROOT: "/var/lib/crm/documents"
+      DOCUMENTS_STORAGE_QUOTA_MB: "20480"      # пример квоты 20 ГБ
+    volumes:
+      - type: bind
+        source: /srv/crm/documents
+        target: /var/lib/crm/documents
+        bind:
+          selinux: z
+```
+
+- Путь `source` (`/srv/crm/documents`) должен существовать на хосте и быть доступен для записи. Для режимов разработки можно указать относительный путь (`./var/documents`), но для VPS предпочтителен отдельный диск или LVM-раздел.
+- При смене `DOCUMENTS_STORAGE_ROOT` внутри контейнера обновите `target` у volume и `.env` одновременно.
+
+**Kubernetes**
+
+- Создайте `PersistentVolume`/`PersistentVolumeClaim` или `hostPath`, в зависимости от окружения. Пример c PVC:
+  ```yaml
+  apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: documents-storage
+  spec:
+    accessModes: [ReadWriteOnce]
+    resources:
+      requests:
+        storage: 50Gi
+  ---
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: documents
+  spec:
+    template:
+      spec:
+        securityContext:
+          fsGroup: 1000
+        containers:
+          - name: documents
+            env:
+              - name: DOCUMENTS_STORAGE_ROOT
+                value: /var/lib/crm/documents
+            volumeMounts:
+              - name: documents-storage
+                mountPath: /var/lib/crm/documents
+        volumes:
+          - name: documents-storage
+            persistentVolumeClaim:
+              claimName: documents-storage
+  ```
+- Убедитесь, что `fsGroup` совпадает с пользователем внутри контейнера. При использовании `hostPath` проверьте контексты SELinux (`seLinuxOptions`) и AppArmor-профили.
+
+**Резервное копирование**
+
+- Снимайте бэкапы каталога с файлами и базы данных `documents` синхронно (например, `rsync` + `pg_dump` в одном `systemd`-таймере), чтобы наборы данных оставались согласованными.
+- Для горячих бэкапов используйте снапшоты файловой системы (LVM, ZFS) или привязанные к облаку snapshot-инструменты, затем копируйте содержимое на удалённый сервер/облако.
+- Минимально тестируйте восстановление: разворачивайте резервную копию в отдельном окружении и проверяйте выборку документов по относительным путям.
 
 #### Telegram Bot (токен Bot API)
 
@@ -206,9 +279,9 @@
 
 #### Локальные заглушки и тестовые значения
 
-- **Документы.** Вместо реального Google Drive в разработке используйте MinIO или LocalStack. Укажите `GOOGLE_DRIVE_EMULATOR_URL=http://localhost:9000` и путь к локальному каталогу в `GOOGLE_DRIVE_EMULATOR_ROOT`. Поля `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` и `GOOGLE_DRIVE_SHARED_DRIVE_ID` можно оставить пустыми до получения боевых ключей.
+- **Документы.** Для разработки достаточно локального каталога в репозитории (`./var/documents`). Убедитесь, что он исключён из VCS (`.gitignore`) и доступен процессу `node`. Значения `DOCUMENTS_STORAGE_DRIVER=local` и `DOCUMENTS_STORAGE_ROOT=./var/documents` подходят для одиночного стенда.
 - **Telegram.** Для интеграции Telegram включите mock, который идёт вместе с сервисом уведомлений: `TELEGRAM_MOCK_ENABLED=true`, `TELEGRAM_MOCK_SERVER_URL=http://localhost:8085/telegram`. Токен `TELEGRAM_BOT_TOKEN` допустимо временно заполнить значением `dev-mock-token`, пока нет боевого доступа. Webhook URL можно оставить пустым — mock читает локальные запросы напрямую.
-- **Ротация.** После получения реальных ключей отключите заглушки (`TELEGRAM_MOCK_ENABLED=false`, очистите переменные эмулятора) и перенесите секреты в управляемый Vault. Для stage/prod использование mock-значений запрещено.
+- **Ротация.** После получения реальных ключей отключите заглушки (`TELEGRAM_MOCK_ENABLED=false`) и перенесите секреты в управляемый Vault. Для stage/prod использование mock-значений запрещено.
 
 ## 2. Запустите инфраструктурные контейнеры
 

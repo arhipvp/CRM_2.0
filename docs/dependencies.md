@@ -17,7 +17,7 @@
 - **RabbitMQ** — базовый vhost `crm` и выделенные очереди/пользователи для доменных сервисов (`notifications`, `tasks`, `audit`).【F:env.example†L30-L138】
 - **Redis** — пулы для сессий, кешей, Celery, BullMQ и rate limiting, как указано в шаблоне окружения.【F:env.example†L74-L131】
 - **Consul** — используется Gateway для service discovery и распределённой конфигурации (будет расширяться по мере интеграции).【F:backend/gateway/README.md†L6-L9】【F:env.example†L42-L86】
-- **Google Drive API** — сервисный аккаунт и общий диск для Documents-сервиса (или локальный эмулятор).【F:backend/documents/README.md†L6-L38】【F:env.example†L144-L156】
+- **Локальное или self-hosted хранилище документов** — выделенный том/директория для бинарных файлов и политика резервного копирования (`DOCUMENTS_STORAGE_*`).【F:backend/documents/README.md†L6-L40】【F:env.example†L144-L156】
 - **Telegram Bot API** — используется Notifications и ботом; поддерживается mock-сервером для dev-среды.【F:backend/notifications/README.md†L8-L44】【F:env.example†L148-L157】
 
 ## Сервисные зависимости
@@ -27,7 +27,7 @@
 | **Gateway / BFF** | Node.js 18 LTS, NestJS | Redis, Consul | Настроить `GATEWAY_*` переменные, SSE прокси.【F:backend/gateway/README.md†L6-L17】【F:env.example†L97-L110】 |
 | **Auth** | Spring Boot WebFlux (JDK 17) | PostgreSQL `auth`, Redis | OAuth/OIDC конфигурация, Liquibase миграции.【F:backend/auth/README.md†L6-L28】【F:env.example†L55-L117】 |
 | **CRM / Deals** | Python 3.11, FastAPI + Celery | PostgreSQL `crm`, Redis, RabbitMQ `crm.events` | Alembic миграции, Celery beat/worker.【F:backend/crm/README.md†L6-L29】【F:env.example†L55-L118】 |
-| **Documents** | NestJS (Node.js 18) | PostgreSQL `documents`, Redis BullMQ | Ключи Google Drive, фоновые воркеры.【F:backend/documents/README.md†L6-L40】【F:env.example†L58-L123】【F:env.example†L144-L156】 |
+| **Documents** | NestJS (Node.js 18) | PostgreSQL `documents`, Redis BullMQ | Локальный том (`DOCUMENTS_STORAGE_*`), фоновые воркеры.【F:backend/documents/README.md†L6-L40】【F:env.example†L58-L123】【F:env.example†L144-L156】 |
 | **Notifications** | NestJS (Node.js 18) | PostgreSQL `notifications`, RabbitMQ `notifications.events`, Redis (rate limit) | Telegram webhook/bot конфигурация.【F:backend/notifications/README.md†L8-L44】【F:env.example†L60-L157】 |
 | **Tasks** | NestJS (Node.js 18) | PostgreSQL `tasks`, RabbitMQ `tasks.*`, Redis (отложенные задачи) | Планировщик SLA, BullMQ пула нет (использует Redis напрямую).【F:backend/tasks/README.md†L6-L31】【F:env.example†L59-L131】 |
 | **Reports** | Планируется Python/TypeScript | PostgreSQL агрегаты (`crm`, `audit`), RabbitMQ события (позже) | Пока заглушка, но переменные зарезервированы.【F:backend/reports/README.md†L6-L23】【F:env.example†L61-L134】 |
