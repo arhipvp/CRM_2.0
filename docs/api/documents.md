@@ -132,8 +132,8 @@
 }
 ```
 
-`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. TTL задач регулируется
-переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
+`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. TTL задания в очереди
+регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
