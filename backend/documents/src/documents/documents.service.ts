@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
@@ -9,6 +9,11 @@ import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DriveService } from '../drive/drive.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
+import {
+  DocumentAlreadyDeletedException,
+  DocumentNotFoundException,
+  DocumentUploadConflictException,
+} from './documents.exceptions';
 import { UploadUrlService } from './upload-url.service';
 
 export interface CreateDocumentResult {
@@ -108,15 +113,11 @@ export class DocumentsService {
     const entity = await this.repository.findOne({ where: { id } });
 
     if (!entity) {
-      throw new NotFoundException(`Документ ${id} не найден`);
+      throw new DocumentNotFoundException(id);
     }
 
     if (entity.deletedAt) {
-      throw new ConflictException({
-        statusCode: 409,
-        code: 'already_deleted',
-        message: `Документ ${id} уже удалён`,
-      });
+      throw new DocumentAlreadyDeletedException(id);
     }
 
     return entity;
@@ -210,7 +211,7 @@ export class DocumentsService {
     const entity = await this.findOne(id);
 
     if (![DocumentStatus.PendingUpload, DocumentStatus.Uploading].includes(entity.status)) {
-      throw new ConflictException(`Документ ${id} уже находится в статусе ${entity.status}`);
+      throw new DocumentUploadConflictException(id, entity.status);
     }
 
     Object.assign(entity, {

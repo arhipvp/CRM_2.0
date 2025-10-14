@@ -101,3 +101,9 @@ pnpm typeorm migration:revert -d typeorm.config.ts
 4. Для реального Google Drive очистите переменные эмулятора и добавьте сервисный аккаунт.
 
 Дополнительные шаги и требования к сервисному аккаунту описаны в [`docs/local-setup.md`](../../docs/local-setup.md#google-drive-сервисный-аккаунт).
+### Коды ошибок Documents API
+
+- `404 document_not_found` — документ не найден или уже удалён (`{"statusCode":404,"code":"document_not_found","message":"Документ {document_id} не найден"}`).
+- `409 already_deleted` — повторное удаление ранее помеченного документа (`{"statusCode":409,"code":"already_deleted","message":"Документ {document_id} уже удалён"}`).
+- `409 upload_conflict` — попытка подтвердить загрузку документа в финальном статусе (`{"statusCode":409,"code":"upload_conflict","message":"Документ {document_id} уже находится в статусе {status}","details":{"status":"synced"}}`).
+
