@@ -11,10 +11,9 @@
 | Домен | Файл | Содержимое | Примечания |
 | --- | --- | --- | --- |
 | Auth | `seed_20240715_auth.sql` | Роли `ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN` и пять активных пользователей (email `*@example.com`). | Пароль всех аккаунтов — `Passw0rd!` (bcrypt, 12 раундов). Используются UUID, согласованные с CRM. TODO: выделить отдельного пользователя для проверки прав главного админа. |
-| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с действующими периодами и связанные платежи с фактической датой (`actual_date`). | Ссылки на пользователей Auth обеспечивают трассировку владельцев и автора платежа (`recorded_by_id`). Значения премий отражают реальные суммы сценариев. |
-| CRM / Deals | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с периодами действия и подтверждённая фактическая оплата в `crm.payments` с заполненной `actual_date`. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и автора платежа. Значения премий отражают реальные суммы сценариев. |
+| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с действующими периодами и три финансовые записи на полисы (премия, комиссия, расход). | Ссылки на пользователей Auth обеспечивают трассировку владельцев и автора платежа (`recorded_by_id`). Финансовые данные распределены между `crm.policy_payments`, `crm.policy_payment_incomes` и `crm.policy_payment_expenses`. |
 
-Отдельный файл `seed_20240715_payments.sql` больше не требуется: факт оплаты полиса входит в основной seed CRM и хранится в `crm.payments` без статусов, только с фактической датой.
+Отдельный файл `seed_20240715_payments.sql` больше не требуется: факт оплаты полиса входит в основной seed CRM и хранится в `crm.policy_payments` с множественными записями на полис и привязкой к позициям доходов/расходов.
 
 Расширение набора (Documents, Tasks, Notifications) запланировано после публикации соответствующих миграций. Новые файлы будут добавляться с префиксом даты и описанием домена.
 
@@ -36,10 +35,12 @@
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com%' ORDER BY email;
 SELECT title, status, value FROM crm.deals ORDER BY created_at DESC;
-SELECT policy_id, amount, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
+SELECT policy_id, amount, direction, purpose, actual_date, recorded_by_id FROM crm.policy_payments ORDER BY actual_date DESC;
+SELECT payment_id, income_type, amount FROM crm.policy_payment_incomes ORDER BY payment_id;
+SELECT payment_id, expense_type, amount FROM crm.policy_payment_expenses ORDER BY payment_id;
 ```
 
-Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в таблице `crm.payments` присутствует запись с заполненными `amount`, `actual_date` и ссылкой на автора (`recorded_by_id`).
+Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.policy_payments` есть минимум три записи с корректными направлениями (`incoming`/`outgoing`) и ссылкой на автора (`recorded_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.policy_payment_incomes` или `crm.policy_payment_expenses`, суммарно совпадающая с базовой суммой (учитывая знак).
 
 ## Актуализация набора
 
