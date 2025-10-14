@@ -82,3 +82,17 @@ async def test_get_tenant_id_uses_default_when_header_missing(monkeypatch: pytes
     result = await get_tenant_id()
 
     assert result == default_tenant
+
+
+@pytest.mark.asyncio()
+async def test_get_tenant_id_requires_scope_when_default_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_default = settings.default_tenant_id
+    monkeypatch.setattr(settings, "default_tenant_id", None, raising=False)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await get_tenant_id()
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail == "Tenant scope is required"
+
+    monkeypatch.setattr(settings, "default_tenant_id", original_default, raising=False)
