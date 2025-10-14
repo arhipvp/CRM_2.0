@@ -2,10 +2,6 @@ from datetime import date
 from typing import Annotated, Sequence
 from uuid import UUID
 
-from datetime import date
-from typing import Annotated, Sequence
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from crm.app.dependencies import get_calculation_service, get_tenant_id
@@ -19,6 +15,7 @@ router = APIRouter(prefix="/deals/{deal_id}/calculations", tags=["calculations"]
 @router.get("/", response_model=list[schemas.CalculationRead])
 async def list_calculations(
     deal_id: UUID,
+    *,
     status_filter: Sequence[str] | None = Query(default=None, alias="status[]"),
     insurance_company: str | None = Query(default=None, min_length=1),
     calculation_date_from: date | None = Query(default=None),

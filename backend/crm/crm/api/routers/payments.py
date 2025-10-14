@@ -17,6 +17,7 @@ router = APIRouter(prefix="/deals/{deal_id}/policies/{policy_id}/payments", tags
 async def list_payments(
     deal_id: UUID,
     policy_id: UUID,
+    *,
     include: Sequence[str] | None = Query(default=None, alias="include[]"),
     status_filter: Sequence[str] | None = Query(default=None, alias="status[]"),
     limit: int = Query(default=50, ge=1, le=200),
@@ -51,6 +52,7 @@ async def get_payment(
     deal_id: UUID,
     policy_id: UUID,
     payment_id: UUID,
+    *,
     include: Sequence[str] | None = Query(default=None, alias="include[]"),
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),

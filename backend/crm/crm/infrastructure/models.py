@@ -4,14 +4,14 @@ from datetime import datetime, date
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, Text, func, Integer
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, Text, func, Integer, JSON
 from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.schema import MetaData
 
 try:  # pragma: no cover - optional dependency guard for typing
     from asyncpg.pgproto.pgproto import Range as PgRange
-except ModuleNotFoundError:  # pragma: no cover - fallback for type checking
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - fallback for type checking
     from typing import Any as PgRange  # type: ignore[assignment]
 
 
@@ -65,6 +65,7 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
     policies: Mapped[list["Policy"]] = relationship(back_populates="deal", cascade="all, delete-orphan")
     calculations: Mapped[list["Calculation"]] = relationship(
         back_populates="deal", cascade="all, delete-orphan"
+    )
     journal_entries: Mapped[list["DealJournalEntry"]] = relationship(
         back_populates="deal",
         cascade="all, delete-orphan",
@@ -115,7 +116,7 @@ class Policy(CRMBase, TimestampMixin, OwnershipMixin):
 
     client: Mapped[Client] = relationship()
     deal: Mapped[Deal | None] = relationship(back_populates="policies")
-    calculation: Mapped["Calculation" | None] = relationship(back_populates="policy")
+    calculation: Mapped["Calculation | None"] = relationship(back_populates="policy")
 
     __table_args__ = (
         Index("ix_policies_status", "status"),
@@ -140,7 +141,7 @@ class Calculation(CRMBase, TimestampMixin, OwnershipMixin):
     comments: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     deal: Mapped[Deal] = relationship(back_populates="calculations")
-    policy: Mapped["Policy" | None] = relationship(back_populates="calculation", uselist=False)
+    policy: Mapped["Policy | None"] = relationship(back_populates="calculation", uselist=False)
 
     __table_args__ = (
         Index("ix_calculations_status", "status"),
