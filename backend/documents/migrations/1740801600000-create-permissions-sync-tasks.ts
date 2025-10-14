@@ -18,7 +18,7 @@ export class CreatePermissionsSyncTasks1740801600000 implements MigrationInterfa
           },
           { name: 'owner_type', type: 'varchar', length: '32', isNullable: false },
           { name: 'owner_id', type: 'uuid', isNullable: false },
-          { name: 'drive_folder_id', type: 'varchar', length: '255', isNullable: false },
+          { name: 'folder_path', type: 'varchar', length: '1024', isNullable: false },
           { name: 'job_id', type: 'varchar', length: '255', isNullable: false },
           { name: 'users', type: 'jsonb', isNullable: false },
           { name: 'created_at', type: 'timestamptz', default: 'now()' },

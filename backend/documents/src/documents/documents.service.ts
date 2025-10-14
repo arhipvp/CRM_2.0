@@ -7,7 +7,7 @@ import { DocumentStatus } from './document-status.enum';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
-import { DriveService } from '../drive/drive.service';
+import { StorageService } from '../storage/storage.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import {
   DocumentAlreadyDeletedException,
@@ -28,9 +28,7 @@ export class DocumentsService {
     @InjectRepository(DocumentEntity)
     private readonly repository: Repository<DocumentEntity>,
     private readonly uploadUrlService: UploadUrlService,
-    private readonly driveService: DriveService = {
-      revokeDocument: async () => undefined,
-    } as unknown as DriveService,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(dto: CreateDocumentDto): Promise<CreateDocumentResult> {
@@ -169,14 +167,14 @@ export class DocumentsService {
 
   async remove(id: string): Promise<void> {
     const entity = await this.findOne(id);
-    if (entity.driveFileId) {
-      await this.driveService.revokeDocument(entity);
+    if (entity.storagePath) {
+      await this.storageService.revokeDocument(entity);
     }
 
     Object.assign(entity, {
       deletedAt: new Date(),
-      driveFileId: null,
-      driveRevisionId: null,
+      storagePath: null,
+      publicUrl: null,
       status: DocumentStatus.Draft,
       syncedAt: null,
       uploadedAt: null,
@@ -193,10 +191,16 @@ export class DocumentsService {
   }
 
   async markSynced(id: string, payload: Partial<DocumentEntity>): Promise<DocumentEntity> {
+    const updatePayload: Partial<DocumentEntity> = { ...payload };
+
+    if (payload.size !== undefined && payload.size !== null) {
+      updatePayload.size = String(payload.size);
+    }
+
     await this.repository.update(
       this.withoutDeleted(id),
       {
-        ...payload,
+        ...updatePayload,
         status: DocumentStatus.Synced,
         lastError: null,
         syncedAt: payload.syncedAt ?? new Date(),

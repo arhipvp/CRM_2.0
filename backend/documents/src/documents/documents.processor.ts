@@ -8,7 +8,7 @@ import {
   DOCUMENTS_UPLOAD_JOB,
 } from './documents.constants';
 import { DocumentsService } from './documents.service';
-import { DriveService, DriveUploadResult } from '../drive/drive.service';
+import { StorageService, StorageUploadResult } from '../storage/storage.service';
 
 interface UploadJobPayload {
   documentId: string;
@@ -25,12 +25,12 @@ export class DocumentsProcessor extends WorkerHost {
 
   constructor(
     private readonly documentsService: DocumentsService,
-    private readonly driveService: DriveService,
+    private readonly storageService: StorageService,
   ) {
     super();
   }
 
-  async process(job: Job): Promise<DriveUploadResult | void> {
+  async process(job: Job): Promise<StorageUploadResult | void> {
     switch (job.name) {
       case DOCUMENTS_UPLOAD_JOB:
         return this.handleUpload(job as Job<UploadJobPayload>);
@@ -42,22 +42,25 @@ export class DocumentsProcessor extends WorkerHost {
     }
   }
 
-  private async handleUpload(job: Job<UploadJobPayload>): Promise<DriveUploadResult> {
+  private async handleUpload(job: Job<UploadJobPayload>): Promise<StorageUploadResult> {
     const { documentId, metadata } = job.data;
     await this.documentsService.markUploading(documentId);
     const document = await this.documentsService.findOne(documentId);
     try {
-      const result = await this.driveService.uploadDocument(document, metadata);
+      const result = await this.storageService.uploadDocument(document, metadata);
       const baseMetadata = document.metadata ?? {};
       const resultMetadata = result.metadata ?? {};
+      const size = result.size != null ? String(result.size) : undefined;
       await this.documentsService.markSynced(documentId, {
-        driveFileId: result.fileId,
-        driveRevisionId: result.revisionId,
+        storagePath: result.path,
+        publicUrl: result.publicUrl,
+        size,
+        checksumMd5: result.checksumMd5 ?? undefined,
         uploadedAt: result.uploadedAt,
         syncedAt: result.syncedAt,
         metadata: { ...baseMetadata, ...resultMetadata },
       });
-      this.logger.log(`Документ ${documentId} синхронизирован с Google Drive (${result.fileId})`);
+      this.logger.log(`Документ ${documentId} синхронизирован с файловым хранилищем (${result.path})`);
       return result;
     } catch (error) {
       this.logger.error(`Не удалось загрузить документ ${documentId}`, error as Error);
@@ -66,22 +69,31 @@ export class DocumentsProcessor extends WorkerHost {
     }
   }
 
-  private async handleSync(job: Job<SyncJobPayload>): Promise<DriveUploadResult | void> {
+  private async handleSync(job: Job<SyncJobPayload>): Promise<StorageUploadResult | void> {
     const { documentId } = job.data;
     const document = await this.documentsService.findOne(documentId);
-    if (!document.driveFileId) {
-      this.logger.warn(`Документ ${documentId} не связан с файлом Google Drive`);
+    if (!document.storagePath) {
+      this.logger.warn(`Документ ${documentId} не содержит пути в файловом хранилище`);
       return;
     }
 
     try {
-      const result = await this.driveService.syncDocument(document);
+      const result = await this.storageService.syncDocument(document);
       const baseMetadata = document.metadata ?? {};
       const resultMetadata = result.metadata ?? {};
+      const size =
+        result.size != null
+          ? String(result.size)
+          : document.size !== undefined && document.size !== null
+            ? document.size
+            : undefined;
       await this.documentsService.markSynced(documentId, {
-        driveRevisionId: result.revisionId ?? document.driveRevisionId,
+        storagePath: result.path,
+        publicUrl: result.publicUrl,
         uploadedAt: document.uploadedAt ?? result.uploadedAt,
         syncedAt: result.syncedAt,
+        size,
+        checksumMd5: result.checksumMd5 ?? document.checksumMd5 ?? undefined,
         metadata: { ...baseMetadata, ...resultMetadata },
       });
       this.logger.log(`Метаданные документа ${documentId} обновлены`);

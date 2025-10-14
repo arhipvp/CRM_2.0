@@ -19,15 +19,11 @@ export interface DocumentsConfiguration {
     };
   };
   storage: {
+    root: string;
+    quotaMb?: number | null;
+    publicBaseUrl?: string | null;
     uploadBaseUrl: string;
     uploadTtlSeconds: number;
-  };
-  drive: {
-    serviceAccountJson?: string;
-    sharedDriveId?: string;
-    emulatorUrl?: string;
-    emulatorRoot?: string;
-    credentialsPath?: string;
   };
   folders: {
     templates: {
@@ -46,6 +42,14 @@ const toBoolean = (value?: string, defaultValue = false) => {
     return defaultValue;
   }
   return ['1', 'true', 'yes', 'y'].includes(value.toLowerCase());
+};
+
+const toNumberOrNull = (value?: string): number | null => {
+  if (value === undefined || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 export default (): DocumentsConfiguration => ({
@@ -67,18 +71,11 @@ export default (): DocumentsConfiguration => ({
     },
   },
   storage: {
+    root: process.env.DOCUMENTS_STORAGE_ROOT ?? join(process.cwd(), 'var/documents'),
+    quotaMb: toNumberOrNull(process.env.DOCUMENTS_STORAGE_QUOTA_MB),
+    publicBaseUrl: process.env.DOCUMENTS_STORAGE_PUBLIC_BASE_URL ?? null,
     uploadBaseUrl: process.env.DOCUMENTS_UPLOAD_URL_BASE ?? 'https://storage.local/documents/upload',
     uploadTtlSeconds: Number(process.env.DOCUMENTS_UPLOAD_URL_TTL ?? 900),
-  },
-  drive: {
-    serviceAccountJson: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
-    sharedDriveId: process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID,
-    emulatorUrl: process.env.GOOGLE_DRIVE_EMULATOR_URL,
-    emulatorRoot: process.env.GOOGLE_DRIVE_EMULATOR_ROOT,
-    credentialsPath:
-      process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH ??
-      process.env.GOOGLE_APPLICATION_CREDENTIALS ??
-      join(process.cwd(), 'credentials/service-account.json'),
   },
   folders: {
     templates: {
@@ -89,6 +86,6 @@ export default (): DocumentsConfiguration => ({
       payment: process.env.DOCUMENTS_FOLDERS_TEMPLATE_PAYMENT ?? 'Payment {ownerId}',
     },
     webBaseUrl:
-      process.env.DOCUMENTS_FOLDERS_WEB_BASE_URL ?? 'https://drive.google.com/drive/folders/',
+      process.env.DOCUMENTS_FOLDERS_WEB_BASE_URL ?? 'https://files.local/documents/',
   },
 });

@@ -21,12 +21,12 @@ export class DocumentEntity {
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
-  @Column({ name: 'drive_file_id', nullable: true })
-  @Index('documents_drive_file_id_idx')
-  driveFileId?: string | null;
+  @Column({ name: 'storage_path', length: 2048, nullable: true })
+  @Index('documents_storage_path_idx')
+  storagePath?: string | null;
 
-  @Column({ name: 'drive_revision_id', nullable: true })
-  driveRevisionId?: string | null;
+  @Column({ name: 'public_url', type: 'varchar', length: 2048, nullable: true })
+  publicUrl?: string | null;
 
   @Column({ name: 'mime_type', length: 255, nullable: true })
   mimeType?: string | null;

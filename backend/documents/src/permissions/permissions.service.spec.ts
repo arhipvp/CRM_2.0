@@ -63,7 +63,11 @@ describe('PermissionsService', () => {
       users: ['user-1', 'user-2'],
     } as SyncPermissionsDto;
 
-    foldersService.findByOwner.mockResolvedValue({ folder_id: 'drive-folder', web_link: '' });
+    foldersService.findByOwner.mockResolvedValue({
+      folder_path: 'clients/owner-id',
+      full_path: '/mnt/documents/clients/owner-id',
+      public_url: null,
+    });
 
     const result = await service.enqueueSync(dto);
 
@@ -72,7 +76,7 @@ describe('PermissionsService', () => {
       {
         ownerType: dto.ownerType,
         ownerId: dto.ownerId,
-        folderId: 'drive-folder',
+        folderPath: 'clients/owner-id',
         users: dto.users,
         ttlSeconds: 300,
       },
@@ -86,7 +90,7 @@ describe('PermissionsService', () => {
       expect.objectContaining({
         ownerType: dto.ownerType,
         ownerId: dto.ownerId,
-        driveFolderId: 'drive-folder',
+        folderPath: 'clients/owner-id',
         jobId: 'job-1',
         users: dto.users,
       }),

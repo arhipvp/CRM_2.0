@@ -19,9 +19,9 @@ export class CreateFoldersTable1740201600000 implements MigrationInterface {
           { name: 'owner_type', type: 'varchar', length: '32', isNullable: false },
           { name: 'owner_id', type: 'uuid', isNullable: false },
           { name: 'name', type: 'varchar', length: '255', isNullable: false },
-          { name: 'drive_folder_id', type: 'varchar', length: '255', isNullable: false },
-          { name: 'parent_folder_id', type: 'varchar', length: '255', isNullable: true },
-          { name: 'web_link', type: 'varchar', length: '1024', isNullable: true },
+          { name: 'storage_path', type: 'varchar', length: '1024', isNullable: false },
+          { name: 'parent_path', type: 'varchar', length: '1024', isNullable: true },
+          { name: 'public_url', type: 'varchar', length: '2048', isNullable: true },
           { name: 'metadata', type: 'jsonb', isNullable: true },
           { name: 'created_at', type: 'timestamptz', default: 'now()' },
           { name: 'updated_at', type: 'timestamptz', default: 'now()' },
@@ -36,12 +36,12 @@ export class CreateFoldersTable1740201600000 implements MigrationInterface {
     );
 
     await queryRunner.createIndices(this.tableName, [
-      new TableIndex({ name: 'folders_drive_folder_id_idx', columnNames: ['drive_folder_id'] }),
+      new TableIndex({ name: 'folders_storage_path_idx', columnNames: ['storage_path'] }),
     ]);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropIndex(this.tableName, 'folders_drive_folder_id_idx');
+    await queryRunner.dropIndex(this.tableName, 'folders_storage_path_idx');
     await queryRunner.dropUniqueConstraint(this.tableName, 'folders_owner_idx');
     await queryRunner.dropTable(this.tableName, true);
   }

@@ -17,9 +17,9 @@ export class CreateFolderDto {
   @MaxLength(255)
   title!: string;
 
-  @Expose({ name: 'parent_folder_id' })
+  @Expose({ name: 'parent_path' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  parentFolderId?: string;
+  parentPath?: string;
 }
