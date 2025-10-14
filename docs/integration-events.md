@@ -16,21 +16,7 @@
 | `deal.status.changed` | `crm.deal.status_changed` | `{ "deal_id": "uuid", "old_status": "draft", "new_status": "issuing", "changed_at": "datetime", "actor_id": "uuid" }` | CRM повторно не публикует одинаковые переходы; потребители проверяют пару (`deal_id`, `event_id`). |
 | `policy.issued` | `crm.policy.issued` | `{ "policy_id": "uuid", "deal_id": "uuid", "effective_from": "date", "effective_to": "date", "premium_amount": 12345.67 }` | Tasks/Notifications сохраняют `policy_id` + `event_id`. |
 | `task.requested` | `crm.task.requested` | `{ "task_id": "uuid", "deal_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date" }` | Tasks сверяет `task_id` и создаёт/обновляет запись, сохраняя `event_id`. |
-
-## События Payments
-- **Exchange:** `payments.events`
-- **Тип обмена:** topic
-- **Очереди-потребители:** `crm.payments`, `tasks.payments`, `notifications.payments`, `audit.payments`
-
-> **Примечание:** все события Payments публикуются только с валютой `RUB` в полях данных.
-
-| Routing key | CloudEvent `type` | `data` | Идемпотентность |
-| --- | --- | --- | --- |
-| `payment.created` | `payments.payment.created` | `{ "payment_id": "uuid", "deal_id": "uuid", "policy_id": "uuid", "amount": 12345.67, "currency": "RUB", "planned_date": "date", "payment_type": "INSTALLMENT" }` | CRM сверяет `payment_id`; при повторе обновляет данные, сохраняя `event_id`. |
-| `payment.status.changed` | `payments.payment.status_changed` | `{ "payment_id": "uuid", "status": "received", "actual_date": "date", "confirmed_by": "uuid" }` | Потребители ведут таблицу `payment_id` + `status` + `event_id`; повтор с тем же `event_id` игнорируется. |
-
-> Поле `status` принимает значения справочника из [модели данных Payments](data-model.md#справочник-статусов-платежей).
-| `payment.overdue` | `payments.payment.overdue` | `{ "payment_id": "uuid", "deal_id": "uuid", "due_date": "date", "amount": 12345.67 }` | Notifications использует `deduplication_key = payment_id + due_date`. |
+| `deal.payment.updated` | `crm.deal.payment.updated` | `{ "deal_id": "uuid", "policy_id": "uuid", "actual_date": "date", "amount": 12345.67, "recorded_by_id": "uuid", "updated_at": "datetime" }` | Потребители фиксируют комбинацию (`deal_id`, `policy_id`, `event_id`). |
 
 ## События Tasks
 - **Exchange:** `tasks.events`

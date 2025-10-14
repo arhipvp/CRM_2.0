@@ -49,7 +49,7 @@ pnpm install
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
 | `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
 | `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME` | Имя очереди синхронизации прав (по умолчанию `documents.permissions.sync`). |
-| `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` | TTL задач синхронизации прав в очереди (секунды, по умолчанию 300). |
+| `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` | TTL задания синхронизации прав в очереди (секунды, по умолчанию 300). |
 | `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL объектного хранилища для формирования подписанной ссылки. |
 | `DOCUMENTS_UPLOAD_URL_TTL` | Время жизни подписанной ссылки на загрузку (секунды, по умолчанию 900). |
 | `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |

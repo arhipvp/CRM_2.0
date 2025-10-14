@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
 import {
@@ -117,6 +117,10 @@ export function SSEBridge({
   const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
 
+  const [crmStreamEnabled, setCrmStreamEnabled] = useState(true);
+  const [notificationsStreamEnabled, setNotificationsStreamEnabled] = useState(true);
+  const [paymentsStreamEnabled, setPaymentsStreamEnabled] = useState(true);
+
   const invalidateDealQueries = useCallback(
     (dealId: string) =>
       Promise.all([
@@ -157,7 +161,17 @@ export function SSEBridge({
   );
 
   const handleCrmError = useCallback((event: Event) => {
-    console.error("CRM SSE error", event);
+    setCrmStreamEnabled((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      console.warn(
+        "CRM SSE error: поток отключён до перезагрузки страницы. Перезагрузите вкладку, чтобы попробовать снова.",
+        event,
+      );
+      return false;
+    });
   }, []);
 
   const handleNotificationMessage = useCallback(
@@ -175,7 +189,17 @@ export function SSEBridge({
   );
 
   const handleNotificationsError = useCallback((event: Event) => {
-    console.error("Notifications SSE error", event);
+    setNotificationsStreamEnabled((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      console.warn(
+        "Notifications SSE error: поток отключён до перезагрузки страницы. Перезагрузите вкладку, чтобы восстановить обновления.",
+        event,
+      );
+      return false;
+    });
   }, []);
 
   const handlePaymentsMessage = useCallback(
@@ -212,7 +236,17 @@ export function SSEBridge({
   );
 
   const handlePaymentsError = useCallback((event: Event) => {
-    console.error("Payments SSE error", event);
+    setPaymentsStreamEnabled((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      console.warn(
+        "Payments SSE error: поток отключён до перезагрузки страницы. Обновите страницу, чтобы возобновить соединение.",
+        event,
+      );
+      return false;
+    });
   }, []);
 
   const crmHandlers = useMemo(
@@ -249,14 +283,18 @@ export function SSEBridge({
   );
   const paymentsStreamUrl = normalizeUrl(paymentsSseUrl ?? process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL);
 
+  const shouldRenderCrmStream = Boolean(crmStreamUrl) && crmStreamEnabled;
+  const shouldRenderNotificationsStream = Boolean(notificationsStreamUrl) && notificationsStreamEnabled;
+  const shouldRenderPaymentsStream = Boolean(paymentsStreamUrl) && paymentsStreamEnabled;
+
   return (
     <>
-      {crmStreamUrl ? <StreamSubscription url={crmStreamUrl} handlers={crmHandlers} /> : null}
-      {notificationsStreamUrl ? (
-        <StreamSubscription url={notificationsStreamUrl} handlers={notificationHandlers} />
+      {shouldRenderCrmStream ? <StreamSubscription url={crmStreamUrl!} handlers={crmHandlers} /> : null}
+      {shouldRenderNotificationsStream ? (
+        <StreamSubscription url={notificationsStreamUrl!} handlers={notificationHandlers} />
       ) : null}
-      {paymentsStreamUrl ? (
-        <StreamSubscription url={paymentsStreamUrl} handlers={paymentsHandlers} />
+      {shouldRenderPaymentsStream ? (
+        <StreamSubscription url={paymentsStreamUrl!} handlers={paymentsHandlers} />
       ) : null}
     </>
   );

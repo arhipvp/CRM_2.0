@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+  <rect width="1440" height="1024" fill="#F4F6FB"/>
+  <text x="50%" y="50%" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" fill="#1B3A57">
+    Placeholder: макет вкладки «Полисы» для детали сделки
+  </text>
+  <text x="50%" y="60%" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="16" fill="#4C6478">
+    Замените на экспорт из Figma перед релизом
+  </text>
+</svg>
