@@ -58,8 +58,8 @@
 **Параметры запроса**
 | Имя | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| status | array[string] | Нет | Фильтр по статусу (`scheduled`, `partially_paid`, `paid`, `cancelled`). |
-| include | array[string] | Нет | `incomes`, `expenses`. По умолчанию возвращаются агрегаты и последние 3 записи каждой коллекции. |
+| status | array[string] | Нет | Фильтр по статусу (`scheduled`, `partially_paid`, `paid`, `cancelled`), передавайте `status[]=paid`. |
+| include | array[string] | Нет | `incomes`, `expenses`. По умолчанию возвращаются только агрегаты; используйте `include[]=incomes`/`include[]=expenses` для вложенных списков. |
 | limit | integer | Нет | Количество записей (по умолчанию 50, максимум 200). |
 | offset | integer | Нет | Смещение постраничной навигации. |
 

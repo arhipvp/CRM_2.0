@@ -4,13 +4,14 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from redis.asyncio import Redis
 
 from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
+from crm.app.events import EventsPublisher
 from crm.infrastructure.queues import PermissionsQueue
 from crm.infrastructure.db import AsyncSessionFactory
 
@@ -48,6 +49,34 @@ async def get_policy_service(session: AsyncSession = Depends(get_db_session)) ->
 
 async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> services.TaskService:
     return services.TaskService(repositories.TaskRepository(session))
+
+
+class _NullEventsPublisher:
+    async def publish(self, routing_key: str, payload: dict[str, object]) -> None:  # pragma: no cover - noop
+        return None
+
+
+async def get_events_publisher(request: Request) -> EventsPublisher | _NullEventsPublisher:
+    publisher = getattr(request.app.state, "events_publisher", None)
+    if isinstance(publisher, EventsPublisher):
+        return publisher
+    return _NullEventsPublisher()
+
+
+async def get_payment_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> services.PaymentService:
+    publisher = await get_events_publisher(request)
+    payments_repository = repositories.PaymentRepository(session)
+    incomes_repository = repositories.PaymentIncomeRepository(session)
+    expenses_repository = repositories.PaymentExpenseRepository(session)
+    return services.PaymentService(
+        payments_repository,
+        incomes_repository,
+        expenses_repository,
+        publisher,
+    )
 
 
 _permissions_queue: PermissionsQueue | None = None

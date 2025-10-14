@@ -9,35 +9,42 @@ from uuid import UUID, uuid4
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-if "crm.app.config" not in sys.modules:
-    config_module = ModuleType("crm.app.config")
+config_module = ModuleType("crm.app.config")
 
-    class DummySettings:
-        def __init__(self) -> None:
-            self.database_url = "postgresql+asyncpg://user:pass@localhost:5432/db"
-            self.redis_url = "redis://localhost:6379/0"
-            self.rabbitmq_url = "amqp://guest:guest@localhost:5672/"
-            self.resolved_celery_broker = self.rabbitmq_url
-            self.resolved_celery_backend = self.redis_url
-            self.celery_default_queue = "crm.sync"
-            self.celery_task_routes = {}
-            self.payments_retry_delay_ms = 0
 
-        def model_copy(self, *, update: dict | None = None, **_: object) -> "DummySettings":
-            return self
+class DummySettings:
+    def __init__(self) -> None:
+        self.app_name = "CRM Deals"
+        self.api_prefix = "/api"
+        self.service_host = "0.0.0.0"
+        self.service_port = 8080
+        self.database_url = "postgresql+asyncpg://user:pass@localhost:5432/db"
+        self.redis_url = "redis://localhost:6379/0"
+        self.rabbitmq_url = "amqp://guest:guest@localhost:5672/"
+        self.resolved_celery_broker = self.rabbitmq_url
+        self.resolved_celery_backend = self.redis_url
+        self.celery_default_queue = "crm.sync"
+        self.celery_task_routes = {}
+        self.celery_retry_delay_seconds = 0
 
-    config_module.Settings = DummySettings
-    config_module.settings = DummySettings()
+    def model_copy(self, *, update: dict | None = None, **_: object) -> "DummySettings":
+        return self
 
-    def get_settings() -> DummySettings:  # noqa: D401 - простой алиас
-        """Return cached dummy settings."""
 
-        return config_module.settings
+config_module.Settings = DummySettings
+config_module.settings = DummySettings()
 
-    config_module.get_settings = get_settings
-    sys.modules["crm.app.config"] = config_module
-    app_module = importlib.import_module("crm.app")
-    setattr(app_module, "config", config_module)
+
+def get_settings() -> DummySettings:  # noqa: D401 - простой алиас
+    """Return cached dummy settings."""
+
+    return config_module.settings
+
+
+config_module.get_settings = get_settings
+sys.modules["crm.app.config"] = config_module
+app_module = importlib.import_module("crm.app")
+setattr(app_module, "config", config_module)
 
 from crm.app import tasks
 
