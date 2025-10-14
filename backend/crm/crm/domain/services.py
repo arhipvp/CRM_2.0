@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable, Protocol
 from uuid import UUID
 
 from crm.domain import schemas
@@ -135,3 +135,41 @@ class PaymentSyncService:
         if record and event.deal_id and event.status in {"received", "paid_out"}:
             await self.deal_repository.mark_won(event.tenant_id, event.deal_id)
         return schemas.PaymentEventResult(processed=record is not None)
+
+
+class PermissionsQueueProtocol(Protocol):
+    async def enqueue(self, job_id: str, payload: dict[str, Any]) -> str:  # pragma: no cover - protocol definition
+        ...
+
+
+class PermissionSyncError(RuntimeError):
+    pass
+
+
+class PermissionSyncService:
+    def __init__(
+        self,
+        repository: repositories.PermissionSyncJobRepository,
+        queue: PermissionsQueueProtocol,
+        queue_name: str,
+    ) -> None:
+        self.repository = repository
+        self.queue = queue
+        self.queue_name = queue_name
+
+    async def sync_permissions(
+        self, tenant_id: UUID, payload: schemas.SyncPermissionsDto
+    ) -> schemas.SyncPermissionsResponse:
+        job = await self.repository.create_job(tenant_id, payload, self.queue_name)
+        job_payload = {
+            "tenantId": str(tenant_id),
+            "ownerType": payload.owner_type,
+            "ownerId": str(payload.owner_id),
+            "users": [user.model_dump(mode="json") for user in payload.users],
+        }
+        try:
+            await self.queue.enqueue(str(job.id), job_payload)
+        except Exception as exc:  # noqa: BLE001
+            await self.repository.mark_failed(job.id, str(exc))
+            raise PermissionSyncError("failed_to_enqueue_permissions_sync_job") from exc
+        return schemas.SyncPermissionsResponse(job_id=job.id, status=job.status)
