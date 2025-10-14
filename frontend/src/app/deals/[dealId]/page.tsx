@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { DealDetails } from "@/components/deals/DealDetails";
-import { dealQueryOptions } from "@/lib/api/queries";
+import { dealDetailsQueryOptions } from "@/lib/api/queries";
 
 interface DealPageProps {
   params: { dealId: string };
@@ -10,9 +10,9 @@ interface DealPageProps {
 export const revalidate = 0;
 
 export default async function DealPage({ params }: DealPageProps) {
-  const { dealId } = params;
+  const { dealId } = await params;
   const queryClient = new QueryClient();
-  const query = dealQueryOptions(dealId);
+  const query = dealDetailsQueryOptions(dealId);
   const result = await queryClient.fetchQuery(query);
 
   if (!result) {

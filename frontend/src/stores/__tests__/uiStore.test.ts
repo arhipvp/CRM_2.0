@@ -150,4 +150,36 @@ describe("useUiStore", () => {
       expect(useUiStore.getState().notifications).toHaveLength(0);
     });
   });
+
+  describe("deal details helpers", () => {
+    it("переключает активную вкладку деталей", () => {
+      expect(useUiStore.getState().dealDetailsTab).toBe("overview");
+
+      useUiStore.getState().setDealDetailsTab("documents");
+
+      expect(useUiStore.getState().dealDetailsTab).toBe("documents");
+    });
+
+    it("создаёт и поглощает запросы действий", () => {
+      useUiStore.getState().triggerDealDetailsRequest("task");
+
+      const afterTrigger = useUiStore.getState();
+      expect(afterTrigger.dealDetailsTab).toBe("tasks");
+      expect(afterTrigger.dealDetailsRequests.task).toBeTruthy();
+
+      const requestId = afterTrigger.dealDetailsRequests.task;
+      useUiStore.getState().consumeDealDetailsRequest("task");
+
+      expect(useUiStore.getState().dealDetailsRequests.task).toBeUndefined();
+
+      // Повторный вызов не должен менять состояние
+      useUiStore.getState().consumeDealDetailsRequest("task");
+      expect(useUiStore.getState().dealDetailsRequests.task).toBeUndefined();
+
+      // Проверяем другие типы
+      useUiStore.getState().triggerDealDetailsRequest("document");
+      expect(useUiStore.getState().dealDetailsTab).toBe("documents");
+      expect(useUiStore.getState().dealDetailsRequests.document).not.toBe(requestId);
+    });
+  });
 });

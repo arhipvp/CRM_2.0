@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import { dealsQueryOptions } from "@/lib/api/queries";
-import type { Deal, DealPeriodFilter, DealStageMetrics } from "@/types/crm";
+import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 import { collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
 

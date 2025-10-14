@@ -1,6 +1,7 @@
 import {
   activitiesMock,
   clientsMock,
+  dealDetailsMock,
   dealDocumentsMock,
   dealNotesMock,
   dealsMock,
@@ -11,6 +12,7 @@ import type {
   ActivityLogEntry,
   Client,
   Deal,
+  DealDetailsData,
   DealDocument,
   DealFilters,
   DealPeriodFilter,
@@ -21,6 +23,7 @@ import type {
   PaymentEntry,
   PaymentStatus,
   Task,
+  TaskStatus,
 } from "@/types/crm";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
@@ -147,6 +150,9 @@ export interface PaymentEntryPayload {
   postedAt: string;
   note?: string;
 }
+export type UpdateTaskPayload = Partial<
+  Pick<Task, "status" | "owner" | "dueDate" | "tags" | "type" | "reminderAt" | "completed">
+>;
 
 export interface UpdateDealPayload {
   name?: string;
@@ -309,9 +315,9 @@ export class ApiClient {
     );
   }
 
-  getDeal(id: string): Promise<Deal> {
+  getDealDetails(id: string): Promise<DealDetailsData> {
     return this.request(`/crm/deals/${id}`, undefined, async () => {
-      const deal = dealsMock.find((item) => item.id === id);
+      const deal = dealDetailsMock[id];
       if (!deal) {
         throw new ApiError("Deal not found", 404);
       }
@@ -332,6 +338,18 @@ export class ApiClient {
         payments,
         activity,
       };
+      const base = dealsMock.find((item) => item.id === id);
+      if (base) {
+        deal.value = base.value;
+        deal.probability = base.probability;
+        deal.stage = base.stage;
+        deal.owner = base.owner;
+        deal.nextReviewAt = base.nextReviewAt;
+        deal.expectedCloseDate = base.expectedCloseDate;
+        deal.updatedAt = base.updatedAt;
+      }
+
+      return JSON.parse(JSON.stringify(deal)) as DealDetailsData;
     });
   }
 
@@ -473,7 +491,26 @@ export class ApiClient {
 
         deal.updatedAt = new Date().toISOString();
 
-        return this.getDeal(dealId);
+        const details = dealDetailsMock[dealId];
+        if (details) {
+          details.name = deal.name;
+          details.stage = deal.stage;
+          details.value = deal.value;
+          details.probability = deal.probability;
+          details.owner = deal.owner;
+          details.nextReviewAt = deal.nextReviewAt;
+          details.expectedCloseDate = deal.expectedCloseDate;
+          details.updatedAt = deal.updatedAt;
+
+          const nextReviewField = details.forms
+            .flatMap((group) => group.fields)
+            .find((field) => field.id === "nextReviewAt");
+          if (nextReviewField) {
+            nextReviewField.value = deal.nextReviewAt.slice(0, 10);
+          }
+        }
+
+        return this.getDealDetails(dealId);
       },
     );
   }
@@ -507,20 +544,23 @@ export class ApiClient {
     return this.request("/crm/tasks", undefined, async () => tasksMock);
   }
 
-  async updateTaskStatus(taskId: string, completed: boolean): Promise<Task> {
+  async updateTask(taskId: string, payload: UpdateTaskPayload): Promise<Task> {
+    const changes = sanitizeTaskPatch(payload);
+
     return this.request(
       `/crm/tasks/${taskId}`,
       {
         method: "PATCH",
-        body: JSON.stringify({ completed }),
+        body: JSON.stringify(changes),
       },
       async () => {
         const task = tasksMock.find((item) => item.id === taskId);
         if (!task) {
           throw new ApiError("Task not found", 404);
         }
-        task.completed = completed;
-        return task;
+
+        applyTaskPatch(task, changes);
+        return { ...task };
       },
     );
   }
@@ -866,6 +906,55 @@ export class ApiClient {
         return { id: expenseId };
       },
     );
+  async bulkUpdateTasks(
+    taskIds: string[],
+    payload: UpdateTaskPayload,
+    options?: { shiftDueDateByDays?: number },
+  ): Promise<Task[]> {
+    const changes = sanitizeTaskPatch(payload);
+
+    return this.request(
+      `/crm/tasks/bulk`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ taskIds, changes, options }),
+      },
+      async () => {
+        const updated: Task[] = [];
+
+        for (const taskId of taskIds) {
+          const task = tasksMock.find((item) => item.id === taskId);
+          if (!task) {
+            continue;
+          }
+
+          const patch: UpdateTaskPayload = { ...changes };
+
+          if (options?.shiftDueDateByDays) {
+            const dueDate = new Date(task.dueDate);
+            dueDate.setDate(dueDate.getDate() + options.shiftDueDateByDays);
+            patch.dueDate = dueDate.toISOString();
+          }
+
+          applyTaskPatch(task, patch);
+          updated.push({ ...task });
+        }
+
+        if (updated.length === 0) {
+          throw new ApiError("Tasks not found", 404);
+        }
+
+        return updated;
+      },
+    );
+  }
+
+  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+    return this.updateTask(taskId, { status, completed: status === "done" });
+  }
+
+  getPayments(): Promise<Payment[]> {
+    return this.request("/crm/payments", undefined, async () => paymentsMock);
   }
 
   getClientActivities(clientId: string): Promise<ActivityLogEntry[]> {
@@ -891,6 +980,55 @@ function recalculateTotals(payment: Payment): Payment {
   payment.netTotal = incomesTotal - expensesTotal;
   payment.amount = payment.plannedAmount;
   return payment;
+function sanitizeTaskPatch(patch: UpdateTaskPayload): UpdateTaskPayload {
+  const result: UpdateTaskPayload = {};
+
+  for (const key of Object.keys(patch) as Array<keyof UpdateTaskPayload>) {
+    const value = patch[key];
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
+function applyTaskPatch(task: Task, patch: UpdateTaskPayload): Task {
+  if (patch.status) {
+    task.status = patch.status;
+    task.completed = patch.completed ?? patch.status === "done";
+  }
+
+  if (patch.completed !== undefined && !patch.status) {
+    task.completed = patch.completed;
+    if (patch.completed) {
+      task.status = "done";
+    } else if (task.status === "done") {
+      task.status = "in_progress";
+    }
+  }
+
+  if (patch.owner !== undefined) {
+    task.owner = patch.owner;
+  }
+
+  if (patch.dueDate !== undefined) {
+    task.dueDate = patch.dueDate;
+  }
+
+  if (patch.tags !== undefined) {
+    task.tags = [...patch.tags];
+  }
+
+  if (patch.type !== undefined) {
+    task.type = patch.type;
+  }
+
+  if (patch.reminderAt !== undefined) {
+    task.reminderAt = patch.reminderAt;
+  }
+
+  return task;
 }
 
 const DAY_IN_MS = 86_400_000;
@@ -1022,6 +1160,12 @@ function updateDealStageMock(dealId: string, stage: DealStage): Deal {
 
   deal.stage = stage;
   deal.updatedAt = new Date().toISOString();
+
+  const details = dealDetailsMock[dealId];
+  if (details) {
+    details.stage = stage;
+    details.updatedAt = deal.updatedAt;
+  }
 
   return { ...deal };
 }

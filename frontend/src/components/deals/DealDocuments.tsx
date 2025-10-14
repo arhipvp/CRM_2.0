@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   dealDocumentsQueryOptions,
-  dealQueryOptions,
+  dealDetailsQueryOptions,
   dealStageMetricsQueryKey,
   dealsQueryKey,
 } from "@/lib/api/queries";
@@ -57,7 +57,7 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
   const queryClient = useQueryClient();
 
   const documentsKey = useMemo(() => dealDocumentsQueryOptions(dealId).queryKey, [dealId]);
-  const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
+  const dealDetailsKey = useMemo(() => dealDetailsQueryOptions(dealId).queryKey, [dealId]);
 
   useEffect(() => {
     if (createRequestKey) {
@@ -92,7 +92,7 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: documentsKey }),
-      queryClient.invalidateQueries({ queryKey: dealKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealDetailsKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
       queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
     ]);

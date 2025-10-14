@@ -10,7 +10,7 @@ import {
   clientsQueryOptions,
   dealsQueryKey,
   dealDocumentsQueryOptions,
-  dealQueryOptions,
+  dealDetailsQueryOptions,
   dealTasksQueryOptions,
   dealNotesQueryOptions,
   dealPaymentsQueryOptions,
@@ -30,8 +30,8 @@ export function useDealStageMetrics(filters?: DealFilters) {
   return useQuery(dealStageMetricsQueryOptions(filters));
 }
 
-export function useDeal(dealId: string) {
-  return useQuery(dealQueryOptions(dealId));
+export function useDealDetails(dealId: string) {
+  return useQuery(dealDetailsQueryOptions(dealId));
 }
 
 export function useDealTasks(dealId: string) {
@@ -70,13 +70,35 @@ export function useTasks() {
   return useQuery(tasksQueryOptions());
 }
 
+function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>, task: { dealId?: string }) {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
+    queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+    queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+  ];
+
+  if (task.dealId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: dealQueryOptions(task.dealId).queryKey,
+        exact: true,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+      }),
+    );
+  }
+
+  return invalidations;
+}
+
 export function useToggleTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ["toggle-task"],
     mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
-      apiClient.updateTaskStatus(taskId, completed),
+      apiClient.updateTask(taskId, { completed }),
     onSuccess: async (task) => {
       const invalidations = [
         queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
@@ -87,7 +109,7 @@ export function useToggleTask() {
       if (task.dealId) {
         invalidations.push(
           queryClient.invalidateQueries({
-            queryKey: dealQueryOptions(task.dealId).queryKey,
+            queryKey: dealDetailsQueryOptions(task.dealId).queryKey,
             exact: true,
           }),
           queryClient.invalidateQueries({
@@ -96,6 +118,33 @@ export function useToggleTask() {
         );
       }
 
+  return useMutation({
+    mutationKey: ["update-task"],
+    mutationFn: ({ taskId, payload }: { taskId: string; payload: UpdateTaskPayload }) =>
+      apiClient.updateTask(taskId, payload),
+    onSuccess: async (task) => {
+      const invalidations = createTaskInvalidations(queryClient, task);
+      await Promise.all(invalidations);
+    },
+  });
+}
+
+export function useBulkUpdateTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["bulk-update-tasks"],
+    mutationFn: ({
+      taskIds,
+      payload,
+      options,
+    }: {
+      taskIds: string[];
+      payload: UpdateTaskPayload;
+      options?: { shiftDueDateByDays?: number };
+    }) => apiClient.bulkUpdateTasks(taskIds, payload, options),
+    onSuccess: async (tasks) => {
+      const invalidations = tasks.flatMap((task) => createTaskInvalidations(queryClient, task));
       await Promise.all(invalidations);
     },
   });
@@ -295,7 +344,7 @@ export function useUpdateDealStage() {
     mutationKey: ["update-deal-stage"],
     mutationFn: ({ dealId, stage }) => apiClient.updateDealStage(dealId, stage),
     onMutate: async ({ dealId, optimisticUpdate, stage }) => {
-      const singleDealQueryKey = dealQueryOptions(dealId).queryKey;
+      const singleDealQueryKey = dealDetailsQueryOptions(dealId).queryKey;
 
       await Promise.all([
         queryClient.cancelQueries({ queryKey: dealsQueryKey }),
@@ -351,7 +400,7 @@ export function useUpdateDealStage() {
 
       if (context.previousDeal) {
         queryClient.setQueryData(
-          dealQueryOptions(dealId).queryKey,
+          dealDetailsQueryOptions(dealId).queryKey,
           context.previousDeal,
         );
       }
@@ -373,7 +422,7 @@ export function useUpdateDealStage() {
         });
       }
 
-      queryClient.setQueryData(dealQueryOptions(deal.id).queryKey, deal);
+      queryClient.setQueryData(dealDetailsQueryOptions(deal.id).queryKey, deal);
     },
     onSettled: async (_data, _error, variables) => {
       if (!variables) {
@@ -383,7 +432,7 @@ export function useUpdateDealStage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
         queryClient.invalidateQueries({
-          queryKey: dealQueryOptions(variables.dealId).queryKey,
+          queryKey: dealDetailsQueryOptions(variables.dealId).queryKey,
           exact: true,
         }),
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),

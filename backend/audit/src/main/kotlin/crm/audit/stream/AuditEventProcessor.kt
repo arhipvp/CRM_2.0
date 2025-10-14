@@ -1,10 +1,10 @@
-package com.crm.audit.stream
+package crm.audit.stream
 
-import com.crm.audit.domain.AuditEventEntity
-import com.crm.audit.domain.AuditEventMessage
-import com.crm.audit.domain.AuditEventRepository
-import com.crm.audit.domain.AuditEventTagEntity
-import com.crm.audit.domain.AuditEventTagRepository
+import crm.audit.domain.AuditEventEntity
+import crm.audit.domain.AuditEventMessage
+import crm.audit.domain.AuditEventRepository
+import crm.audit.domain.AuditEventTagEntity
+import crm.audit.domain.AuditEventTagRepository
 import com.fasterxml.jackson.databind.JsonNode
 import java.time.OffsetDateTime
 import java.time.ZoneOffset

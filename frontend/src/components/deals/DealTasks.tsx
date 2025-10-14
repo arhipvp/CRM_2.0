@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  dealQueryOptions,
+  dealDetailsQueryOptions,
   dealStageMetricsQueryKey,
   dealTasksQueryOptions,
   dealsQueryKey,
@@ -49,7 +49,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
   const [owner, setOwner] = useState("");
 
   const tasksKey = useMemo(() => dealTasksQueryOptions(dealId).queryKey, [dealId]);
-  const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
+  const dealDetailsKey = useMemo(() => dealDetailsQueryOptions(dealId).queryKey, [dealId]);
 
   useEffect(() => {
     if (createRequestKey) {
@@ -80,7 +80,7 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: tasksKey }),
-      queryClient.invalidateQueries({ queryKey: dealKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealDetailsKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
       queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),

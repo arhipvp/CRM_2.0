@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
 import {
-  dealQueryOptions,
+  dealDetailsQueryOptions,
   dealStageMetricsQueryKey,
   dealsQueryKey,
   paymentsQueryOptions,
@@ -104,7 +104,7 @@ export function SSEBridge({
       Promise.all([
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
         queryClient.invalidateQueries({
-          queryKey: dealQueryOptions(dealId).queryKey,
+          queryKey: dealDetailsQueryOptions(dealId).queryKey,
           exact: true,
         }),
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),

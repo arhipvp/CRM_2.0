@@ -8,6 +8,18 @@ export type PipelineStageKey = "qualification" | "negotiation" | "proposal" | "c
 
 export type DealViewMode = "kanban" | "table";
 
+export type DealDetailsTabKey =
+  | "overview"
+  | "forms"
+  | "policies"
+  | "journal"
+  | "actions"
+  | "tasks"
+  | "documents"
+  | "finance";
+
+type DealDetailsRequestKind = "task" | "note" | "document";
+
 type NotificationType = "info" | "success" | "warning" | "error";
 
 export interface NotificationItem {
@@ -60,6 +72,8 @@ interface UiState {
   notifications: NotificationItem[];
   dealUpdates: Record<string, string>;
   dismissedHints: Record<string, boolean>;
+  dealDetailsTab: DealDetailsTabKey;
+  dealDetailsRequests: Partial<Record<DealDetailsRequestKind, string>>;
   setSelectedStage: (stage: PipelineStageKey | "all") => void;
   setManagersFilter: (managers: string[]) => void;
   toggleManagerFilter: (manager: string) => void;
@@ -79,6 +93,9 @@ interface UiState {
   handlePaymentEvent: (event: PaymentEventPayload) => PaymentEventEffect;
   markDealUpdated: (dealId: string) => void;
   clearDealUpdate: (dealId: string) => void;
+  setDealDetailsTab: (tab: DealDetailsTabKey) => void;
+  triggerDealDetailsRequest: (kind: DealDetailsRequestKind) => void;
+  consumeDealDetailsRequest: (kind: DealDetailsRequestKind) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -88,6 +105,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   notifications: [],
   dealUpdates: {},
   dismissedHints: {},
+  dealDetailsTab: "overview",
+  dealDetailsRequests: {},
   setSelectedStage: (stage) =>
     set((state) => ({
       filters: {
@@ -190,6 +209,32 @@ export const useUiStore = create<UiState>((set, get) => ({
       const rest = { ...state.dealUpdates };
       delete rest[dealId];
       return { dealUpdates: rest };
+    }),
+  setDealDetailsTab: (tab) =>
+    set({
+      dealDetailsTab: tab,
+    }),
+  triggerDealDetailsRequest: (kind) =>
+    set((state) => ({
+      dealDetailsTab:
+        kind === "task" ? "tasks" : kind === "note" ? "journal" : kind === "document" ? "documents" : state.dealDetailsTab,
+      dealDetailsRequests: {
+        ...state.dealDetailsRequests,
+        [kind]: createRandomId(),
+      },
+    })),
+  consumeDealDetailsRequest: (kind) =>
+    set((state) => {
+      if (!state.dealDetailsRequests[kind]) {
+        return {};
+      }
+
+      const nextRequests = { ...state.dealDetailsRequests };
+      delete nextRequests[kind];
+
+      return {
+        dealDetailsRequests: nextRequests,
+      };
     }),
   handlePaymentEvent: (event) => {
     const result = processPaymentEvent(event);

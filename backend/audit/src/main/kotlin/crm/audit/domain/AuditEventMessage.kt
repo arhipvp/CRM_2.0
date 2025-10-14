@@ -1,4 +1,4 @@
-package com.crm.audit.domain
+package crm.audit.domain
 
 import com.fasterxml.jackson.databind.JsonNode
 import java.time.Instant

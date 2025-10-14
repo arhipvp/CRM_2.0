@@ -9,12 +9,11 @@ spring:
     password: ${AUDIT_DB_PASSWORD:audit}
     hikari:
       schema: ${AUDIT_DB_SCHEMA:audit}
-  cloud:
-    stream:
-      bindings:
-        auditEventConsumer-in-0:
-          consumer:
-            prefetch: 50
+
+audit:
+  messaging:
+    prefetch: 50
+
 logging:
   level:
-    com.crm.audit: INFO
+    crm.audit: INFO
