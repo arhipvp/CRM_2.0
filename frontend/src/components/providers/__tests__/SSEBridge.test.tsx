@@ -195,7 +195,10 @@ describe("SSEBridge", () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: ["payments"] }),
+        expect.objectContaining({ queryKey: ["payments", []] }),
+      );
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ["payments", ["expenses", "incomes"]] }),
       );
     } finally {
       invalidateQueriesSpy.mockRestore();

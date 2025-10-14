@@ -18,6 +18,8 @@ import type {
   DealStage,
   DealStageMetrics,
   Payment,
+  PaymentEntry,
+  PaymentStatus,
   Task,
 } from "@/types/crm";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
@@ -113,6 +115,37 @@ export interface DealDocumentPayload {
   fileName: string;
   fileSize: number;
   url?: string;
+}
+
+export interface PaymentPayload {
+  dealId: string;
+  clientId: string;
+  policyNumber: string;
+  policyId?: string;
+  plannedDate: string;
+  plannedAmount: number;
+  currency: string;
+  status?: PaymentStatus;
+  comment?: string;
+  actualDate?: string | null;
+  recordedBy?: string;
+}
+
+export interface PaymentUpdatePayload {
+  plannedDate?: string;
+  plannedAmount?: number;
+  currency?: string;
+  status?: PaymentStatus;
+  comment?: string | null;
+  actualDate?: string | null;
+  recordedBy?: string | null;
+}
+
+export interface PaymentEntryPayload {
+  amount: number;
+  category: string;
+  postedAt: string;
+  note?: string;
 }
 
 export interface UpdateDealPayload {
@@ -286,7 +319,9 @@ export class ApiClient {
       const tasks = tasksMock.filter((item) => item.dealId === id);
       const notes = dealNotesMock.filter((item) => item.dealId === id);
       const documents = dealDocumentsMock.filter((item) => item.dealId === id);
-      const payments = paymentsMock.filter((item) => item.dealId === id);
+      const payments = paymentsMock
+        .filter((item) => item.dealId === id)
+        .map((payment) => clonePayment(payment));
       const activity = activitiesMock.filter((item) => item.dealId === id);
 
       return {
@@ -389,7 +424,9 @@ export class ApiClient {
 
   getDealPayments(dealId: string): Promise<Payment[]> {
     return this.request(`/crm/deals/${dealId}/payments`, undefined, async () =>
-      paymentsMock.filter((payment) => payment.dealId === dealId),
+      paymentsMock
+        .filter((payment) => payment.dealId === dealId)
+        .map((payment) => clonePayment(payment)),
     );
   }
 
@@ -488,8 +525,347 @@ export class ApiClient {
     );
   }
 
-  getPayments(): Promise<Payment[]> {
-    return this.request("/crm/payments", undefined, async () => paymentsMock);
+  getPayments(params?: { include?: Array<"incomes" | "expenses"> }): Promise<Payment[]> {
+    return this.request("/crm/payments", undefined, async () => {
+      const includeIncomes = params?.include?.includes("incomes");
+      const includeExpenses = params?.include?.includes("expenses");
+
+      return paymentsMock.map((payment) => {
+        const clone = clonePayment(payment);
+        if (!includeIncomes) {
+          clone.incomes = [];
+        }
+        if (!includeExpenses) {
+          clone.expenses = [];
+        }
+        return clone;
+      });
+    });
+  }
+
+  createPayment(payload: PaymentPayload): Promise<Payment> {
+    return this.request(
+      "/crm/payments",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const now = new Date().toISOString();
+        const deal = dealsMock.find((item) => item.id === payload.dealId);
+        const client = clientsMock.find((item) => item.id === payload.clientId);
+        const siblings = paymentsMock.filter((payment) => payment.policyNumber === payload.policyNumber);
+        const nextSequence = siblings.length > 0 ? Math.max(...siblings.map((item) => item.sequence)) + 1 : 1;
+
+        const payment: Payment = {
+          id: createRandomId(),
+          dealId: payload.dealId,
+          dealName: deal?.name,
+          clientId: payload.clientId,
+          clientName: client?.name,
+          policyId: payload.policyId ?? createRandomId(),
+          policyNumber: payload.policyNumber,
+          sequence: nextSequence,
+          amount: payload.plannedAmount,
+          plannedAmount: payload.plannedAmount,
+          currency: payload.currency,
+          status: payload.status ?? (payload.actualDate ? "received" : "planned"),
+          paidAt: payload.actualDate ?? undefined,
+          plannedDate: payload.plannedDate,
+          dueDate: payload.plannedDate,
+          actualDate: payload.actualDate ?? undefined,
+          comment: payload.comment ?? undefined,
+          incomesTotal: 0,
+          expensesTotal: 0,
+          netTotal: 0,
+          incomes: [],
+          expenses: [],
+          createdAt: now,
+          updatedAt: now,
+          recordedBy: payload.recordedBy ?? undefined,
+          updatedBy: payload.recordedBy ?? undefined,
+        };
+
+        paymentsMock.unshift(payment);
+        return clonePayment(payment);
+      },
+    );
+  }
+
+  updatePayment(paymentId: string, payload: PaymentUpdatePayload): Promise<Payment> {
+    return this.request(
+      `/crm/payments/${paymentId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        if (payload.plannedAmount !== undefined) {
+          payment.plannedAmount = payload.plannedAmount;
+          payment.amount = payload.plannedAmount;
+        }
+
+        if (payload.plannedDate !== undefined) {
+          payment.plannedDate = payload.plannedDate || undefined;
+          payment.dueDate = payload.plannedDate || undefined;
+        }
+
+        if (payload.currency !== undefined) {
+          payment.currency = payload.currency;
+          payment.incomes = payment.incomes.map((income) => ({ ...income, currency: payload.currency! }));
+          payment.expenses = payment.expenses.map((expense) => ({ ...expense, currency: payload.currency! }));
+        }
+
+        if (payload.status !== undefined) {
+          payment.status = payload.status;
+        }
+
+        if (payload.comment !== undefined) {
+          payment.comment = payload.comment ?? undefined;
+        }
+
+        if (payload.actualDate !== undefined) {
+          payment.actualDate = payload.actualDate ?? undefined;
+          payment.paidAt = payload.actualDate ?? undefined;
+        }
+
+        if (payload.recordedBy !== undefined) {
+          payment.recordedBy = payload.recordedBy ?? undefined;
+        }
+
+        payment.updatedAt = new Date().toISOString();
+        if (payload.recordedBy) {
+          payment.updatedBy = payload.recordedBy;
+        }
+
+        return clonePayment(recalculateTotals(payment));
+      },
+    );
+  }
+
+  deletePayment(paymentId: string): Promise<{ id: string }> {
+    return this.request(
+      `/crm/payments/${paymentId}`,
+      {
+        method: "DELETE",
+      },
+      async () => {
+        const index = paymentsMock.findIndex((item) => item.id === paymentId);
+        if (index === -1) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        paymentsMock.splice(index, 1);
+        return { id: paymentId };
+      },
+    );
+  }
+
+  createPaymentIncome(paymentId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
+    return this.request(
+      `/crm/payments/${paymentId}/incomes`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const now = new Date().toISOString();
+        const income: PaymentEntry = {
+          id: createRandomId(),
+          paymentId,
+          amount: payload.amount,
+          currency: payment.currency,
+          category: payload.category,
+          postedAt: payload.postedAt,
+          note: payload.note,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        payment.incomes.unshift(income);
+        payment.updatedAt = now;
+        recalculateTotals(payment);
+
+        return { ...income };
+      },
+    );
+  }
+
+  updatePaymentIncome(paymentId: string, incomeId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
+    return this.request(
+      `/crm/payments/${paymentId}/incomes/${incomeId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const income = payment.incomes.find((item) => item.id === incomeId);
+        if (!income) {
+          throw new ApiError("Income not found", 404);
+        }
+
+        if (payload.amount !== undefined) {
+          income.amount = payload.amount;
+        }
+        if (payload.category !== undefined) {
+          income.category = payload.category;
+        }
+        if (payload.postedAt !== undefined) {
+          income.postedAt = payload.postedAt;
+        }
+        if (payload.note !== undefined) {
+          income.note = payload.note;
+        }
+
+        income.updatedAt = new Date().toISOString();
+        payment.updatedAt = income.updatedAt;
+        recalculateTotals(payment);
+
+        return { ...income };
+      },
+    );
+  }
+
+  deletePaymentIncome(paymentId: string, incomeId: string): Promise<{ id: string }> {
+    return this.request(
+      `/crm/payments/${paymentId}/incomes/${incomeId}`,
+      {
+        method: "DELETE",
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const index = payment.incomes.findIndex((item) => item.id === incomeId);
+        if (index === -1) {
+          throw new ApiError("Income not found", 404);
+        }
+
+        payment.incomes.splice(index, 1);
+        payment.updatedAt = new Date().toISOString();
+        recalculateTotals(payment);
+
+        return { id: incomeId };
+      },
+    );
+  }
+
+  createPaymentExpense(paymentId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
+    return this.request(
+      `/crm/payments/${paymentId}/expenses`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const now = new Date().toISOString();
+        const expense: PaymentEntry = {
+          id: createRandomId(),
+          paymentId,
+          amount: payload.amount,
+          currency: payment.currency,
+          category: payload.category,
+          postedAt: payload.postedAt,
+          note: payload.note,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        payment.expenses.unshift(expense);
+        payment.updatedAt = now;
+        recalculateTotals(payment);
+
+        return { ...expense };
+      },
+    );
+  }
+
+  updatePaymentExpense(paymentId: string, expenseId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
+    return this.request(
+      `/crm/payments/${paymentId}/expenses/${expenseId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const expense = payment.expenses.find((item) => item.id === expenseId);
+        if (!expense) {
+          throw new ApiError("Expense not found", 404);
+        }
+
+        if (payload.amount !== undefined) {
+          expense.amount = payload.amount;
+        }
+        if (payload.category !== undefined) {
+          expense.category = payload.category;
+        }
+        if (payload.postedAt !== undefined) {
+          expense.postedAt = payload.postedAt;
+        }
+        if (payload.note !== undefined) {
+          expense.note = payload.note;
+        }
+
+        expense.updatedAt = new Date().toISOString();
+        payment.updatedAt = expense.updatedAt;
+        recalculateTotals(payment);
+
+        return { ...expense };
+      },
+    );
+  }
+
+  deletePaymentExpense(paymentId: string, expenseId: string): Promise<{ id: string }> {
+    return this.request(
+      `/crm/payments/${paymentId}/expenses/${expenseId}`,
+      {
+        method: "DELETE",
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const index = payment.expenses.findIndex((item) => item.id === expenseId);
+        if (index === -1) {
+          throw new ApiError("Expense not found", 404);
+        }
+
+        payment.expenses.splice(index, 1);
+        payment.updatedAt = new Date().toISOString();
+        recalculateTotals(payment);
+
+        return { id: expenseId };
+      },
+    );
   }
 
   getClientActivities(clientId: string): Promise<ActivityLogEntry[]> {
@@ -497,6 +873,24 @@ export class ApiClient {
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );
   }
+}
+
+function clonePayment(payment: Payment): Payment {
+  return {
+    ...payment,
+    incomes: payment.incomes.map((income) => ({ ...income })),
+    expenses: payment.expenses.map((expense) => ({ ...expense })),
+  };
+}
+
+function recalculateTotals(payment: Payment): Payment {
+  const incomesTotal = payment.incomes.reduce((sum, income) => sum + income.amount, 0);
+  const expensesTotal = payment.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  payment.incomesTotal = incomesTotal;
+  payment.expensesTotal = expensesTotal;
+  payment.netTotal = incomesTotal - expensesTotal;
+  payment.amount = payment.plannedAmount;
+  return payment;
 }
 
 const DAY_IN_MS = 86_400_000;

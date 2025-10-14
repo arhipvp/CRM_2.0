@@ -65,7 +65,16 @@ describe("ApiClient mock mode", () => {
     await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
     await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);
     await expect(apiClient.getTasks()).resolves.toEqual(tasksMock);
-    await expect(apiClient.getPayments()).resolves.toEqual(paymentsMock);
+    await expect(apiClient.getPayments()).resolves.toEqual(
+      paymentsMock.map((payment) => ({
+        ...payment,
+        incomes: [],
+        expenses: [],
+      })),
+    );
+    await expect(apiClient.getPayments({ include: ["incomes", "expenses"] })).resolves.toEqual(
+      paymentsMock,
+    );
     await expect(apiClient.getClientActivities(clientId)).resolves.toEqual(
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );

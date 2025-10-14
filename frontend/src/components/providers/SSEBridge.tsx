@@ -81,6 +81,7 @@ function parsePayload(event: MessageEvent<string>): CrmEventPayload {
 }
 
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
+const paymentsWithDetailsKey = paymentsQueryOptions({ include: ["incomes", "expenses"] }).queryKey;
 
 export function SSEBridge({
   apiBaseUrl,
@@ -139,6 +140,7 @@ export function SSEBridge({
         }
 
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
+        queryClient.invalidateQueries({ queryKey: paymentsWithDetailsKey });
       }
 
       if (payload.message) {
