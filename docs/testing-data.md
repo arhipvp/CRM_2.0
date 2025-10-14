@@ -10,9 +10,8 @@
 
 | Домен | Файл | Содержимое | Примечания |
 | --- | --- | --- | --- |
-| Auth | `seed_20240715_auth.sql` | Роли `ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_FINANCE_MANAGER`, `ROLE_TEAM_LEAD` и пять активных пользователей (email `*@example.com`). | Пароль всех аккаунтов — `Passw0rd!` (bcrypt, 12 раундов). Используются UUID, согласованные с CRM/Payments. TODO: заменить устаревшие роли на профиль главного админа. |
-| CRM / Deals | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с датами действия. | Ссылки на пользователей Auth обеспечивают трассировку владельцев. Значения премий отражают реальные суммы сценариев. |
-| Payments | `seed_20240715_payments.sql` | Три платежа (`planned`, `expected`, `received`), история изменений и график выплат. | Payments опирается на сделки и полисы из CRM. TODO: обновить связи на аккаунты продавца/исполнителя после пересмотра ролей. |
+| Auth | `seed_20240715_auth.sql` | Роли `ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN` и пять активных пользователей (email `*@example.com`). | Пароль всех аккаунтов — `Passw0rd!` (bcrypt, 12 раундов). Используются UUID, согласованные с CRM. TODO: выделить отдельного пользователя для проверки прав главного админа. |
+| CRM / Deals | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с датами действия и одна запись `crm.payments` с заполненной `actual_date`. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и автора платежа. Значения премий отражают реальные суммы сценариев. |
 
 Расширение набора (Documents, Tasks, Notifications) запланировано после публикации соответствующих миграций. Новые файлы будут добавляться с префиксом даты и описанием домена.
 
@@ -24,7 +23,7 @@
    ```bash
    ./scripts/load-seeds.sh
    ```
-   Сценарий читает переменные подключения из `.env`, проверяет наличие `psql` или Docker и применяет SQL-файлы в порядке Auth → CRM → Payments. Для частичной перезагрузки используйте фильтр по подстроке имени файла, например `./scripts/load-seeds.sh --only payments`.
+   Сценарий читает переменные подключения из `.env`, проверяет наличие `psql` или Docker и применяет SQL-файлы в порядке Auth → CRM. Для частичной перезагрузки используйте фильтр по подстроке имени файла, например `./scripts/load-seeds.sh --only crm`.
 4. При работе с пользовательскими расширениями создавайте отдельный файл `seed_<дата>_local.sql`, добавляйте его в `.gitignore` и применяйте вручную — основной набор остаётся неизменным.
 
 ## Проверка корректности
@@ -34,10 +33,10 @@
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com%' ORDER BY email;
 SELECT title, status, value FROM crm.deals ORDER BY created_at DESC;
-SELECT payment_type, status, amount FROM payments.payments ORDER BY planned_date NULLS LAST;
+SELECT amount, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
 ```
 
-Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в таблице `payments.payments` присутствуют статусы `planned`, `expected` и `received`.
+Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в таблице `crm.payments` присутствует запись с заполненными `amount`, `actual_date` и ссылкой на автора (`recorded_by_id`).
 
 ## Актуализация набора
 
