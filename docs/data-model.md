@@ -142,12 +142,12 @@ erDiagram
 
 | Таблица | Назначение |
 | --- | --- |
-| `documents.documents` | Метаданные файлов в Google Drive. |
+| `documents.documents` | Метаданные файлов локального хранилища (относительные пути, размеры и владельцы). |
 | `documents.document_links` | Перекрёстные ссылки документов на сущности других схем. |
 
 ### Ключи и ограничения
 
-* `documents.documents`: `PRIMARY KEY (id)`, `UNIQUE (file_url)`, индексы по `owner_type`, `uploaded_at`.
+* `documents.documents`: `PRIMARY KEY (id)`, `UNIQUE (storage_path)`, индексы по `owner_type`, `uploaded_at`.
 * `documents.document_links`: `PRIMARY KEY (id)`, `FOREIGN KEY (document_id)` → `documents.documents(id)`, поля `owner_schema`, `owner_table`, `owner_id` фиксируют связь. Уникальное ограничение `(document_id, owner_schema, owner_id)`.
 
 ## Схема `notifications`
@@ -213,7 +213,7 @@ erDiagram
 | `crm.payment_incomes` | Доходные позиции (премии клиента, поступления комиссий) с суммой, типом и датой наступления. |
 | `crm.payment_expenses` | Расходные позиции (скидки, выплаты коллегам, удержания) с суммой, типом и датой наступления. |
 | `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `waiting` — «Ожидание внешнего действия», `done` — «Выполнена», `cancelled` — «Отменена»). |
-| `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и корневая папка интеграции с Google Drive. |
+| `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и настройки корневого каталога локального хранилища. |
 | `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
 | `audit` | Не требует отдельного seed, но создаётся запись о запуске миграций.
 

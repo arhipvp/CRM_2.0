@@ -1,14 +1,16 @@
 # Documents Service
 
-Сервис управляет метаданными клиентских документов, очередями загрузки и синхронизацией с серверным файловым хранилищем. Вместо Google Drive используется каталог на сервере/томе, смонтированном в окружение, а права доступа применяются напрямую на уровне файловой системы.
+Сервис управляет метаданными клиентских документов, очередями загрузки и синхронизации с локальным/self-hosted файловым хранилищем и предоставляет REST API
+для других доменов CRM.【F:docs/architecture.md†L15-L18】
 
 ## Основные возможности
 - CRUD API по метаданным документов (`/documents`).
-- REST API для генерации и выдачи путей к каталогам (`/api/v1/folders`).
-- Управление структурами каталогов внутри `DOCUMENTS_STORAGE_ROOT`, создание вложенных директорий и нормализация прав (`chmod`, `chown`, `setfacl`).
-- Фоновые задачи BullMQ для загрузки (`documents.upload`), синхронизации (`documents.sync`) и очистки файлов.
-- Очередь BullMQ `documents.permissions.sync` для применения POSIX-прав и ACL по спискам пользователей.
-- Интеграция с HTTP/S3-шлюзом для приёма загружаемых файлов и формирование подписанных ссылок с контролем TTL.
+- REST API для генерации и выдачи каталогов в локальном хранилище (`/api/v1/folders`).
+- Фоновые задачи BullMQ для загрузки (`documents.upload`) и синхронизации (`documents.sync`) файлов.
+- Очередь BullMQ `documents.permissions.sync` для синхронизации прав доступа на каталогах хранилища.
+- Хранение файлов на выделенном томе с контролем квоты и генерацией относительных путей.
+- Безопасная работа с пустыми или отсутствующими метаданными: сервис объединяет данные хранилища с исходными значениями, избегая ошибок
+  сериализации.
 - TypeORM миграции схемы `documents` и изолированное подключение к PostgreSQL.
 
 ## Требования к окружению
@@ -18,6 +20,7 @@
 - POSIX-совместимое хранилище (ext4/xfs/зашифрованный том), примонтированное в путь `DOCUMENTS_STORAGE_ROOT` и доступное для пользователя сервиса.
 - Установленные утилиты `acl` (для `setfacl/getfacl`), `attr` и инструмент бэкапа (`rsync`, `restic`, `rclone` — зависит от выбранной стратегии).
 - При использовании S3-совместимых бакетов — установленный `s3fs`/`goofys` и unit `systemd`, обеспечивающий автоматическое монтирование.
+- Доступный том/каталог с нужным объёмом диска, подготовленный по инструкции в [`docs/local-setup.md`](../../docs/local-setup.md#интеграции).
 
 Минимальный набор переменных окружения описан в [`env.example`](../../env.example) и валидируется при старте. Обратите внимание на `DOCUMENTS_RUN_MIGRATIONS` — переменная управляет автоматическим применением миграций при запуске API/воркера.
 
@@ -88,6 +91,31 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 - `GET /health` — состояние сервиса.
 - `POST /api/v1/folders` — создаёт каталог внутри `DOCUMENTS_STORAGE_ROOT` и сохраняет связь с сущностью. Ответ содержит относительный путь (`folder_path`), абсолютный путь и публичную ссылку (если настроен прокси). Ошибки: `400 validation_error`, `409 folder_exists`.
 - `GET /api/v1/folders/:ownerType/:ownerId` — возвращает метаданные каталога: относительный путь, абсолютный путь, URL, текущие права (`fs_mode`) и владельца (`fs_owner`). Ошибка `404 folder_not_found`, если запись отсутствует.
+| `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |
+| `DOCUMENTS_FOLDERS_WEB_BASE_URL` | Базовый URL для формирования ссылок на каталоги (совмещается с `DOCUMENTS_STORAGE_PUBLIC_BASE_URL`). |
+| `DOCUMENTS_STORAGE_DRIVER` | Драйвер хранения (`local` — файловая система по умолчанию). |
+| `DOCUMENTS_STORAGE_ROOT` | Путь внутри контейнера/сервиса, где размещаются файлы. |
+| `DOCUMENTS_STORAGE_QUOTA_MB` | Опциональный лимит диска в мегабайтах; `0` или пусто — без ограничения. |
+| `DOCUMENTS_STORAGE_PUBLIC_BASE_URL` | Опциональный публичный URL (reverse-proxy/CDN) для скачивания файлов. |
+
+## Локальное файловое хранилище
+
+1. Подготовьте каталог на хосте и примонтируйте его в контейнер/Pod согласно [docs/local-setup.md](../../docs/local-setup.md#интеграции). Для разработки достаточно `./var/documents`, на VPS используйте отдельный диск (`/srv/crm/documents`).
+2. Выставьте права доступа: UID/GID пользователя процесса (`docker compose run --rm documents id`) и/или `fsGroup` в Kubernetes. При включённом SELinux добавьте контекст `:Z` и проверьте AppArmor-политику.
+3. Настройте `.env`:
+   ```dotenv
+   DOCUMENTS_STORAGE_DRIVER=local
+   DOCUMENTS_STORAGE_ROOT=/var/lib/crm/documents
+   DOCUMENTS_STORAGE_QUOTA_MB=20480     # пример ограничения 20 ГБ
+   DOCUMENTS_STORAGE_PUBLIC_BASE_URL=https://files.crm.local/documents
+   ```
+   Публичный URL можно оставить пустым — тогда скачивание выполняется через API Documents или защищённый reverse-proxy.
+4. Планируйте бэкапы: каталоги с файлами и база `documents` должны резервироваться вместе (см. раздел про резервное копирование в `docs/local-setup.md`).
+
+## REST API
+- `GET /health` — состояние сервиса.
+- `POST /api/v1/folders` — создаёт каталог в файловом хранилище и сохраняет связь с сущностью. Ошибки: `400 validation_error`, `409 folder_exists`.
+- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает привязанный каталог (относительный путь и публичную ссылку при наличии). Ошибка `404 folder_not_found`, если запись отсутствует.
 - `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; ответ — массив, общее количество приходит в заголовке `X-Total-Count`).
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
@@ -96,6 +124,11 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки (повторная выдача подписанного URL).
 - `POST /documents/:id/complete` — подтвердить завершение загрузки, зафиксировать размер/хэш и поставить задачу синхронизации (`documents.sync`), которая проверяет наличие файла, актуализирует права и ссылку.
 - `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на применение POSIX-прав/ACL для каталога. Ответ содержит итоговую маску прав и применённые ACL. Ошибки: `400 validation_error`, `404 folder_not_found`.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, права доступа отзываются (повторный вызов вернёт `409 already_deleted`).
+- `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
+- `POST /documents/:id/complete` — подтвердить завершение загрузки и поставить задачу синхронизации.
+- `POST /documents/:id/sync` — обновить метаданные из файловой системы/объектного хранилища.
+- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на обновление списка пользователей каталога. Ошибки: `400 validation_error`, `404 folder_not_found`.
 
 Список статусов: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
 
@@ -160,6 +193,11 @@ restic -r s3:https://backup.example.com/crm-docs check
 rsync -a --delete /var/lib/crm/documents/ /srv/backup/crm-docs-$(date +%Y%m%d)
 ```
 Настройте cron/systemd timer в соответствии с политикой бэкапов. Значения `DOCUMENTS_BACKUP_STRATEGY` и `DOCUMENTS_BACKUP_TARGET` отражают выбранный сценарий и синхронизируются с Backup-сервисом.
+## Проверка хранилища
+- `GET /health` возвращает статус `storage.ok=true`, если каталог из `DOCUMENTS_STORAGE_ROOT` доступен для записи.
+- `pnpm start:worker:dev` пишет диагностические события в очередь `documents:tasks`. При ошибках прав доступа воркер выводит код `EACCES` — проверьте UID/GID и параметры монтирования.
+- Для анализа свободного места используйте `docker compose exec documents df -h /var/lib/crm/documents` или аналогичную команду в Kubernetes (`kubectl exec`).
+### Коды ошибок Documents API
 
 **Применение ACL для выдачи временного доступа подрядчику**
 ```bash
