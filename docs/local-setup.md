@@ -82,7 +82,27 @@
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
-- Для проверки подтверждения оплат используйте REST-запрос `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payment` (через Gateway или напрямую в CRM). Отдельный consumer RabbitMQ не требуется: платежи обрабатываются внутри CRM.
+- Для smoke-проверки платежей выполните новую последовательность REST-запросов (через Gateway или напрямую в CRM):
+  ```bash
+  # Получить список платежей полиса
+  curl -H "Authorization: Bearer <JWT>" \
+    "http://localhost:${CRM_SERVICE_PORT:-8082}/api/v1/deals/${DEAL_ID}/policies/${POLICY_ID}/payments"
+
+  # Создать плановый платёж
+  curl -X POST -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" \
+    -d '{"planned_amount":"150000.00","currency":"RUB","planned_date":"2024-03-01"}' \
+    "http://localhost:${CRM_SERVICE_PORT:-8082}/api/v1/deals/${DEAL_ID}/policies/${POLICY_ID}/payments"
+
+  # Добавить поступление и расход в созданный платёж
+  curl -X POST -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" \
+    -d '{"amount":"50000.00","currency":"RUB","category":"wire","posted_at":"2024-03-05"}' \
+    "http://localhost:${CRM_SERVICE_PORT:-8082}/api/v1/deals/${DEAL_ID}/policies/${POLICY_ID}/payments/${PAYMENT_ID}/incomes"
+
+  curl -X POST -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" \
+    -d '{"amount":"2500.00","currency":"RUB","category":"agency_fee","posted_at":"2024-03-05","note":"Комиссия"}' \
+    "http://localhost:${CRM_SERVICE_PORT:-8082}/api/v1/deals/${DEAL_ID}/policies/${POLICY_ID}/payments/${PAYMENT_ID}/expenses"
+  ```
+  После отправки запросов убедитесь, что `net_total` в ответе платежа равен сумме поступлений минус расходы.
 
 ### Notifications: быстрый старт
 
@@ -139,7 +159,7 @@
       > ⚠️ Значения, содержащие пробелы или плейсхолдеры в фигурных скобках (например, `Client {ownerId}`), заключайте в двойные кавычки: так `.env` можно безопасно импортировать через `set -a && source .env`.
    3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
       > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
-      - Платежи теперь фиксируются вручную в CRM: после синхронизации окружения откройте нужную сделку и укажите дату оплаты в карточке. Переменная `PAYMENTS_CRM_WEBHOOK_SECRET` и прежние настройки интеграции больше не требуются.
+      - График платежей и движения средств теперь управляются напрямую через REST-интерфейс CRM (`/payments`, `/incomes`, `/expenses`). Переменная `PAYMENTS_CRM_WEBHOOK_SECRET` и прежние настройки интеграции больше не требуются.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
@@ -215,10 +235,10 @@
      • vhost 'crm' уже существует
      • обновлён пароль пользователя 'crm'
      • подтверждены права 'crm' на vhost 'crm'
-   ==> Обработка пользователя 'payments' и vhost 'payments'
-     • создан vhost 'payments'
-     • создан пользователь 'payments'
-     • подтверждены права 'payments' на vhost 'payments'
+   ==> Обработка пользователя 'notifications' и vhost 'notifications'
+     • создан vhost 'notifications'
+     • создан пользователь 'notifications'
+     • подтверждены права 'notifications' на vhost 'notifications'
    ...
    ==> Обработка пользователя 'audit' и vhost 'audit'
      • vhost 'audit' уже существует
@@ -238,7 +258,7 @@
 
 - Установленный `psql` **или** запущенный Docker с контейнером `crm-postgres` (`docker compose up -d` в каталоге `infra/`).
 - Созданный `.env`, значения переменных подключения (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`) совпадают с шаблоном `env.example`, который остаётся источником правды.
-- Выполненные миграции схем `auth`, `crm`, `payments` (модуль платежей CRM).
+- Выполненные миграции схем `auth`, `crm`.
 
 **Запуск**
 
@@ -246,10 +266,10 @@
 ./scripts/load-seeds.sh
 ```
 
-Скрипт применяет SQL-файлы в порядке Auth → CRM → модуль платежей CRM (каталог `payments`), выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить `payments`), воспользуйтесь фильтром по подстроке имени файла:
+Скрипт применяет SQL-файлы в порядке Auth → CRM, выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить CRM), воспользуйтесь фильтром по подстроке имени файла:
 
 ```bash
-./scripts/load-seeds.sh --only payments
+./scripts/load-seeds.sh --only crm
 ```
 
 В отсутствии локального `psql` сценарий автоматически выполнит `docker compose exec postgres psql`, перенаправив SQL внутрь контейнера. После успешного завершения появится сообщение `Готово.` — база содержит актуальные тестовые данные для smoke-проверок.
@@ -262,7 +282,7 @@
 docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ```
 
-В выводе должны присутствовать схемы `auth`, `crm`, `payments` (модуль платежей CRM), `documents`, `tasks`, `notifications`, `audit`, `backup`.
+В выводе должны присутствовать схемы `auth`, `crm`, `documents`, `tasks`, `notifications`, `audit`, `backup`.
 
 ## 4. Запуск миграций
 

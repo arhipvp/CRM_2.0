@@ -82,20 +82,23 @@ erDiagram
 
 ```mermaid
 erDiagram
-    CRM_POLICIES ||--o{ CRM_PAYMENTS : ""
+    CRM_POLICIES ||--o{ CRM_POLICY_PAYMENTS : ""
+    CRM_POLICY_PAYMENTS ||--o{ CRM_PAYMENT_TRANSACTIONS : ""
 ```
 
 ### Таблицы
 
 | Таблица | Назначение |
 | --- | --- |
-| `crm.payments` | Единственная запись фактической оплаты по полису сделки: хранит сумму, валюту и обязательную фактическую дату без статусов. |
+| `crm.policy_payments` | Плановые и фактические платежи по полису сделки: сумма, валюта, статус, плановая и фактическая дата, комментарий. |
+| `crm.payment_transactions` | Отдельные операции поступлений (`income`) и удержаний (`expense`) с категорией и датой фиксации. |
 
 ### Ключи и ограничения
 
-* `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Уникальный индекс по `policy_id`, индексы по `actual_date`, `recorded_by_id`.
+* `crm.policy_payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы по `(policy_id, sequence)`, `status`, `actual_date`.
+* `crm.payment_transactions`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.policy_payments(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(type, posted_at)`.
 
-Поля таблицы включают сумму, валюту (`RUB`), обязательную фактическую дату (`actual_date`), комментарий и автора подтверждения (`recorded_by_id`). Платёж фиксируется только в `crm.payments`: статусы и плановые графики отсутствуют, хранится единственная фактическая дата, а правки отслеживаются средствами аудита CRM.
+Поля таблицы `crm.policy_payments` включают плановую сумму и дату, валюту (`RUB`), статус (`scheduled/partially_paid/paid/cancelled`), фактическую дату (`actual_date`), комментарий, автора создания и пользователя, закрывшего платёж (`recorded_by_id`). Таблица `crm.payment_transactions` хранит сумму, валюту, тип (`income`/`expense`), категорию, дату операции (`posted_at`) и ссылку на авторов (`created_by_id`, `updated_by_id`). Статистика по суммам вычисляется агрегатами CRM и сохраняется в представлениях отчётов.
 
 ## Схема `tasks`
 
@@ -113,7 +116,7 @@ erDiagram
 
 ### Ключи и ограничения
 
-* `tasks.tasks`: `PRIMARY KEY (id)`, внешние ключи `deal_id` → `crm.deals(id)`, `policy_id` → `crm.policies(id)`, `payment_id` → `crm.payments(id)`, `assignee_id` → `auth.users(id)`, `author_id` → `auth.users(id)`. Индексы по `(status, due_date)`, `assignee_id`, `deal_id`.
+* `tasks.tasks`: `PRIMARY KEY (id)`, внешние ключи `deal_id` → `crm.deals(id)`, `policy_id` → `crm.policies(id)`, `payment_id` → `crm.policy_payments(id)`, `assignee_id` → `auth.users(id)`, `author_id` → `auth.users(id)`. Индексы по `(status, due_date)`, `assignee_id`, `deal_id`.
 * `tasks.task_activity`: `PRIMARY KEY (id)`, `FOREIGN KEY (task_id)` → `tasks.tasks(id)`, `FOREIGN KEY (author_id)` → `auth.users(id)`, индекс по `created_at`.
 
 ## Схема `documents`
@@ -194,18 +197,19 @@ erDiagram
 | `auth` | Справочник базовых ролей (продавец, исполнитель, главный админ). Системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. OAuth-клиент для фронтенда. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 
-| `crm.payments` | Фактические оплаты полисов: сумма, валюта (`RUB`), обязательная фактическая дата `actual_date`, комментарий и пользователь, подтвердивший оплату. |
+| `crm.policy_payments` | Платежи полиса: плановые параметры, статус, фактическая дата и пользователь, закрывший платёж. |
+| `crm.payment_transactions` | Операции `income`/`expense` с суммой, валютой, категорией и датой `posted_at`. |
 | `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `waiting` — «Ожидание внешнего действия», `done` — «Выполнена», `cancelled` — «Отменена»). |
 | `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и корневая папка интеграции с Google Drive. |
 | `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
 | `audit` | Не требует отдельного seed, но создаётся запись о запуске миграций.
 
-Отдельные роли финменеджера или руководителя в seed-набор не входят: базовые сценарии закрываются тремя ролями (`sales_agent`, `executor`, `root_admin`). Внешние схемы платежей не используются — факт оплаты фиксируется исключительно в `crm.payments`.
+Отдельные роли финменеджера или руководителя в seed-набор не входят: базовые сценарии закрываются тремя ролями (`sales_agent`, `executor`, `root_admin`). Внешние схемы платежей не используются — факт оплаты фиксируется исключительно в `crm.policy_payments` и `crm.payment_transactions`.
 
 Связи между схемами обеспечиваются внешними ключами:
 
 * Пользовательские ссылки (`sales_agent_id`, `assignee_id`, `recipient_id`, `recorded_by`) указывают на `auth.users`.
-* Бизнес-сущности `crm.payments`, `tasks.tasks`, `notifications.notifications` и `documents.document_links` привязываются к сделкам и полисам через ключи на таблицы схем `crm`.
+* Бизнес-сущности `crm.policy_payments`, `crm.payment_transactions`, `tasks.tasks`, `notifications.notifications` и `documents.document_links` привязываются к сделкам и полисам через ключи на таблицы схем `crm`.
 * Audit фиксирует события с произвольным payload и тегами, которые можно связывать с объектами других схем через содержимое `payload`/`audit.audit_event_tags`.
 
 Seed-скрипты должны исполняться после базовых миграций каждой схемы и гарантировать целостность ссылок (например, напоминания задач опираются на справочник ролей, поэтому роли должны быть загружены первыми).

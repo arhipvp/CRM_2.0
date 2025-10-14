@@ -16,7 +16,12 @@
 | `deal.status.changed` | `crm.deal.status_changed` | `{ "deal_id": "uuid", "old_status": "draft", "new_status": "issuing", "changed_at": "datetime", "actor_id": "uuid" }` | CRM повторно не публикует одинаковые переходы; потребители проверяют пару (`deal_id`, `event_id`). |
 | `policy.issued` | `crm.policy.issued` | `{ "policy_id": "uuid", "deal_id": "uuid", "effective_from": "date", "effective_to": "date", "premium_amount": 12345.67 }` | Tasks/Notifications сохраняют `policy_id` + `event_id`. |
 | `task.requested` | `crm.task.requested` | `{ "task_id": "uuid", "deal_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date" }` | Tasks сверяет `task_id` и создаёт/обновляет запись, сохраняя `event_id`. |
-| `deal.payment.updated` | `crm.deal.payment.updated` | `{ "deal_id": "uuid", "policy_id": "uuid", "actual_date": "date", "amount": 12345.67, "recorded_by_id": "uuid", "updated_at": "datetime" }` | Потребители фиксируют комбинацию (`deal_id`, `policy_id`, `event_id`). |
+| `deal.payment.created` | `crm.deal.payment.created` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "sequence": 1, "planned_amount": "12345.67", "status": "scheduled", "planned_date": "date" }` | Потребители фиксируют `payment_id` + `event_id`. |
+| `deal.payment.updated` | `crm.deal.payment.updated` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "status": "partially_paid", "actual_date": "date", "net_total": "12345.67", "updated_at": "datetime" }` | Повторы отбрасываются по `payment_id` + `event_id`. |
+| `deal.payment.deleted` | `crm.deal.payment.deleted` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "deleted_at": "datetime" }` | Потребители помечают запись удалённой и сохраняют `event_id`. |
+| `deal.payment.transaction.created` | `crm.deal.payment.transaction.created` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "transaction_id": "uuid", "type": "income", "amount": "1234.56", "posted_at": "date" }` | Идемпотентность по `transaction_id`. |
+| `deal.payment.transaction.updated` | `crm.deal.payment.transaction.updated` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "transaction_id": "uuid", "amount": "1234.56", "posted_at": "date" }` | Потребители хранят `transaction_id` + `event_id`. |
+| `deal.payment.transaction.deleted` | `crm.deal.payment.transaction.deleted` | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "transaction_id": "uuid" }` | Повторы игнорируются по `transaction_id` + `event_id`. |
 
 ## События Tasks
 - **Exchange:** `tasks.events`

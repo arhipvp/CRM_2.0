@@ -150,16 +150,18 @@
         "created_at": "2024-02-17T10:00:00Z",
         "text": "Получили согласование расчёта."
       },
-      "payment": {
-        "amount": 250000,
-        "currency": "RUB",
-        "actual_date": "2024-02-18",
-        "comment": "Оплата подтвердила Мария Иванова",
-        "recorded_by": {
-          "id": "uuid",
-          "full_name": "Мария Иванова"
+      "payments": [
+        {
+          "id": "7a0b99f3-0d19-48db-b229-feb62ad633c7",
+          "sequence": 1,
+          "status": "partially_paid",
+          "planned_date": "2024-03-01",
+          "planned_amount": "150000.00",
+          "currency": "RUB",
+          "actual_date": null,
+          "net_total": "80000.00"
         }
-      },
+      ],
       "assigned_users": [
         {"id": "uuid", "role": "agent"},
         {"id": "uuid", "role": "executor"}
@@ -195,24 +197,22 @@ Gateway обрабатывает валидацию и транзакции, з�
 | 403 | `forbidden` | Пользователь не имеет права создавать сделки. |
 | 409 | `deal_conflict` | Сервис CRM вернул конфликт (например, сделка уже существует). |
 
-### PATCH `/api/v1/deals/{deal_id}/policies/{policy_id}/payment`
-Фиксирует фактическую дату оплаты полиса и комментарий продавца. Gateway валидирует права пользователя и проксирует запрос в CRM.
+### Проксирование платежей полиса
+Gateway предоставляет typed-роуты поверх CRM Payments API. Все ответы соответствуют [`docs/api/payments.md`](payments.md).
 
-**Параметры пути**
-| Имя | Тип | Описание |
+| Метод и путь | Назначение | Примечания |
 | --- | --- | --- |
-| deal_id | UUID | Идентификатор сделки. |
-| policy_id | UUID | Идентификатор полиса внутри сделки. |
-
-**Тело запроса**
-| Поле | Тип | Обязательное | Описание |
-| --- | --- | --- | --- |
-| actual_date | date (`YYYY-MM-DD`) | Да | Фактическая дата поступления оплаты. |
-| comment | string | Нет | Дополнительный комментарий (до 500 символов). |
-
-**Ответ 200** — объект платежа с полями `amount`, `currency`, `actual_date`, `comment`, `recorded_by` и `updated_at` (см. [`docs/api/payments.md`](payments.md)).
-
-**Ошибки:** `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
+| `GET /api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Список платежей полиса. | Поддерживает query-параметры `status[]`, `include[]`, `limit`, `offset`. |
+| `POST /api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Создание платежа. | Тело запроса: `planned_amount` (обязательно), `currency`, `planned_date`, `comment`. |
+| `GET /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Получение платежа. | Поддерживает `include[]=incomes`, `include[]=expenses`. |
+| `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Обновление платежа. | Допускает обновление плановых значений, комментария, `actual_date`, статуса. |
+| `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Удаление платежа. | Флаг `force=true` обязателен, если у платежа уже есть операции. |
+| `POST /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes` | Добавление поступления. | Тело запроса: `amount`, `currency`, `category`, `posted_at`, `note`. |
+| `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}` | Изменение поступления. | Поля `amount`, `category`, `posted_at`, `note` опциональны. |
+| `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}` | Удаление поступления. | 204 при успехе. |
+| `POST /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses` | Добавление расхода. | Аналогично `/incomes`. |
+| `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}` | Изменение расхода. | 200 с обновлённым объектом. |
+| `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}` | Удаление расхода. | 204 при успехе. |
 
 ### POST `/api/v1/telegram/webhook`
 Принимает события Telegram и маршрутизирует их к Notifications/CRM.
