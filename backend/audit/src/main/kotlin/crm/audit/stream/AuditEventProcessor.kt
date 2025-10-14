@@ -24,10 +24,11 @@ open class AuditEventProcessor(
 
     open fun process(event: AuditEventMessage) {
         logger.info(
-            "Получено аудиторское событие type={}, id={}, source={}",
+            "Получено аудиторское событие type={}, id={}, source={}, messageId={}",
             event.eventType,
             event.eventId,
-            event.source
+            event.source,
+            event.messageId
         )
 
         runBlocking {
@@ -35,16 +36,18 @@ open class AuditEventProcessor(
             val existing = resolveExistingEvent(event, occurredAt)
             if (existing != null) {
                 logger.debug(
-                    "Событие уже сохранено type={}, id={}, source={} — пропускаем",
+                    "Событие уже сохранено type={}, id={}, source={}, messageId={} — пропускаем",
                     event.eventType,
                     event.eventId,
-                    event.source
+                    event.source,
+                    event.messageId
                 )
                 return@runBlocking
             }
 
             val entity = AuditEventEntity(
                 eventId = event.eventId,
+                messageId = event.messageId,
                 eventType = event.eventType,
                 eventSource = event.source,
                 occurredAt = occurredAt,
@@ -59,18 +62,20 @@ open class AuditEventProcessor(
                     tagRepository.saveAll(tags)
                 }
                 logger.debug(
-                    "Событие сохранено type={}, id={}, source={}, occurredAt={}",
+                    "Событие сохранено type={}, id={}, source={}, occurredAt={}, messageId={}",
                     event.eventType,
                     event.eventId,
                     event.source,
-                    entity.occurredAt
+                    entity.occurredAt,
+                    event.messageId
                 )
             } catch (duplicate: DuplicateKeyException) {
                 logger.debug(
-                    "Повторная доставка события type={}, id={}, source={} — запись уже существует",
+                    "Повторная доставка события type={}, id={}, source={}, messageId={} — запись уже существует",
                     event.eventType,
                     event.eventId,
                     event.source,
+                    event.messageId,
                     duplicate
                 )
             }
@@ -82,6 +87,8 @@ open class AuditEventProcessor(
         occurredAt: OffsetDateTime
     ): AuditEventEntity? {
         return when {
+            !event.messageId.isNullOrBlank() -> repository.findByMessageId(event.messageId)
+            !event.eventId.isNullOrBlank() -> repository.findByEventId(event.eventId)
             !event.eventId.isNullOrBlank() -> repository.findByEventIdAndOccurredAt(event.eventId, occurredAt)
             else -> repository.findByEventTypeAndOccurredAtAndEventSource(
                 event.eventType,
