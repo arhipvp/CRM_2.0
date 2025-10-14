@@ -50,23 +50,40 @@ compose_rabbitmqctl() {
 }
 
 rabbitmq_status() {
-  docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq \
+  docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1 \
     | python3 - <<'PY'
 import json
 import sys
 
-raw = sys.stdin.read().strip()
-if not raw:
+lines = sys.stdin.read().splitlines()
+json_lines = []
+
+for line in lines:
+    stripped = line.lstrip()
+    if not stripped:
+        continue
+    if stripped[0] in '{[':
+        json_lines.append(line)
+    else:
+        print(line, file=sys.stderr)
+
+payload = "\n".join(json_lines).strip()
+
+if not payload:
     print("absent")
     print("")
     sys.exit(0)
 
 try:
-    data = json.loads(raw)
-except json.JSONDecodeError:
-    print("unknown")
-    print("")
-    sys.exit(0)
+    data = json.loads(payload)
+except json.JSONDecodeError as exc:
+    filtered_lines = payload.splitlines()
+    error_line = filtered_lines[exc.lineno - 1] if 0 < exc.lineno <= len(filtered_lines) else payload
+    print(
+        f"[Ошибка] docker compose ps вернул невалидный JSON: строка {exc.lineno}: {error_line.strip()} ({exc.msg})",
+        file=sys.stderr,
+    )
+    sys.exit(3)
 
 if not data:
     print("absent")
@@ -80,6 +97,7 @@ PY
 
 wait_for_rabbitmq_ready() {
   echo "[Инфо] Ожидаем готовность RabbitMQ (healthcheck)..."
+  local status_output=""
   local -a status_lines=()
   local state="" health="" attempt=0
   local max_attempts=30
@@ -87,7 +105,12 @@ wait_for_rabbitmq_ready() {
 
   while (( attempt < max_attempts )); do
     ((attempt++))
-    mapfile -t status_lines < <(rabbitmq_status)
+    if ! status_output=$(rabbitmq_status); then
+      echo "[Ошибка] Не удалось получить статус RabbitMQ. Прерываем ожидание." >&2
+      return 1
+    fi
+
+    mapfile -t status_lines <<<"${status_output}"$'\n'
     state="${status_lines[0]:-unknown}"
     health="${status_lines[1]:-}"
 
@@ -112,8 +135,15 @@ wait_for_rabbitmq_ready() {
 }
 
 ensure_rabbitmq_ready() {
+  local status_output=""
   local -a status_lines=()
-  mapfile -t status_lines < <(rabbitmq_status)
+
+  if ! status_output=$(rabbitmq_status); then
+    echo "[Ошибка] Не удалось получить статус RabbitMQ перед запуском." >&2
+    exit 1
+  fi
+
+  mapfile -t status_lines <<<"${status_output}"$'\n'
   local state="${status_lines[0]:-}"
 
   if [[ "${state}" != "running" ]]; then
