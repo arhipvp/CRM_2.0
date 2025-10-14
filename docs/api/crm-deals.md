@@ -134,6 +134,15 @@
 ### PATCH `/policies/{policy_id}`
 Обновляет `status`, `premium`, `effective_from`, `effective_to`.
 
+## Платежи
+
+CRM ведёт платежи внутри сервиса; подробные сценарии описаны в [`docs/api/payments.md`](payments.md). Основные маршруты:
+
+- `GET /deals/{deal_id}/policies/{policy_id}/payments` — список платежей полиса с агрегатами и фильтром по статусу (`status[]=paid`).
+- `POST /deals/{deal_id}/policies/{policy_id}/payments` — создание платежа с плановой датой и суммой.
+- `POST /deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes` / `/expenses` — фиксация поступлений и расходов.
+- `PATCH`/`DELETE` для платежей и отдельных операций пересчитывают агрегаты (`incomes_total`, `expenses_total`, `net_total`) и публикуют события `deal.payment.*`.
+
 ## Задачи первого уровня
 
 ### GET `/tasks`

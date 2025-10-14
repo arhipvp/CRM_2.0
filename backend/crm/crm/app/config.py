@@ -38,15 +38,7 @@ class Settings(BaseSettings):
     )
 
     events_exchange: str = Field(default="crm.events")
-    payments_exchange: str = Field(default="payments.events")
-    payments_queue: str = Field(default="crm.payments-sync")
-    payments_retry_exchange: str = Field(default="crm.payments-sync.retry")
-    payments_retry_queue: str = Field(default="crm.payments-sync.retry")
-    payments_dlx_exchange: str = Field(default="crm.payments-sync.dlx")
-    payments_dlx_queue: str = Field(default="crm.payments-sync.dlx")
-    payments_retry_delay_ms: int = Field(default=60_000)
-    payments_retry_limit: int = Field(default=5)
-    enable_payments_consumer: bool = Field(default=True, alias="enable_payments_consumer")
+    celery_retry_delay_seconds: int = Field(default=60)
 
     default_tenant_id: Optional[str] = None
 

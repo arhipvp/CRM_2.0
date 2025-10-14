@@ -1,20 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, date
+from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import (
-    Boolean,
-    Date,
-    DateTime,
-    ForeignKey,
-    Index,
-    JSON,
-    Numeric,
-    String,
-    Text,
-    func,
-)
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, JSON, Numeric, String, Text, func, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.schema import MetaData
@@ -116,24 +106,80 @@ class Task(CRMBase, TimestampMixin, OwnershipMixin):
     )
 
 
-class PaymentSyncLog(CRMBase, TimestampMixin, OwnershipMixin):
-    __tablename__ = "payment_sync_log"
+class Payment(CRMBase, TimestampMixin):
+    __tablename__ = "payments"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    event_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True)
-    payment_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    deal_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    policy_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False)
-    amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    currency: Mapped[str | None] = mapped_column(String(12), nullable=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    deal_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    policy_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled")
+    planned_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(12), nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    incomes_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    expenses_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    net_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+
+    incomes: Mapped[list["PaymentIncome"]] = relationship(
+        back_populates="payment",
+        cascade="all, delete-orphan",
+        order_by="PaymentIncome.posted_at",
+    )
+    expenses: Mapped[list["PaymentExpense"]] = relationship(
+        back_populates="payment",
+        cascade="all, delete-orphan",
+        order_by="PaymentExpense.posted_at",
+    )
 
     __table_args__ = (
-        Index("ix_payment_sync_log_status", "status"),
-        Index("ix_payment_sync_log_payment", "payment_id"),
+        Index("ux_payments_policy_sequence", "policy_id", "sequence", unique=True),
+        Index("ix_payments_status", "status"),
     )
+
+
+class PaymentIncome(CRMBase, TimestampMixin):
+    __tablename__ = "payment_incomes"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    payment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("crm.payments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(12), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    posted_at: Mapped[date] = mapped_column(Date, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    payment: Mapped[Payment] = relationship(back_populates="incomes")
+
+
+class PaymentExpense(CRMBase, TimestampMixin):
+    __tablename__ = "payment_expenses"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    payment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("crm.payments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(12), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    posted_at: Mapped[date] = mapped_column(Date, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    payment: Mapped[Payment] = relationship(back_populates="expenses")
 
 
 class PermissionSyncJob(CRMBase, TimestampMixin):

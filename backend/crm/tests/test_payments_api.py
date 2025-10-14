@@ -1,0 +1,199 @@
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import date
+from uuid import uuid4
+
+import aio_pika
+import pytest
+
+from crm.domain import schemas
+
+
+async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, dict[str, object]]]:
+    events: list[tuple[str, dict[str, object]]] = []
+    while True:
+        try:
+            message = await asyncio.wait_for(queue.get(), timeout=1)
+        except asyncio.TimeoutError:
+            break
+        payload = json.loads(message.body.decode("utf-8"))
+        events.append((message.routing_key, payload))
+        await message.ack()
+    return events
+
+
+@pytest.mark.asyncio()
+async def test_payments_flow(api_client, configure_environment):
+    settings = configure_environment
+    tenant_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    connection = await aio_pika.connect_robust(str(settings.rabbitmq_url))
+    channel = await connection.channel()
+    exchange = await channel.declare_exchange(settings.events_exchange, aio_pika.ExchangeType.TOPIC, durable=True)
+    events_queue = await channel.declare_queue(exclusive=True)
+    await events_queue.bind(exchange, routing_key="deal.payment.#")
+
+    client_payload = {
+        "name": "ООО Альфа",
+        "email": "alpha@example.com",
+        "phone": "+7-900-000-00-00",
+        "owner_id": str(uuid4()),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "КАСКО",
+        "description": "Оплата полиса",
+        "owner_id": str(uuid4()),
+        "value": 1000,
+        "next_review_at": date.today().isoformat(),
+    }
+    deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert deal_resp.status_code == 201
+    deal = schemas.DealRead.model_validate(deal_resp.json())
+
+    policy_payload = {
+        "client_id": str(client.id),
+        "deal_id": str(deal.id),
+        "policy_number": "POL-001",
+        "owner_id": str(uuid4()),
+        "premium": 1200,
+    }
+    policy_resp = await api_client.post("/api/v1/policies/", json=policy_payload, headers=headers)
+    assert policy_resp.status_code == 201
+    policy = schemas.PolicyRead.model_validate(policy_resp.json())
+
+    payment_payload = {
+        "planned_amount": "1000.00",
+        "currency": "RUB",
+        "comment": "Аванс",
+        "planned_date": date.today().isoformat(),
+    }
+    payment_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments",
+        json=payment_payload,
+        headers=headers,
+    )
+    assert payment_resp.status_code == 201
+    payment = schemas.PaymentRead.model_validate(payment_resp.json())
+    assert payment.status == "scheduled"
+    assert payment.incomes_total == 0
+
+    income_payload = {
+        "amount": "400.00",
+        "currency": "RUB",
+        "category": "wire",
+        "posted_at": date.today().isoformat(),
+    }
+    income_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes",
+        json=income_payload,
+        headers=headers,
+    )
+    assert income_resp.status_code == 201
+
+    payment_after_income = await api_client.get(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        headers=headers,
+    )
+    assert payment_after_income.status_code == 200
+    payment_data = schemas.PaymentRead.model_validate(payment_after_income.json())
+    assert payment_data.status == "partially_paid"
+    assert payment_data.incomes_total == 400
+
+    second_income_payload = {
+        "amount": "700.00",
+        "currency": "RUB",
+        "category": "cash",
+        "posted_at": date.today().isoformat(),
+    }
+    second_income_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes",
+        json=second_income_payload,
+        headers=headers,
+    )
+    assert second_income_resp.status_code == 201
+
+    expense_payload = {
+        "amount": "100.00",
+        "currency": "RUB",
+        "category": "agency_fee",
+        "posted_at": date.today().isoformat(),
+    }
+    expense_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/expenses",
+        json=expense_payload,
+        headers=headers,
+    )
+    assert expense_resp.status_code == 201
+
+    list_resp = await api_client.get(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments",
+        params={"include[]": ["incomes", "expenses"]},
+        headers=headers,
+    )
+    assert list_resp.status_code == 200
+    collection = schemas.PaymentList.model_validate(list_resp.json())
+    assert collection.total == 1
+    listed_payment = collection.items[0]
+    assert listed_payment.status == "paid"
+    assert listed_payment.incomes_total == 1100
+    assert listed_payment.expenses_total == 100
+    assert listed_payment.net_total == 1000
+    assert len(listed_payment.incomes) == 2
+    assert len(listed_payment.expenses) == 1
+
+    update_resp = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        json={"comment": "Оплата подтверждена"},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+    updated_payment = schemas.PaymentRead.model_validate(update_resp.json())
+    assert updated_payment.comment == "Оплата подтверждена"
+
+    delete_expense_resp = await api_client.delete(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/expenses/{listed_payment.expenses[0].id}",
+        headers=headers,
+    )
+    assert delete_expense_resp.status_code == 204
+
+    final_payment_resp = await api_client.get(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        params={"include[]": ["incomes", "expenses"]},
+        headers=headers,
+    )
+    assert final_payment_resp.status_code == 200
+    final_payment = schemas.PaymentRead.model_validate(final_payment_resp.json())
+    assert final_payment.expenses_total == 0
+    assert final_payment.net_total == 1100
+
+    delete_payment_resp = await api_client.delete(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        headers=headers,
+    )
+    assert delete_payment_resp.status_code == 204
+
+    missing_resp = await api_client.get(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        headers=headers,
+    )
+    assert missing_resp.status_code == 404
+
+    events = await _collect_events(events_queue)
+    await channel.close()
+    routing_keys = {routing for routing, _ in events}
+    assert "deal.payment.created" in routing_keys
+    assert "deal.payment.updated" in routing_keys
+    assert "deal.payment.income.created" in routing_keys
+    assert "deal.payment.expense.created" in routing_keys
+    assert "deal.payment.expense.deleted" in routing_keys
+    assert "deal.payment.deleted" in routing_keys
+
+    await connection.close()

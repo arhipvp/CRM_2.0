@@ -8,29 +8,29 @@ from fastapi import FastAPI
 
 from crm.api.router import get_api_router
 from crm.app.config import settings
-from crm.app.dependencies import close_permissions_queue, get_session_factory
-from crm.app.events import PaymentsEventsSubscriber
+from crm.app.dependencies import close_permissions_queue
+from crm.app.events import EventsPublisher
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    subscriber: PaymentsEventsSubscriber | None = None
-    if settings.enable_payments_consumer:
-        try:
-            subscriber = PaymentsEventsSubscriber(settings, get_session_factory())
-            await subscriber.start()
-            logger.info("Payments events subscriber started")
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Failed to start payments events subscriber: %s", exc)
-            subscriber = None
+    publisher = EventsPublisher(settings)
     try:
-        yield {"payments_subscriber": subscriber}
+        await publisher.connect()
+        app.state.events_publisher = publisher
+        logger.info("Events publisher connected")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to start events publisher: %s", exc)
+        app.state.events_publisher = None
+    try:
+        yield {"events_publisher": app.state.events_publisher}
     finally:
-        if subscriber is not None:
-            await subscriber.stop()
-            logger.info("Payments events subscriber stopped")
+        publisher_instance = app.state.events_publisher
+        if isinstance(publisher_instance, EventsPublisher):
+            await publisher_instance.close()
+            logger.info("Events publisher disconnected")
         await close_permissions_queue()
 
 
