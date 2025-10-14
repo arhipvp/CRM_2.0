@@ -8,9 +8,13 @@ import request from 'supertest';
 import { DataSource, Repository } from 'typeorm';
 import { DataType, newDb } from 'pg-mem';
 import { NotificationsDispatchController } from './notifications.dispatch.controller';
+import { InternalServerErrorException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity, NotificationStatus } from './notification.entity';
-import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
+import {
+  NotificationDeliveryAttemptEntity,
+  NotificationDeliveryAttemptStatus
+} from './notification-delivery-attempt.entity';
 import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationEventsService } from './notification-events.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
@@ -171,5 +175,37 @@ describe('NotificationsDispatchController (e2e)', () => {
       .expect(400);
 
     expect(invalidResponse.body.message).toBeDefined();
+  });
+
+  it('returns 500 when internal dispatch fails', async () => {
+    eventsServiceMock.handleIncoming.mockRejectedValueOnce(
+      new InternalServerErrorException('notification_dispatch_failed')
+    );
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/notifications')
+      .send({
+        eventKey: 'deal.created',
+        recipients: [{ userId: 'user-1', telegramId: '1000' }],
+        payload: { dealId: '123' },
+        channelOverrides: ['telegram']
+      })
+      .expect(500);
+
+    expect(response.body.message).toBe('notification_dispatch_failed');
+
+    const notifications = await notificationsRepository.find();
+    expect(notifications).toHaveLength(1);
+    const [notification] = notifications;
+    expect(notification.status).toBe(NotificationStatus.FAILED);
+
+    const attempts = await attemptsRepository.find({
+      where: { notificationId: notification.id },
+      order: { attemptNumber: 'ASC' }
+    });
+    expect(attempts).toHaveLength(3);
+    expect(attempts[2].channel).toBe('events-service');
+    expect(attempts[2].status).toBe(NotificationDeliveryAttemptStatus.FAILURE);
+    expect(attempts[2].error).toBe('notification_dispatch_failed');
   });
 });

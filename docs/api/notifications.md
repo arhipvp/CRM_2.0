@@ -67,7 +67,7 @@
 
 **Ответ 202** — уведомление поставлено в очередь, тело содержит `notification_id` (UUID записи в таблице `notifications`).
 
-**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplicationKey`).
+**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplicationKey`), `500 notification_dispatch_failed` (ошибка синхронной отправки в Telegram/SSE).
 
 > ⚙️ Постановка идемпотентна: если указать `deduplicationKey` и повторить запрос, сервис вернёт `409 duplicate_notification`, не создавая дублирующих записей и попыток доставки.
 
@@ -142,3 +142,4 @@
 | 409 | `conflict` | Конфликт по ключу или дублирование. |
 | 429 | `rate_limited` | Превышена квота отправки. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
+| 500 | `notification_dispatch_failed` | Ошибка синхронной отправки, уведомление переведено в статус `failed`. |

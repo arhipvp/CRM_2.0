@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,7 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@liaoliaots/nestjs-redis';
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity, NotificationStatus } from './notification.entity';
-import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
+import {
+  NotificationDeliveryAttemptEntity,
+  NotificationDeliveryAttemptStatus
+} from './notification-delivery-attempt.entity';
 import { NotificationsConfiguration } from '../config/configuration';
 import { NotificationEventsService } from './notification-events.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -45,6 +48,12 @@ describe('NotificationsService', () => {
       create: jest.fn(),
       save: jest.fn()
     } as unknown as jest.Mocked<Repository<NotificationDeliveryAttemptEntity>>;
+    (attemptsRepository.create as jest.Mock).mockImplementation(
+      (payload) => payload as NotificationDeliveryAttemptEntity
+    );
+    (attemptsRepository.save as jest.Mock).mockImplementation(
+      async (entity) => entity as NotificationDeliveryAttemptEntity
+    );
 
     amqpConnection = { publish: jest.fn().mockResolvedValue(undefined) };
     redisClient = { publish: jest.fn().mockResolvedValue(1) };
@@ -148,5 +157,30 @@ describe('NotificationsService', () => {
     notificationsRepository.save.mockRejectedValue(queryError);
 
     await expect(service.enqueue(dto)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('marks notification as failed when internal dispatch fails', async () => {
+    notificationEventsService.handleIncoming.mockRejectedValue(
+      new InternalServerErrorException('notification_dispatch_failed')
+    );
+
+    await expect(service.enqueue(dto)).rejects.toMatchObject({
+      response: expect.objectContaining({ message: 'notification_dispatch_failed' })
+    });
+
+    expect(attemptsRepository.create).toHaveBeenCalledTimes(3);
+    const failureAttempt = (attemptsRepository.create as jest.Mock).mock.calls[2][0];
+    expect(failureAttempt.channel).toBe('events-service');
+    expect(failureAttempt.status).toBe(NotificationDeliveryAttemptStatus.FAILURE);
+    expect(failureAttempt.error).toBe('notification_dispatch_failed');
+
+    expect(notificationsRepository.update).toHaveBeenCalledWith('notification-id', {
+      status: NotificationStatus.FAILED,
+      lastError: 'notification_dispatch_failed'
+    });
+    const statuses = notificationsRepository.update.mock.calls
+      .map(([, payload]) => (payload as Partial<NotificationEntity>).status)
+      .filter(Boolean);
+    expect(statuses).not.toContain(NotificationStatus.PROCESSED);
   });
 });
