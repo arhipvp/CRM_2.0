@@ -1,5 +1,4 @@
-import { INestApplication } from '@nestjs/common';
-import { ConflictException, INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 
@@ -54,6 +53,20 @@ describe('DocumentsController', () => {
 
   afterEach(async () => {
     await app.close();
+  });
+
+  it('GET /documents возвращает массив документов и заголовок X-Total-Count', async () => {
+    const documents = [
+      { id: 'doc-1', name: 'Полис', status: 'synced', createdAt: new Date().toISOString() },
+    ];
+    documentsService.findAll.mockResolvedValue([documents, 32]);
+
+    const response = await request(app.getHttpServer()).get('/documents');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(documents);
+    expect(response.headers['x-total-count']).toBe('32');
+    expect(documentsService.findAll).toHaveBeenCalledWith(expect.objectContaining({ limit: 25, offset: 0 }));
   });
 
   it('DELETE /documents/:id возвращает 204 при успешном удалении', async () => {
