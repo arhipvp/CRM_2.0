@@ -94,4 +94,28 @@ describe('DriveService', () => {
 
     expect(mockedAxios.delete).not.toHaveBeenCalled();
   });
+
+  it('создаёт папку в эмуляторе Google Drive', async () => {
+    mockedAxios.post.mockResolvedValue({
+      data: { id: 'drive-folder-id', name: 'Client 123' },
+    });
+
+    const folder = await service.createFolder('Client 123');
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      new URL('/files', 'http://localhost:9000').toString(),
+      expect.objectContaining({
+        name: 'Client 123',
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: ['root'],
+      }),
+    );
+
+    expect(folder).toEqual({
+      id: 'drive-folder-id',
+      name: 'Client 123',
+      webViewLink: null,
+      metadata: { id: 'drive-folder-id', name: 'Client 123' },
+    });
+  });
 });

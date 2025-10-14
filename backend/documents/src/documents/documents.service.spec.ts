@@ -1,4 +1,3 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 import { DriveService } from '../drive/drive.service';
@@ -6,6 +5,12 @@ import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { DocumentStatus } from './document-status.enum';
 import { DocumentEntity } from './document.entity';
 import { DocumentsService } from './documents.service';
+import {
+  DocumentAlreadyDeletedException,
+  DocumentNotFoundException,
+  DocumentUploadConflictException,
+} from './documents.exceptions';
+import { UploadUrlService } from './upload-url.service';
 
 const createQueryBuilderMock = () => ({
   where: jest.fn().mockReturnThis(),
@@ -31,15 +36,75 @@ const createDriveServiceMock = (): jest.Mocked<DriveService> =>
     revokeDocument: jest.fn(),
   } as unknown as jest.Mocked<DriveService>);
 
+const createUploadUrlServiceMock = (): jest.Mocked<UploadUrlService> =>
+  ({
+    createUploadUrl: jest.fn(),
+  } as unknown as jest.Mocked<UploadUrlService>);
+
 describe('DocumentsService', () => {
   let service: DocumentsService;
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let driveService: jest.Mocked<DriveService>;
+  let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
     driveService = createDriveServiceMock();
-    service = new DocumentsService(repository, driveService);
+    uploadUrlService = createUploadUrlServiceMock();
+    service = new DocumentsService(repository, uploadUrlService, driveService);
+  });
+
+  it('создаёт документ, заполняет метаданные и возвращает параметры загрузки', async () => {
+    const createdEntity: DocumentEntity = {
+      id: 'doc-1',
+      name: 'Полис',
+      description: 'Оригинал',
+      metadata: {
+        ownerType: 'client',
+        ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+        documentType: 'policy',
+        notes: 'Оригинал',
+        tags: ['2024'],
+      },
+      status: DocumentStatus.PendingUpload,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+    } as DocumentEntity;
+
+    repository.create.mockReturnValue(createdEntity);
+    repository.save.mockResolvedValue(createdEntity);
+    uploadUrlService.createUploadUrl.mockReturnValue({
+      url: 'https://storage.local/documents/doc-1?token=abc',
+      expiresIn: 600,
+    });
+
+    const result = await service.create({
+      ownerType: 'client',
+      ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+      title: 'Полис',
+      documentType: 'policy',
+      notes: 'Оригинал',
+      tags: ['2024'],
+    });
+
+    expect(repository.create).toHaveBeenCalledWith({
+      name: 'Полис',
+      description: 'Оригинал',
+      metadata: {
+        ownerType: 'client',
+        ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+        documentType: 'policy',
+        notes: 'Оригинал',
+        tags: ['2024'],
+      },
+      status: DocumentStatus.PendingUpload,
+    });
+    expect(uploadUrlService.createUploadUrl).toHaveBeenCalledWith('doc-1');
+    expect(result).toEqual({
+      document: createdEntity,
+      uploadUrl: 'https://storage.local/documents/doc-1?token=abc',
+      expiresIn: 600,
+    });
   });
 
   it('исключает удалённые документы из поиска и применяет сортировку', async () => {
@@ -113,13 +178,17 @@ describe('DocumentsService', () => {
     expect(repository.remove).not.toHaveBeenCalled();
   });
 
-  it('бросает исключение, если документ не найден', async () => {
+  it('бросает DocumentNotFoundException, если документ не найден', async () => {
     repository.findOne.mockResolvedValue(null);
 
-    await expect(service.remove('missing')).rejects.toBeInstanceOf(NotFoundException);
+    const promise = service.remove('missing');
+
+    await expect(promise).rejects.toBeInstanceOf(DocumentNotFoundException);
+    const error = (await promise.catch((err) => err)) as DocumentNotFoundException;
+    expect(error.getResponse()).toMatchObject({ code: 'document_not_found' });
   });
 
-  it('бросает ConflictException с кодом already_deleted, если документ уже удалён', async () => {
+  it('бросает DocumentAlreadyDeletedException с кодом already_deleted, если документ уже удалён', async () => {
     const deletedAt = new Date('2024-01-02T00:00:00Z');
     const document: DocumentEntity = {
       id: 'doc-deleted',
@@ -133,9 +202,9 @@ describe('DocumentsService', () => {
 
     const promise = service.remove(document.id);
 
-    await expect(promise).rejects.toBeInstanceOf(ConflictException);
+    await expect(promise).rejects.toBeInstanceOf(DocumentAlreadyDeletedException);
 
-    const error = (await promise.catch((err) => err)) as ConflictException;
+    const error = (await promise.catch((err) => err)) as DocumentAlreadyDeletedException;
     expect(error.getResponse()).toMatchObject({ code: 'already_deleted' });
     expect(driveService.revokeDocument).not.toHaveBeenCalled();
     expect(repository.save).not.toHaveBeenCalled();
@@ -146,11 +215,13 @@ describe('DocumentsService.completeUpload', () => {
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let service: DocumentsService;
   let driveService: jest.Mocked<DriveService>;
+  let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
     driveService = createDriveServiceMock();
-    service = new DocumentsService(repository, driveService);
+    uploadUrlService = createUploadUrlServiceMock();
+    service = new DocumentsService(repository, uploadUrlService, driveService);
   });
 
   it('переводит документ в статус uploaded и сохраняет атрибуты файла', async () => {
@@ -182,15 +253,18 @@ describe('DocumentsService.completeUpload', () => {
     });
   });
 
-  it('выбрасывает NotFoundException, если документ не найден', async () => {
+  it('выбрасывает DocumentNotFoundException, если документ не найден', async () => {
     repository.findOne.mockResolvedValue(null);
 
-    await expect(service.completeUpload('missing-id', { fileSize: 10, checksum: 'a'.repeat(32) }))
-      .rejects.toBeInstanceOf(NotFoundException);
+    const promise = service.completeUpload('missing-id', { fileSize: 10, checksum: 'a'.repeat(32) });
+
+    await expect(promise).rejects.toBeInstanceOf(DocumentNotFoundException);
+    const error = (await promise.catch((err) => err)) as DocumentNotFoundException;
+    expect(error.getResponse()).toMatchObject({ code: 'document_not_found' });
     expect(repository.save).not.toHaveBeenCalled();
   });
 
-  it('выбрасывает ConflictException, если документ уже загружен', async () => {
+  it('выбрасывает DocumentUploadConflictException с кодом upload_conflict, если документ уже загружен', async () => {
     const document: DocumentEntity = {
       id: 'doc-2',
       name: 'Another doc',
@@ -202,8 +276,14 @@ describe('DocumentsService.completeUpload', () => {
 
     repository.findOne.mockResolvedValue(document);
 
-    await expect(service.completeUpload(document.id, { fileSize: 10, checksum: 'a'.repeat(32) }))
-      .rejects.toBeInstanceOf(ConflictException);
+    const promise = service.completeUpload(document.id, { fileSize: 10, checksum: 'a'.repeat(32) });
+
+    await expect(promise).rejects.toBeInstanceOf(DocumentUploadConflictException);
+    const error = (await promise.catch((err) => err)) as DocumentUploadConflictException;
+    expect(error.getResponse()).toMatchObject({
+      code: 'upload_conflict',
+      details: { status: DocumentStatus.Synced },
+    });
     expect(repository.save).not.toHaveBeenCalled();
   });
 });

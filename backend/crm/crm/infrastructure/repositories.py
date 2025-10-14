@@ -149,3 +149,35 @@ class PaymentSyncLogRepository(BaseRepository[models.PaymentSyncLog]):
         stmt = select(self.model).where(self.model.event_id == event_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
+
+
+class PermissionSyncJobRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create_job(
+        self,
+        tenant_id: UUID,
+        payload: schemas.SyncPermissionsDto,
+        queue_name: str,
+    ) -> models.PermissionSyncJob:
+        entity = models.PermissionSyncJob(
+            tenant_id=tenant_id,
+            owner_type=payload.owner_type,
+            owner_id=payload.owner_id,
+            queue_name=queue_name,
+            users=[user.model_dump(mode="json") for user in payload.users],
+        )
+        self.session.add(entity)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
+
+    async def mark_failed(self, job_id: UUID, error: str) -> None:
+        stmt = (
+            update(models.PermissionSyncJob)
+            .where(models.PermissionSyncJob.id == job_id)
+            .values(status="failed", last_error=error)
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()

@@ -14,12 +14,26 @@ export interface DocumentsConfiguration {
   queues: {
     documents: string;
   };
+  storage: {
+    uploadBaseUrl: string;
+    uploadTtlSeconds: number;
+  };
   drive: {
     serviceAccountJson?: string;
     sharedDriveId?: string;
     emulatorUrl?: string;
     emulatorRoot?: string;
     credentialsPath?: string;
+  };
+  folders: {
+    templates: {
+      default: string;
+      client: string;
+      deal: string;
+      policy: string;
+      payment: string;
+    };
+    webBaseUrl: string;
   };
 }
 
@@ -44,6 +58,10 @@ export default (): DocumentsConfiguration => ({
   queues: {
     documents: process.env.DOCUMENTS_QUEUE_NAME ?? 'documents:tasks',
   },
+  storage: {
+    uploadBaseUrl: process.env.DOCUMENTS_UPLOAD_URL_BASE ?? 'https://storage.local/documents/upload',
+    uploadTtlSeconds: Number(process.env.DOCUMENTS_UPLOAD_URL_TTL ?? 900),
+  },
   drive: {
     serviceAccountJson: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
     sharedDriveId: process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID,
@@ -53,5 +71,16 @@ export default (): DocumentsConfiguration => ({
       process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH ??
       process.env.GOOGLE_APPLICATION_CREDENTIALS ??
       join(process.cwd(), 'credentials/service-account.json'),
+  },
+  folders: {
+    templates: {
+      default: process.env.DOCUMENTS_FOLDERS_TEMPLATE_DEFAULT ?? '{title}',
+      client: process.env.DOCUMENTS_FOLDERS_TEMPLATE_CLIENT ?? 'Client {ownerId}',
+      deal: process.env.DOCUMENTS_FOLDERS_TEMPLATE_DEAL ?? 'Deal {ownerId}',
+      policy: process.env.DOCUMENTS_FOLDERS_TEMPLATE_POLICY ?? 'Policy {ownerId}',
+      payment: process.env.DOCUMENTS_FOLDERS_TEMPLATE_PAYMENT ?? 'Payment {ownerId}',
+    },
+    webBaseUrl:
+      process.env.DOCUMENTS_FOLDERS_WEB_BASE_URL ?? 'https://drive.google.com/drive/folders/',
   },
 });

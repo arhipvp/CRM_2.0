@@ -19,6 +19,20 @@ type SavedUiState = {
   highlightedDealId?: string;
 };
 
+function areArraysEqual<T>(a: readonly T[], b: readonly T[]) {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 type HomeDealFunnelBoardProps = {
   forceViewMode?: DealViewMode;
 };
@@ -81,44 +95,45 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
         return;
       }
 
+      const { filters, selectedDealIds, previewDealId, highlightedDealId } = savedState.current;
+      const postClearState = clearedState.current;
+
+      if (!postClearState) {
+        useUiStore.setState({ filters, selectedDealIds, previewDealId, highlightedDealId });
+        return;
+      }
+
       const currentState = useUiStore.getState();
+
       const patch: Partial<ReturnType<typeof useUiStore.getState>> = {};
 
-      if (areDealFiltersEqual(currentState.filters, DEFAULT_DEAL_FILTERS)) {
-        patch.filters = savedState.current.filters;
+      const shouldRestoreFilters = areDealFiltersEqual(currentState.filters, postClearState.filters);
+      const shouldRestoreSelectedDeals = areArraysEqual(
+        currentState.selectedDealIds,
+        postClearState.selectedDealIds,
+      );
+      const shouldRestorePreview = currentState.previewDealId === postClearState.previewDealId;
+      const shouldRestoreHighlight = currentState.highlightedDealId === postClearState.highlightedDealId;
+
+      if (shouldRestoreFilters) {
+        patch.filters = filters;
       }
 
-      if (currentState.selectedDealIds.length === 0) {
-        patch.selectedDealIds = savedState.current.selectedDealIds;
+      if (shouldRestoreSelectedDeals) {
+        patch.selectedDealIds = selectedDealIds;
       }
 
-      if (!currentState.previewDealId) {
-        patch.previewDealId = savedState.current.previewDealId;
+      if (shouldRestorePreview) {
+        patch.previewDealId = previewDealId;
       }
 
-      if (!currentState.highlightedDealId) {
-        patch.highlightedDealId = savedState.current.highlightedDealId;
+      if (shouldRestoreHighlight) {
+        patch.highlightedDealId = highlightedDealId;
       }
 
       if (Object.keys(patch).length > 0) {
         useUiStore.setState(patch);
       }
-
-      const { filters, selectedDealIds, previewDealId, highlightedDealId } = savedState.current;
-      const currentState = useUiStore.getState();
-      const postClearState = clearedState.current;
-
-      const shouldRestorePreview =
-        postClearState && currentState.previewDealId === postClearState.previewDealId;
-      const shouldRestoreHighlight =
-        postClearState && currentState.highlightedDealId === postClearState.highlightedDealId;
-
-      useUiStore.setState({
-        filters,
-        selectedDealIds,
-        previewDealId: shouldRestorePreview ? previewDealId : currentState.previewDealId,
-        highlightedDealId: shouldRestoreHighlight ? highlightedDealId : currentState.highlightedDealId,
-      });
     };
   }, []);
 
