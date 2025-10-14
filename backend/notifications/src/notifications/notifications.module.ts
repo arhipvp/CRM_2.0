@@ -9,6 +9,7 @@ import { TelegramService } from './telegram.service';
 import { NotificationsIngressController } from './notifications.ingress.controller';
 import { TelegramDeliveryController } from './telegram-delivery.controller';
 import { NotificationsDispatchController } from './notifications.dispatch.controller';
+import { NotificationsStatusController } from './notifications.status.controller';
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity } from './notification.entity';
 import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
@@ -25,7 +26,8 @@ import { NotificationDeliveryAttemptEntity } from './notification-delivery-attem
     NotificationsController,
     NotificationsIngressController,
     TelegramDeliveryController,
-    NotificationsDispatchController
+    NotificationsDispatchController,
+    NotificationsStatusController
   ],
   providers: [
     NotificationStreamService,

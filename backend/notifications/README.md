@@ -17,6 +17,7 @@ Notifications доставляет события и уведомления во
    - `GET /api/notifications/health` — проверка готовности сервиса.
    - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
    - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
+   - `GET /api/v1/notifications/{id}` — сводный статус доставки (статус, попытки, каналы, `delivered_at`).
    - `GET /api/v1/templates` — чтение шаблонов уведомлений с фильтрами по каналу и активности.
    - `POST /api/v1/templates` — создание шаблонов, конфликтует по паре `key` + `channel`.
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.

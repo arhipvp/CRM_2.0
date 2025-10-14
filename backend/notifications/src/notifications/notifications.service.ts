@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@liaoliaots/nestjs-redis';
@@ -15,9 +15,11 @@ import {
   NotificationEntity,
   NotificationStatus
 } from './notification.entity';
+import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationsConfiguration } from '../config/configuration';
 import { IncomingNotificationDto } from './dto/incoming-notification.dto';
 import { QueryFailedError } from 'typeorm/error/QueryFailedError';
+import { NotificationStatusResponse } from './dto/notification-status.response';
 
 interface DispatchMessage {
   notificationId: string;
@@ -37,6 +39,8 @@ export class NotificationsService {
     private readonly notificationsRepository: Repository<NotificationEntity>,
     @InjectRepository(NotificationDeliveryAttemptEntity)
     private readonly attemptsRepository: Repository<NotificationDeliveryAttemptEntity>,
+    @InjectRepository(NotificationEventEntity)
+    private readonly notificationEventsRepository: Repository<NotificationEventEntity>,
     private readonly notificationEventsService: NotificationEventsService,
     private readonly amqpConnection: AmqpConnection,
     private readonly redisService: RedisService,
@@ -105,6 +109,50 @@ export class NotificationsService {
     }
 
     return this.notificationsRepository.findOneByOrFail({ id: notification.id });
+  }
+
+  async getStatus(id: string): Promise<NotificationStatusResponse | null> {
+    const notification = await this.notificationsRepository.findOne({
+      where: { id },
+      relations: { attempts: true }
+    });
+
+    if (!notification) {
+      return null;
+    }
+
+    const events = await this.notificationEventsRepository.find({
+      where: {
+        payload: Raw(
+          (alias) => `${alias} ->> 'notificationId' = :notificationId`,
+          { notificationId: id }
+        )
+      },
+      order: { createdAt: 'DESC' }
+    });
+
+    const attempts = notification.attempts ?? [];
+    const channels = Array.from(new Set(attempts.map((attempt) => attempt.channel))).sort();
+
+    const deliveredEvent = events.find((event) => {
+      if (event.deliveredToTelegram) {
+        return true;
+      }
+
+      const status = event.telegramDeliveryStatus?.toLowerCase();
+      return status === 'delivered';
+    });
+
+    const deliveredAt = deliveredEvent?.telegramDeliveryOccurredAt ?? null;
+    const status = deliveredEvent ? 'delivered' : notification.status;
+
+    return {
+      id: notification.id,
+      status,
+      attempts: attempts.length,
+      channels,
+      delivered_at: deliveredAt ? deliveredAt.toISOString() : null
+    };
   }
 
   private async publishToRabbit(
