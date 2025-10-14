@@ -43,3 +43,9 @@
 - Быстрые действия: «Открыть», «Дублировать», «Отметить как подтверждённый» (для готовых расчётов).
 
 > Обновлено: 2025-05-18. Ответственные: команда фронтенда сделок.
+
+## REST API
+- Список и фильтры: `GET /api/v1/deals/{deal_id}/calculations?status[]=ready&calculation_date_from=2025-05-01`.
+- Создание и редактирование: `POST`/`PATCH /api/v1/deals/{deal_id}/calculations`.
+- Статусные переходы: `POST /api/v1/deals/{deal_id}/calculations/{id}/status` (`ready`, `confirmed`, `archived`).
+- События для realtime-интерфейса: `deal.calculation.created|updated|status.*|deleted` в топике `crm.events`.
