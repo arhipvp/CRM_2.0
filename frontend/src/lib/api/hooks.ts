@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import { apiClient, type UpdateTaskPayload } from "@/lib/api/client";
 import {
   dealStageMetricsQueryKey,
   dealActivityQueryOptions,
@@ -69,32 +69,72 @@ export function useTasks() {
   return useQuery(tasksQueryOptions());
 }
 
+function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>, task: { dealId?: string }) {
+  const invalidations = [
+    queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
+    queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+    queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+  ];
+
+  if (task.dealId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: dealQueryOptions(task.dealId).queryKey,
+        exact: true,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+      }),
+    );
+  }
+
+  return invalidations;
+}
+
 export function useToggleTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ["toggle-task"],
     mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
-      apiClient.updateTaskStatus(taskId, completed),
+      apiClient.updateTask(taskId, { completed }),
     onSuccess: async (task) => {
-      const invalidations = [
-        queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
-        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
-      ];
+      const invalidations = createTaskInvalidations(queryClient, task);
+      await Promise.all(invalidations);
+    },
+  });
+}
 
-      if (task.dealId) {
-        invalidations.push(
-          queryClient.invalidateQueries({
-            queryKey: dealQueryOptions(task.dealId).queryKey,
-            exact: true,
-          }),
-          queryClient.invalidateQueries({
-            queryKey: dealTasksQueryOptions(task.dealId).queryKey,
-          }),
-        );
-      }
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
 
+  return useMutation({
+    mutationKey: ["update-task"],
+    mutationFn: ({ taskId, payload }: { taskId: string; payload: UpdateTaskPayload }) =>
+      apiClient.updateTask(taskId, payload),
+    onSuccess: async (task) => {
+      const invalidations = createTaskInvalidations(queryClient, task);
+      await Promise.all(invalidations);
+    },
+  });
+}
+
+export function useBulkUpdateTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["bulk-update-tasks"],
+    mutationFn: ({
+      taskIds,
+      payload,
+      options,
+    }: {
+      taskIds: string[];
+      payload: UpdateTaskPayload;
+      options?: { shiftDueDateByDays?: number };
+    }) => apiClient.bulkUpdateTasks(taskIds, payload, options),
+    onSuccess: async (tasks) => {
+      const invalidations = tasks.flatMap((task) => createTaskInvalidations(queryClient, task));
       await Promise.all(invalidations);
     },
   });

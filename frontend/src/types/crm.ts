@@ -68,14 +68,28 @@ export interface Client {
   lastActivityAt: string;
 }
 
+export type TaskStatus = "new" | "in_progress" | "waiting" | "done" | "cancelled";
+
+export type TaskActivityType =
+  | "call"
+  | "meeting"
+  | "document"
+  | "reminder"
+  | "follow_up"
+  | "other";
+
 export interface Task {
   id: string;
   title: string;
   dueDate: string;
+  status: TaskStatus;
   completed: boolean;
   owner: string;
+  type: TaskActivityType;
+  tags: string[];
   dealId?: string;
   clientId?: string;
+  reminderAt?: string;
 }
 
 export type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";
