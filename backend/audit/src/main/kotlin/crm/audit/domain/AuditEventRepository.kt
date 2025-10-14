@@ -8,7 +8,22 @@ import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 
 interface AuditEventRepository : CoroutineCrudRepository<AuditEventEntity, UUID> {
 
+    suspend fun findByMessageId(messageId: String): AuditEventEntity?
+
     suspend fun findByEventId(eventId: String): AuditEventEntity?
+    @Query(
+        """
+        SELECT *
+        FROM audit.audit_events
+        WHERE event_id = :eventId
+          AND occurred_at = :occurredAt
+        LIMIT 1
+        """
+    )
+    suspend fun findByEventIdAndOccurredAt(
+        eventId: String,
+        occurredAt: OffsetDateTime
+    ): AuditEventEntity?
 
     @Query(
         """

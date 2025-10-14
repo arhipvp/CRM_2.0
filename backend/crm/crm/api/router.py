@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from crm.api.routers import (
     calculations,
     clients,
+    deal_journal,
     deals,
     payment_expenses,
     payment_incomes,
@@ -20,6 +21,7 @@ def get_api_router() -> APIRouter:
     router.include_router(clients.router)
     router.include_router(deals.router)
     router.include_router(calculations.router)
+    router.include_router(deal_journal.router)
     router.include_router(permissions.router)
     router.include_router(policies.router)
     router.include_router(tasks.router)

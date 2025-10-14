@@ -12,6 +12,8 @@ data class AuditEventEntity(
     val id: UUID = UUID.randomUUID(),
     @Column("event_id")
     val eventId: String? = null,
+    @Column("message_id")
+    val messageId: String? = null,
     @Column("event_type")
     val eventType: String,
     @Column("event_source")

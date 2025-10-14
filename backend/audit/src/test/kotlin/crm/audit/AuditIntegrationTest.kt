@@ -12,6 +12,9 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.runBlocking
 import org.awaitility.kotlin.await
 import org.junit.jupiter.api.Test
+import org.springframework.amqp.core.MessageBuilder
+import org.springframework.amqp.core.MessageProperties
+import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
@@ -34,6 +37,7 @@ import kotlin.test.assertTrue
 @ActiveProfiles("test")
 class AuditIntegrationTest @Autowired constructor(
     private val rabbitTemplate: RabbitTemplate,
+    private val rabbitAdmin: RabbitAdmin,
     private val webTestClient: WebTestClient,
     private val objectMapper: ObjectMapper,
     private val messagingProperties: AuditMessagingProperties,
@@ -61,7 +65,9 @@ class AuditIntegrationTest @Autowired constructor(
             )
         )
 
+        val messageId = "msg-${UUID.randomUUID()}"
         val json = objectMapper.writeValueAsString(payload)
+        sendJson(messagingProperties.eventsQueue, json, messageId)
         rabbitTemplate.sendToDestination(messagingProperties.eventsExchange, messagingProperties.eventsQueue, json)
 
         await.atMost(Duration.ofSeconds(10)).until {
@@ -69,17 +75,42 @@ class AuditIntegrationTest @Autowired constructor(
         }
 
         // Отправляем дубликат в другую очередь, чтобы проверить идемпотентность
+        sendJson(messagingProperties.coreQueue, json, "msg-${UUID.randomUUID()}")
         rabbitTemplate.sendToDestination(messagingProperties.coreExchange, messagingProperties.coreQueue, json)
 
         await.atMost(Duration.ofSeconds(5)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
         }
 
-        val saved = runBlocking { auditEventRepository.findByEventId(eventId) }
+        val saved = runBlocking {
+            auditEventRepository.findByEventIdAndOccurredAt(eventId, occurredAt.atOffset(ZoneOffset.UTC))
+        }
         requireNotNull(saved)
+
+        val savedByMessageId = runBlocking { auditEventRepository.findByMessageId(messageId) }
+        requireNotNull(savedByMessageId)
+        assertEquals(messageId, savedByMessageId.messageId)
+
+        val duplicatePayload = payload.toMutableMap().apply {
+            put("eventId", "evt-${UUID.randomUUID()}")
+        }
+        val duplicateJson = objectMapper.writeValueAsString(duplicatePayload)
+        sendJson(messagingProperties.eventsQueue, duplicateJson, messageId)
+
+        await.atMost(Duration.ofSeconds(5)).until {
+            runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
+        }
+
+        val consumerQueue = "${messagingProperties.eventsQueue}.${messagingProperties.eventsGroup}"
+        await.atMost(Duration.ofSeconds(5)).until {
+            queueMessageCount(consumerQueue) == 0
+        }
 
         val tags = runBlocking { auditEventTagRepository.findByEventId(saved.id) }
         assertEquals(2, tags.size)
+        tags.forEach { tag ->
+            assertEquals(saved.occurredAt, tag.eventOccurredAt)
+        }
 
         webTestClient
             .get()
@@ -102,6 +133,39 @@ class AuditIntegrationTest @Autowired constructor(
             }
     }
 
+    @Test
+    fun `should write audit event into future monthly partition`() {
+        val futureOccurredAt = Instant.now().plus(6, ChronoUnit.MONTHS).truncatedTo(ChronoUnit.MILLIS)
+        val eventId = "evt-${UUID.randomUUID()}"
+        val payload = mapOf(
+            "eventId" to eventId,
+            "eventType" to "crm.deal.status.changed",
+            "eventSource" to "crm-service",
+            "occurredAt" to futureOccurredAt.toString(),
+            "payload" to mapOf(
+                "data" to mapOf(
+                    "status" to "approved"
+                )
+            )
+        )
+
+        rabbitTemplate.convertAndSend(messagingProperties.eventsQueue, objectMapper.writeValueAsString(payload))
+
+        val expectedOccurredAt = futureOccurredAt.atOffset(ZoneOffset.UTC)
+
+        await.atMost(Duration.ofSeconds(10)).until {
+            runBlocking {
+                auditEventRepository.findByEventIdAndOccurredAt(eventId, expectedOccurredAt)
+            } != null
+        }
+
+        val saved = runBlocking {
+            auditEventRepository.findByEventIdAndOccurredAt(eventId, expectedOccurredAt)
+        }
+
+        requireNotNull(saved)
+        assertEquals(expectedOccurredAt, saved.occurredAt)
+        assertEquals("crm.deal.status.changed", saved.eventType)
     private fun RabbitTemplate.sendToDestination(exchange: String?, routingKey: String, payload: Any) {
         if (exchange.isNullOrBlank()) {
             convertAndSend(routingKey, payload)
@@ -145,5 +209,19 @@ class AuditIntegrationTest @Autowired constructor(
             registry.add("AUDIT_RABBITMQ_PASSWORD") { "audit" }
             registry.add("AUDIT_RABBITMQ_VHOST") { "audit" }
         }
+    }
+
+    private fun queueMessageCount(queue: String): Int? {
+        return rabbitAdmin.getQueueProperties(queue)
+            ?.get(RabbitAdmin.QUEUE_MESSAGE_COUNT)
+            ?.let { (it as? Number)?.toInt() }
+    }
+
+    private fun sendJson(queue: String, json: String, messageId: String) {
+        val message = MessageBuilder.withBody(json.toByteArray(Charsets.UTF_8))
+            .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+            .setMessageId(messageId)
+            .build()
+        rabbitTemplate.send(queue, message)
     }
 }

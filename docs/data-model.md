@@ -74,6 +74,13 @@ erDiagram
 
 * `next_review_at` (`date`, NOT NULL) — дата ближайшего пересмотра сделки, используется для планирования повторного контакта и контроля активности по воронке.
 
+#### Поля `crm.deal_journal`
+
+* `deal_id` (`uuid`, NOT NULL) — идентификатор сделки, к которой относится запись.
+* `author_id` (`uuid`, NOT NULL) — пользователь или интеграция, оставившие заметку.
+* `body` (`text`, NOT NULL) — текст заметки (API ограничивает длину 5000 символов).
+* `created_at` (`timestamptz`, NOT NULL, default `now()`) — дата и время создания записи.
+
 #### Поля `crm.calculations`
 
 * `status` (`crm.calculation_status`, NOT NULL, default `'draft'`) — состояние расчёта. Допустимые значения (`draft`, `ready`, `confirmed`, `archived`) и сценарии смены статусов описаны в разделе «Расчёты» доменной модели (см. [docs/domain-model.md](domain-model.md#расчёты)).
@@ -83,7 +90,7 @@ erDiagram
 * `crm.clients`: `PRIMARY KEY (id)`, индексы по `tenant_id`, `owner_id`, `status`; мягкое удаление реализовано полем `is_deleted`.
 * `crm.client_contacts`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, индекс по `client_id`.
 * `crm.deals`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`. Индексы по `tenant_id`, `owner_id`, `status`, `ix_deals_next_review_at` (по `next_review_at`).
-* `crm.deal_journal`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (author_id)` → `auth.users(id)`, индекс по `created_at`.
+* `crm.deal_journal`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)` с `ON DELETE CASCADE`. Индексы `ix_deal_journal_deal_id`, `ix_deal_journal_created_at`. Поле `author_id` хранит UUID автора записи (идентификатор пользователя CRM).
 * `crm.calculations`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индексы по `insurance_company`, `calculation_date`, а также `idx_calculations_status` (по `status`) для ускорения фильтрации в интерфейсе сделок.
 * `crm.policies`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, `FOREIGN KEY (calculation_id)` → `crm.calculations(id)`, `UNIQUE (policy_number)`, индексы по `status`, `(deal_id, effective_from)`.
 * `crm.policy_documents`: `PRIMARY KEY (id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (document_id)` → `documents.documents(id)`, уникальное ограничение `(policy_id, document_id)`.
@@ -224,7 +231,7 @@ erDiagram
 
 ### Ключи и ограничения
 
-* `audit.audit_events`: `PRIMARY KEY (id)`, `UNIQUE (event_type, occurred_at, event_source)`, частичный уникальный индекс по `event_id` (только ненулевые значения), индексы `idx_audit_events_event_type`, `idx_audit_events_occurred_at`.
+* `audit.audit_events`: `PRIMARY KEY (id)`, `UNIQUE (event_type, occurred_at, event_source)`, частичные уникальные индексы по `event_id` и `message_id` (только ненулевые значения), индексы `idx_audit_events_event_type`, `idx_audit_events_occurred_at`.
 * `audit.audit_event_tags`: составной первичный ключ `(event_id, tag_key)`, `FOREIGN KEY (event_id)` → `audit.audit_events(id)` с `ON DELETE CASCADE`, `ON UPDATE CASCADE`.
 
 ## Seed-данные и связи между схемами
