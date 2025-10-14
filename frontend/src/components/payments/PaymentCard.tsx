@@ -1,6 +1,7 @@
 "use client";
 
 import type { Payment, PaymentEntry, PaymentStatus } from "@/types/crm";
+import { ADJUSTMENT_REASON_OPTIONS } from "./PaymentEntryFormModal";
 
 interface PaymentCardProps {
   payment: Payment;
@@ -12,8 +13,10 @@ interface PaymentCardProps {
   onAddExpense: () => void;
   onEditIncome: (income: PaymentEntry) => void;
   onDeleteIncome: (income: PaymentEntry) => void;
+  onConfirmIncome: (income: PaymentEntry) => void;
   onEditExpense: (expense: PaymentEntry) => void;
   onDeleteExpense: (expense: PaymentEntry) => void;
+  onConfirmExpense: (expense: PaymentEntry) => void;
 }
 
 const STATUS_LABELS: Record<PaymentStatus, { label: string; className: string; ariaLabel: string }> = {
@@ -68,6 +71,35 @@ function formatDate(value: string | undefined) {
   }
 }
 
+function formatDateTime(value: string | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+const ENTRY_STATUS_LABELS = {
+  confirmed: {
+    label: "Подтверждено",
+    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+  },
+  pending_confirmation: {
+    label: "Ожидает подтверждения",
+    className: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+  },
+  draft: {
+    label: "Черновик",
+    className: "bg-slate-200 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200",
+  },
+} as const satisfies Record<PaymentEntry["status"], { label: string; className: string }>;
+
+const REASON_LABELS = Object.fromEntries(ADJUSTMENT_REASON_OPTIONS.map((option) => [option.value, option.label]));
+
 function EntriesList({
   entries,
   currency,
@@ -75,6 +107,7 @@ function EntriesList({
   emptyLabel,
   onEdit,
   onDelete,
+  onConfirm,
   addLabel,
   onAdd,
 }: {
@@ -84,6 +117,7 @@ function EntriesList({
   emptyLabel: string;
   onEdit: (entry: PaymentEntry) => void;
   onDelete: (entry: PaymentEntry) => void;
+  onConfirm: (entry: PaymentEntry) => void;
   addLabel: string;
   onAdd: () => void;
 }) {
@@ -108,39 +142,107 @@ function EntriesList({
           {entries.map((entry) => (
             <li
               key={entry.id}
-              className="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:border-sky-200 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:border-sky-500/60 dark:hover:bg-slate-800/60"
+              className="space-y-2 rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600 shadow-sm transition hover:border-sky-200 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:border-sky-500/60 dark:hover:bg-slate-800/60"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    {formatCurrency(entry.amount, entry.currency || currency)}
+                    {formatCurrency(entry.actualAmount ?? entry.amount ?? entry.plannedAmount, entry.currency || currency)}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {formatDate(entry.postedAt)} • {entry.category}
+                    План: {formatCurrency(entry.plannedAmount ?? entry.amount, entry.currency || currency)} • {formatDate(entry.postedAt)}
                   </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Факт: {entry.actualAmount != null ? formatCurrency(entry.actualAmount, entry.currency || currency) : "—"} • {formatDate(entry.actualPostedAt)}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Категория: {entry.category}</span>
                   {entry.note ? (
                     <span className="mt-1 text-xs text-slate-500 dark:text-slate-400">{entry.note}</span>
                   ) : null}
+                  {entry.adjustmentReason ? (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Причина: {REASON_LABELS[entry.adjustmentReason] ?? entry.adjustmentReason}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(entry)}
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-sky-200 hover:text-sky-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-500/60 dark:hover:text-sky-300"
-                    aria-label="Редактировать позицию"
-                  >
-                    Редактировать
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(entry)}
-                    className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                    aria-label="Удалить позицию"
-                  >
-                    Удалить
-                  </button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ENTRY_STATUS_LABELS[entry.status]?.className ?? ENTRY_STATUS_LABELS.pending_confirmation.className}`}>
+                    {ENTRY_STATUS_LABELS[entry.status]?.label ?? ENTRY_STATUS_LABELS.pending_confirmation.label}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {entry.status !== "confirmed" ? (
+                      <button
+                        type="button"
+                        onClick={() => onConfirm(entry)}
+                        className="rounded-md border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-600 transition hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                      >
+                        Подтвердить
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(entry)}
+                      className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-sky-200 hover:text-sky-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-500/60 dark:hover:text-sky-300"
+                      aria-label="Редактировать позицию"
+                    >
+                      Редактировать
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(entry)}
+                      className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                      aria-label="Удалить позицию"
+                    >
+                      Удалить
+                    </button>
+                  </div>
                 </div>
               </div>
+              {entry.attachments.length > 0 ? (
+                <div className="rounded-md border border-slate-200 bg-white/70 p-2 text-xs dark:border-slate-600 dark:bg-slate-800/50">
+                  <p className="font-semibold text-slate-600 dark:text-slate-200">Вложения</p>
+                  <ul className="mt-1 space-y-1 text-slate-500 dark:text-slate-300">
+                    {entry.attachments.map((attachment) => (
+                      <li key={attachment.id} className="flex items-center justify-between gap-2">
+                        {attachment.url ? (
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate text-sky-600 hover:underline dark:text-sky-300"
+                          >
+                            {attachment.fileName}
+                          </a>
+                        ) : (
+                          <span className="truncate">{attachment.fileName}</span>
+                        )}
+                        <span className="text-[11px] text-slate-400">{(attachment.fileSize / 1024).toFixed(1)} КБ</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {entry.history.length > 0 ? (
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-600 dark:bg-slate-800/40">
+                  <p className="font-semibold text-slate-600 dark:text-slate-200">История корректировок</p>
+                  <ul className="mt-1 space-y-1 text-slate-500 dark:text-slate-300">
+                    {entry.history.map((historyItem) => (
+                      <li key={historyItem.id} className="flex flex-col gap-0.5">
+                        <span>
+                          {formatDateTime(historyItem.changedAt)} • {historyItem.changedBy}
+                        </span>
+                        <span>
+                          План {formatCurrency(historyItem.plannedAmount, entry.currency || currency)} → {historyItem.actualAmount != null ? formatCurrency(historyItem.actualAmount, entry.currency || currency) : "—"}
+                        </span>
+                        {historyItem.reason ? (
+                          <span>Причина: {REASON_LABELS[historyItem.reason] ?? historyItem.reason}</span>
+                        ) : null}
+                        {historyItem.note ? <span>Комментарий: {historyItem.note}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -159,8 +261,10 @@ export function PaymentCard({
   onAddExpense,
   onEditIncome,
   onDeleteIncome,
+  onConfirmIncome,
   onEditExpense,
   onDeleteExpense,
+  onConfirmExpense,
 }: PaymentCardProps) {
   const status = STATUS_LABELS[payment.status] ?? STATUS_LABELS.planned;
   const netClass = payment.netTotal >= 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200";
@@ -235,12 +339,13 @@ export function PaymentCard({
           <EntriesList
             entries={payment.incomes}
             currency={payment.currency}
-            title="Доходы"
-            emptyLabel="Доходов пока нет. Добавьте поступление, чтобы пересчитать агрегаты."
+            title="Поступления"
+            emptyLabel="Поступления ещё не фиксировались."
             onAdd={onAddIncome}
-            addLabel="Добавить доход"
+            addLabel="Добавить поступление"
             onEdit={onEditIncome}
             onDelete={onDeleteIncome}
+            onConfirm={onConfirmIncome}
           />
           <EntriesList
             entries={payment.expenses}
@@ -251,6 +356,7 @@ export function PaymentCard({
             addLabel="Добавить расход"
             onEdit={onEditExpense}
             onDelete={onDeleteExpense}
+            onConfirm={onConfirmExpense}
           />
         </div>
       ) : null}
