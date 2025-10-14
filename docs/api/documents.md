@@ -3,14 +3,14 @@
 ## Общая информация
 - **Базовый URL:** `https://documents.internal/api/v1`
 - **Аутентификация:** сервисный JWT, операции загрузки требуют scope `documents.write`
-- **Назначение:** управление метаданными файлов, синхронизация с Google Drive, контроль доступа.
+- **Назначение:** управление метаданными файлов, синхронизация с серверным хранилищем (локальные каталоги или примонтированный том), контроль доступа на уровне файловой системы.
 
 ## Папки и структура
 
 ### POST `/api/v1/folders`
-Создаёт папку на Google Drive для клиента/сделки/полиса.
+Создаёт каталог в файловой системе для клиента/сделки/полиса (внутри `DOCUMENTS_STORAGE_ROOT`).
 
-> Название формируется из шаблонов `DOCUMENTS_FOLDERS_TEMPLATE_*`. Доступные плейсхолдеры: `{title}`, `{ownerId}`, `{ownerType}`.
+> Название формируется из шаблонов `DOCUMENTS_FOLDERS_TEMPLATE_*`. Доступные плейсхолдеры: `{title}`, `{ownerId}`, `{ownerType}`. Путь строится как `<DOCUMENTS_STORAGE_ROOT>/<owner_type>/<slug по шаблону>`.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
@@ -18,22 +18,23 @@
 | owner_type | string | Да | `client`, `deal`, `policy`, `payment`. |
 | owner_id | UUID | Да | ID сущности. |
 | title | string | Да | Название папки. |
-| parent_folder_id | string | Нет | Родительская папка в Drive. |
+| parent_folder_path | string | Нет | Относительный путь родительского каталога (например, `clients/uuid`). |
 
 **Ответ 201**
 ```json
 {
-  "folder_id": "drive-folder-id",
-  "web_link": "https://drive.google.com/..."
+  "folder_path": "clients/uuid",
+  "absolute_path": "/var/lib/crm/documents/clients/uuid",
+  "web_link": "https://files.crm.local/clients/uuid"
 }
 ```
 
 **Ошибки:** `400 validation_error`, `404 owner_not_found`, `409 folder_exists`.
 
 ### GET `/api/v1/folders/{owner_type}/{owner_id}`
-Возвращает метаданные папки сущности.
+Возвращает метаданные каталога сущности.
 
-**Ответ 200** — `{ "folder_id": "...", "web_link": "..." }`.
+**Ответ 200** — `{ "folder_path": "...", "absolute_path": "...", "web_link": "...", "fs_mode": "0750", "fs_owner": "crm-docs" }`.
 
 **Ошибки:** `404 folder_not_found`.
 
@@ -67,7 +68,7 @@
 }
 ```
 
-`expires_in` совпадает со значением `DOCUMENTS_UPLOAD_URL_TTL` (в секундах). `upload_url` — подписанная ссылка для одноразовой загрузки файла в объектное хранилище.
+`expires_in` совпадает со значением `DOCUMENTS_UPLOAD_URL_TTL` (в секундах). `upload_url` — подписанная ссылка для одноразовой загрузки файла в файловый шлюз (HTTP/S3 совместимый endpoint), который сохраняет данные под каталоги `DOCUMENTS_STORAGE_ROOT`.
 
 **Ошибки:** `400 validation_error`, `404 owner_not_found`.
 
@@ -80,7 +81,7 @@
 | fileSize | integer | Да | Размер загруженного файла в байтах. |
 | checksum | string | Да | Хэш файла в шестнадцатеричном виде (MD5/SHA256 — зависит от клиента). |
 
-**Ответ 200** — документ переводится в статус `uploaded`, сохраняются размер и контрольная сумма. После подтверждения сервис ставит задачу синхронизации (`POST /documents/{document_id}/sync`).
+**Ответ 200** — документ переводится в статус `uploaded`, сохраняются размер и контрольная сумма. После подтверждения сервис ставит задачу синхронизации (`POST /documents/{document_id}/sync`), которая проверяет наличие файла на диске, нормализует права (`chmod/chown`) и обновляет ссылки на каталог.
 
 **Ошибки:**
 - `404 document_not_found` — документ не найден или был помечен удалённым (`{"statusCode":404,"code":"document_not_found","message":"Документ {document_id} не найден"}`).
@@ -104,7 +105,7 @@
 > Заголовок `X-Total-Count` содержит общее количество записей без учёта пагинации.
 
 ### DELETE `/documents/{document_id}`
-Помечает документ удалённым (soft delete) и отзываёт доступ в Drive.
+Помечает документ удалённым (soft delete), отзывает доступ (удаляет ACL/группы, связанные симлинки) и ставит задачу на очистку бинарного файла из каталога.
 
 **Ответ 204** — без тела. Повторная попытка удалить уже помеченный документ возвращает `409 already_deleted`.
 
@@ -115,25 +116,31 @@
 ## Доступы
 
 ### POST `/permissions/sync`
-Ставит задачу `documents.permissions.sync` на обновление списка пользователей папки в Google Drive.
+Ставит задачу `documents.permissions.sync` на обновление прав каталога в файловом хранилище (POSIX-права, ACL, группы).
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | owner_type | string | Да | Тип сущности. |
 | owner_id | UUID | Да | ID. |
-| users | array[string] | Да | Список идентификаторов пользователей (UUID/почта), которые должны получить доступ. |
+| users | array[string] | Да | Список идентификаторов пользователей (UUID/почта), которые должны получить доступ. На их основе сервис сопоставляет системные группы/UID. |
 
 **Ответ 202**
 ```json
 {
   "job_id": "bullmq-job-id",
-  "task_id": "permissions-task-id"
+  "task_id": "permissions-task-id",
+  "effective_mode": "770",
+  "applied_acl": [
+    {
+      "principal": "crm-sales",
+      "permissions": ["r", "w", "x"]
+    }
+  ]
 }
 ```
 
-`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. TTL задания в очереди
-регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
+`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. `effective_mode` отражает итоговый POSIX-режим каталога, `applied_acl` — список правил, применённых в ходе синхронизации. TTL задания в очереди регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
