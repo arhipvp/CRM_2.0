@@ -52,13 +52,6 @@ function createUpstreamServer(): Promise<{ server: Server; url: string }> {
         return;
       }
 
-      if (url.startsWith('/payments')) {
-        const body = await readRequestBody(req);
-        res.writeHead(201, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ upstream: 'payments', body }));
-        return;
-      }
-
       if (url.startsWith('/auth')) {
         const body = await readRequestBody(req);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -90,7 +83,6 @@ describe('Gateway bootstrap', () => {
     upstreamUrl = upstream.url;
 
     process.env.GATEWAY_UPSTREAM_CRM_BASE_URL = `${upstreamUrl}/crm`;
-    process.env.GATEWAY_UPSTREAM_PAYMENTS_BASE_URL = `${upstreamUrl}/payments`;
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL = `${upstreamUrl}/auth`;
     process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL = `${upstreamUrl}/notifications`;
     process.env.CONSUL_ENABLED = 'false';
@@ -151,17 +143,6 @@ describe('Gateway bootstrap', () => {
     expect(response.headers['content-type']).toContain('text/event-stream');
     expect(response.text).toContain('crm-event');
     expect(upstreamSseServiceMock.stream).toHaveBeenCalledWith('crm');
-  });
-
-  it('proxies Payments POST requests and forwards body', async () => {
-    const payload = { invoice: 'INV-001', amount: 1000 };
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/payments/invoices')
-      .send(payload)
-      .set('Content-Type', 'application/json');
-
-    expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({ upstream: 'payments', body: payload });
   });
 
   it('exposes deals SSE stream with correct headers', async () => {
@@ -252,12 +233,6 @@ describe('UpstreamSseService', () => {
           serviceName: 'crm-service',
           sse: { url: 'http://crm/streams' }
         },
-        payments: {
-          baseUrl: 'http://payments',
-          timeout: 5000,
-          serviceName: 'payments-service',
-          sse: { url: 'http://payments/streams' }
-        },
         auth: {
           baseUrl: 'http://auth',
           timeout: 5000,
@@ -341,12 +316,12 @@ describe('UpstreamSseService', () => {
     expect(await redis.get('gateway:sse:crm:last-event-id')).toBe('1');
   });
 
-  it('subscribes to payments stream when SSE is configured', async () => {
+  it('subscribes to notifications stream when SSE is configured', async () => {
     const stream = new Readable({
       read() {
         this.push('id: 2\n');
-        this.push('event: payment.created\n');
-        this.push('data: {"source":"payments","value":2}\n\n');
+        this.push('event: notification.created\n');
+        this.push('data: {"source":"notifications","value":2}\n\n');
         this.push(null);
       }
     });
@@ -360,7 +335,7 @@ describe('UpstreamSseService', () => {
     });
 
     const events: MessageEvent[] = [];
-    const subscription = service.stream('payments').subscribe({
+    const subscription = service.stream('notifications').subscribe({
       next: (event) => {
         events.push(event);
       }
@@ -369,8 +344,8 @@ describe('UpstreamSseService', () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     subscription.unsubscribe();
 
-    expect(events.some((event) => event.type === 'payment.created')).toBe(true);
-    expect(await redis.get('gateway:sse:payments')).toBeTruthy();
-    expect(await redis.get('gateway:sse:payments:last-event-id')).toBe('2');
+    expect(events.some((event) => event.type === 'notification.created')).toBe(true);
+    expect(await redis.get('gateway:sse:notifications')).toBeTruthy();
+    expect(await redis.get('gateway:sse:notifications:last-event-id')).toBe('2');
   });
 });

@@ -12,7 +12,6 @@ import consulConfig from './config/consul.config';
 import { RedisModule } from './integrations/redis/redis.module';
 import { ConsulModule } from './integrations/consul/consul.module';
 import { CrmModule } from './http/crm/crm.module';
-import { PaymentsModule } from './http/payments/payments.module';
 import { AuthModule } from './http/auth/auth.module';
 
 @Module({
@@ -57,7 +56,6 @@ import { AuthModule } from './http/auth/auth.module';
     ConsulModule,
     HttpConfigModule,
     CrmModule,
-    PaymentsModule,
     AuthModule,
     HealthModule,
     SseModule

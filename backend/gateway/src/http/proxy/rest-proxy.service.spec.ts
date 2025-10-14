@@ -48,19 +48,14 @@ describe('RestProxyService', () => {
           timeout: 2000,
           serviceName: 'crm-service'
         },
-        payments: {
-          baseUrl: '',
-          timeout: 1000,
-          serviceName: 'payments-service'
-        },
         auth: {
           baseUrl: 'http://auth.local/api',
           timeout: 5000,
           serviceName: 'auth-service'
         },
         notifications: {
-          baseUrl: 'http://notifications.local/api',
-          timeout: 5000,
+          baseUrl: '',
+          timeout: 1000,
           serviceName: 'notifications-service'
         }
       }
@@ -142,12 +137,12 @@ describe('RestProxyService', () => {
       port: 9000
     });
 
-    await service.forward('payments', '/settlements', req, res);
+    await service.forward('notifications', '/updates', req, res);
 
-    expect(consulService.resolveService).toHaveBeenCalledWith('payments-service');
+    expect(consulService.resolveService).toHaveBeenCalledWith('notifications-service');
     expect(axiosRequest).toHaveBeenCalledWith({
       method: 'GET',
-      url: 'http://10.0.0.10:9000/settlements',
+      url: 'http://10.0.0.10:9000/updates',
       data: undefined,
       params: {},
       headers: { 'x-request-id': 'request-1' },
