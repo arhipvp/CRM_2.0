@@ -156,6 +156,20 @@
 ### PATCH `/tasks/{task_id}`
 Изменяет `title`, `description`, `status`, `priority`, `due_date`.
 
+## Права доступа
+
+### POST `/permissions/sync`
+Создаёт задание BullMQ на синхронизацию прав пользователей с внешним сервисом документов.
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| owner_type | string | Да | Тип сущности (например, `deal`, `policy`). |
+| owner_id | UUID | Да | Идентификатор сущности. |
+| users | array<object> | Да | Массив `{ "user_id": "uuid", "role": "viewer|editor" }`. |
+
+**Ответ 202** — в теле находится идентификатор задания и статус `queued`.
+
 ## Интеграция с платежами
 - Сервис подписан на exchange `payments.events` (routing key `payments.*`).
 - При успешной обработке событий публикуется `payments.synced` в `crm.events`.

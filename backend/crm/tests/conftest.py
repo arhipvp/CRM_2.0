@@ -30,6 +30,10 @@ if str(BASE_DIR) not in sys.path:
 os.environ.setdefault("CRM_DATABASE_URL", "https://example.com/database")
 os.environ.setdefault("CRM_REDIS_URL", "https://example.com/redis")
 os.environ.setdefault("CRM_RABBITMQ_URL", "https://example.com/rabbitmq")
+os.environ.setdefault("CRM_PERMISSIONS_REDIS_URL", "https://example.com/redis")
+os.environ.setdefault("CRM_PERMISSIONS_QUEUE_NAME", "permissions:sync")
+os.environ.setdefault("CRM_PERMISSIONS_QUEUE_PREFIX", "bull")
+os.environ.setdefault("CRM_PERMISSIONS_JOB_NAME", "permissions.sync")
 
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
@@ -76,6 +80,7 @@ def configure_environment(postgres: PostgresContainer, redis: RedisContainer, ra
     db_url = postgres.get_connection_url()
     os.environ["CRM_DATABASE_URL"] = db_url
     os.environ["CRM_REDIS_URL"] = redis.get_connection_url()
+    os.environ["CRM_PERMISSIONS_REDIS_URL"] = os.environ["CRM_REDIS_URL"]
     os.environ["CRM_RABBITMQ_URL"] = rabbitmq.get_connection_url()
     os.environ["CRM_ENABLE_PAYMENTS_CONSUMER"] = "0"
     os.environ.setdefault("CRM_CELERY_BROKER_URL", os.environ["CRM_REDIS_URL"])

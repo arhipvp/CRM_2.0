@@ -21,6 +21,7 @@ crm/
 - PostgreSQL (схема `crm`), Redis и RabbitMQ — URL подключений настраиваются через переменные `CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL` и дополнительные параметры очередей (см. `env.example`).【F:env.example†L78-L118】
 - Для указания тенанта по умолчанию задайте `CRM_DEFAULT_TENANT_ID` (UUID) или оставьте переменную пустой, чтобы требовать заголовок `X-Tenant-ID`.【F:env.example†L118-L120】
 - Для фоновых задач Celery используется Redis (по умолчанию `CRM_CELERY_BROKER_URL=${REDIS_CELERY_URL}`).
+- BullMQ-очередь синхронизации прав настраивается переменными `CRM_PERMISSIONS_QUEUE_NAME`, `CRM_PERMISSIONS_QUEUE_PREFIX`, `CRM_PERMISSIONS_JOB_NAME`; при отсутствии `CRM_PERMISSIONS_REDIS_URL` используется общий Redis (`CRM_REDIS_URL`).
 
 ## Быстрый запуск (локально)
 1. Установите зависимости:
@@ -64,6 +65,7 @@ crm/
 - `GET /api/v1/deals`, `POST /api/v1/deals` — работа со сделками (список отсортирован по `next_review_at`, затем по `updated_at`).
 - `GET /api/v1/policies`, `POST /api/v1/policies` — управление полисами.
 - `GET /api/v1/tasks`, `POST /api/v1/tasks` — задачи первого уровня.
+- `POST /api/v1/permissions/sync` — постановка задания BullMQ на синхронизацию прав доступа для сущности (`owner_type`, `owner_id`, список пользователей и ролей).
 - `PATCH`-эндпоинты поддерживают частичные обновления для всех сущностей.
 Описание контрактов с примерами приведено в [`docs/api/crm-deals.md`](../../docs/api/crm-deals.md).
 
