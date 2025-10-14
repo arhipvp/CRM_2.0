@@ -14,7 +14,7 @@
 | Имя | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | search | string | Нет | Поиск по имени, email, телефону. |
-| role | array[string] | Нет | Фильтр по ролям (`admin`, `agent`, `executor`, `financial_manager`, `manager`). |
+| role | array[string] | Нет | Фильтр по ролям (`admin` — «главный админ», `agent` — «продавец», `executor` — «исполнитель»). |
 | status | string | Нет | `active` или `blocked`. |
 | limit | integer | Нет | По умолчанию 50, максимум 200. |
 | offset | integer | Нет | Постраничное смещение. |
