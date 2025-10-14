@@ -89,8 +89,8 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 
 ## REST API
 - `GET /health` — состояние сервиса.
-- `POST /api/v1/folders` — создаёт каталог внутри `DOCUMENTS_STORAGE_ROOT` и сохраняет связь с сущностью. Ответ содержит относительный путь (`folder_path`), абсолютный путь и публичную ссылку (если настроен прокси). Ошибки: `400 validation_error`, `409 folder_exists`.
-- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает метаданные каталога: относительный путь, абсолютный путь, URL, текущие права (`fs_mode`) и владельца (`fs_owner`). Ошибка `404 folder_not_found`, если запись отсутствует.
+- `POST /api/v1/folders` — создаёт каталог внутри `DOCUMENTS_STORAGE_ROOT` и сохраняет связь с сущностью. Ответ содержит относительный путь (`folder_path`), абсолютный путь (`full_path`) и публичную ссылку (`public_url`, если публикация настроена). Ошибки: `400 validation_error`, `409 folder_exists`.
+- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает метаданные каталога: относительный путь, абсолютный путь (`full_path`) и публичную ссылку (`public_url`, может быть `null`). Ошибка `404 folder_not_found`, если запись отсутствует.
 | `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |
 | `DOCUMENTS_FOLDERS_WEB_BASE_URL` | Базовый URL для формирования ссылок на каталоги (совмещается с `DOCUMENTS_STORAGE_PUBLIC_BASE_URL`). |
 | `DOCUMENTS_STORAGE_DRIVER` | Драйвер хранения (`local` — файловая система по умолчанию). |
@@ -114,8 +114,8 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 
 ## REST API
 - `GET /health` — состояние сервиса.
-- `POST /api/v1/folders` — создаёт каталог в файловом хранилище и сохраняет связь с сущностью. Ошибки: `400 validation_error`, `409 folder_exists`.
-- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает привязанный каталог (относительный путь и публичную ссылку при наличии). Ошибка `404 folder_not_found`, если запись отсутствует.
+- `POST /api/v1/folders` — создаёт каталог в файловом хранилище и сохраняет связь с сущностью. Ответ содержит `folder_path`, `full_path` и `public_url` (может быть `null`). Ошибки: `400 validation_error`, `409 folder_exists`.
+- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает привязанный каталог (`folder_path`, `full_path`, `public_url`). Ошибка `404 folder_not_found`, если запись отсутствует.
 - `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; ответ — массив, общее количество приходит в заголовке `X-Total-Count`).
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
