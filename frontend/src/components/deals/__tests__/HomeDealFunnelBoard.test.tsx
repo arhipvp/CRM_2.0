@@ -144,6 +144,8 @@ describe("HomeDealFunnelBoard", () => {
     expect(finalState.highlightedDealId).toBe("highlight-before");
     expect(finalState.selectedDealIds).not.toContain("deal-before");
     expect(finalState.previewDealId).not.toBe("preview-before");
+  });
+
   it("не перетирает подсветку, полученную во время работы виджета", async () => {
     const store = useUiStore.getState();
     store.setSelectedStage("proposal");
