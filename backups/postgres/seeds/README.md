@@ -7,9 +7,9 @@
 | Файл | Что создаёт | Зависимости |
 | --- | --- | --- |
 | `seed_20240715_auth.sql` | Базовые роли (`ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN`) и пять активных пользователей с паролем `Passw0rd!`. | Требуется схема `auth`. |
-| `seed_20240715_crm.sql` | Два клиента, две сделки, два полиса и подтверждённая фактическая оплата в `crm.payments`. | Требуется успешное применение `seed_20240715_auth.sql` (используются UUID пользователей). |
+| `seed_20240715_crm.sql` | Два клиента, две сделки, два полиса и три финансовые записи в `crm.policy_payments` с детализацией доходов/расходов. | Требуется успешное применение `seed_20240715_auth.sql` (используются UUID пользователей). |
 
-Все UUID и даты согласованы между файлами, поэтому набор загружается полностью или выборочно без дополнительных правок. Отдельный seed Payments больше не публикуется: факт оплаты полиса входит в CRM и хранится в `crm.payments` без статусов — только с обязательной фактической датой.
+Все UUID и даты согласованы между файлами, поэтому набор загружается полностью или выборочно без дополнительных правок. Отдельный seed Payments больше не публикуется: факт оплаты полиса входит в CRM и хранится в `crm.policy_payments` с привязкой к позициям `crm.policy_payment_incomes` и `crm.policy_payment_expenses`.
 
 ## Порядок применения
 
@@ -50,7 +50,9 @@
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com';
 SELECT deal_id, status, value FROM crm.deals ORDER BY created_at DESC;
-SELECT amount, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
+SELECT amount, direction, purpose, actual_date, recorded_by_id FROM crm.policy_payments ORDER BY actual_date DESC;
+SELECT payment_id, income_type, amount FROM crm.policy_payment_incomes ORDER BY payment_id;
+SELECT payment_id, expense_type, amount FROM crm.policy_payment_expenses ORDER BY payment_id;
 ```
 
-Все пользователи включены (`enabled = true`), минимум одна сделка имеет статус `in_progress`, а в `crm.payments` хранится подтверждённая фактическая оплата с заполненной `actual_date` и ссылкой на автора (`recorded_by_id`). Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
+Все пользователи включены (`enabled = true`), минимум одна сделка имеет статус `in_progress`, а в `crm.policy_payments` отображаются входящие и исходящие записи с заполненной `actual_date` и ссылкой на автора (`recorded_by_id`). Каждая запись имеет хотя бы одну связанную строку в таблицах доходов или расходов. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
