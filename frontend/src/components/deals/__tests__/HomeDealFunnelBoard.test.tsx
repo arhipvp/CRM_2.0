@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 
 import { HomeDealFunnelBoard } from "@/components/deals/HomeDealFunnelBoard";
 import {
@@ -115,6 +115,45 @@ describe("HomeDealFunnelBoard", () => {
     expect(restored.selectedDealIds).toEqual(expectedStateBeforeMount.selectedDealIds);
     expect(restored.previewDealId).toBe(expectedStateBeforeMount.previewDealId);
     expect(restored.highlightedDealId).toBe(expectedStateBeforeMount.highlightedDealId);
+  });
+
+  it("не перетирает подсветку, полученную во время работы виджета", async () => {
+    const store = useUiStore.getState();
+    store.setSelectedStage("proposal");
+    store.selectDeals(["deal-4", "deal-5"]);
+    store.openDealPreview("deal-6");
+    store.highlightDeal("deal-7");
+
+    const mutatedState = useUiStore.getState();
+
+    const expectedStateBeforeMount: SavedUiState = {
+      filters: {
+        ...mutatedState.filters,
+        managers: [...mutatedState.filters.managers],
+      },
+      selectedDealIds: [...mutatedState.selectedDealIds],
+      previewDealId: mutatedState.previewDealId,
+      highlightedDealId: mutatedState.highlightedDealId,
+    };
+
+    const { unmount } = render(<HomeDealFunnelBoard />);
+
+    const board = await screen.findByTestId("deal-funnel-board");
+    expect(board).toBeInTheDocument();
+
+    act(() => {
+      useUiStore.getState().highlightDeal("deal-from-sse");
+    });
+
+    expect(useUiStore.getState().highlightedDealId).toBe("deal-from-sse");
+
+    unmount();
+
+    const restored = useUiStore.getState();
+    expect(areDealFiltersEqual(restored.filters, expectedStateBeforeMount.filters)).toBe(true);
+    expect(restored.selectedDealIds).toEqual(expectedStateBeforeMount.selectedDealIds);
+    expect(restored.previewDealId).toBe(expectedStateBeforeMount.previewDealId);
+    expect(restored.highlightedDealId).toBe("deal-from-sse");
   });
 });
 
