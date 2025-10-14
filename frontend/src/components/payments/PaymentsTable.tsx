@@ -14,9 +14,11 @@ import {
   useDeletePaymentExpense,
 } from "@/lib/api/hooks";
 import type { Payment, PaymentEntry } from "@/types/crm";
+import type { PaymentEntryPayload } from "@/lib/api/client";
 import { PaymentCard } from "./PaymentCard";
 import { PaymentFormModal, type PaymentFormValues } from "./PaymentFormModal";
-import { PaymentEntryFormModal } from "./PaymentEntryFormModal";
+import { PaymentEntryFormModal, type PaymentEntryFormValues } from "./PaymentEntryFormModal";
+import { PaymentEntryConfirmModal, type PaymentEntryConfirmValues } from "./PaymentEntryConfirmModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useUiStore } from "@/stores/uiStore";
 import { createRandomId } from "@/lib/utils/id";
@@ -40,6 +42,8 @@ type DialogState =
   | { type: "createExpense"; payment: Payment }
   | { type: "editExpense"; payment: Payment; entry: PaymentEntry }
   | { type: "deleteExpense"; payment: Payment; entry: PaymentEntry }
+  | { type: "confirmIncome"; payment: Payment; entry: PaymentEntry }
+  | { type: "confirmExpense"; payment: Payment; entry: PaymentEntry }
   | null;
 
 function isOverdue(payment: Payment) {
@@ -104,6 +108,59 @@ function formatCurrency(amount: number, currency: string) {
   } catch {
     return `${amount.toLocaleString("ru-RU")} ${currency}`;
   }
+}
+
+function mapFilesToAttachmentPayload(files: File[]): PaymentEntryPayload["attachments"] {
+  return files.map((file) => ({
+    fileName: file.name,
+    fileSize: file.size,
+  }));
+}
+
+function buildEntryPayloadFromForm(values: PaymentEntryFormValues): PaymentEntryPayload {
+  const payload: PaymentEntryPayload = {
+    category: values.category,
+    plannedAmount: values.plannedAmount,
+    plannedPostedAt: values.plannedPostedAt,
+  };
+
+  if (values.note !== undefined) {
+    payload.note = values.note;
+  }
+  if (values.reason) {
+    payload.reason = values.reason;
+  }
+  if (values.actualAmount !== undefined && values.actualAmount !== null) {
+    payload.actualAmount = values.actualAmount;
+  }
+  if (values.actualPostedAt) {
+    payload.actualPostedAt = values.actualPostedAt;
+  }
+  if (values.attachments.length > 0) {
+    payload.attachments = mapFilesToAttachmentPayload(values.attachments);
+  }
+
+  return payload;
+}
+
+function buildConfirmPayload(values: PaymentEntryConfirmValues, entry: PaymentEntry): PaymentEntryPayload {
+  const payload: PaymentEntryPayload = {
+    category: entry.category,
+    plannedAmount: entry.plannedAmount,
+    plannedPostedAt: entry.postedAt,
+    actualAmount: values.actualAmount,
+    actualPostedAt: values.actualPostedAt,
+    reason: values.reason,
+  };
+
+  if (values.note !== undefined) {
+    payload.note = values.note;
+  }
+  if (values.attachments.length > 0) {
+    payload.attachments = mapFilesToAttachmentPayload(values.attachments);
+  }
+
+  return payload;
 }
 
 export function PaymentsTable() {
@@ -269,22 +326,24 @@ export function PaymentsTable() {
 
   const handleEntrySubmit = async (
     type: "income" | "expense",
-    values: { amount: number; category: string; postedAt: string; note?: string },
+    values: PaymentEntryFormValues,
     payment: Payment,
     entry?: PaymentEntry,
   ) => {
     try {
+      const payload = buildEntryPayloadFromForm(values);
+
       if (type === "income") {
         if (entry) {
           await updateIncome({
             paymentId: payment.id,
             incomeId: entry.id,
             dealId: payment.dealId,
-            payload: values,
+            payload,
           });
           notify("Поступление обновлено", "success");
         } else {
-          await createIncome({ paymentId: payment.id, dealId: payment.dealId, payload: values });
+          await createIncome({ paymentId: payment.id, dealId: payment.dealId, payload });
           notify("Поступление добавлено", "success");
         }
       } else {
@@ -293,11 +352,11 @@ export function PaymentsTable() {
             paymentId: payment.id,
             expenseId: entry.id,
             dealId: payment.dealId,
-            payload: values,
+            payload,
           });
           notify("Расход обновлён", "success");
         } else {
-          await createExpense({ paymentId: payment.id, dealId: payment.dealId, payload: values });
+          await createExpense({ paymentId: payment.id, dealId: payment.dealId, payload });
           notify("Расход добавлен", "success");
         }
       }
@@ -306,6 +365,41 @@ export function PaymentsTable() {
       setExpanded((prev) => new Set(prev).add(payment.id));
     } catch (entryError) {
       const message = entryError instanceof Error ? entryError.message : "Не удалось сохранить позицию";
+      notify(message, "error");
+    }
+  };
+
+  const handleEntryConfirm = async (
+    type: "income" | "expense",
+    values: PaymentEntryConfirmValues,
+    payment: Payment,
+    entry: PaymentEntry,
+  ) => {
+    try {
+      const payload = buildConfirmPayload(values, entry);
+
+      if (type === "income") {
+        await updateIncome({
+          paymentId: payment.id,
+          incomeId: entry.id,
+          dealId: payment.dealId,
+          payload,
+        });
+        notify("Поступление подтверждено", "success");
+      } else {
+        await updateExpense({
+          paymentId: payment.id,
+          expenseId: entry.id,
+          dealId: payment.dealId,
+          payload,
+        });
+        notify("Расход подтверждён", "success");
+      }
+
+      setDialog(null);
+      setExpanded((prev) => new Set(prev).add(payment.id));
+    } catch (entryError) {
+      const message = entryError instanceof Error ? entryError.message : "Не удалось подтвердить позицию";
       notify(message, "error");
     }
   };
@@ -412,8 +506,10 @@ export function PaymentsTable() {
               onAddExpense={() => setDialog({ type: "createExpense", payment })}
               onEditIncome={(entry) => setDialog({ type: "editIncome", payment, entry })}
               onDeleteIncome={(entry) => setDialog({ type: "deleteIncome", payment, entry })}
+              onConfirmIncome={(entry) => setDialog({ type: "confirmIncome", payment, entry })}
               onEditExpense={(entry) => setDialog({ type: "editExpense", payment, entry })}
               onDeleteExpense={(entry) => setDialog({ type: "deleteExpense", payment, entry })}
+              onConfirmExpense={(entry) => setDialog({ type: "confirmExpense", payment, entry })}
             />
           ))}
         </div>
@@ -481,6 +577,29 @@ export function PaymentsTable() {
             : false
         }
         currency={dialog?.payment?.currency ?? "RUB"}
+      />
+
+      <PaymentEntryConfirmModal
+        type={dialog?.type === "confirmExpense" ? "expense" : "income"}
+        isOpen={dialog?.type === "confirmIncome" || dialog?.type === "confirmExpense"}
+        entry={dialog && (dialog.type === "confirmIncome" || dialog.type === "confirmExpense") ? dialog.entry : undefined}
+        payment={dialog && (dialog.type === "confirmIncome" || dialog.type === "confirmExpense") ? dialog.payment : undefined}
+        currency={dialog?.payment?.currency ?? "RUB"}
+        onClose={() => setDialog(null)}
+        isSubmitting={
+          dialog?.type === "confirmIncome"
+            ? isUpdatingIncome
+            : dialog?.type === "confirmExpense"
+            ? isUpdatingExpense
+            : false
+        }
+        onSubmit={(values) => {
+          if (!dialog || (dialog.type !== "confirmIncome" && dialog.type !== "confirmExpense")) {
+            return Promise.resolve();
+          }
+          const type = dialog.type === "confirmIncome" ? "income" : "expense";
+          return handleEntryConfirm(type, values, dialog.payment, dialog.entry);
+        }}
       />
 
       <ConfirmDialog

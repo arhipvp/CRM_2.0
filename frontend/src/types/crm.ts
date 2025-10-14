@@ -117,14 +117,42 @@ export interface Task {
 
 export type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";
 
+export type PaymentEntryStatus = "draft" | "pending_confirmation" | "confirmed";
+
+export interface PaymentEntryAttachment {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  url?: string;
+}
+
+export interface PaymentEntryHistoryItem {
+  id: string;
+  changedAt: string;
+  changedBy: string;
+  plannedAmount: number;
+  actualAmount?: number | null;
+  reason?: string | null;
+  note?: string | null;
+}
+
 export interface PaymentEntry {
   id: string;
   paymentId: string;
   amount: number;
+  plannedAmount: number;
+  actualAmount?: number | null;
   currency: string;
   category: string;
   postedAt: string;
+  actualPostedAt?: string | null;
   note?: string;
+  status: PaymentEntryStatus;
+  adjustmentReason?: string | null;
+  attachments: PaymentEntryAttachment[];
+  history: PaymentEntryHistoryItem[];
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
