@@ -6,7 +6,7 @@
 
 | Файл | Что создаёт | Зависимости |
 | --- | --- | --- |
-| `seed_20240715_auth.sql` | Роли (`ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_FINANCE_MANAGER`, `ROLE_TEAM_LEAD`) и пять активных пользователей с паролем `Passw0rd!`. | Требуется схема `auth`, базовые роли `ROLE_USER`, `ROLE_ADMIN` из миграций. |
+| `seed_20240715_auth.sql` | Роли (`ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_FINANCE_MANAGER`, `ROLE_TEAM_LEAD`) и пять активных пользователей с паролем `Passw0rd!`. | Требуется схема `auth`, базовые роли `ROLE_USER`, `ROLE_ADMIN` из миграций. TODO: обновить seed под роль главного админа. |
 | `seed_20240715_crm.sql` | Два клиента, две сделки и два полиса, связанные с пользователями из `auth`. | Требуется успешное применение `seed_20240715_auth.sql` (используются UUID пользователей). |
 | `seed_20240715_payments.sql` | Три платежа, история изменений и график выплат, связанные со сделками и полисами CRM. | Требуется применение `seed_20240715_auth.sql` и `seed_20240715_crm.sql`. |
 
