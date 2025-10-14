@@ -18,23 +18,25 @@
 | owner_type | string | Да | `client`, `deal`, `policy`, `payment`. |
 | owner_id | UUID | Да | ID сущности. |
 | title | string | Да | Название папки. |
-| parent_folder_path | string | Нет | Относительный путь родительского каталога (например, `clients/uuid`). |
+| parent_path | string | Нет | Относительный путь родительского каталога (например, `clients/uuid`). |
 
 **Ответ 201**
 ```json
 {
   "folder_path": "clients/uuid",
-  "absolute_path": "/var/lib/crm/documents/clients/uuid",
-  "web_link": "https://files.crm.local/clients/uuid"
+  "full_path": "/var/lib/crm/documents/clients/uuid",
+  "public_url": "https://files.crm.local/clients/uuid"
 }
 ```
+
+`public_url` возвращается, только если настроена публикация каталога: сервис использует ссылку, полученную от драйвера хранилища, либо собирает её из `DOCUMENTS_STORAGE_PUBLIC_BASE_URL` (первый приоритет) или `DOCUMENTS_FOLDERS_WEB_BASE_URL` (резервный базовый URL). Если публичная ссылка недоступна, поле будет `null`.
 
 **Ошибки:** `400 validation_error`, `404 owner_not_found`, `409 folder_exists`.
 
 ### GET `/api/v1/folders/{owner_type}/{owner_id}`
 Возвращает метаданные каталога сущности.
 
-**Ответ 200** — `{ "folder_path": "...", "absolute_path": "...", "web_link": "...", "fs_mode": "0750", "fs_owner": "crm-docs" }`.
+**Ответ 200** — `{ "folder_path": "...", "full_path": "...", "public_url": "..." }`. Поле `public_url` может быть `null`, если публичный доступ к каталогу не настроен.
 
 **Ошибки:** `404 folder_not_found`.
 
