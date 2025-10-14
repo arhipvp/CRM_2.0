@@ -12,11 +12,13 @@ spring:
   cloud:
     stream:
       bindings:
-        auditEventConsumer-in-0:
+        auditEventsConsumer-in-0:
           consumer:
             maxAttempts: 1
-      rabbit:
-        bindings:
-          auditEventConsumer-in-0:
-            consumer:
-              autoBindDlq: false
+        auditCoreConsumer-in-0:
+          consumer:
+            maxAttempts: 1
+
+audit:
+  messaging:
+    prefetch: 20

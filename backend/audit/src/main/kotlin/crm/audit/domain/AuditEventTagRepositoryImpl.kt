@@ -1,4 +1,4 @@
-package com.crm.audit.domain
+package crm.audit.domain
 
 import java.util.UUID
 import kotlinx.coroutines.reactor.awaitSingle

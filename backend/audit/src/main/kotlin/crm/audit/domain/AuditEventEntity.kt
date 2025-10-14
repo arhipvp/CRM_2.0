@@ -1,4 +1,4 @@
-package com.crm.audit.domain
+package crm.audit.domain
 
 import java.time.OffsetDateTime
 import java.util.UUID
