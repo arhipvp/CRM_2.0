@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@liaoliaots/nestjs-redis';
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity, NotificationStatus } from './notification.entity';
+import {
+  NotificationDeliveryAttemptEntity,
+  NotificationDeliveryAttemptStatus
+} from './notification-delivery-attempt.entity';
 import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
 import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationsConfiguration } from '../config/configuration';
@@ -48,6 +52,12 @@ describe('NotificationsService', () => {
       create: jest.fn(),
       save: jest.fn()
     } as unknown as jest.Mocked<Repository<NotificationDeliveryAttemptEntity>>;
+    (attemptsRepository.create as jest.Mock).mockImplementation(
+      (payload) => payload as NotificationDeliveryAttemptEntity
+    );
+    (attemptsRepository.save as jest.Mock).mockImplementation(
+      async (entity) => entity as NotificationDeliveryAttemptEntity
+    );
 
     eventsRepository = {
       find: jest.fn()

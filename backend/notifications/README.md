@@ -21,6 +21,7 @@ Notifications доставляет события и уведомления во
    - `GET /api/v1/templates` — чтение шаблонов уведомлений с фильтрами по каналу и активности.
    - `POST /api/v1/templates` — создание шаблонов, конфликтует по паре `key` + `channel`.
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
+   - `POST /api/v1/notifications` — постановка уведомления в очередь. Если синхронная отправка через `NotificationEventsService` завершается ошибкой (например, Telegram отклонил сообщение), сервис возвращает `500 notification_dispatch_failed`, фиксируя попытку в `notification_delivery_attempts` и переводя уведомление в статус `failed`.
 4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
 
 ## Очередь доставки и повторы

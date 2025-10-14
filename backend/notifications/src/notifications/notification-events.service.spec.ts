@@ -1,8 +1,10 @@
+import { InternalServerErrorException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { NotificationEventsService } from './notification-events.service';
 import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationStreamService } from './notification-stream.service';
 import { TelegramService } from './telegram.service';
+import { IncomingNotificationDto } from './dto/incoming-notification.dto';
 import {
   TelegramDeliveryWebhookDto,
   TelegramDeliveryWebhookStatus
@@ -31,6 +33,48 @@ describe('NotificationEventsService', () => {
     } as unknown as TelegramService;
 
     service = new NotificationEventsService(repository, stream, telegram);
+  });
+
+  describe('handleIncoming', () => {
+    const incoming: IncomingNotificationDto = {
+      eventType: 'deal.created',
+      payload: { id: 'deal-1' },
+      chatId: '1000'
+    };
+
+    it('throws and records failure when Telegram rejects the message', async () => {
+      const entity = { id: 'event-1' } as NotificationEventEntity;
+      (repository.create as jest.Mock).mockReturnValue(entity);
+      (repository.save as jest.Mock).mockResolvedValue(entity);
+      (telegram.send as jest.Mock).mockResolvedValue({
+        accepted: false,
+        error: 'bot disabled',
+        messageId: undefined
+      });
+
+      const promise = service.handleIncoming(incoming);
+
+      await expect(promise).rejects.toBeInstanceOf(InternalServerErrorException);
+      await expect(promise).rejects.toMatchObject({
+        response: expect.objectContaining({ message: 'notification_dispatch_failed' })
+      });
+
+      expect(repository.update).toHaveBeenCalledWith('event-1', {
+        deliveredToTelegram: false,
+        telegramMessageId: null,
+        telegramDeliveryStatus: 'failed',
+        telegramDeliveryReason: 'bot disabled',
+        telegramDeliveryOccurredAt: null
+      });
+      expect(stream.publish).toHaveBeenCalledTimes(2);
+      expect(stream.publish).toHaveBeenCalledWith('deal.created', incoming.payload);
+      expect(stream.publish).toHaveBeenCalledWith('notifications.telegram.error', {
+        notificationId: 'event-1',
+        messageId: null,
+        status: 'failed',
+        reason: 'bot disabled'
+      });
+    });
   });
 
   describe('handleTelegramDeliveryUpdate', () => {

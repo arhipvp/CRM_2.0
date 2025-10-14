@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationEventEntity } from './notification-event.entity';
@@ -113,5 +113,7 @@ export class NotificationEventsService {
         reason: sendResult.error
       });
     }
+
+    throw new InternalServerErrorException('notification_dispatch_failed');
   }
 }
