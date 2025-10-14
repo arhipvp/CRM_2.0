@@ -52,16 +52,15 @@
 ## Сводная таблица сервисов
 | Сервис | Назначение | Порт по умолчанию | README |
 | --- | --- | --- | --- |
-| Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L9-L66】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
-| Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L9-L18】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
-| CRM / Deals | Клиенты, сделки, расчёты, полисы и доменные события CRM.【F:docs/architecture.md†L11-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
-| Payments | Учёт платежей и публикация финансовых событий.【F:docs/architecture.md†L12-L66】 | `8083` | [`backend/payments/README.md`](../backend/payments/README.md) |
-| Documents | Метаданные и интеграция с Google Drive.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
-| Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
-| Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
-| Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
-| Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
-| Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
+| 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L9-L66】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
+| 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L9-L18】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
+| 3. CRM / Deals | Клиенты, сделки, расчёты, полисы и доменные события CRM.【F:docs/architecture.md†L11-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
+| 4. Documents | Метаданные и интеграция с Google Drive.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
+| 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
+| 6. Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
+| 7. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
+| 8. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
+| 9. Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
@@ -140,7 +139,7 @@
       > ⚠️ Значения, содержащие пробелы или плейсхолдеры в фигурных скобках (например, `Client {ownerId}`), заключайте в двойные кавычки: так `.env` можно безопасно импортировать через `set -a && source .env`.
    3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
       > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.
-      - Для Payments убедитесь, что задан `PAYMENTS_CRM_WEBHOOK_SECRET` — он используется для проверки HMAC-подписи CRM вебхуков (`POST /api/v1/webhooks/crm`).
+      - Платежи фиксируются внутри CRM и не требуют отдельной конфигурации webhook-ов или переменных `PAYMENTS_*`.
 2. Обновите в `.env` чувствительные значения:
    - Пароли PostgreSQL (общий `POSTGRES_PASSWORD` и пароли ролей `*_DB_PASSWORD`).
    - Учётные данные RabbitMQ (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`, при необходимости `RABBITMQ_DEFAULT_VHOST`). Docker Compose создаёт пользователя и виртуальный хост `crm`, а переменная `RABBITMQ_URL` сразу указывает на них.
