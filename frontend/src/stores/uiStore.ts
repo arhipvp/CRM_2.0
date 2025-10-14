@@ -11,6 +11,7 @@ export type DealViewMode = "kanban" | "table";
 export type DealDetailsTabKey =
   | "overview"
   | "forms"
+  | "calculations"
   | "policies"
   | "journal"
   | "actions"

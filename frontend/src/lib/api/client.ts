@@ -163,11 +163,24 @@ export interface PaymentRevokePayload {
   reason?: string;
 }
 
+export interface PaymentEntryAttachmentPayload {
+  id?: string;
+  fileName: string;
+  fileSize: number;
+  uploadedAt?: string;
+  uploadedBy?: string;
+  url?: string;
+}
+
 export interface PaymentEntryPayload {
-  amount: number;
-  category: string;
-  postedAt: string;
+  category?: string;
+  plannedAmount?: number;
+  plannedPostedAt?: string;
   note?: string;
+  actualAmount?: number | null;
+  actualPostedAt?: string | null;
+  reason?: string | null;
+  attachments?: PaymentEntryAttachmentPayload[];
 }
 export type UpdateTaskPayload = Partial<
   Pick<Task, "status" | "owner" | "dueDate" | "tags" | "type" | "reminderAt" | "completed">
@@ -874,23 +887,54 @@ export class ApiClient {
         }
 
         const now = new Date().toISOString();
+        const attachments = (payload.attachments ?? []).map((attachment) => ({
+          id: attachment.id ?? createRandomId(),
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize,
+          uploadedAt: attachment.uploadedAt ?? now,
+          uploadedBy: attachment.uploadedBy ?? "Система",
+          url: attachment.url,
+        }));
+        const plannedAmount = payload.plannedAmount ?? 0;
+        const actualAmount = payload.actualAmount ?? null;
+        const effectiveAmount = actualAmount ?? plannedAmount;
+        const category = payload.category ?? "other_income";
+        const historyEntry = {
+          id: createRandomId(),
+          changedAt: now,
+          changedBy: "Система",
+          plannedAmount,
+          actualAmount,
+          reason: payload.reason ?? (actualAmount !== null ? "confirmation" : "initial_planning"),
+          note: payload.note ?? null,
+        } satisfies PaymentEntry["history"][number];
+
         const income: PaymentEntry = {
           id: createRandomId(),
           paymentId,
-          amount: payload.amount,
+          amount: effectiveAmount,
+          plannedAmount,
+          actualAmount,
           currency: payment.currency,
-          category: payload.category,
-          postedAt: payload.postedAt,
+          category,
+          postedAt: payload.plannedPostedAt ?? now,
+          actualPostedAt: payload.actualPostedAt ?? null,
           note: payload.note,
+          status: actualAmount !== null ? "confirmed" : "pending_confirmation",
+          adjustmentReason: payload.reason ?? null,
+          attachments,
+          history: [historyEntry],
           createdAt: now,
           updatedAt: now,
+          createdBy: "Система",
+          updatedBy: "Система",
         };
 
         payment.incomes.unshift(income);
         payment.updatedAt = now;
         recalculateTotals(payment);
 
-        return { ...income };
+        return { ...income, attachments: income.attachments.map((item) => ({ ...item })), history: income.history.map((item) => ({ ...item })) };
       },
     );
   }
@@ -913,24 +957,83 @@ export class ApiClient {
           throw new ApiError("Income not found", 404);
         }
 
-        if (payload.amount !== undefined) {
-          income.amount = payload.amount;
+        if (!income.attachments) {
+          income.attachments = [];
         }
+        if (!income.history) {
+          income.history = [];
+        }
+
+        const now = new Date().toISOString();
+
+        let hasMeaningfulChange = false;
+
         if (payload.category !== undefined) {
           income.category = payload.category;
+          hasMeaningfulChange = true;
         }
-        if (payload.postedAt !== undefined) {
-          income.postedAt = payload.postedAt;
+        if (payload.plannedAmount !== undefined) {
+          income.plannedAmount = payload.plannedAmount;
+          hasMeaningfulChange = true;
+        }
+        if (payload.plannedPostedAt !== undefined) {
+          income.postedAt = payload.plannedPostedAt;
+          hasMeaningfulChange = true;
         }
         if (payload.note !== undefined) {
-          income.note = payload.note;
+          income.note = payload.note ?? undefined;
+          hasMeaningfulChange = true;
+        }
+        if (payload.actualAmount !== undefined) {
+          income.actualAmount = payload.actualAmount;
+          hasMeaningfulChange = true;
+        }
+        if (payload.actualPostedAt !== undefined) {
+          income.actualPostedAt = payload.actualPostedAt;
+          hasMeaningfulChange = true;
+        }
+        if (payload.reason !== undefined) {
+          income.adjustmentReason = payload.reason;
+          hasMeaningfulChange = true;
         }
 
-        income.updatedAt = new Date().toISOString();
-        payment.updatedAt = income.updatedAt;
+        if (payload.attachments && payload.attachments.length > 0) {
+          const attachments = payload.attachments.map((attachment) => ({
+            id: attachment.id ?? createRandomId(),
+            fileName: attachment.fileName,
+            fileSize: attachment.fileSize,
+            uploadedAt: attachment.uploadedAt ?? now,
+            uploadedBy: attachment.uploadedBy ?? "Система",
+            url: attachment.url,
+          }));
+          income.attachments.push(...attachments);
+          hasMeaningfulChange = true;
+        }
+
+        income.amount = (income.actualAmount ?? income.plannedAmount) ?? income.amount;
+        income.status = income.actualAmount !== undefined && income.actualAmount !== null ? "confirmed" : "pending_confirmation";
+
+        if (hasMeaningfulChange) {
+          income.history.unshift({
+            id: createRandomId(),
+            changedAt: now,
+            changedBy: "Система",
+            plannedAmount: income.plannedAmount,
+            actualAmount: income.actualAmount ?? null,
+            reason: income.adjustmentReason ?? null,
+            note: income.note ?? null,
+          });
+        }
+
+        income.updatedAt = now;
+        payment.updatedAt = now;
         recalculateTotals(payment);
 
-        return { ...income };
+        return {
+          ...income,
+          attachments: income.attachments.map((item) => ({ ...item })),
+          history: income.history.map((item) => ({ ...item })),
+        };
       },
     );
   }
@@ -975,23 +1078,54 @@ export class ApiClient {
         }
 
         const now = new Date().toISOString();
+        const attachments = (payload.attachments ?? []).map((attachment) => ({
+          id: attachment.id ?? createRandomId(),
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize,
+          uploadedAt: attachment.uploadedAt ?? now,
+          uploadedBy: attachment.uploadedBy ?? "Система",
+          url: attachment.url,
+        }));
+        const plannedAmount = payload.plannedAmount ?? 0;
+        const actualAmount = payload.actualAmount ?? null;
+        const effectiveAmount = actualAmount ?? plannedAmount;
+        const category = payload.category ?? "other_expense";
+        const historyEntry = {
+          id: createRandomId(),
+          changedAt: now,
+          changedBy: "Система",
+          plannedAmount,
+          actualAmount,
+          reason: payload.reason ?? (actualAmount !== null ? "confirmation" : "initial_planning"),
+          note: payload.note ?? null,
+        } satisfies PaymentEntry["history"][number];
+
         const expense: PaymentEntry = {
           id: createRandomId(),
           paymentId,
-          amount: payload.amount,
+          amount: effectiveAmount,
+          plannedAmount,
+          actualAmount,
           currency: payment.currency,
-          category: payload.category,
-          postedAt: payload.postedAt,
+          category,
+          postedAt: payload.plannedPostedAt ?? now,
+          actualPostedAt: payload.actualPostedAt ?? null,
           note: payload.note,
+          status: actualAmount !== null ? "confirmed" : "pending_confirmation",
+          adjustmentReason: payload.reason ?? null,
+          attachments,
+          history: [historyEntry],
           createdAt: now,
           updatedAt: now,
+          createdBy: "Система",
+          updatedBy: "Система",
         };
 
         payment.expenses.unshift(expense);
         payment.updatedAt = now;
         recalculateTotals(payment);
 
-        return { ...expense };
+        return { ...expense, attachments: expense.attachments.map((item) => ({ ...item })), history: expense.history.map((item) => ({ ...item })) };
       },
     );
   }
@@ -1014,24 +1148,82 @@ export class ApiClient {
           throw new ApiError("Expense not found", 404);
         }
 
-        if (payload.amount !== undefined) {
-          expense.amount = payload.amount;
+        if (!expense.attachments) {
+          expense.attachments = [];
         }
+        if (!expense.history) {
+          expense.history = [];
+        }
+
+        const now = new Date().toISOString();
+        let hasMeaningfulChange = false;
+
         if (payload.category !== undefined) {
           expense.category = payload.category;
+          hasMeaningfulChange = true;
         }
-        if (payload.postedAt !== undefined) {
-          expense.postedAt = payload.postedAt;
+        if (payload.plannedAmount !== undefined) {
+          expense.plannedAmount = payload.plannedAmount;
+          hasMeaningfulChange = true;
+        }
+        if (payload.plannedPostedAt !== undefined) {
+          expense.postedAt = payload.plannedPostedAt;
+          hasMeaningfulChange = true;
         }
         if (payload.note !== undefined) {
-          expense.note = payload.note;
+          expense.note = payload.note ?? undefined;
+          hasMeaningfulChange = true;
+        }
+        if (payload.actualAmount !== undefined) {
+          expense.actualAmount = payload.actualAmount;
+          hasMeaningfulChange = true;
+        }
+        if (payload.actualPostedAt !== undefined) {
+          expense.actualPostedAt = payload.actualPostedAt;
+          hasMeaningfulChange = true;
+        }
+        if (payload.reason !== undefined) {
+          expense.adjustmentReason = payload.reason;
+          hasMeaningfulChange = true;
         }
 
-        expense.updatedAt = new Date().toISOString();
-        payment.updatedAt = expense.updatedAt;
+        if (payload.attachments && payload.attachments.length > 0) {
+          const attachments = payload.attachments.map((attachment) => ({
+            id: attachment.id ?? createRandomId(),
+            fileName: attachment.fileName,
+            fileSize: attachment.fileSize,
+            uploadedAt: attachment.uploadedAt ?? now,
+            uploadedBy: attachment.uploadedBy ?? "Система",
+            url: attachment.url,
+          }));
+          expense.attachments.push(...attachments);
+          hasMeaningfulChange = true;
+        }
+
+        expense.amount = (expense.actualAmount ?? expense.plannedAmount) ?? expense.amount;
+        expense.status = expense.actualAmount !== undefined && expense.actualAmount !== null ? "confirmed" : "pending_confirmation";
+
+        if (hasMeaningfulChange) {
+          expense.history.unshift({
+            id: createRandomId(),
+            changedAt: now,
+            changedBy: "Система",
+            plannedAmount: expense.plannedAmount,
+            actualAmount: expense.actualAmount ?? null,
+            reason: expense.adjustmentReason ?? null,
+            note: expense.note ?? null,
+          });
+        }
+
+        expense.updatedAt = now;
+        payment.updatedAt = now;
         recalculateTotals(payment);
 
-        return { ...expense };
+        return {
+          ...expense,
+          attachments: expense.attachments.map((item) => ({ ...item })),
+          history: expense.history.map((item) => ({ ...item })),
+        };
       },
     );
   }
@@ -1116,6 +1308,14 @@ export class ApiClient {
   }
 }
 
+function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
+  return {
+    ...entry,
+    attachments: entry.attachments?.map((attachment) => ({ ...attachment })) ?? [],
+    history: entry.history?.map((record) => ({ ...record })) ?? [],
+  };
+}
+
 function clonePayment(payment: Payment): Payment {
   return {
     ...payment,
@@ -1125,10 +1325,20 @@ function clonePayment(payment: Payment): Payment {
       ...change,
       snapshot: { ...change.snapshot },
     })),
+    incomes: payment.incomes.map((income) => clonePaymentEntry({ ...income })),
+    expenses: payment.expenses.map((expense) => clonePaymentEntry({ ...expense })),
   };
 }
 
 function recalculateTotals(payment: Payment): Payment {
+  for (const income of payment.incomes) {
+    income.amount = (income.actualAmount ?? income.plannedAmount ?? income.amount) ?? 0;
+  }
+
+  for (const expense of payment.expenses) {
+    expense.amount = (expense.actualAmount ?? expense.plannedAmount ?? expense.amount) ?? 0;
+  }
+
   const incomesTotal = payment.incomes.reduce((sum, income) => sum + income.amount, 0);
   const expensesTotal = payment.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   payment.incomesTotal = incomesTotal;

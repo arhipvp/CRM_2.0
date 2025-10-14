@@ -56,6 +56,16 @@ async def get_policy_service(session: AsyncSession = Depends(get_db_session)) ->
     return services.PolicyService(repositories.PolicyRepository(session))
 
 
+async def get_calculation_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> services.CalculationService:
+    publisher = await get_events_publisher(request)
+    calculation_repository = repositories.CalculationRepository(session)
+    policy_repository = repositories.PolicyRepository(session)
+    return services.CalculationService(calculation_repository, policy_repository, publisher)
+
+
 async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> services.TaskService:
     return services.TaskService(repositories.TaskRepository(session))
 

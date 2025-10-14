@@ -8,6 +8,7 @@ import { DealDetailsTabsNav } from "@/components/deals/details/DealDetailsTabsNa
 import { OverviewTab } from "@/components/deals/details/OverviewTab";
 import { FormsTab } from "@/components/deals/details/FormsTab";
 import { PoliciesTab } from "@/components/deals/details/PoliciesTab";
+import { CalculationsTab } from "@/components/deals/details/CalculationsTab";
 import { JournalTab } from "@/components/deals/details/JournalTab";
 import { ActionsTab } from "@/components/deals/details/ActionsTab";
 import { TasksTab } from "@/components/deals/details/TasksTab";
@@ -19,6 +20,7 @@ import type { DealDetailsData, DealFormGroup } from "@/types/crm";
 const DEAL_TABS: Array<{ id: DealDetailsTabKey; label: string }> = [
   { id: "overview", label: "Обзор" },
   { id: "forms", label: "Формы" },
+  { id: "calculations", label: "Расчёты" },
   { id: "policies", label: "Полисы" },
   { id: "journal", label: "Журнал" },
   { id: "actions", label: "Действия" },
@@ -198,6 +200,10 @@ export function DealDetails({ dealId }: { dealId: string }) {
         return <OverviewTab deal={currentDeal} onOpenPolicies={() => setActiveTab("policies")} />;
       case "forms":
         return <FormsTab groups={formState} onFieldChange={handleFieldChange} />;
+      case "calculations":
+        return (
+          <CalculationsTab calculations={currentDeal.calculations} onRetry={refetch} />
+        );
       case "policies":
         return <PoliciesTab policies={currentDeal.policies} />;
       case "journal":
@@ -262,7 +268,9 @@ export function DealDetails({ dealId }: { dealId: string }) {
         tabs={DEAL_TABS.map((tab) => ({
           ...tab,
           badge:
-            tab.id === "documents"
+            tab.id === "calculations"
+              ? deal.calculations.filter((calc) => calc.status !== "archived").length || undefined
+              : tab.id === "documents"
               ? deal.documentsV2.reduce((acc, category) => acc + category.documents.length, 0)
               : tab.id === "tasks"
                 ? deal.tasksBoard.lanes.reduce((acc, lane) => acc + lane.tasks.length, 0)
