@@ -60,6 +60,48 @@ describe("SSEBridge", () => {
     expect(createEventStreamMock).toHaveBeenCalledTimes(3);
   });
 
+  it("отключает поток после ошибки и не создаёт новую подписку", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const queryClient = new QueryClient();
+
+    try {
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <SSEBridge />
+        </QueryClientProvider>,
+      );
+
+      const crmHandlers = createEventStreamMock.mock.calls[0]?.[1];
+      const crmStreamControl = createEventStreamMock.mock.results[0]?.value as
+        | { close: ReturnType<typeof vi.fn> }
+        | undefined;
+
+      expect(crmHandlers?.onError).toBeTypeOf("function");
+      expect(crmStreamControl?.close).toBeTypeOf("function");
+
+      await act(async () => {
+        crmHandlers?.onError?.(new Event("error"));
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(crmStreamControl?.close).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SSEBridge />
+        </QueryClientProvider>,
+      );
+
+      expect(createEventStreamMock).toHaveBeenCalledTimes(3);
+      expect(
+        createEventStreamMock.mock.calls.filter((call) => call[0] === "https://example.com/crm"),
+      ).toHaveLength(1);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("не инициализирует SSE-потоки в mock-режиме", () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = "mock";
 
