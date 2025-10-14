@@ -43,6 +43,15 @@ async def get_deal_service(session: AsyncSession = Depends(get_db_session)) -> s
     return services.DealService(repositories.DealRepository(session))
 
 
+async def get_deal_journal_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> services.DealJournalService:
+    publisher = await get_events_publisher(request)
+    repository = repositories.DealJournalRepository(session)
+    return services.DealJournalService(repository, publisher)
+
+
 async def get_policy_service(session: AsyncSession = Depends(get_db_session)) -> services.PolicyService:
     return services.PolicyService(repositories.PolicyRepository(session))
 
