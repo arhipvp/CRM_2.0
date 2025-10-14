@@ -130,4 +130,237 @@ ON CONFLICT (id) DO UPDATE
         effective_to = EXCLUDED.effective_to,
         updated_at = timezone('utc', now());
 
+WITH params AS (
+    SELECT
+        '8b8e7c46-278b-4a74-9ab3-000000000001'::uuid AS tenant_id
+)
+INSERT INTO crm.payments (
+    id,
+    tenant_id,
+    deal_id,
+    policy_id,
+    sequence,
+    status,
+    planned_date,
+    actual_date,
+    planned_amount,
+    currency,
+    comment,
+    recorded_by_id,
+    created_by_id,
+    updated_by_id,
+    incomes_total,
+    expenses_total,
+    net_total
+)
+SELECT
+    data.id,
+    params.tenant_id,
+    data.deal_id,
+    data.policy_id,
+    data.sequence,
+    data.status,
+    data.planned_date,
+    data.actual_date,
+    data.planned_amount,
+    data.currency,
+    data.comment,
+    data.recorded_by_id,
+    data.created_by_id,
+    data.updated_by_id,
+    data.incomes_total,
+    data.expenses_total,
+    data.net_total
+FROM params
+CROSS JOIN (
+    VALUES
+        (
+            '5d8d0d68-6e5a-421d-9c2c-777777777777'::uuid,
+            'd1b96491-1ef3-4ff5-8fdc-333333333333'::uuid,
+            '9c1c2d25-3f6f-46f8-872f-555555555555'::uuid,
+            1,
+            'paid',
+            DATE '2024-07-05',
+            DATE '2024-07-04',
+            2500000.00,
+            'RUB',
+            'Поступление аванса за корпоративный полис, подтверждено банковской выпиской.',
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            2500000.00,
+            0.00,
+            2500000.00
+        ),
+        (
+            '3c3ab2c4-6e0a-4bfb-9ed4-888888888888'::uuid,
+            'd1b96491-1ef3-4ff5-8fdc-333333333333'::uuid,
+            '9c1c2d25-3f6f-46f8-872f-555555555555'::uuid,
+            2,
+            'paid',
+            DATE '2024-07-12',
+            DATE '2024-07-12',
+            350000.00,
+            'RUB',
+            'Страховщик перечислил агентскую комиссию по корпоративному полису.',
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            '6fda31ff-7b74-4ba0-9188-8d6504b63005'::uuid,
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            350000.00,
+            0.00,
+            350000.00
+        ),
+        (
+            'af5f1f29-fbaa-4fbe-a4ec-999999999999'::uuid,
+            'd1b96491-1ef3-4ff5-8fdc-333333333333'::uuid,
+            '9c1c2d25-3f6f-46f8-872f-555555555555'::uuid,
+            3,
+            'scheduled',
+            DATE '2024-07-18',
+            DATE '2024-07-18',
+            120000.00,
+            'RUB',
+            'Плановый расход на оплату услуг внешнего партнёра по корпоративному полису.',
+            '709cb79d-9ac3-4a56-88ac-9a8bc7033003'::uuid,
+            '709cb79d-9ac3-4a56-88ac-9a8bc7033003'::uuid,
+            '709cb79d-9ac3-4a56-88ac-9a8bc7033003'::uuid,
+            0.00,
+            120000.00,
+            -120000.00
+        )
+) AS data(id, deal_id, policy_id, sequence, status, planned_date, actual_date, planned_amount, currency, comment, recorded_by_id, created_by_id, updated_by_id, incomes_total, expenses_total, net_total)
+ON CONFLICT (id) DO UPDATE
+    SET tenant_id = EXCLUDED.tenant_id,
+        deal_id = EXCLUDED.deal_id,
+        policy_id = EXCLUDED.policy_id,
+        sequence = EXCLUDED.sequence,
+        status = EXCLUDED.status,
+        planned_date = EXCLUDED.planned_date,
+        actual_date = EXCLUDED.actual_date,
+        planned_amount = EXCLUDED.planned_amount,
+        currency = EXCLUDED.currency,
+        comment = EXCLUDED.comment,
+        recorded_by_id = EXCLUDED.recorded_by_id,
+        created_by_id = EXCLUDED.created_by_id,
+        updated_by_id = EXCLUDED.updated_by_id,
+        incomes_total = EXCLUDED.incomes_total,
+        expenses_total = EXCLUDED.expenses_total,
+        net_total = EXCLUDED.net_total,
+        updated_at = timezone('utc', now());
+
+WITH params AS (
+    SELECT
+        '8b8e7c46-278b-4a74-9ab3-000000000001'::uuid AS tenant_id
+)
+INSERT INTO crm.payment_incomes (
+    id,
+    tenant_id,
+    payment_id,
+    amount,
+    currency,
+    category,
+    posted_at,
+    note,
+    created_by_id,
+    updated_by_id
+)
+SELECT
+    data.id,
+    params.tenant_id,
+    data.payment_id,
+    data.amount,
+    data.currency,
+    data.category,
+    data.posted_at,
+    data.note,
+    data.created_by_id,
+    data.updated_by_id
+FROM params
+CROSS JOIN (
+    VALUES
+        (
+            '71b08cc6-0d62-4e8c-8b7b-aaaaaaaab001'::uuid,
+            '5d8d0d68-6e5a-421d-9c2c-777777777777'::uuid,
+            2500000.00,
+            'RUB',
+            'premium',
+            DATE '2024-07-04',
+            'Авансовый платёж клиента за корпоративный полис.',
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid,
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid
+        ),
+        (
+            '71b08cc6-0d62-4e8c-8b7b-aaaaaaaab002'::uuid,
+            '3c3ab2c4-6e0a-4bfb-9ed4-888888888888'::uuid,
+            350000.00,
+            'RUB',
+            'commission',
+            DATE '2024-07-12',
+            'Комиссия страховщика после выдачи корпоративного полиса.',
+            '6fda31ff-7b74-4ba0-9188-8d6504b63005'::uuid,
+            '0c1cc9fb-50a7-4b15-a765-2251c0633004'::uuid
+        )
+) AS data(id, payment_id, amount, currency, category, posted_at, note, created_by_id, updated_by_id)
+ON CONFLICT (id) DO UPDATE
+    SET payment_id = EXCLUDED.payment_id,
+        amount = EXCLUDED.amount,
+        currency = EXCLUDED.currency,
+        category = EXCLUDED.category,
+        posted_at = EXCLUDED.posted_at,
+        note = EXCLUDED.note,
+        updated_by_id = EXCLUDED.updated_by_id,
+        updated_at = timezone('utc', now());
+
+WITH params AS (
+    SELECT
+        '8b8e7c46-278b-4a74-9ab3-000000000001'::uuid AS tenant_id
+)
+INSERT INTO crm.payment_expenses (
+    id,
+    tenant_id,
+    payment_id,
+    amount,
+    currency,
+    category,
+    posted_at,
+    note,
+    created_by_id,
+    updated_by_id
+)
+SELECT
+    data.id,
+    params.tenant_id,
+    data.payment_id,
+    data.amount,
+    data.currency,
+    data.category,
+    data.posted_at,
+    data.note,
+    data.created_by_id,
+    data.updated_by_id
+FROM params
+CROSS JOIN (
+    VALUES
+        (
+            'f67b20fd-3bf7-4c55-92af-bbbbbbbbc001'::uuid,
+            'af5f1f29-fbaa-4fbe-a4ec-999999999999'::uuid,
+            120000.00,
+            'RUB',
+            'partner_fee',
+            DATE '2024-07-18',
+            'Выплата подрядчику за телематическую установку на корпоративном автопарке.',
+            '709cb79d-9ac3-4a56-88ac-9a8bc7033003'::uuid,
+            '709cb79d-9ac3-4a56-88ac-9a8bc7033003'::uuid
+        )
+) AS data(id, payment_id, amount, currency, category, posted_at, note, created_by_id, updated_by_id)
+ON CONFLICT (id) DO UPDATE
+    SET payment_id = EXCLUDED.payment_id,
+        amount = EXCLUDED.amount,
+        currency = EXCLUDED.currency,
+        category = EXCLUDED.category,
+        posted_at = EXCLUDED.posted_at,
+        note = EXCLUDED.note,
+        updated_by_id = EXCLUDED.updated_by_id,
+        updated_at = timezone('utc', now());
+
 COMMIT;
