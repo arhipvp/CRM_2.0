@@ -36,12 +36,12 @@
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com%' ORDER BY email;
 SELECT title, status, value FROM crm.deals ORDER BY created_at DESC;
-SELECT policy_id, amount, direction, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
-SELECT payment_id, income_type, amount, occurred_on FROM crm.payment_incomes ORDER BY payment_id;
-SELECT payment_id, expense_type, amount, occurred_on FROM crm.payment_expenses ORDER BY payment_id;
+SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
+SELECT payment_id, category, posted_at, amount FROM crm.payment_incomes ORDER BY payment_id;
+SELECT payment_id, category, posted_at, amount FROM crm.payment_expenses ORDER BY payment_id;
 ```
 
-Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.payments` есть минимум три записи с корректным направлением (`income`/`expense`) и ссылкой на автора (`recorded_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.payment_incomes` или `crm.payment_expenses`, суммарно совпадающая с базовой суммой (учитывая знак).
+Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.payments` есть минимум три записи с заполненными агрегатами (`incomes_total`, `expenses_total`, `net_total`) и ссылкой на автора (`recorded_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.payment_incomes` или `crm.payment_expenses`; категории и даты (`category`, `posted_at`) отражают реальные сценарии, а суммы детализации сходятся с агрегатами платежа.
 
 ## Актуализация набора
 
