@@ -10,7 +10,7 @@ import {
   paymentsQueryOptions,
 } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
-import { PaymentEventPayload, useUiStore } from "@/stores/uiStore";
+import { useUiStore } from "@/stores/uiStore";
 
 type StreamHandlers = Parameters<typeof useEventStream>[1];
 
@@ -28,7 +28,6 @@ export interface SSEBridgeProps {
   apiBaseUrl?: string | null;
   crmSseUrl?: string | null;
   notificationsSseUrl?: string | null;
-  paymentsSseUrl?: string | null;
 }
 
 function normalizeUrl(value?: string | null) {
@@ -81,45 +80,23 @@ function parsePayload(event: MessageEvent<string>): CrmEventPayload {
   }
 }
 
-function parsePaymentPayload(event: MessageEvent<string>): PaymentEventPayload {
-  const sseEvent = event.type !== "message" ? event.type : undefined;
-
-  try {
-    const parsed = JSON.parse(event.data) as PaymentEventPayload;
-    return {
-      ...parsed,
-      event: parsed.event ?? sseEvent,
-    };
-  } catch (error) {
-    console.warn("Не удалось распарсить SSE сообщение платежей", error);
-    return {
-      id: createRandomId(),
-      message: event.data,
-      event: sseEvent,
-    };
-  }
-}
-
 const paymentsQueryKey = paymentsQueryOptions().queryKey;
 
 export function SSEBridge({
   apiBaseUrl,
   crmSseUrl,
   notificationsSseUrl,
-  paymentsSseUrl,
 }: SSEBridgeProps = {}) {
   const resolvedBaseUrl = (apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL)?.trim();
   const mockModeEnabled = !resolvedBaseUrl || resolvedBaseUrl === "mock";
 
   const pushNotification = useUiStore((state) => state.pushNotification);
   const highlightDeal = useUiStore((state) => state.highlightDeal);
-  const handlePaymentEvent = useUiStore((state) => state.handlePaymentEvent);
   const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
 
   const [crmStreamEnabled, setCrmStreamEnabled] = useState(true);
   const [notificationsStreamEnabled, setNotificationsStreamEnabled] = useState(true);
-  const [paymentsStreamEnabled, setPaymentsStreamEnabled] = useState(true);
 
   const invalidateDealQueries = useCallback(
     (dealId: string) =>
@@ -147,6 +124,23 @@ export function SSEBridge({
         void invalidateDealQueries(dealId);
       }
 
+      const normalizedType = payload.type?.trim().toLowerCase();
+      const normalizedMessage = payload.message?.trim().toLowerCase();
+      const shouldInvalidatePayments = Boolean(
+        normalizedType?.includes("payment") || normalizedMessage?.includes("платеж"),
+      );
+
+      if (shouldInvalidatePayments) {
+        if (!dealId) {
+          void Promise.all([
+            queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+            queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+          ]);
+        }
+
+        queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
+      }
+
       if (payload.message) {
         pushNotification({
           id,
@@ -157,7 +151,7 @@ export function SSEBridge({
         });
       }
     },
-    [highlightDeal, invalidateDealQueries, markDealUpdated, pushNotification],
+    [highlightDeal, invalidateDealQueries, markDealUpdated, pushNotification, queryClient],
   );
 
   const handleCrmError = useCallback((event: Event) => {
@@ -202,53 +196,6 @@ export function SSEBridge({
     });
   }, []);
 
-  const handlePaymentsMessage = useCallback(
-    (event: MessageEvent<string>) => {
-      const payload = parsePaymentPayload(event);
-      const effect = handlePaymentEvent(payload);
-
-      if (effect.highlightDealId) {
-        highlightDeal(effect.highlightDealId);
-        markDealUpdated(effect.highlightDealId);
-        setTimeout(() => highlightDeal(undefined), 3000);
-      }
-
-      if (effect.shouldRefetch) {
-        if (effect.highlightDealId) {
-          void invalidateDealQueries(effect.highlightDealId);
-        } else {
-          void Promise.all([
-            queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-            queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
-          ]);
-        }
-
-        queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
-      }
-    },
-    [
-      handlePaymentEvent,
-      highlightDeal,
-      invalidateDealQueries,
-      markDealUpdated,
-      queryClient,
-    ],
-  );
-
-  const handlePaymentsError = useCallback((event: Event) => {
-    setPaymentsStreamEnabled((prev) => {
-      if (!prev) {
-        return prev;
-      }
-
-      console.warn(
-        "Payments SSE error: поток отключён до перезагрузки страницы. Обновите страницу, чтобы возобновить соединение.",
-        event,
-      );
-      return false;
-    });
-  }, []);
-
   const crmHandlers = useMemo(
     () => ({
       onMessage: handleCrmMessage,
@@ -265,14 +212,6 @@ export function SSEBridge({
     [handleNotificationMessage, handleNotificationsError],
   );
 
-  const paymentsHandlers = useMemo(
-    () => ({
-      onMessage: handlePaymentsMessage,
-      onError: handlePaymentsError,
-    }),
-    [handlePaymentsMessage, handlePaymentsError],
-  );
-
   if (mockModeEnabled) {
     return null;
   }
@@ -281,20 +220,15 @@ export function SSEBridge({
   const notificationsStreamUrl = normalizeUrl(
     notificationsSseUrl ?? process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL,
   );
-  const paymentsStreamUrl = normalizeUrl(paymentsSseUrl ?? process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL);
 
   const shouldRenderCrmStream = Boolean(crmStreamUrl) && crmStreamEnabled;
   const shouldRenderNotificationsStream = Boolean(notificationsStreamUrl) && notificationsStreamEnabled;
-  const shouldRenderPaymentsStream = Boolean(paymentsStreamUrl) && paymentsStreamEnabled;
 
   return (
     <>
       {shouldRenderCrmStream ? <StreamSubscription url={crmStreamUrl!} handlers={crmHandlers} /> : null}
       {shouldRenderNotificationsStream ? (
         <StreamSubscription url={notificationsStreamUrl!} handlers={notificationHandlers} />
-      ) : null}
-      {shouldRenderPaymentsStream ? (
-        <StreamSubscription url={paymentsStreamUrl!} handlers={paymentsHandlers} />
       ) : null}
     </>
   );

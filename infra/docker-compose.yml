@@ -126,7 +126,6 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api}
         NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-http://gateway:8080/api/v1/streams/deals}
-        NEXT_PUBLIC_PAYMENTS_SSE_URL: ${NEXT_PUBLIC_PAYMENTS_SSE_URL:-http://gateway:8080/api/v1/streams/payments}
         NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: ${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL:-http://gateway:8080/api/v1/streams/notifications}
         NEXT_PUBLIC_TELEMETRY_DSN: ${NEXT_PUBLIC_TELEMETRY_DSN:-}
         NEXT_PUBLIC_FEATURE_FLAGS: ${NEXT_PUBLIC_FEATURE_FLAGS:-}
@@ -136,7 +135,6 @@ services:
       PORT: 3000
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api}
       NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-http://gateway:8080/api/v1/streams/deals}
-      NEXT_PUBLIC_PAYMENTS_SSE_URL: ${NEXT_PUBLIC_PAYMENTS_SSE_URL:-http://gateway:8080/api/v1/streams/payments}
       NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: ${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL:-http://gateway:8080/api/v1/streams/notifications}
       NEXT_PUBLIC_TELEMETRY_DSN: ${NEXT_PUBLIC_TELEMETRY_DSN:-}
       NEXT_PUBLIC_FEATURE_FLAGS: ${NEXT_PUBLIC_FEATURE_FLAGS:-}
