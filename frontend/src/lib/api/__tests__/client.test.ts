@@ -50,17 +50,16 @@ describe("ApiClient mock mode", () => {
       throw new Error("Тестовые данные сделок или клиентов не заданы");
     }
 
-    const deal = await apiClient.getDeal(dealId);
-    expect(deal).toMatchObject({
-      ...dealsMock[0],
-      nextReviewAt: dealsMock[0]?.nextReviewAt,
-      tasks: tasksMock.filter((task) => task.dealId === dealId),
-      notes: dealNotesMock.filter((note) => note.dealId === dealId),
-      documents: dealDocumentsMock.filter((doc) => doc.dealId === dealId),
-      payments: paymentsMock.filter((payment) => payment.dealId === dealId),
-      activity: activitiesMock.filter((entry) => entry.dealId === dealId),
+    const details = await apiClient.getDealDetails(dealId);
+    expect(details).toMatchObject({
+      id: dealId,
+      name: dealsMock[0]?.name,
+      value: dealsMock[0]?.value,
+      overview: expect.objectContaining({ metrics: expect.any(Array) }),
+      documentsV2: expect.any(Array),
+      finance: expect.objectContaining({ metrics: expect.any(Array) }),
     });
-    expect(typeof deal.nextReviewAt).toBe("string");
+    expect(details.overview.metrics).toBeInstanceOf(Array);
 
     await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
     await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);

@@ -2,6 +2,7 @@ import {
   ActivityLogEntry,
   Client,
   Deal,
+  DealDetailsData,
   DealDocument,
   DealNote,
   Payment,
@@ -68,6 +69,15 @@ export const dealsMock: Deal[] = [
     documents: [],
     payments: [],
     activity: [],
+    avatarUrl: "https://avatars.dicebear.com/api/initials/AL.svg",
+    riskTags: [
+      { id: "risk-1", label: "Просроченный платёж", tone: "high" },
+    ],
+    priorityTag: { label: "Высокий", level: "high" },
+    quickTags: [
+      { id: "product-dms", label: "ДМС", tone: "info" },
+      { id: "segment-b2b", label: "B2B" },
+    ],
   },
   {
     id: "deal-2",
@@ -86,6 +96,14 @@ export const dealsMock: Deal[] = [
     documents: [],
     payments: [],
     activity: [],
+    avatarUrl: "https://avatars.dicebear.com/api/initials/IP.svg",
+    riskTags: [
+      { id: "risk-2", label: "Новый клиент", tone: "medium" },
+    ],
+    priorityTag: { label: "Средний", level: "normal" },
+    quickTags: [
+      { id: "product-kasko", label: "КАСКО", tone: "info" },
+    ],
   },
   {
     id: "deal-3",
@@ -104,6 +122,15 @@ export const dealsMock: Deal[] = [
     documents: [],
     payments: [],
     activity: [],
+    avatarUrl: "https://avatars.dicebear.com/api/initials/TI.svg",
+    riskTags: [
+      { id: "risk-3", label: "Высокий чек", tone: "medium" },
+    ],
+    priorityTag: { label: "Высокий", level: "high" },
+    quickTags: [
+      { id: "product-dms", label: "ДМС", tone: "info" },
+      { id: "segment-tech", label: "Технологии" },
+    ],
   },
   {
     id: "deal-4",
@@ -122,8 +149,568 @@ export const dealsMock: Deal[] = [
     documents: [],
     payments: [],
     activity: [],
+    avatarUrl: "https://avatars.dicebear.com/api/initials/AL.svg",
+    riskTags: [
+      { id: "risk-4", label: "Истёкший полис", tone: "critical" },
+    ],
+    priorityTag: { label: "Низкий", level: "low" },
+    quickTags: [
+      { id: "product-property", label: "Имущество" },
+    ],
   },
 ];
+
+export const dealDetailsMock: Record<string, DealDetailsData> = {
+  "deal-1": {
+    id: "deal-1",
+    name: "Корпоративная страховка",
+    clientId: "client-1",
+    clientName: "ООО «Альфа Логистик»",
+    stage: "qualification",
+    value: 1200000,
+    probability: 0.65,
+    expectedCloseDate: new Date(now + dayInMs * 14).toISOString(),
+    nextReviewAt: new Date(now + dayInMs * 2).toISOString(),
+    updatedAt: new Date(now - hourInMs).toISOString(),
+    owner: "Анна Савельева",
+    avatarUrl: "https://avatars.dicebear.com/api/initials/AL.svg",
+    riskTags: [
+      { id: "risk-1", label: "Просроченный платёж", tone: "high" },
+      { id: "risk-1-2", label: "Не подтверждена документация", tone: "medium" },
+    ],
+    priorityTag: { label: "Высокий приоритет", level: "high", reason: "Важный корпоративный клиент" },
+    quickTags: [
+      { id: "product-dms", label: "ДМС", tone: "info" },
+      { id: "segment-b2b", label: "B2B" },
+      { id: "renewal", label: "Продление" },
+    ],
+    overview: {
+      metrics: [
+        { id: "amount", label: "Сумма сделки", value: "1 200 000 ₽" },
+        { id: "probability", label: "Вероятность закрытия", value: "65%" },
+        {
+          id: "next-review",
+          label: "Следующий просмотр",
+          value: new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(new Date(now + dayInMs * 2)),
+          hint: "Обязательно к обновлению",
+        },
+      ],
+      nextEvents: [
+        {
+          id: "next-step",
+          label: "Созвон по условиям",
+          date: new Date(now + dayInMs).toISOString(),
+          isSoon: true,
+        },
+        {
+          id: "next-review",
+          label: "Следующий обзор",
+          date: new Date(now + dayInMs * 2).toISOString(),
+        },
+      ],
+      warnings: [
+        {
+          id: "warning-payment",
+          label: "Просрочен платёж #3",
+          severity: "critical",
+          description: "Требуется связаться с клиентом",
+        },
+      ],
+      lastInteractions: [
+        {
+          id: "activity-1",
+          title: "Звонок с финансовым директором",
+          occurredAt: new Date(now - hourInMs * 3).toISOString(),
+          author: "Анна Савельева",
+          channel: "call",
+          excerpt: "Обсудили корректировки по рискам",
+        },
+        {
+          id: "activity-2",
+          title: "Комментарий от исполнителя",
+          occurredAt: new Date(now - hourInMs * 6).toISOString(),
+          author: "Мария Орлова",
+          channel: "note",
+          excerpt: "Обновила расчёт программы",
+        },
+      ],
+      confirmedPayments: [
+        {
+          id: "confirmed-1",
+          amount: 350000,
+          currency: "RUB",
+          paidAtActual: new Date(now - dayInMs).toISOString(),
+          recordedBy: {
+            id: "user-1",
+            name: "Игорь Миронов",
+            title: "Финансовый менеджер",
+          },
+          comment: "Средства поступили на расчётный счёт",
+        },
+      ],
+      currentPolicyId: "policy-1",
+    },
+    forms: [
+      {
+        id: "core",
+        title: "Основные данные",
+        fields: [
+          {
+            id: "name",
+            label: "Название сделки",
+            type: "text",
+            value: "Корпоративная страховка",
+            required: true,
+          },
+          {
+            id: "nextReviewAt",
+            label: "Следующий просмотр",
+            type: "date",
+            value: new Date(now + dayInMs * 2).toISOString().slice(0, 10),
+            required: true,
+          },
+          {
+            id: "owner",
+            label: "Ответственный",
+            type: "text",
+            value: "Анна Савельева",
+          },
+        ],
+      },
+      {
+        id: "finance",
+        title: "Финансовые параметры",
+        collapsedByDefault: true,
+        fields: [
+          {
+            id: "value",
+            label: "Сумма",
+            type: "currency",
+            value: "1200000",
+            required: true,
+          },
+          {
+            id: "probability",
+            label: "Вероятность",
+            type: "number",
+            value: "65",
+          },
+        ],
+      },
+      {
+        id: "widgets",
+        title: "Дополнительные виджеты",
+        fields: [
+          {
+            id: "ai-suggestion",
+            label: "Рекомендации ИИ",
+            type: "textarea",
+            value: "Предложите клиенту пакет расширенного покрытия",
+            disabled: true,
+            hint: "Доступно при активном фиче-флаге",
+          },
+        ],
+      },
+    ],
+    calculations: [
+      {
+        id: "calc-1",
+        insurer: "АльфаСтрахование",
+        program: "Корпоративное здоровье",
+        premium: 450000,
+        currency: "RUB",
+        period: "01.01.2025 — 31.12.2025",
+        status: "ready",
+        policyId: "policy-1",
+        updatedAt: new Date(now - hourInMs * 4).toISOString(),
+        files: [
+          {
+            id: "file-1",
+            name: "calc-ready.xlsx",
+            size: 120_000,
+            uploadedAt: new Date(now - hourInMs * 5).toISOString(),
+            uploadedBy: "Мария Орлова",
+          },
+        ],
+        tags: [
+          { id: "status-ready", label: "Готово", tone: "success" },
+          { id: "await-confirm", label: "Ожидает подтверждения", tone: "warning" },
+        ],
+      },
+      {
+        id: "calc-2",
+        insurer: "Ингосстрах",
+        program: "Расширенный пакет",
+        premium: 620000,
+        currency: "RUB",
+        period: "01.01.2025 — 31.12.2025",
+        status: "pending",
+        updatedAt: new Date(now - hourInMs * 10).toISOString(),
+        files: [
+          {
+            id: "file-2",
+            name: "draft.pdf",
+            size: 52_000,
+            uploadedAt: new Date(now - hourInMs * 11).toISOString(),
+            uploadedBy: "Мария Орлова",
+          },
+        ],
+        tags: [
+          { id: "draft", label: "Черновик", tone: "warning" },
+        ],
+      },
+    ],
+    policies: [
+      {
+        id: "policy-1",
+        number: "POL-2024-001",
+        product: "Корпоративное здоровье",
+        status: "active",
+        periodStart: new Date(now - dayInMs * 30).toISOString(),
+        periodEnd: new Date(now + dayInMs * 335).toISOString(),
+        premium: 980000,
+        currency: "RUB",
+        owner: "Анна Савельева",
+        highlight: true,
+        badges: [
+          { id: "policy-current", label: "Текущий", tone: "success" },
+        ],
+        payments: [
+          {
+            id: "payment-1",
+            number: "001",
+            plannedDate: new Date(now - dayInMs * 5).toISOString(),
+            actualDate: new Date(now - dayInMs * 3).toISOString(),
+            amount: 350000,
+            currency: "RUB",
+            confirmationStatus: "confirmed",
+            responsible: "Игорь Миронов",
+            tags: [
+              { id: "confirmed", label: "Подтверждено", tone: "success" },
+            ],
+            incomes: [
+              {
+                id: "income-1",
+                kind: "income",
+                title: "Оплата клиента",
+                plannedAmount: 350000,
+                actualAmount: 350000,
+                status: "approved",
+              },
+            ],
+            expenses: [
+              {
+                id: "expense-1",
+                kind: "expense",
+                title: "Комиссия исполнителя",
+                plannedAmount: 85000,
+                actualAmount: 80000,
+                status: "approved",
+              },
+            ],
+            timeline: [
+              {
+                id: "timeline-1",
+                label: "Создан платёж",
+                at: new Date(now - dayInMs * 6).toISOString(),
+                user: "Анна Савельева",
+              },
+              {
+                id: "timeline-2",
+                label: "Подтвержден",
+                at: new Date(now - dayInMs * 3).toISOString(),
+                user: "Игорь Миронов",
+                comment: "Средства зачислены",
+              },
+            ],
+          },
+          {
+            id: "payment-2",
+            number: "002",
+            plannedDate: new Date(now + dayInMs * 30).toISOString(),
+            amount: 320000,
+            currency: "RUB",
+            confirmationStatus: "expected",
+            tags: [
+              { id: "expected", label: "Ожидается", tone: "warning" },
+            ],
+            incomes: [
+              {
+                id: "income-2",
+                kind: "income",
+                title: "Отложенный платёж",
+                plannedAmount: 320000,
+                status: "pending",
+              },
+            ],
+            expenses: [],
+            timeline: [
+              {
+                id: "timeline-3",
+                label: "Запланирован",
+                at: new Date(now - dayInMs).toISOString(),
+                user: "Анна Савельева",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "policy-archived",
+        number: "POL-2023-010",
+        product: "Корпоративное здоровье",
+        status: "archived",
+        periodStart: new Date(now - dayInMs * 400).toISOString(),
+        periodEnd: new Date(now - dayInMs * 30).toISOString(),
+        premium: 920000,
+        currency: "RUB",
+        owner: "Анна Савельева",
+        badges: [
+          { id: "archive", label: "Архив", tone: "warning" },
+        ],
+        payments: [],
+      },
+    ],
+    actions: {
+      shortcuts: [
+        {
+          id: "create-task",
+          label: "Создать задачу",
+          intent: "task",
+          description: "Назначить исполнителю новое действие",
+        },
+        {
+          id: "send-email",
+          label: "Отправить письмо",
+          intent: "email",
+          description: "Через интеграцию с почтой",
+        },
+        {
+          id: "request-docs",
+          label: "Запросить документы",
+          intent: "documents",
+          description: "Отправить ссылку клиенту",
+        },
+      ],
+      integrations: [
+        {
+          id: "analytics",
+          label: "Аналитика продаж",
+          description: "Экспортировать в BI",
+          status: "ready",
+          actionLabel: "Открыть",
+        },
+        {
+          id: "tasks-service",
+          label: "Автоматические действия",
+          description: "Пауза интеграции",
+          status: "error",
+          errorMessage: "RabbitMQ недоступен",
+        },
+      ],
+      banners: [
+        {
+          id: "integration-error",
+          type: "warning",
+          message: "Интеграция с сервисом задач недоступна. Повторите позже.",
+        },
+      ],
+    },
+    tasksBoard: {
+      filters: {
+        types: [
+          { id: "call", label: "Звонки", active: true },
+          { id: "meeting", label: "Встречи", active: false },
+          { id: "document", label: "Документы", active: true },
+        ],
+        showForeign: false,
+      },
+      lanes: [
+        {
+          id: "assigned",
+          title: "Назначенные",
+          hint: "Активные задачи исполнителя",
+          emptyCta: "Запланировать задачу",
+          tasks: [
+            {
+              id: "task-1",
+              title: "Подготовить обновлённый расчёт",
+              dueDate: new Date(now + hourInMs * 8).toISOString(),
+              owner: "Мария Орлова",
+              stage: "in_progress",
+              type: "document",
+              checklist: [
+                { id: "check-1", label: "Собрать данные", completed: true },
+                { id: "check-2", label: "Согласовать с юристом", completed: false },
+              ],
+              journalLinkId: "activity-2",
+            },
+          ],
+        },
+        {
+          id: "waiting",
+          title: "К исполнению",
+          hint: "Ожидают принятия",
+          emptyCta: "Настроить автогенерацию",
+          tasks: [
+            {
+              id: "task-2",
+              title: "Созвон с клиентом",
+              dueDate: new Date(now + dayInMs).toISOString(),
+              owner: "Анна Савельева",
+              stage: "todo",
+              type: "call",
+              checklist: [],
+              journalLinkId: "activity-1",
+            },
+          ],
+        },
+        {
+          id: "archive",
+          title: "Архив",
+          hint: "Закрытые задачи",
+          emptyCta: "Нет закрытых задач",
+          tasks: [],
+        },
+      ],
+    },
+    documentsV2: [
+      {
+        id: "agreement",
+        title: "Договор",
+        documents: [
+          {
+            id: "doc-main",
+            name: "Основной договор.pdf",
+            type: "PDF",
+            size: 1_024_000,
+            category: "Договор",
+            uploadedAt: new Date(now - dayInMs).toISOString(),
+            uploadedBy: "Анна Савельева",
+            reviewStatus: "approved",
+            reviewer: "Юлия Самойлова",
+            reviewComment: "Проверено",
+            versions: [
+              {
+                id: "doc-main-v2",
+                version: 2,
+                uploadedAt: new Date(now - dayInMs).toISOString(),
+                uploadedBy: "Анна Савельева",
+                size: 1_024_000,
+              },
+              {
+                id: "doc-main-v1",
+                version: 1,
+                uploadedAt: new Date(now - dayInMs * 3).toISOString(),
+                uploadedBy: "Анна Савельева",
+                size: 980_000,
+                comment: "Черновик",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "consents",
+        title: "Согласия",
+        documents: [
+          {
+            id: "doc-consent",
+            name: "Согласие на обработку.docx",
+            type: "DOCX",
+            size: 250_000,
+            category: "Согласия",
+            uploadedAt: new Date(now - hourInMs * 12).toISOString(),
+            uploadedBy: "Кира Лапина",
+            reviewStatus: "pending",
+            versions: [
+              {
+                id: "doc-consent-v1",
+                version: 1,
+                uploadedAt: new Date(now - hourInMs * 12).toISOString(),
+                uploadedBy: "Кира Лапина",
+                size: 250_000,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "materials",
+        title: "Дополнительные материалы",
+        documents: [],
+      },
+    ],
+    finance: {
+      lastUpdated: new Date(now - hourInMs).toISOString(),
+      metrics: [
+        {
+          id: "total-accrued",
+          label: "Всего начислено",
+          amount: 980000,
+          currency: "RUB",
+          linkToPayments: true,
+        },
+        {
+          id: "received",
+          label: "Получено",
+          amount: 350000,
+          currency: "RUB",
+          linkToPayments: true,
+        },
+        {
+          id: "agent-commission",
+          label: "Комиссия агента",
+          amount: 120000,
+          currency: "RUB",
+        },
+        {
+          id: "executor-expenses",
+          label: "Расходы исполнителя",
+          amount: 80000,
+          currency: "RUB",
+        },
+        {
+          id: "pending",
+          label: "Ожидает подтверждения",
+          amount: 320000,
+          currency: "RUB",
+          linkToPayments: true,
+        },
+      ],
+      exportAvailable: true,
+    },
+    activity: [
+      {
+        id: "activity-1",
+        type: "meeting",
+        author: "Анна Савельева",
+        message: "Провели встречу с клиентом, согласовали покрытие",
+        createdAt: new Date(now - hourInMs * 3).toISOString(),
+        clientId: "client-1",
+        dealId: "deal-1",
+      },
+      {
+        id: "activity-2",
+        type: "system",
+        author: "CRM",
+        message: "Задача \"Подготовить обновлённый расчёт\" создана автоматически",
+        createdAt: new Date(now - hourInMs * 5).toISOString(),
+        clientId: "client-1",
+        dealId: "deal-1",
+      },
+      {
+        id: "activity-3",
+        type: "email",
+        author: "Мария Орлова",
+        message: "Отправлено письмо с презентацией программы",
+        createdAt: new Date(now - hourInMs * 8).toISOString(),
+        clientId: "client-1",
+        dealId: "deal-1",
+      },
+    ],
+  },
+};
 
 export const clientsMock: Client[] = [
   {

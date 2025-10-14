@@ -10,7 +10,7 @@ import {
   clientsQueryOptions,
   dealsQueryKey,
   dealDocumentsQueryOptions,
-  dealQueryOptions,
+  dealDetailsQueryOptions,
   dealTasksQueryOptions,
   dealNotesQueryOptions,
   dealPaymentsQueryOptions,
@@ -29,8 +29,8 @@ export function useDealStageMetrics(filters?: DealFilters) {
   return useQuery(dealStageMetricsQueryOptions(filters));
 }
 
-export function useDeal(dealId: string) {
-  return useQuery(dealQueryOptions(dealId));
+export function useDealDetails(dealId: string) {
+  return useQuery(dealDetailsQueryOptions(dealId));
 }
 
 export function useDealTasks(dealId: string) {
@@ -99,14 +99,23 @@ export function useToggleTask() {
     mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
       apiClient.updateTask(taskId, { completed }),
     onSuccess: async (task) => {
-      const invalidations = createTaskInvalidations(queryClient, task);
-      await Promise.all(invalidations);
-    },
-  });
-}
+      const invalidations = [
+        queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+      ];
 
-export function useUpdateTask() {
-  const queryClient = useQueryClient();
+      if (task.dealId) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: dealDetailsQueryOptions(task.dealId).queryKey,
+            exact: true,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+          }),
+        );
+      }
 
   return useMutation({
     mutationKey: ["update-task"],
@@ -190,7 +199,7 @@ export function useUpdateDealStage() {
     mutationKey: ["update-deal-stage"],
     mutationFn: ({ dealId, stage }) => apiClient.updateDealStage(dealId, stage),
     onMutate: async ({ dealId, optimisticUpdate, stage }) => {
-      const singleDealQueryKey = dealQueryOptions(dealId).queryKey;
+      const singleDealQueryKey = dealDetailsQueryOptions(dealId).queryKey;
 
       await Promise.all([
         queryClient.cancelQueries({ queryKey: dealsQueryKey }),
@@ -246,7 +255,7 @@ export function useUpdateDealStage() {
 
       if (context.previousDeal) {
         queryClient.setQueryData(
-          dealQueryOptions(dealId).queryKey,
+          dealDetailsQueryOptions(dealId).queryKey,
           context.previousDeal,
         );
       }
@@ -268,7 +277,7 @@ export function useUpdateDealStage() {
         });
       }
 
-      queryClient.setQueryData(dealQueryOptions(deal.id).queryKey, deal);
+      queryClient.setQueryData(dealDetailsQueryOptions(deal.id).queryKey, deal);
     },
     onSettled: async (_data, _error, variables) => {
       if (!variables) {
@@ -278,7 +287,7 @@ export function useUpdateDealStage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
         queryClient.invalidateQueries({
-          queryKey: dealQueryOptions(variables.dealId).queryKey,
+          queryKey: dealDetailsQueryOptions(variables.dealId).queryKey,
           exact: true,
         }),
         queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
