@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     subscriber: PaymentsEventsSubscriber | None = None
     if settings.enable_payments_consumer:
         try:
