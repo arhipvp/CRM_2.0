@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
-import { type DealFiltersState } from "@/lib/utils/dealFilters";
+import {
+  DEFAULT_DEAL_FILTERS,
+  areDealFiltersEqual,
+  type DealFiltersState,
+} from "@/lib/utils/dealFilters";
 import { DealViewMode, useUiStore } from "@/stores/uiStore";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type SavedUiState = {
   filters: DealFiltersState;
@@ -19,8 +25,18 @@ type HomeDealFunnelBoardProps = {
 
 export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps) {
   const savedState = useRef<SavedUiState>();
+  const [isReady, setIsReady] = useState(() => {
+    const state = useUiStore.getState();
 
-  useEffect(() => {
+    return (
+      areDealFiltersEqual(state.filters, DEFAULT_DEAL_FILTERS) &&
+      state.selectedDealIds.length === 0 &&
+      !state.previewDealId &&
+      !state.highlightedDealId
+    );
+  });
+
+  useIsomorphicLayoutEffect(() => {
     const store = useUiStore.getState();
 
     savedState.current = {
@@ -43,6 +59,10 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
       store.highlightDeal(undefined);
     }
 
+    if (!isReady) {
+      setIsReady(true);
+    }
+
     return () => {
       if (!savedState.current) {
         return;
@@ -58,6 +78,10 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
       });
     };
   }, []);
+
+  if (!isReady) {
+    return null;
+  }
 
   return <DealFunnelBoard forceViewMode={forceViewMode} />;
 }
