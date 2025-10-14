@@ -7,3 +7,4 @@ databaseChangeLog:
       file: db/changelog/0005-create-event-tags.yaml
   - include:
       file: db/changelog/0006-add-message-id.yaml
+      file: db/changelog/0006-partition-audit-events.yaml

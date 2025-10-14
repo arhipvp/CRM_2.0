@@ -20,13 +20,13 @@ spring:
       defaultBinder: rabbit
       bindings:
         auditEventsConsumer-in-0:
-          destination: ${audit.messaging.events-queue}
+          destination: ${audit.messaging.events-exchange:${audit.messaging.events-queue}}
           group: ${audit.messaging.events-group}
           contentType: application/json
           consumer:
             maxAttempts: 3
         auditCoreConsumer-in-0:
-          destination: ${audit.messaging.core-queue}
+          destination: ${audit.messaging.core-exchange:${audit.messaging.core-queue}}
           group: ${audit.messaging.core-group}
           contentType: application/json
           consumer:
@@ -46,6 +46,8 @@ spring:
               durableSubscription: true
               prefetch: ${audit.messaging.prefetch}
               acknowledgeMode: MANUAL
+              queue-name: ${audit.messaging.events-queue}
+              binding-routing-key: ${audit.messaging.events-queue}
           auditCoreConsumer-in-0:
             consumer:
               autoBindDlq: true
@@ -53,6 +55,8 @@ spring:
               durableSubscription: true
               prefetch: ${audit.messaging.prefetch}
               acknowledgeMode: MANUAL
+              queue-name: ${audit.messaging.core-queue}
+              binding-routing-key: ${audit.messaging.core-queue}
           auditDlqConsumer-in-0:
             consumer:
               autoBindDlq: false
@@ -65,8 +69,10 @@ audit:
   messaging:
     events-queue: ${AUDIT_EVENTS_QUEUE:audit.events}
     events-group: ${AUDIT_EVENTS_GROUP:audit-service}
+    events-exchange: ${AUDIT_EVENTS_EXCHANGE:}
     core-queue: ${AUDIT_CORE_QUEUE:audit.core}
     core-group: ${AUDIT_CORE_GROUP:audit-service}
+    core-exchange: ${AUDIT_CORE_EXCHANGE:}
     dlq: ${AUDIT_DLQ_QUEUE:audit.dlq}
     dlq-group: ${AUDIT_DLQ_GROUP:audit-dlq-listener}
     prefetch: ${AUDIT_RABBITMQ_PREFETCH:50}

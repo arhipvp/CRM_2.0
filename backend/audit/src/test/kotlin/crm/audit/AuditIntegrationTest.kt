@@ -68,6 +68,7 @@ class AuditIntegrationTest @Autowired constructor(
         val messageId = "msg-${UUID.randomUUID()}"
         val json = objectMapper.writeValueAsString(payload)
         sendJson(messagingProperties.eventsQueue, json, messageId)
+        rabbitTemplate.sendToDestination(messagingProperties.eventsExchange, messagingProperties.eventsQueue, json)
 
         await.atMost(Duration.ofSeconds(10)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
@@ -75,12 +76,15 @@ class AuditIntegrationTest @Autowired constructor(
 
         // Отправляем дубликат в другую очередь, чтобы проверить идемпотентность
         sendJson(messagingProperties.coreQueue, json, "msg-${UUID.randomUUID()}")
+        rabbitTemplate.sendToDestination(messagingProperties.coreExchange, messagingProperties.coreQueue, json)
 
         await.atMost(Duration.ofSeconds(5)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
         }
 
-        val saved = runBlocking { auditEventRepository.findByEventId(eventId) }
+        val saved = runBlocking {
+            auditEventRepository.findByEventIdAndOccurredAt(eventId, occurredAt.atOffset(ZoneOffset.UTC))
+        }
         requireNotNull(saved)
 
         val savedByMessageId = runBlocking { auditEventRepository.findByMessageId(messageId) }
@@ -104,6 +108,9 @@ class AuditIntegrationTest @Autowired constructor(
 
         val tags = runBlocking { auditEventTagRepository.findByEventId(saved.id) }
         assertEquals(2, tags.size)
+        tags.forEach { tag ->
+            assertEquals(saved.occurredAt, tag.eventOccurredAt)
+        }
 
         webTestClient
             .get()
@@ -124,6 +131,47 @@ class AuditIntegrationTest @Autowired constructor(
             .jsonPath("$.content[0].payload").value<String> { body ->
                 assertTrue(body.contains("\"dealId\":\"DL-42\""))
             }
+    }
+
+    @Test
+    fun `should write audit event into future monthly partition`() {
+        val futureOccurredAt = Instant.now().plus(6, ChronoUnit.MONTHS).truncatedTo(ChronoUnit.MILLIS)
+        val eventId = "evt-${UUID.randomUUID()}"
+        val payload = mapOf(
+            "eventId" to eventId,
+            "eventType" to "crm.deal.status.changed",
+            "eventSource" to "crm-service",
+            "occurredAt" to futureOccurredAt.toString(),
+            "payload" to mapOf(
+                "data" to mapOf(
+                    "status" to "approved"
+                )
+            )
+        )
+
+        rabbitTemplate.convertAndSend(messagingProperties.eventsQueue, objectMapper.writeValueAsString(payload))
+
+        val expectedOccurredAt = futureOccurredAt.atOffset(ZoneOffset.UTC)
+
+        await.atMost(Duration.ofSeconds(10)).until {
+            runBlocking {
+                auditEventRepository.findByEventIdAndOccurredAt(eventId, expectedOccurredAt)
+            } != null
+        }
+
+        val saved = runBlocking {
+            auditEventRepository.findByEventIdAndOccurredAt(eventId, expectedOccurredAt)
+        }
+
+        requireNotNull(saved)
+        assertEquals(expectedOccurredAt, saved.occurredAt)
+        assertEquals("crm.deal.status.changed", saved.eventType)
+    private fun RabbitTemplate.sendToDestination(exchange: String?, routingKey: String, payload: Any) {
+        if (exchange.isNullOrBlank()) {
+            convertAndSend(routingKey, payload)
+        } else {
+            convertAndSend(exchange, routingKey, payload)
+        }
     }
 
     companion object {
