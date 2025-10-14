@@ -817,6 +817,8 @@ export const paymentsMock: Payment[] = [
     plannedAmount: 450000,
     currency: "RUB",
     status: "received",
+    confirmationStatus: "confirmed",
+    actualAmount: 452000,
     paidAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
     dueDate: new Date(Date.now() - minutesInMs * 60 * 24 * 5).toISOString(),
     plannedDate: new Date(Date.now() - minutesInMs * 60 * 24 * 7).toISOString(),
@@ -844,7 +846,34 @@ export const paymentsMock: Payment[] = [
     createdAt: new Date(Date.now() - minutesInMs * 60 * 24 * 10).toISOString(),
     updatedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
     recordedBy: "Анна Савельева",
+    recordedByRole: "Главный админ",
     updatedBy: "Анна Савельева",
+    history: [
+      {
+        id: "payment-1-v1",
+        changedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 9).toISOString(),
+        changedBy: "Иван Плахов",
+        reason: "Уточнили плановую сумму после согласования с клиентом",
+        snapshot: {
+          plannedAmount: 440000,
+          plannedDate: new Date(Date.now() - minutesInMs * 60 * 24 * 8).toISOString(),
+          status: "expected",
+        },
+      },
+      {
+        id: "payment-1-v2",
+        changedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
+        changedBy: "Анна Савельева",
+        reason: "Поступление подтверждено бухгалтерией",
+        snapshot: {
+          plannedAmount: 450000,
+          actualAmount: 452000,
+          plannedDate: new Date(Date.now() - minutesInMs * 60 * 24 * 7).toISOString(),
+          actualDate: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
+          status: "received",
+        },
+      },
+    ],
   },
   {
     id: "payment-2",
@@ -859,6 +888,7 @@ export const paymentsMock: Payment[] = [
     plannedAmount: 210000,
     currency: "RUB",
     status: "expected",
+    confirmationStatus: "pending",
     dueDate: new Date(Date.now() + minutesInMs * 60 * 72).toISOString(),
     plannedDate: new Date(Date.now() + minutesInMs * 60 * 48).toISOString(),
     comment: "Частичная оплата премии",
@@ -898,6 +928,19 @@ export const paymentsMock: Payment[] = [
     createdAt: new Date(Date.now() - minutesInMs * 60 * 24 * 5).toISOString(),
     updatedAt: new Date(Date.now() - minutesInMs * 60 * 3).toISOString(),
     updatedBy: "Иван Плахов",
+    history: [
+      {
+        id: "payment-2-v1",
+        changedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 4).toISOString(),
+        changedBy: "Иван Плахов",
+        reason: "Сдвинули дату по просьбе клиента",
+        snapshot: {
+          plannedAmount: 200000,
+          plannedDate: new Date(Date.now() + minutesInMs * 60 * 24).toISOString(),
+          status: "planned",
+        },
+      },
+    ],
   },
   {
     id: "payment-3",
@@ -912,6 +955,7 @@ export const paymentsMock: Payment[] = [
     plannedAmount: 980000,
     currency: "RUB",
     status: "cancelled",
+    confirmationStatus: "pending",
     dueDate: new Date(Date.now() - minutesInMs * 60 * 24).toISOString(),
     plannedDate: new Date(Date.now() - minutesInMs * 60 * 48).toISOString(),
     comment: "Оплата отменена по запросу клиента",
@@ -922,7 +966,22 @@ export const paymentsMock: Payment[] = [
     expenses: [],
     createdAt: new Date(Date.now() - minutesInMs * 60 * 24 * 8).toISOString(),
     updatedAt: new Date(Date.now() - minutesInMs * 60 * 24).toISOString(),
+    recordedBy: undefined,
+    recordedByRole: undefined,
     updatedBy: "Мария Орлова",
+    history: [
+      {
+        id: "payment-3-v1",
+        changedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
+        changedBy: "Мария Орлова",
+        reason: "Платёж отменён, ожидаем новый график",
+        snapshot: {
+          plannedAmount: 980000,
+          plannedDate: new Date(Date.now() - minutesInMs * 60 * 48).toISOString(),
+          status: "cancelled",
+        },
+      },
+    ],
   },
   {
     id: "payment-4",
@@ -937,6 +996,7 @@ export const paymentsMock: Payment[] = [
     plannedAmount: 320000,
     currency: "RUB",
     status: "planned",
+    confirmationStatus: "pending",
     dueDate: new Date(Date.now() + minutesInMs * 60 * 24 * 21).toISOString(),
     plannedDate: new Date(Date.now() + minutesInMs * 60 * 24 * 18).toISOString(),
     comment: "Рассрочка на три части",
@@ -947,6 +1007,7 @@ export const paymentsMock: Payment[] = [
     expenses: [],
     createdAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
     updatedAt: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
+    history: [],
   },
   {
     id: "payment-5",
@@ -961,6 +1022,8 @@ export const paymentsMock: Payment[] = [
     plannedAmount: 120000,
     currency: "RUB",
     status: "paid_out",
+    confirmationStatus: "confirmed",
+    actualAmount: 118500,
     paidAt: new Date(Date.now() - minutesInMs * 60 * 12).toISOString(),
     dueDate: new Date(Date.now() - minutesInMs * 60 * 24 * 2).toISOString(),
     plannedDate: new Date(Date.now() - minutesInMs * 60 * 24 * 3).toISOString(),
@@ -988,7 +1051,23 @@ export const paymentsMock: Payment[] = [
     createdAt: new Date(Date.now() - minutesInMs * 60 * 24 * 6).toISOString(),
     updatedAt: new Date(Date.now() - minutesInMs * 60 * 12).toISOString(),
     recordedBy: "Мария Орлова",
+    recordedByRole: "Исполнитель",
     updatedBy: "Мария Орлова",
+    history: [
+      {
+        id: "payment-5-v1",
+        changedAt: new Date(Date.now() - minutesInMs * 60 * 24).toISOString(),
+        changedBy: "Мария Орлова",
+        reason: "Подтвердили выплату страховой",
+        snapshot: {
+          plannedAmount: 120000,
+          actualAmount: 118500,
+          plannedDate: new Date(Date.now() - minutesInMs * 60 * 24 * 3).toISOString(),
+          actualDate: new Date(Date.now() - minutesInMs * 60 * 12).toISOString(),
+          status: "paid_out",
+        },
+      },
+    ],
   },
 ];
 
