@@ -65,6 +65,7 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
     policies: Mapped[list["Policy"]] = relationship(back_populates="deal", cascade="all, delete-orphan")
     calculations: Mapped[list["Calculation"]] = relationship(
         back_populates="deal", cascade="all, delete-orphan"
+    )
     journal_entries: Mapped[list["DealJournalEntry"]] = relationship(
         back_populates="deal",
         cascade="all, delete-orphan",
