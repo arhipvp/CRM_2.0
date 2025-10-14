@@ -11,8 +11,8 @@
 | Домен | Файл | Содержимое | Примечания |
 | --- | --- | --- | --- |
 | Auth | `seed_20240715_auth.sql` | Роли `ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN` и пять активных пользователей (email `*@example.com`). | Пароль всех аккаунтов — `Passw0rd!` (bcrypt, 12 раундов). Используются UUID, согласованные с CRM. TODO: выделить отдельного пользователя для проверки прав главного админа. |
-| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с действующими периодами и связанные записи задач/журналов. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и авторов сущностей (`created_by_id`, `recorded_by_id`). Значения премий отражают реальные суммы сценариев. |
-| CRM / Payments | `seed_20240715_crm.sql` | Три финансовые записи на полисы (премия, комиссия, расход) с агрегированными суммами в `crm.payments` и детализацией в `crm.payment_incomes`/`crm.payment_expenses`. | Для каждого платежа указаны авторы подтверждения и даты фактических движений; суммы позиций сходятся с агрегатом платежа. |
+| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с действующими периодами и связанные записи задач/журналов. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и авторов сущностей (`created_by_id`, `updated_by_id`). Значения премий отражают реальные суммы сценариев. |
+| CRM / Payments | `seed_20240715_crm.sql` | Три финансовые записи на полисы (премия, комиссия, расход) с агрегированными суммами в `crm.payments` и детализацией в `crm.payment_incomes`/`crm.payment_expenses`. | Для каждого платежа сохранены авторы создания и последнего обновления; суммы позиций сходятся с агрегатом платежа. |
 
 Отдельный файл `seed_20240715_payments.sql` больше не требуется: факт оплаты полиса входит в основной seed CRM и хранится в `crm.payments` с привязкой к позициям доходов и расходов.
 
@@ -36,12 +36,12 @@
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com%' ORDER BY email;
 SELECT title, status, value FROM crm.deals ORDER BY created_at DESC;
-SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, recorded_by_id FROM crm.payments ORDER BY actual_date DESC;
+SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, updated_by_id FROM crm.payments ORDER BY actual_date DESC;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_incomes ORDER BY payment_id;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_expenses ORDER BY payment_id;
 ```
 
-Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.payments` есть минимум три записи с заполненными агрегатами (`incomes_total`, `expenses_total`, `net_total`) и ссылкой на автора (`recorded_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.payment_incomes` или `crm.payment_expenses`; категории и даты (`category`, `posted_at`) отражают реальные сценарии, а суммы детализации сходятся с агрегатами платежа.
+Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.payments` есть минимум три записи с заполненными агрегатами (`incomes_total`, `expenses_total`, `net_total`) и актуальной ссылкой на автора изменений (`updated_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.payment_incomes` или `crm.payment_expenses`; категории и даты (`category`, `posted_at`) отражают реальные сценарии, а суммы детализации сходятся с агрегатами платежа.
 
 ## Актуализация набора
 
