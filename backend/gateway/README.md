@@ -20,7 +20,8 @@ Gateway — единая точка входа для веб-клиента и T
 
 ## REST и SSE прокси
 
-- REST-контроллеры `v1/crm`, `v1/payments`, `v1/auth` проксируют все HTTP-методы в соответствующие upstream-сервисы с учётом `GATEWAY_UPSTREAM_*` переменных и fallback через Consul service discovery.【F:backend/gateway/src/http/crm/crm.controller.ts†L1-L22】【F:backend/gateway/src/http/payments/payments.controller.ts†L1-L22】【F:backend/gateway/src/http/auth/auth.controller.ts†L1-L22】【F:backend/gateway/src/http/proxy/rest-proxy.service.ts†L1-L143】
+- REST-контроллеры `v1/crm` и `v1/auth` проксируют все HTTP-методы в соответствующие upstream-сервисы с учётом `GATEWAY_UPSTREAM_*` переменных и fallback через Consul service discovery.【F:backend/gateway/src/http/crm/crm.controller.ts†L1-L22】【F:backend/gateway/src/http/auth/auth.controller.ts†L1-L22】【F:backend/gateway/src/http/proxy/rest-proxy.service.ts†L1-L143】
+- Маршрут `v1/payments` больше не обслуживается Gateway и должен вызываться напрямую из сервиса платежей либо через иные интеграции.
 - SSE-контроллер ретранслирует потоки CRM и Notifications, обеспечивает heartbeat и хранит последние Event ID/тайминги в Redis для graceful reconnect; публичный маршрут `deals` и алиас `crm` транслируют один и тот же upstream-поток CRM.【F:backend/gateway/src/sse/sse.controller.ts†L1-L38】【F:backend/gateway/src/sse/upstream-sse.service.ts†L1-L165】
 
 ## Интеграции Redis и Consul

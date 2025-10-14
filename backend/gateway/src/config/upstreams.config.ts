@@ -1,6 +1,6 @@
 import { registerAs } from '@nestjs/config';
 
-export type UpstreamTarget = 'crm' | 'payments' | 'auth' | 'notifications';
+export type UpstreamTarget = 'crm' | 'auth' | 'notifications';
 
 export interface UpstreamServiceConfig {
   baseUrl: string;
@@ -46,11 +46,6 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
     process.env.GATEWAY_UPSTREAM_CRM_BASE_URL ?? '',
     'http://localhost:3001/api'
   );
-  const paymentsBase = normalizeUrl(
-    process.env.GATEWAY_UPSTREAM_PAYMENTS_BASE_URL ?? '',
-    'http://localhost:3003/api'
-  );
-  const paymentsStreamsDefault = `http://localhost:${process.env.PAYMENTS_SERVICE_PORT ?? '8083'}/streams`;
   const authBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL ?? '',
     'http://localhost:3005/api'
@@ -73,16 +68,6 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
         sse: {
           url:
             process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? normalizeUrl(`${crmBase}/streams`, 'http://localhost:3001/streams')
-        }
-      },
-      payments: {
-        baseUrl: paymentsBase,
-        timeout: parseNumber(process.env.GATEWAY_UPSTREAM_PAYMENTS_TIMEOUT, defaultTimeout),
-        serviceName: process.env.GATEWAY_UPSTREAM_PAYMENTS_SERVICE_NAME ?? 'payments-service',
-        sse: {
-          url:
-            process.env.GATEWAY_UPSTREAM_PAYMENTS_SSE_URL ??
-            normalizeUrl(`${paymentsBase}/streams`, paymentsStreamsDefault)
         }
       },
       auth: {
