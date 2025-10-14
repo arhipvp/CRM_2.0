@@ -16,6 +16,10 @@ interface PaymentCardProps {
   onConfirmIncome: (income: PaymentEntry) => void;
   onEditExpense: (expense: PaymentEntry) => void;
   onDeleteExpense: (expense: PaymentEntry) => void;
+  onConfirm: () => void;
+  onRevokeConfirmation: () => void;
+  isConfirming?: boolean;
+  isRevoking?: boolean;
   onConfirmExpense: (expense: PaymentEntry) => void;
 }
 
@@ -264,10 +268,22 @@ export function PaymentCard({
   onConfirmIncome,
   onEditExpense,
   onDeleteExpense,
+  onConfirm,
+  onRevokeConfirmation,
+  isConfirming = false,
+  isRevoking = false,
   onConfirmExpense,
 }: PaymentCardProps) {
   const status = STATUS_LABELS[payment.status] ?? STATUS_LABELS.planned;
   const netClass = payment.netTotal >= 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200";
+  const isConfirmed = payment.confirmationStatus === "confirmed";
+  const plannedTotal = payment.plannedAmount ?? payment.amount;
+  const actualAmount = payment.actualAmount ?? (payment.confirmationStatus === "confirmed" ? payment.incomesTotal : undefined);
+  const diffAmount = actualAmount !== undefined ? actualAmount - plannedTotal : undefined;
+  const diffLabel =
+    diffAmount !== undefined && diffAmount !== 0
+      ? `${diffAmount > 0 ? "+" : "-"}${formatCurrency(Math.abs(diffAmount), payment.currency)}`
+      : null;
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-900/70">
@@ -282,6 +298,23 @@ export function PaymentCard({
             <span>Плановая дата: {formatDate(payment.plannedDate ?? payment.dueDate)}</span>
             <span>Фактическая дата: {formatDate(payment.actualDate ?? payment.paidAt)}</span>
             <span>Обновлено: {formatDate(payment.updatedAt)}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <span>Плановая сумма: {formatCurrency(plannedTotal, payment.currency)}</span>
+            <span>
+              Фактическая сумма: {actualAmount !== undefined ? formatCurrency(actualAmount, payment.currency) : "—"}
+            </span>
+            {diffLabel ? (
+              <span
+                className={
+                  diffAmount && diffAmount > 0
+                    ? "text-emerald-600 dark:text-emerald-300"
+                    : "text-rose-600 dark:text-rose-300"
+                }
+              >
+                Δ {diffLabel}
+              </span>
+            ) : null}
           </div>
           {payment.comment ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">{payment.comment}</p>
@@ -308,7 +341,32 @@ export function PaymentCard({
               Netto: {formatCurrency(payment.netTotal, payment.currency)}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          {payment.recordedBy ? (
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Подтвердил(а): <span className="font-medium text-slate-700 dark:text-slate-200">{payment.recordedBy}</span>
+              {payment.recordedByRole ? ` · ${payment.recordedByRole}` : ""}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {isConfirmed ? (
+              <button
+                type="button"
+                onClick={onRevokeConfirmation}
+                disabled={isRevoking}
+                className="rounded-md border border-amber-200 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/20"
+              >
+                {isRevoking ? "Отменяем..." : "Отменить подтверждение"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isConfirming}
+                className="rounded-md border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+              >
+                {isConfirming ? "Подтверждаем..." : "Подтвердить"}
+              </button>
+            )}
             <button
               type="button"
               onClick={onEdit}
@@ -316,13 +374,15 @@ export function PaymentCard({
             >
               Редактировать
             </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="rounded-md border border-rose-200 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20"
-            >
-              Удалить
-            </button>
+            {!isConfirmed ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-md border border-rose-200 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20"
+              >
+                Удалить
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onToggle}

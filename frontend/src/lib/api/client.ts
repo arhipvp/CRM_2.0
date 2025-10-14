@@ -131,7 +131,9 @@ export interface PaymentPayload {
   status?: PaymentStatus;
   comment?: string;
   actualDate?: string | null;
+  actualAmount?: number | null;
   recordedBy?: string;
+  recordedByRole?: string;
 }
 
 export interface PaymentUpdatePayload {
@@ -141,7 +143,24 @@ export interface PaymentUpdatePayload {
   status?: PaymentStatus;
   comment?: string | null;
   actualDate?: string | null;
+  actualAmount?: number | null;
   recordedBy?: string | null;
+  recordedByRole?: string | null;
+  changeReason?: string | null;
+}
+
+export interface PaymentConfirmationPayload {
+  actualAmount: number;
+  actualDate: string;
+  recordedBy: string;
+  recordedByRole?: string;
+  comment?: string;
+}
+
+export interface PaymentRevokePayload {
+  recordedBy: string;
+  recordedByRole?: string;
+  reason?: string;
 }
 
 export interface PaymentEntryAttachmentPayload {
@@ -335,6 +354,18 @@ export class ApiClient {
         throw new ApiError("Deal not found", 404);
       }
 
+      const details = JSON.parse(JSON.stringify(deal)) as DealDetailsData;
+      const base = dealsMock.find((item) => item.id === id);
+      if (base) {
+        details.value = base.value;
+        details.probability = base.probability;
+        details.stage = base.stage;
+        details.owner = base.owner;
+        details.nextReviewAt = base.nextReviewAt;
+        details.expectedCloseDate = base.expectedCloseDate;
+        details.updatedAt = base.updatedAt;
+      }
+
       const tasks = tasksMock.filter((item) => item.dealId === id);
       const notes = dealNotesMock.filter((item) => item.dealId === id);
       const documents = dealDocumentsMock.filter((item) => item.dealId === id);
@@ -344,25 +375,13 @@ export class ApiClient {
       const activity = activitiesMock.filter((item) => item.dealId === id);
 
       return {
-        ...deal,
+        ...details,
         tasks,
         notes,
         documents,
         payments,
         activity,
       };
-      const base = dealsMock.find((item) => item.id === id);
-      if (base) {
-        deal.value = base.value;
-        deal.probability = base.probability;
-        deal.stage = base.stage;
-        deal.owner = base.owner;
-        deal.nextReviewAt = base.nextReviewAt;
-        deal.expectedCloseDate = base.expectedCloseDate;
-        deal.updatedAt = base.updatedAt;
-      }
-
-      return JSON.parse(JSON.stringify(deal)) as DealDetailsData;
     });
   }
 
@@ -610,6 +629,7 @@ export class ApiClient {
         const siblings = paymentsMock.filter((payment) => payment.policyNumber === payload.policyNumber);
         const nextSequence = siblings.length > 0 ? Math.max(...siblings.map((item) => item.sequence)) + 1 : 1;
 
+        const confirmed = Boolean(payload.actualDate || payload.actualAmount);
         const payment: Payment = {
           id: createRandomId(),
           dealId: payload.dealId,
@@ -622,7 +642,9 @@ export class ApiClient {
           amount: payload.plannedAmount,
           plannedAmount: payload.plannedAmount,
           currency: payload.currency,
-          status: payload.status ?? (payload.actualDate ? "received" : "planned"),
+          status: payload.status ?? (confirmed ? "received" : "planned"),
+          confirmationStatus: confirmed ? "confirmed" : "pending",
+          actualAmount: payload.actualAmount ?? undefined,
           paidAt: payload.actualDate ?? undefined,
           plannedDate: payload.plannedDate,
           dueDate: payload.plannedDate,
@@ -636,7 +658,9 @@ export class ApiClient {
           createdAt: now,
           updatedAt: now,
           recordedBy: payload.recordedBy ?? undefined,
+          recordedByRole: payload.recordedByRole ?? undefined,
           updatedBy: payload.recordedBy ?? undefined,
+          history: [],
         };
 
         paymentsMock.unshift(payment);
@@ -687,14 +711,144 @@ export class ApiClient {
           payment.paidAt = payload.actualDate ?? undefined;
         }
 
+        if (payload.actualAmount !== undefined) {
+          payment.actualAmount = payload.actualAmount ?? undefined;
+        }
+
         if (payload.recordedBy !== undefined) {
           payment.recordedBy = payload.recordedBy ?? undefined;
         }
 
-        payment.updatedAt = new Date().toISOString();
+        if (payload.recordedByRole !== undefined) {
+          payment.recordedByRole = payload.recordedByRole ?? undefined;
+        }
+
+        const now = new Date().toISOString();
+        payment.updatedAt = now;
         if (payload.recordedBy) {
           payment.updatedBy = payload.recordedBy;
         }
+
+        if (payload.changeReason) {
+          payment.history = [
+            {
+              id: createRandomId(),
+              changedAt: now,
+              changedBy: payload.recordedBy ?? payment.updatedBy ?? "Система",
+              reason: payload.changeReason,
+              snapshot: {
+                plannedAmount: payment.plannedAmount,
+                actualAmount: payment.actualAmount,
+                plannedDate: payment.plannedDate,
+                actualDate: payment.actualDate,
+                status: payment.status,
+              },
+            },
+            ...payment.history,
+          ];
+        }
+
+        return clonePayment(recalculateTotals(payment));
+      },
+    );
+  }
+
+  confirmPayment(paymentId: string, payload: PaymentConfirmationPayload): Promise<Payment> {
+    return this.request(
+      `/crm/payments/${paymentId}/confirm`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const now = new Date().toISOString();
+        payment.actualAmount = payload.actualAmount;
+        payment.actualDate = payload.actualDate;
+        payment.paidAt = payload.actualDate;
+        payment.recordedBy = payload.recordedBy;
+        payment.recordedByRole = payload.recordedByRole ?? payment.recordedByRole;
+        if (payload.comment) {
+          payment.comment = payload.comment;
+        }
+
+        if (payment.status === "planned" || payment.status === "expected") {
+          payment.status = "received";
+        }
+
+        payment.confirmationStatus = "confirmed";
+        payment.updatedAt = now;
+        payment.updatedBy = payload.recordedBy;
+
+        payment.history = [
+          {
+            id: createRandomId(),
+            changedAt: now,
+            changedBy: payload.recordedBy,
+            reason: payload.comment ?? "Платёж подтверждён",
+            snapshot: {
+              plannedAmount: payment.plannedAmount,
+              actualAmount: payment.actualAmount,
+              plannedDate: payment.plannedDate,
+              actualDate: payment.actualDate,
+              status: payment.status,
+            },
+          },
+          ...payment.history,
+        ];
+
+        return clonePayment(recalculateTotals(payment));
+      },
+    );
+  }
+
+  revokePaymentConfirmation(paymentId: string, payload: PaymentRevokePayload): Promise<Payment> {
+    return this.request(
+      `/crm/payments/${paymentId}/revoke-confirmation`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const payment = paymentsMock.find((item) => item.id === paymentId);
+        if (!payment) {
+          throw new ApiError("Payment not found", 404);
+        }
+
+        const now = new Date().toISOString();
+        payment.confirmationStatus = "pending";
+        payment.actualAmount = undefined;
+        payment.actualDate = undefined;
+        payment.paidAt = undefined;
+        payment.recordedBy = undefined;
+        payment.recordedByRole = undefined;
+        if (payment.status === "received") {
+          payment.status = "expected";
+        }
+
+        payment.updatedAt = now;
+        payment.updatedBy = payload.recordedBy;
+
+        payment.history = [
+          {
+            id: createRandomId(),
+            changedAt: now,
+            changedBy: payload.recordedBy,
+            reason: payload.reason ?? "Подтверждение отменено",
+            snapshot: {
+              plannedAmount: payment.plannedAmount,
+              actualAmount: payment.actualAmount,
+              plannedDate: payment.plannedDate,
+              actualDate: payment.actualDate,
+              status: payment.status,
+            },
+          },
+          ...payment.history,
+        ];
 
         return clonePayment(recalculateTotals(payment));
       },
@@ -1147,10 +1301,6 @@ export class ApiClient {
     return this.updateTask(taskId, { status, completed: status === "done" });
   }
 
-  getPayments(): Promise<Payment[]> {
-    return this.request("/crm/payments", undefined, async () => paymentsMock);
-  }
-
   getClientActivities(clientId: string): Promise<ActivityLogEntry[]> {
     return this.request(`/crm/clients/${clientId}/activity`, undefined, async () =>
       activitiesMock.filter((entry) => entry.clientId === clientId),
@@ -1169,6 +1319,12 @@ function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
 function clonePayment(payment: Payment): Payment {
   return {
     ...payment,
+    incomes: payment.incomes.map((income) => ({ ...income })),
+    expenses: payment.expenses.map((expense) => ({ ...expense })),
+    history: payment.history.map((change) => ({
+      ...change,
+      snapshot: { ...change.snapshot },
+    })),
     incomes: payment.incomes.map((income) => clonePaymentEntry({ ...income })),
     expenses: payment.expenses.map((expense) => clonePaymentEntry({ ...expense })),
   };
@@ -1190,6 +1346,8 @@ function recalculateTotals(payment: Payment): Payment {
   payment.netTotal = incomesTotal - expensesTotal;
   payment.amount = payment.plannedAmount;
   return payment;
+}
+
 function sanitizeTaskPatch(patch: UpdateTaskPayload): UpdateTaskPayload {
   const result: UpdateTaskPayload = {};
 

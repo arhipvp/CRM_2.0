@@ -1,7 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { apiClient, type PaymentEntryPayload, type PaymentPayload, type PaymentUpdatePayload } from "@/lib/api/client";
+import {
+  apiClient,
+  type PaymentConfirmationPayload,
+  type PaymentEntryPayload,
+  type PaymentPayload,
+  type PaymentRevokePayload,
+  type PaymentUpdatePayload,
+} from "@/lib/api/client";
 import {
   dealStageMetricsQueryKey,
   dealActivityQueryOptions,
@@ -77,17 +84,17 @@ function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>,
     queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
   ];
 
-  if (task.dealId) {
-    invalidations.push(
-      queryClient.invalidateQueries({
-        queryKey: dealQueryOptions(task.dealId).queryKey,
-        exact: true,
-      }),
-      queryClient.invalidateQueries({
-        queryKey: dealTasksQueryOptions(task.dealId).queryKey,
-      }),
-    );
-  }
+      if (task.dealId) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: dealDetailsQueryOptions(task.dealId).queryKey,
+            exact: true,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+          }),
+        );
+      }
 
   return invalidations;
 }
@@ -117,6 +124,14 @@ export function useToggleTask() {
           }),
         );
       }
+
+      await Promise.all(invalidations);
+    },
+  });
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ["update-task"],
@@ -166,7 +181,7 @@ function invalidatePaymentQueries(queryClient: ReturnType<typeof useQueryClient>
 
   if (dealId) {
     invalidations.push(
-      queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealDetailsQueryOptions(dealId).queryKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealPaymentsQueryOptions(dealId).queryKey }),
     );
   }
@@ -191,6 +206,30 @@ export function useUpdatePayment() {
     mutationKey: ["update-payment"],
     mutationFn: ({ paymentId, payload }: { paymentId: string; payload: PaymentUpdatePayload }) =>
       apiClient.updatePayment(paymentId, payload),
+    onSuccess: async (payment) => {
+      await invalidatePaymentQueries(queryClient, payment.dealId);
+    },
+  });
+}
+
+export function useConfirmPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["confirm-payment"],
+    mutationFn: ({ paymentId, payload }: { paymentId: string; payload: PaymentConfirmationPayload }) =>
+      apiClient.confirmPayment(paymentId, payload),
+    onSuccess: async (payment) => {
+      await invalidatePaymentQueries(queryClient, payment.dealId);
+    },
+  });
+}
+
+export function useRevokePaymentConfirmation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["revoke-payment-confirmation"],
+    mutationFn: ({ paymentId, payload }: { paymentId: string; payload: PaymentRevokePayload }) =>
+      apiClient.revokePaymentConfirmation(paymentId, payload),
     onSuccess: async (payment) => {
       await invalidatePaymentQueries(queryClient, payment.dealId);
     },

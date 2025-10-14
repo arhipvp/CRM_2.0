@@ -159,6 +159,22 @@ export interface PaymentEntry {
   updatedBy?: string;
 }
 
+export interface PaymentChange {
+  id: string;
+  changedAt: string;
+  changedBy: string;
+  reason: string;
+  snapshot: {
+    plannedAmount: number;
+    actualAmount?: number;
+    plannedDate?: string;
+    actualDate?: string;
+    status: PaymentStatus;
+  };
+}
+
+export type PaymentConfirmationStatus = "pending" | "confirmed";
+
 export interface Payment {
   id: string;
   dealId: string;
@@ -172,6 +188,8 @@ export interface Payment {
   plannedAmount: number;
   currency: string;
   status: PaymentStatus;
+  confirmationStatus: PaymentConfirmationStatus;
+  actualAmount?: number;
   paidAt?: string;
   dueDate?: string;
   plannedDate?: string;
@@ -185,7 +203,9 @@ export interface Payment {
   createdAt: string;
   updatedAt: string;
   recordedBy?: string;
+  recordedByRole?: string;
   updatedBy?: string;
+  history: PaymentChange[];
 }
 
 export interface ActivityLogEntry {

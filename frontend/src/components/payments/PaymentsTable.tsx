@@ -12,10 +12,13 @@ import {
   useCreatePaymentExpense,
   useUpdatePaymentExpense,
   useDeletePaymentExpense,
+  useConfirmPayment,
+  useRevokePaymentConfirmation,
 } from "@/lib/api/hooks";
 import type { Payment, PaymentEntry } from "@/types/crm";
 import type { PaymentEntryPayload } from "@/lib/api/client";
 import { PaymentCard } from "./PaymentCard";
+import { PaymentConfirmationModal } from "./PaymentConfirmationModal";
 import { PaymentFormModal, type PaymentFormValues } from "./PaymentFormModal";
 import { PaymentEntryFormModal, type PaymentEntryFormValues } from "./PaymentEntryFormModal";
 import { PaymentEntryConfirmModal, type PaymentEntryConfirmValues } from "./PaymentEntryConfirmModal";
@@ -42,6 +45,8 @@ type DialogState =
   | { type: "createExpense"; payment: Payment }
   | { type: "editExpense"; payment: Payment; entry: PaymentEntry }
   | { type: "deleteExpense"; payment: Payment; entry: PaymentEntry }
+  | { type: "confirmPayment"; payment: Payment }
+  | { type: "revokeConfirmation"; payment: Payment }
   | { type: "confirmIncome"; payment: Payment; entry: PaymentEntry }
   | { type: "confirmExpense"; payment: Payment; entry: PaymentEntry }
   | null;
@@ -168,6 +173,9 @@ export function PaymentsTable() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [editReason, setEditReason] = useState("");
+  const [pendingConfirmationId, setPendingConfirmationId] = useState<string | null>(null);
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
 
   const pushNotification = useUiStore((state) => state.pushNotification);
 
@@ -219,6 +227,14 @@ export function PaymentsTable() {
     mutateAsync: deleteExpense,
     isPending: isDeletingExpense,
   } = useDeletePaymentExpense();
+  const {
+    mutateAsync: confirmPayment,
+    isPending: isConfirmingPayment,
+  } = useConfirmPayment();
+  const {
+    mutateAsync: revokeConfirmation,
+    isPending: isRevokingConfirmation,
+  } = useRevokePaymentConfirmation();
 
   const normalizedSearch = useMemo(() => normalizeSearch(search), [search]);
 
@@ -286,6 +302,8 @@ export function PaymentsTable() {
             actualDate: values.actualDate ?? null,
             comment: values.comment ?? null,
             recordedBy: values.recordedBy ?? null,
+            recordedByRole: values.recordedByRole ?? null,
+            changeReason: values.changeReason ?? null,
           },
         });
         notify("Платёж обновлён", "success");
@@ -301,12 +319,14 @@ export function PaymentsTable() {
           actualDate: values.actualDate,
           comment: values.comment,
           recordedBy: values.recordedBy,
+          recordedByRole: values.recordedByRole,
         });
         notify("Платёж создан", "success");
         setExpanded((prev) => new Set(prev).add(created.id));
       }
 
       setDialog(null);
+      setEditReason("");
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : "Не удалось сохранить платёж";
       notify(message, "error");
@@ -500,7 +520,10 @@ export function PaymentsTable() {
               payment={payment}
               expanded={expanded.has(payment.id)}
               onToggle={() => toggleExpanded(payment.id)}
-              onEdit={() => setDialog({ type: "editPayment", payment })}
+              onEdit={() => {
+                setEditReason("");
+                setDialog({ type: "editPayment", payment });
+              }}
               onDelete={() => setDialog({ type: "deletePayment", payment })}
               onAddIncome={() => setDialog({ type: "createIncome", payment })}
               onAddExpense={() => setDialog({ type: "createExpense", payment })}
@@ -509,6 +532,10 @@ export function PaymentsTable() {
               onConfirmIncome={(entry) => setDialog({ type: "confirmIncome", payment, entry })}
               onEditExpense={(entry) => setDialog({ type: "editExpense", payment, entry })}
               onDeleteExpense={(entry) => setDialog({ type: "deleteExpense", payment, entry })}
+              onConfirm={() => setDialog({ type: "confirmPayment", payment })}
+              onRevokeConfirmation={() => setDialog({ type: "revokeConfirmation", payment })}
+              isConfirming={pendingConfirmationId === payment.id && isConfirmingPayment}
+              isRevoking={pendingRevokeId === payment.id && isRevokingConfirmation}
               onConfirmExpense={(entry) => setDialog({ type: "confirmExpense", payment, entry })}
             />
           ))}
@@ -545,7 +572,93 @@ export function PaymentsTable() {
         isSubmitting={dialog?.type === "editPayment" ? isUpdatingPayment : isCreatingPayment}
         dealOptions={dealOptions}
         clientOptions={clientOptions}
+        editContext={
+          dialog?.type === "editPayment"
+            ? {
+                reason: editReason,
+                onReasonChange: setEditReason,
+                history: dialog.payment.history,
+                summary: {
+                  plannedAmount: dialog.payment.plannedAmount ?? dialog.payment.amount,
+                  actualAmount: dialog.payment.actualAmount,
+                  incomesTotal: dialog.payment.incomesTotal,
+                  expensesTotal: dialog.payment.expensesTotal,
+                  netTotal: dialog.payment.netTotal,
+                },
+              }
+            : undefined
+        }
       />
+
+      {dialog?.type === "confirmPayment" ? (
+        <PaymentConfirmationModal
+          payment={dialog.payment}
+          isOpen
+          onClose={() => {
+            if (!isConfirmingPayment) {
+              setDialog(null);
+              setPendingConfirmationId(null);
+            }
+          }}
+          onConfirm={async (payload) => {
+            try {
+              setPendingConfirmationId(dialog.payment.id);
+              await confirmPayment({ paymentId: dialog.payment.id, payload });
+              notify("Платёж подтверждён", "success");
+              setDialog(null);
+            } catch (confirmError) {
+              const message = confirmError instanceof Error ? confirmError.message : "Не удалось подтвердить платёж";
+              notify(message, "error");
+            } finally {
+              setPendingConfirmationId(null);
+            }
+          }}
+          isSubmitting={isConfirmingPayment && pendingConfirmationId === dialog.payment.id}
+        />
+      ) : null}
+
+      {dialog?.type === "revokeConfirmation" ? (
+        <ConfirmDialog
+          isOpen
+          title="Отменить подтверждение платежа?"
+          description={
+            <div className="text-sm text-slate-600 dark:text-slate-300">
+              <p>Фактическая дата и сумма будут очищены, статус вернётся в «Ожидается».</p>
+              <p className="mt-2 text-xs text-slate-400">
+                Действие зафиксируется в истории изменений и журнале сделки.
+              </p>
+            </div>
+          }
+          confirmLabel="Сбросить подтверждение"
+          isConfirming={isRevokingConfirmation && pendingRevokeId === dialog.payment.id}
+          onCancel={() => {
+            if (!isRevokingConfirmation) {
+              setDialog(null);
+              setPendingRevokeId(null);
+            }
+          }}
+          onConfirm={async () => {
+            try {
+              setPendingRevokeId(dialog.payment.id);
+              await revokeConfirmation({
+                paymentId: dialog.payment.id,
+                payload: {
+                  recordedBy: dialog.payment.updatedBy ?? dialog.payment.recordedBy ?? "Сотрудник CRM",
+                  recordedByRole: dialog.payment.recordedByRole,
+                  reason: "Подтверждение отменено вручную",
+                },
+              });
+              notify("Подтверждение сброшено", "success");
+              setDialog(null);
+            } catch (revokeError) {
+              const message = revokeError instanceof Error ? revokeError.message : "Не удалось отменить подтверждение";
+              notify(message, "error");
+            } finally {
+              setPendingRevokeId(null);
+            }
+          }}
+        />
+      ) : null}
 
       <PaymentEntryFormModal
         type={dialog?.type === "createExpense" || dialog?.type === "editExpense" || dialog?.type === "deleteExpense" ? "expense" : "income"}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
-import type { Payment, PaymentStatus } from "@/types/crm";
+import type { Payment, PaymentChange, PaymentStatus } from "@/types/crm";
 
 interface SelectOption {
   value: string;
@@ -20,6 +20,21 @@ export interface PaymentFormValues {
   actualDate?: string;
   comment?: string;
   recordedBy?: string;
+  recordedByRole?: string;
+  changeReason?: string;
+}
+
+export interface PaymentEditContext {
+  reason: string;
+  onReasonChange: (value: string) => void;
+  history: PaymentChange[];
+  summary: {
+    plannedAmount: number;
+    actualAmount?: number;
+    incomesTotal: number;
+    expensesTotal: number;
+    netTotal: number;
+  };
 }
 
 interface PaymentFormModalProps {
@@ -31,6 +46,7 @@ interface PaymentFormModalProps {
   payment?: Payment;
   dealOptions: SelectOption[];
   clientOptions: SelectOption[];
+  editContext?: PaymentEditContext;
 }
 
 const STATUS_OPTIONS: Array<{ value: PaymentStatus; label: string }> = [
@@ -47,6 +63,34 @@ const CURRENCY_OPTIONS = [
   { value: "EUR", label: "EUR" },
 ];
 
+function formatCurrency(value: number | undefined, currency: string) {
+  if (value === undefined) {
+    return "—";
+  }
+
+  try {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `${value.toLocaleString("ru-RU")} ${currency}`;
+  }
+}
+
+function formatDate(value: string | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 export function PaymentFormModal({
   mode,
   isOpen,
@@ -56,6 +100,7 @@ export function PaymentFormModal({
   payment,
   dealOptions,
   clientOptions,
+  editContext,
 }: PaymentFormModalProps) {
   const [dealId, setDealId] = useState("");
   const [clientId, setClientId] = useState("");
@@ -67,6 +112,7 @@ export function PaymentFormModal({
   const [actualDate, setActualDate] = useState("");
   const [comment, setComment] = useState("");
   const [recordedBy, setRecordedBy] = useState("");
+  const [recordedByRole, setRecordedByRole] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
@@ -84,6 +130,7 @@ export function PaymentFormModal({
       setActualDate(payment.actualDate ?? payment.paidAt ?? "");
       setComment(payment.comment ?? "");
       setRecordedBy(payment.recordedBy ?? "");
+      setRecordedByRole(payment.recordedByRole ?? "");
       return;
     }
 
@@ -99,9 +146,28 @@ export function PaymentFormModal({
     setActualDate("");
     setComment("");
     setRecordedBy("");
+    setRecordedByRole("");
   }, [clientOptions, dealOptions, isOpen, mode, payment]);
 
   const isEdit = mode === "edit";
+
+  const changeReason = editContext?.reason ?? "";
+  const reasonError = useMemo(() => {
+    if (!isEdit || !editContext) {
+      return undefined;
+    }
+
+    const trimmed = changeReason.trim();
+    if (!trimmed) {
+      return "Укажите причину изменения";
+    }
+
+    if (trimmed.length < 10) {
+      return "Причина должна содержать не менее 10 символов";
+    }
+
+    return undefined;
+  }, [changeReason, editContext, isEdit]);
 
   const isValid = useMemo(() => {
     return Boolean(
@@ -110,9 +176,10 @@ export function PaymentFormModal({
         policyNumber.trim() &&
         plannedDate &&
         currency &&
-        Number.parseFloat(plannedAmount) > 0,
+        Number.parseFloat(plannedAmount) > 0 &&
+        (!isEdit || !editContext || !reasonError),
     );
-  }, [clientId, currency, dealId, plannedAmount, plannedDate, policyNumber]);
+  }, [clientId, currency, dealId, editContext, plannedAmount, plannedDate, policyNumber, isEdit, reasonError]);
 
   const handleSubmit = async () => {
     if (!isValid) {
@@ -130,6 +197,8 @@ export function PaymentFormModal({
       actualDate: actualDate || undefined,
       comment: comment.trim() || undefined,
       recordedBy: recordedBy.trim() || undefined,
+      recordedByRole: recordedByRole.trim() || undefined,
+      changeReason: isEdit ? changeReason.trim() || undefined : undefined,
     });
   };
 
@@ -308,6 +377,27 @@ export function PaymentFormModal({
         />
         <div className="text-xs text-slate-400">{comment.length}/500</div>
       </div>
+      {isEdit && editContext ? (
+        <div className="space-y-1">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Причина изменения</label>
+          <textarea
+            value={changeReason}
+            onChange={(event) => editContext.onReasonChange(event.target.value)}
+            maxLength={500}
+            className={`min-h-[80px] w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:bg-slate-900 dark:text-slate-100 ${
+              reasonError ? "border-rose-300 dark:border-rose-500/60" : "border-slate-300 dark:border-slate-700"
+            }`}
+            placeholder="Опишите, что изменилось и почему"
+            aria-invalid={reasonError ? "true" : undefined}
+          />
+          <div className="flex items-center justify-between text-xs">
+            <span className={reasonError ? "text-rose-500 dark:text-rose-300" : "text-slate-400"}>
+              {reasonError ?? "Укажите причину — комментарий попадёт в журнал"}
+            </span>
+            <span className="text-slate-400">{changeReason.length}/500</span>
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-1">
         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ответственный за подтверждение</label>
         <input
@@ -317,6 +407,101 @@ export function PaymentFormModal({
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         />
       </div>
+      <div className="space-y-1">
+        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Роль или должность</label>
+        <input
+          value={recordedByRole}
+          onChange={(event) => setRecordedByRole(event.target.value)}
+          placeholder="Например, Главный администратор"
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        />
+      </div>
+      {isEdit && editContext ? (
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Сводка доходов и расходов</h4>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
+                <span className="block text-xs text-slate-400">Плановая сумма</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-100">
+                  {formatCurrency(editContext.summary.plannedAmount, currency)}
+                </span>
+              </div>
+              <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
+                <span className="block text-xs text-slate-400">Фактическая сумма</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-100">
+                  {formatCurrency(editContext.summary.actualAmount, currency)}
+                </span>
+              </div>
+              <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
+                <span className="block text-xs text-slate-400">Доходы</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-300">
+                  {formatCurrency(editContext.summary.incomesTotal, currency)}
+                </span>
+              </div>
+              <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
+                <span className="block text-xs text-slate-400">Расходы</span>
+                <span className="font-semibold text-rose-600 dark:text-rose-300">
+                  {formatCurrency(editContext.summary.expensesTotal, currency)}
+                </span>
+              </div>
+              <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80 sm:col-span-2">
+                <span className="block text-xs text-slate-400">Чистый результат</span>
+                <span className={`font-semibold ${editContext.summary.netTotal >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
+                  {formatCurrency(editContext.summary.netTotal, currency)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">История версий</h4>
+            {editContext.history.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Изменений пока не фиксировалось.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {editContext.history.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm dark:border-slate-700 dark:bg-slate-900/80"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-700 dark:text-slate-100">{entry.changedBy}</span>
+                      <span className="text-slate-400">{formatDate(entry.changedAt)}</span>
+                    </div>
+                    <p className="mt-1 text-slate-600 dark:text-slate-300">{entry.reason}</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <span className="block text-[11px] uppercase tracking-wide text-slate-400">Статус</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-200">{entry.snapshot.status}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[11px] uppercase tracking-wide text-slate-400">Плановая дата</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-200">{formatDate(entry.snapshot.plannedDate)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[11px] uppercase tracking-wide text-slate-400">Плановая сумма</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-200">
+                          {formatCurrency(entry.snapshot.plannedAmount, currency)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[11px] uppercase tracking-wide text-slate-400">Фактическая сумма</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-200">
+                          {formatCurrency(entry.snapshot.actualAmount, currency)}
+                        </span>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="block text-[11px] uppercase tracking-wide text-slate-400">Фактическая дата</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-200">{formatDate(entry.snapshot.actualDate)}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
     </Modal>
   );
 }

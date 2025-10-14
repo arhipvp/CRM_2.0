@@ -87,3 +87,27 @@ export const Error: Story = {
     />
   ),
 };
+
+export const ConfirmationFlow: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story: "Демонстрирует карточки с кнопками подтверждения и отмены подтверждения. Первый платёж ожидает подтверждения, второй уже подтверждён и показывает ответственного.",
+      },
+    },
+  },
+  render: () => (
+    <Template
+      setup={(client) => {
+        client.setQueryData(
+          paymentsKey,
+          paymentsMock.map((payment, index) =>
+            index === 0
+              ? { ...payment, confirmationStatus: "pending", recordedBy: undefined, recordedByRole: undefined }
+              : payment,
+          ),
+        );
+      }}
+    />
+  ),
+};

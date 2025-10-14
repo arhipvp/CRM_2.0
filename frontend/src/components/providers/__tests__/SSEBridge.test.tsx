@@ -154,7 +154,7 @@ describe("SSEBridge", () => {
       expect(highlightDealSpy).toHaveBeenCalledWith("deal-77");
       expect(markDealUpdatedSpy).toHaveBeenCalledWith("deal-77");
       expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: ["deal", "deal-77"] }),
+        expect.objectContaining({ queryKey: ["deal", "deal-77", "details"] }),
       );
     } finally {
       highlightDealSpy.mockRestore();
