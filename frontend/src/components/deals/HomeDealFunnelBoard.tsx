@@ -25,6 +25,7 @@ type HomeDealFunnelBoardProps = {
 
 export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps) {
   const savedState = useRef<SavedUiState>();
+  const clearedState = useRef<SavedUiState>();
   const [isReady, setIsReady] = useState(() => {
     const state = useUiStore.getState();
 
@@ -59,6 +60,18 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
       store.highlightDeal(undefined);
     }
 
+    const stateAfterReset = useUiStore.getState();
+
+    clearedState.current = {
+      filters: {
+        ...stateAfterReset.filters,
+        managers: [...stateAfterReset.filters.managers],
+      },
+      selectedDealIds: [...stateAfterReset.selectedDealIds],
+      previewDealId: stateAfterReset.previewDealId,
+      highlightedDealId: stateAfterReset.highlightedDealId,
+    };
+
     if (!isReady) {
       setIsReady(true);
     }
@@ -69,12 +82,19 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
       }
 
       const { filters, selectedDealIds, previewDealId, highlightedDealId } = savedState.current;
+      const currentState = useUiStore.getState();
+      const postClearState = clearedState.current;
+
+      const shouldRestorePreview =
+        postClearState && currentState.previewDealId === postClearState.previewDealId;
+      const shouldRestoreHighlight =
+        postClearState && currentState.highlightedDealId === postClearState.highlightedDealId;
 
       useUiStore.setState({
         filters,
         selectedDealIds,
-        previewDealId,
-        highlightedDealId,
+        previewDealId: shouldRestorePreview ? previewDealId : currentState.previewDealId,
+        highlightedDealId: shouldRestoreHighlight ? highlightedDealId : currentState.highlightedDealId,
       });
     };
   }, []);
