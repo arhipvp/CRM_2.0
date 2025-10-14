@@ -7,6 +7,7 @@ import java.time.Instant
  * DTO для входящих аудиторских событий из RabbitMQ.
  */
 data class AuditEventMessage(
+    val messageId: String? = null,
     val eventId: String?,
     val eventType: String,
     val source: String?,

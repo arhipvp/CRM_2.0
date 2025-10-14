@@ -4,6 +4,7 @@
 
 - `db/changelog/db.changelog-master.yaml` — точка входа Liquibase, подключается как ресурс Gradle/Spring Boot.
 - `db/changelog/0001-initial-schema.yaml` — включает `pgcrypto`, создаёт схему `audit` и таблицу `audit_events` с индексами и уникальным ограничением для дедупликации.
+- `db/changelog/0006-add-message-id.yaml` — добавляет колонку `message_id` и частичный уникальный индекс для идемпотентности на уровне RabbitMQ message id.
 
 ## Порядок применения
 

@@ -12,6 +12,9 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.runBlocking
 import org.awaitility.kotlin.await
 import org.junit.jupiter.api.Test
+import org.springframework.amqp.core.MessageBuilder
+import org.springframework.amqp.core.MessageProperties
+import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
@@ -34,6 +37,7 @@ import kotlin.test.assertTrue
 @ActiveProfiles("test")
 class AuditIntegrationTest @Autowired constructor(
     private val rabbitTemplate: RabbitTemplate,
+    private val rabbitAdmin: RabbitAdmin,
     private val webTestClient: WebTestClient,
     private val objectMapper: ObjectMapper,
     private val messagingProperties: AuditMessagingProperties,
@@ -61,15 +65,16 @@ class AuditIntegrationTest @Autowired constructor(
             )
         )
 
+        val messageId = "msg-${UUID.randomUUID()}"
         val json = objectMapper.writeValueAsString(payload)
-        rabbitTemplate.convertAndSend(messagingProperties.eventsQueue, json)
+        sendJson(messagingProperties.eventsQueue, json, messageId)
 
         await.atMost(Duration.ofSeconds(10)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
         }
 
         // Отправляем дубликат в другую очередь, чтобы проверить идемпотентность
-        rabbitTemplate.convertAndSend(messagingProperties.coreQueue, json)
+        sendJson(messagingProperties.coreQueue, json, "msg-${UUID.randomUUID()}")
 
         await.atMost(Duration.ofSeconds(5)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
@@ -77,6 +82,25 @@ class AuditIntegrationTest @Autowired constructor(
 
         val saved = runBlocking { auditEventRepository.findByEventId(eventId) }
         requireNotNull(saved)
+
+        val savedByMessageId = runBlocking { auditEventRepository.findByMessageId(messageId) }
+        requireNotNull(savedByMessageId)
+        assertEquals(messageId, savedByMessageId.messageId)
+
+        val duplicatePayload = payload.toMutableMap().apply {
+            put("eventId", "evt-${UUID.randomUUID()}")
+        }
+        val duplicateJson = objectMapper.writeValueAsString(duplicatePayload)
+        sendJson(messagingProperties.eventsQueue, duplicateJson, messageId)
+
+        await.atMost(Duration.ofSeconds(5)).until {
+            runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
+        }
+
+        val consumerQueue = "${messagingProperties.eventsQueue}.${messagingProperties.eventsGroup}"
+        await.atMost(Duration.ofSeconds(5)).until {
+            queueMessageCount(consumerQueue) == 0
+        }
 
         val tags = runBlocking { auditEventTagRepository.findByEventId(saved.id) }
         assertEquals(2, tags.size)
@@ -137,5 +161,19 @@ class AuditIntegrationTest @Autowired constructor(
             registry.add("AUDIT_RABBITMQ_PASSWORD") { "audit" }
             registry.add("AUDIT_RABBITMQ_VHOST") { "audit" }
         }
+    }
+
+    private fun queueMessageCount(queue: String): Int? {
+        return rabbitAdmin.getQueueProperties(queue)
+            ?.get(RabbitAdmin.QUEUE_MESSAGE_COUNT)
+            ?.let { (it as? Number)?.toInt() }
+    }
+
+    private fun sendJson(queue: String, json: String, messageId: String) {
+        val message = MessageBuilder.withBody(json.toByteArray(Charsets.UTF_8))
+            .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+            .setMessageId(messageId)
+            .build()
+        rabbitTemplate.send(queue, message)
     }
 }

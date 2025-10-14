@@ -8,6 +8,8 @@ import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 
 interface AuditEventRepository : CoroutineCrudRepository<AuditEventEntity, UUID> {
 
+    suspend fun findByMessageId(messageId: String): AuditEventEntity?
+
     suspend fun findByEventId(eventId: String): AuditEventEntity?
 
     @Query(

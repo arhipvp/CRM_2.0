@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-add-message-id-column
+      author: crm-platform
+      changes:
+        - addColumn:
+            tableName: audit_events
+            schemaName: audit
+            columns:
+              - column:
+                  name: message_id
+                  type: VARCHAR(128)
+        - createIndex:
+            tableName: audit_events
+            schemaName: audit
+            indexName: uq_audit_events_message_id
+            unique: true
+            columns:
+              - column:
+                  name: message_id
+            where: message_id IS NOT NULL
+      rollback:
+        - dropIndex:
+            tableName: audit_events
+            schemaName: audit
+            indexName: uq_audit_events_message_id
+        - dropColumn:
+            tableName: audit_events
+            schemaName: audit
+            columnName: message_id

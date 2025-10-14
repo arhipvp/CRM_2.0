@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/0004-add-event-id.yaml
   - include:
       file: db/changelog/0005-create-event-tags.yaml
+  - include:
+      file: db/changelog/0006-add-message-id.yaml
