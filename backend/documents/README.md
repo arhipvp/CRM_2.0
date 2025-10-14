@@ -47,6 +47,8 @@ pnpm install
 | `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
 | `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
+| `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL объектного хранилища для формирования подписанной ссылки. |
+| `DOCUMENTS_UPLOAD_URL_TTL` | Время жизни подписанной ссылки на загрузку (секунды, по умолчанию 900). |
 | `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |
 | `DOCUMENTS_FOLDERS_WEB_BASE_URL` | Базовый URL для формирования ссылок на папки (по умолчанию `https://drive.google.com/drive/folders/`). |
 | `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH` | JSON сервисного аккаунта или путь к файлу. |
@@ -70,7 +72,7 @@ pnpm install
 - `GET /api/v1/folders/:ownerType/:ownerId` — возвращает привязанную папку в Drive. Ошибка `404 folder_not_found`, если запись отсутствует.
 - `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`).
 - `GET /documents/:id` — детали документа.
-- `POST /documents` — создать запись. По умолчанию добавляет задание `documents.upload`.
+- `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
 - `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, доступ Drive отзывается (повторный вызов вернёт `409 already_deleted`).
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки.

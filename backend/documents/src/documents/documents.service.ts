@@ -9,30 +9,58 @@ import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DriveService } from '../drive/drive.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
+import { UploadUrlService } from './upload-url.service';
+
+export interface CreateDocumentResult {
+  document: DocumentEntity;
+  uploadUrl: string;
+  expiresIn: number;
+}
 
 @Injectable()
 export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly repository: Repository<DocumentEntity>,
+    private readonly uploadUrlService: UploadUrlService,
     private readonly driveService: DriveService = {
       revokeDocument: async () => undefined,
     } as unknown as DriveService,
   ) {}
 
-  async create(dto: CreateDocumentDto): Promise<DocumentEntity> {
+  async create(dto: CreateDocumentDto): Promise<CreateDocumentResult> {
+    const metadata: Record<string, any> = {
+      ownerType: dto.ownerType,
+      ownerId: dto.ownerId,
+    };
+
+    if (dto.documentType) {
+      metadata.documentType = dto.documentType;
+    }
+
+    if (dto.notes) {
+      metadata.notes = dto.notes;
+    }
+
+    if (dto.tags?.length) {
+      metadata.tags = dto.tags;
+    }
+
     const entity = this.repository.create({
-      name: dto.name,
-      description: dto.description,
-      mimeType: dto.mimeType,
-      size: dto.size,
-      checksumMd5: dto.checksumMd5,
-      sourceUri: dto.sourceUri,
-      metadata: dto.metadata,
-      status: dto.status ?? DocumentStatus.PendingUpload,
+      name: dto.title,
+      description: dto.notes ?? null,
+      metadata,
+      status: DocumentStatus.PendingUpload,
     });
 
-    return this.repository.save(entity);
+    const document = await this.repository.save(entity);
+    const { url, expiresIn } = this.uploadUrlService.createUploadUrl(document.id);
+
+    return {
+      document,
+      uploadUrl: url,
+      expiresIn,
+    };
   }
 
   async findAll(query: ListDocumentsDto): Promise<{ items: DocumentEntity[]; total: number }> {
@@ -96,16 +124,45 @@ export class DocumentsService {
 
   async update(id: string, dto: UpdateDocumentDto): Promise<DocumentEntity> {
     const entity = await this.findOne(id);
-    Object.assign(entity, {
-      name: dto.name ?? entity.name,
-      description: dto.description ?? entity.description,
-      mimeType: dto.mimeType ?? entity.mimeType,
-      size: dto.size ?? entity.size,
-      checksumMd5: dto.checksumMd5 ?? entity.checksumMd5,
-      sourceUri: dto.sourceUri ?? entity.sourceUri,
-      metadata: dto.metadata ?? entity.metadata,
-      status: dto.status ?? entity.status,
-    });
+    if (dto.title !== undefined) {
+      entity.name = dto.title;
+    }
+
+    if (dto.notes !== undefined) {
+      entity.description = dto.notes ?? null;
+    }
+
+    const metadata = { ...(entity.metadata ?? {}) };
+
+    if (dto.ownerType !== undefined) {
+      metadata.ownerType = dto.ownerType;
+    }
+
+    if (dto.ownerId !== undefined) {
+      metadata.ownerId = dto.ownerId;
+    }
+
+    if (dto.documentType !== undefined) {
+      if (dto.documentType) {
+        metadata.documentType = dto.documentType;
+      } else {
+        delete metadata.documentType;
+      }
+    }
+
+    if (dto.notes !== undefined) {
+      metadata.notes = dto.notes;
+    }
+
+    if (dto.tags !== undefined) {
+      if (dto.tags.length) {
+        metadata.tags = dto.tags;
+      } else {
+        delete metadata.tags;
+      }
+    }
+
+    entity.metadata = metadata;
 
     return this.repository.save(entity);
   }
