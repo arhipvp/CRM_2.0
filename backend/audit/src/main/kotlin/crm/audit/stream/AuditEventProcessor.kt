@@ -54,7 +54,7 @@ open class AuditEventProcessor(
 
             try {
                 val saved = repository.save(entity)
-                val tags = extractTags(saved.id, event.payload)
+                val tags = extractTags(saved.id, entity.occurredAt, event.payload)
                 if (tags.isNotEmpty()) {
                     tagRepository.saveAll(tags)
                 }
@@ -82,7 +82,7 @@ open class AuditEventProcessor(
         occurredAt: OffsetDateTime
     ): AuditEventEntity? {
         return when {
-            !event.eventId.isNullOrBlank() -> repository.findByEventId(event.eventId)
+            !event.eventId.isNullOrBlank() -> repository.findByEventIdAndOccurredAt(event.eventId, occurredAt)
             else -> repository.findByEventTypeAndOccurredAtAndEventSource(
                 event.eventType,
                 occurredAt,
@@ -92,7 +92,11 @@ open class AuditEventProcessor(
     }
 
     @Suppress("DEPRECATION")
-    private fun extractTags(eventId: UUID, payload: JsonNode?): List<AuditEventTagEntity> {
+    private fun extractTags(
+        eventId: UUID,
+        occurredAt: OffsetDateTime,
+        payload: JsonNode?
+    ): List<AuditEventTagEntity> {
         if (payload == null) {
             return emptyList()
         }
@@ -118,6 +122,7 @@ open class AuditEventProcessor(
             }
             result += AuditEventTagEntity(
                 eventId = eventId,
+                eventOccurredAt = occurredAt,
                 tagKey = key,
                 tagValue = normalizedValue
             )
