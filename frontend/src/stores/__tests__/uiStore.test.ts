@@ -158,6 +158,10 @@ describe("useUiStore", () => {
       useUiStore.getState().setDealDetailsTab("documents");
 
       expect(useUiStore.getState().dealDetailsTab).toBe("documents");
+
+      useUiStore.getState().setDealDetailsTab("calculations");
+
+      expect(useUiStore.getState().dealDetailsTab).toBe("calculations");
     });
 
     it("создаёт и поглощает запросы действий", () => {

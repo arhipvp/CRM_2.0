@@ -8,6 +8,7 @@
 - [Воронка сделок](deal-funnel.md)
 - [Детали сделки](deal-details.md)
   - [Вкладка «Полисы»](deal-details.md#полисы)
+  - [Вкладка «Расчёты»](deal-details.md#расчёты)
   - [Вкладка «Задачи»](deal-details.md#задачи)
   - [Вкладка «Документы»](deal-details.md#документы)
   - [Вкладка «Финансы»](deal-details.md#финансы)

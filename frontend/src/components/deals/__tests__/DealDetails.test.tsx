@@ -66,6 +66,11 @@ describe("DealDetails", () => {
 
     expect(await screen.findByText(/Название сделки/)).toBeInTheDocument();
 
+    const calculationsTab = screen.getByRole("button", { name: /Расчёты/i });
+    await user.click(calculationsTab);
+
+    expect(await screen.findByText(/Страховая компания/)).toBeInTheDocument();
+
     const docsTab = screen.getByRole("button", { name: /Документы/i });
     await user.click(docsTab);
 
