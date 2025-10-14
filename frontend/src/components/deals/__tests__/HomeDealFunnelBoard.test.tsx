@@ -117,6 +117,33 @@ describe("HomeDealFunnelBoard", () => {
     expect(restored.highlightedDealId).toBe(expectedStateBeforeMount.highlightedDealId);
   });
 
+  it("сохраняет пользовательские фильтры, выбор и предпросмотр при возврате на страницу сделок", async () => {
+    const store = useUiStore.getState();
+    store.setSelectedStage("proposal");
+    store.selectDeals(["deal-before"]);
+    store.openDealPreview("preview-before");
+    store.highlightDeal("highlight-before");
+
+    const { unmount } = render(<HomeDealFunnelBoard />);
+
+    await screen.findByTestId("deal-funnel-board");
+
+    await act(async () => {
+      const currentStore = useUiStore.getState();
+      currentStore.setSelectedStage("negotiation");
+      currentStore.selectDeals(["home-1", "home-2"]);
+      currentStore.openDealPreview("preview-home");
+    });
+
+    unmount();
+
+    const finalState = useUiStore.getState();
+    expect(finalState.selectedDealIds).toEqual(["home-1", "home-2"]);
+    expect(finalState.previewDealId).toBe("preview-home");
+    expect(finalState.filters.stage).toBe("negotiation");
+    expect(finalState.highlightedDealId).toBe("highlight-before");
+    expect(finalState.selectedDealIds).not.toContain("deal-before");
+    expect(finalState.previewDealId).not.toBe("preview-before");
   it("не перетирает подсветку, полученную во время работы виджета", async () => {
     const store = useUiStore.getState();
     store.setSelectedStage("proposal");

@@ -81,6 +81,29 @@ export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps)
         return;
       }
 
+      const currentState = useUiStore.getState();
+      const patch: Partial<ReturnType<typeof useUiStore.getState>> = {};
+
+      if (areDealFiltersEqual(currentState.filters, DEFAULT_DEAL_FILTERS)) {
+        patch.filters = savedState.current.filters;
+      }
+
+      if (currentState.selectedDealIds.length === 0) {
+        patch.selectedDealIds = savedState.current.selectedDealIds;
+      }
+
+      if (!currentState.previewDealId) {
+        patch.previewDealId = savedState.current.previewDealId;
+      }
+
+      if (!currentState.highlightedDealId) {
+        patch.highlightedDealId = savedState.current.highlightedDealId;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        useUiStore.setState(patch);
+      }
+
       const { filters, selectedDealIds, previewDealId, highlightedDealId } = savedState.current;
       const currentState = useUiStore.getState();
       const postClearState = clearedState.current;
