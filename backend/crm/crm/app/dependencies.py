@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
+from crm.infrastructure.events import DomainEventPublisher
 from crm.infrastructure.queues import PermissionsQueue
 from crm.infrastructure.db import AsyncSessionFactory
 
@@ -48,6 +49,49 @@ async def get_policy_service(session: AsyncSession = Depends(get_db_session)) ->
 
 async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> services.TaskService:
     return services.TaskService(repositories.TaskRepository(session))
+
+
+_events_publisher: DomainEventPublisher | None = None
+
+
+def get_events_publisher() -> DomainEventPublisher:
+    global _events_publisher
+    if _events_publisher is None:
+        _events_publisher = DomainEventPublisher()
+    return _events_publisher
+
+
+async def get_payment_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.PaymentService:
+    return services.PaymentService(
+        repositories.PaymentRepository(session),
+        repositories.PaymentIncomeRepository(session),
+        repositories.PaymentExpenseRepository(session),
+        get_events_publisher(),
+    )
+
+
+async def get_payment_income_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.PaymentIncomeService:
+    return services.PaymentIncomeService(
+        repositories.PaymentIncomeRepository(session),
+        repositories.PaymentRepository(session),
+        repositories.PaymentExpenseRepository(session),
+        get_events_publisher(),
+    )
+
+
+async def get_payment_expense_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.PaymentExpenseService:
+    return services.PaymentExpenseService(
+        repositories.PaymentExpenseRepository(session),
+        repositories.PaymentRepository(session),
+        repositories.PaymentIncomeRepository(session),
+        get_events_publisher(),
+    )
 
 
 _permissions_queue: PermissionsQueue | None = None

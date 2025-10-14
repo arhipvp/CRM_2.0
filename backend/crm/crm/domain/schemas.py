@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, date
+from decimal import Decimal
 from typing import Literal, Optional
 from uuid import UUID
 
@@ -136,6 +137,112 @@ class TaskRead(ORMModel, TaskBase):
     owner_id: UUID
     deal_id: Optional[UUID]
     client_id: Optional[UUID]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaymentBase(BaseModel):
+    deal_id: UUID
+    policy_id: UUID
+    planned_date: Optional[date] = None
+    planned_amount: Decimal = Field(gt=Decimal("0"))
+    currency: str = Field(min_length=1, max_length=12)
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+class PaymentCreate(PaymentBase):
+    owner_id: UUID
+
+
+class PaymentUpdate(BaseModel):
+    planned_date: Optional[date] = Field(default=PydanticUndefined)
+    planned_amount: Optional[Decimal] = Field(default=None, gt=Decimal("0"))
+    currency: Optional[str] = Field(default=None, min_length=1, max_length=12)
+    status: Optional[str] = None
+    actual_date: Optional[date] = Field(default=PydanticUndefined)
+    comment: Optional[str] = Field(default=None, max_length=500)
+    recorded_by_id: Optional[UUID] = Field(default=PydanticUndefined)
+
+    @model_validator(mode="after")
+    def _validate_dates(self) -> "PaymentUpdate":
+        if self.actual_date is PydanticUndefined:
+            return self
+        if self.actual_date is None:
+            raise ValueError("actual_date cannot be null")
+        return self
+
+
+class PaymentRead(ORMModel, PaymentBase):
+    id: UUID
+    tenant_id: UUID
+    owner_id: UUID
+    sequence: int
+    status: str
+    actual_date: Optional[date]
+    recorded_by_id: Optional[UUID]
+    incomes_total: Decimal
+    expenses_total: Decimal
+    net_total: Decimal
+    created_at: datetime
+    updated_at: datetime
+    incomes: Optional[list["PaymentIncomeRead"]] = None
+    expenses: Optional[list["PaymentExpenseRead"]] = None
+
+
+class PaymentIncomeBase(BaseModel):
+    amount: Decimal = Field(gt=Decimal("0"))
+    currency: str = Field(min_length=1, max_length=12)
+    category: str = Field(min_length=1, max_length=64)
+    posted_at: date
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class PaymentIncomeCreate(PaymentIncomeBase):
+    owner_id: UUID
+
+
+class PaymentIncomeUpdate(BaseModel):
+    amount: Optional[Decimal] = Field(default=None, gt=Decimal("0"))
+    currency: Optional[str] = Field(default=None, min_length=1, max_length=12)
+    category: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    posted_at: Optional[date] = Field(default=None)
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class PaymentIncomeRead(ORMModel, PaymentIncomeBase):
+    id: UUID
+    tenant_id: UUID
+    owner_id: UUID
+    payment_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaymentExpenseBase(BaseModel):
+    amount: Decimal = Field(gt=Decimal("0"))
+    currency: str = Field(min_length=1, max_length=12)
+    category: str = Field(min_length=1, max_length=64)
+    posted_at: date
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class PaymentExpenseCreate(PaymentExpenseBase):
+    owner_id: UUID
+
+
+class PaymentExpenseUpdate(BaseModel):
+    amount: Optional[Decimal] = Field(default=None, gt=Decimal("0"))
+    currency: Optional[str] = Field(default=None, min_length=1, max_length=12)
+    category: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    posted_at: Optional[date] = Field(default=None)
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class PaymentExpenseRead(ORMModel, PaymentExpenseBase):
+    id: UUID
+    tenant_id: UUID
+    owner_id: UUID
+    payment_id: UUID
     created_at: datetime
     updated_at: datetime
 

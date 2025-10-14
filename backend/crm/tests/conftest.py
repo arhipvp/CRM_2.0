@@ -82,7 +82,6 @@ def configure_environment(postgres: PostgresContainer, redis: RedisContainer, ra
     os.environ["CRM_REDIS_URL"] = redis.get_connection_url()
     os.environ["CRM_PERMISSIONS_REDIS_URL"] = os.environ["CRM_REDIS_URL"]
     os.environ["CRM_RABBITMQ_URL"] = rabbitmq.get_connection_url()
-    os.environ["CRM_ENABLE_PAYMENTS_CONSUMER"] = "0"
     os.environ.setdefault("CRM_CELERY_BROKER_URL", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_CELERY_RESULT_BACKEND", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_DEFAULT_TENANT_ID", str(uuid4()))
@@ -110,7 +109,6 @@ async def api_client(apply_migrations) -> AsyncIterator[AsyncClient]:
     from crm.app import main
     from crm.app import config as app_config
 
-    app_config.settings.enable_payments_consumer = False
     importlib.reload(main)
     app = main.create_app()
     async with AsyncClient(app=app, base_url="http://testserver") as client:

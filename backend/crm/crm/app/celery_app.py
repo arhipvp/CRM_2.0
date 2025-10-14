@@ -13,7 +13,6 @@ celery_app.config_from_object(
         "task_routes": settings.celery_task_routes,
         "task_acks_late": True,
         "worker_prefetch_multiplier": 1,
-        "task_default_retry_delay": settings.payments_retry_delay_ms / 1000,
         "imports": ("crm.app.tasks",),
     }
 )

@@ -12,22 +12,10 @@ if "crm.app.config" not in sys.modules:
     config_module = ModuleType("crm.app.config")
 
     class DummySettings:
-        def __init__(
-            self,
-            payments_retry_limit: int = 3,
-            default_tenant_id: str | None = None,
-        ) -> None:
-            self.payments_retry_limit = payments_retry_limit
+        def __init__(self, default_tenant_id: str | None = None) -> None:
             self.database_url = "postgresql+asyncpg://user:pass@localhost:5432/db"
             self.redis_url = "redis://localhost:6379/0"
             self.rabbitmq_url = "amqp://guest:guest@localhost:5672/"
-            self.payments_queue = "crm.payments-sync"
-            self.payments_exchange = "payments.events"
-            self.payments_retry_exchange = "crm.payments-sync.retry"
-            self.payments_retry_queue = "crm.payments-sync.retry"
-            self.payments_dlx_exchange = "crm.payments-sync.dlx"
-            self.payments_dlx_queue = "crm.payments-sync.dlx"
-            self.payments_retry_delay_ms = 0
             self.events_exchange = "crm.events"
             self.default_tenant_id = default_tenant_id
             self.permissions_queue_name = "permissions:sync"
@@ -39,7 +27,6 @@ if "crm.app.config" not in sys.modules:
             if not update:
                 return self
             return DummySettings(
-                payments_retry_limit=update.get("payments_retry_limit", self.payments_retry_limit),
                 default_tenant_id=update.get("default_tenant_id", self.default_tenant_id),
             )
 

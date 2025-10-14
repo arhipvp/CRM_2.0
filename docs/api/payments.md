@@ -174,6 +174,16 @@
 
 **Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
 
+### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes`
+Возвращает список поступлений платежа. Поддерживает пагинацию через `limit` и `offset` (по умолчанию 50 записей).
+
+**Ответ 200** — массив объектов поступлений.
+
+### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}`
+Возвращает конкретную операцию поступления.
+
+**Ошибки**: `401 invalid_token`, `403 forbidden`, `404 income_not_found`.
+
 ### PATCH `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}`
 Изменяет сумму, категорию, дату и комментарий поступления.
 
@@ -198,6 +208,12 @@
 Создаёт запись расхода.
 
 **Тело запроса** — то же, что и для `/incomes`.
+
+### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses`
+Возвращает список операций расходов платежа.
+
+### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}`
+Возвращает конкретную операцию расхода.
 
 **Ответ 201** — объект расхода.
 
