@@ -50,8 +50,10 @@ compose_rabbitmqctl() {
 }
 
 rabbitmq_status() {
-  docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1 \
-    | python3 - <<'PY'
+  local ps_output="" ps_status=0
+
+  if ps_output=$(docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1); then
+    printf '%s\n' "${ps_output}" | python3 - <<'PY'
 import json
 import sys
 
@@ -93,6 +95,155 @@ else:
     print(entry.get("State") or "unknown")
     print(entry.get("Health") or "")
 PY
+    return 0
+  else
+    ps_status=$?
+  fi
+
+  local ps_output_lower="${ps_output,,}"
+  if [[ "${ps_output_lower}" == *"unknown flag: --format"* || "${ps_output_lower}" == *"no such option: --format"* || "${ps_output_lower}" == *"no such option --format"* ]]; then
+    local fallback_output="" fallback_status=0
+    if fallback_output=$(docker compose -f "${COMPOSE_FILE}" ps rabbitmq 2>&1); then
+      printf '%s\n' "${fallback_output}" | python3 - <<'PY'
+import re
+import sys
+
+raw_output = sys.stdin.read()
+
+if not raw_output.strip():
+    print("absent")
+    print("")
+    sys.exit(0)
+
+lines = raw_output.splitlines()
+warnings = []
+data_lines = []
+header_lower = []
+header_found = False
+
+for line in lines:
+    stripped = line.strip()
+    if not stripped:
+        continue
+
+    if stripped.lower().startswith(("warning:", "warn")):
+        warnings.append(line)
+        continue
+
+    if set(stripped) <= {"-", " "} or set(stripped) <= {"=", " "}:
+        continue
+
+    segments = [segment.strip() for segment in re.split(r"\s{2,}", stripped) if segment.strip()]
+    segments_lower = [segment.lower() for segment in segments]
+
+    if (not header_found and segments_lower and segments_lower[0] == "name"
+            and any(col in {"status", "state"} for col in segments_lower[1:])):
+        header_found = True
+        header_lower = segments_lower
+        continue
+
+    if not header_found:
+        warnings.append(line)
+        continue
+
+    data_lines.append(line)
+
+for line in warnings:
+    print(line, file=sys.stderr)
+
+if not header_found:
+    print("[Ошибка] docker compose ps (fallback) не вернул распознаваемый заголовок таблицы.", file=sys.stderr)
+    sys.exit(4)
+
+if not data_lines:
+    print("absent")
+    print("")
+    sys.exit(0)
+
+service_idx = header_lower.index("service") if "service" in header_lower else -1
+status_idx = header_lower.index("status") if "status" in header_lower else -1
+state_idx = header_lower.index("state") if "state" in header_lower else -1
+
+selected_parts = None
+
+for line in data_lines:
+    stripped_line = line.strip()
+    if set(stripped_line) <= {"-", " "} or set(stripped_line) <= {"=", " "}:
+        continue
+
+    parts = [segment.strip() for segment in re.split(r"\s{2,}", stripped_line) if segment.strip()]
+    if not parts:
+        continue
+
+    service_name = None
+    if service_idx != -1 and service_idx < len(parts):
+        service_name = parts[service_idx].lower()
+
+    if service_name and service_name != "rabbitmq":
+        continue
+
+    name_value = parts[0].lower()
+    if service_name is None and "rabbitmq" not in name_value:
+        continue
+
+    selected_parts = parts
+    break
+
+if selected_parts is None:
+    print("absent")
+    print("")
+    sys.exit(0)
+
+status_text = ""
+if status_idx != -1 and status_idx < len(selected_parts):
+    status_text = selected_parts[status_idx]
+elif state_idx != -1 and state_idx < len(selected_parts):
+    status_text = selected_parts[state_idx]
+
+status_text = status_text.strip()
+
+if not status_text:
+    print("unknown")
+    print("")
+    sys.exit(0)
+
+state_word = status_text.split()[0].lower()
+
+state_map = {
+    "up": "running",
+    "running": "running",
+    "created": "created",
+    "starting": "starting",
+    "restarting": "restarting",
+    "paused": "paused",
+    "exit": "exited",
+    "exited": "exited",
+    "stopped": "exited",
+    "down": "exited",
+    "dead": "dead",
+    "removing": "removing",
+}
+
+state = state_map.get(state_word, state_word or "unknown")
+
+health = ""
+match = re.search(r"\(([^)]+)\)", status_text)
+if match:
+    health = match.group(1).strip().lower()
+
+print(state)
+print(health)
+PY
+      return 0
+    else
+      fallback_status=$?
+      printf '%s\n' "${fallback_output}" >&2
+      return ${fallback_status}
+    fi
+  fi
+
+  printf '%s\n' "${ps_output}" >&2
+  return ${ps_status}
 }
 
 wait_for_rabbitmq_ready() {
