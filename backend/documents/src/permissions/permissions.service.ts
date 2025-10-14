@@ -35,6 +35,7 @@ export class PermissionsService {
     const ttlSeconds = this.configService.get('queues.permissionsSync.jobTtlSeconds', {
       infer: true,
     });
+    const hasTtl = typeof ttlSeconds === 'number' && ttlSeconds > 0;
 
     const jobPayload: Record<string, any> = {
       ownerType: dto.ownerType,
@@ -43,7 +44,7 @@ export class PermissionsService {
       users: dto.users,
     };
 
-    if (typeof ttlSeconds === 'number' && ttlSeconds > 0) {
+    if (hasTtl) {
       jobPayload.ttlSeconds = ttlSeconds;
     }
 
