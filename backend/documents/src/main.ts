@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
@@ -13,6 +13,16 @@ async function bootstrap() {
       transform: true,
       transformOptions: { enableImplicitConversion: true },
       forbidUnknownValues: false,
+      exceptionFactory: (errors) =>
+        new BadRequestException({
+          statusCode: 400,
+          code: 'validation_error',
+          message: 'Ошибка валидации',
+          errors: errors.map((error) => ({
+            field: error.property,
+            constraints: error.constraints,
+          })),
+        }),
     }),
   );
 

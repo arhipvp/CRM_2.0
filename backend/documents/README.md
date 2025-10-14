@@ -7,6 +7,7 @@
 - CRUD API по метаданным документов (`/documents`).
 - REST API для генерации и выдачи папок в Drive (`/api/v1/folders`).
 - Фоновые задачи BullMQ для загрузки (`documents.upload`) и синхронизации (`documents.sync`) файлов.
+- Очередь BullMQ `documents.permissions.sync` для синхронизации прав доступа на папках Drive.
 - Интеграция с Google Drive через сервисный аккаунт либо локальный эмулятор (MinIO/LocalStack).
 - Безопасная работа с пустыми или отсутствующими метаданными: сервис объединяет данные Drive с исходными значениями, избегая ошибок
   сериализации.
@@ -47,6 +48,8 @@ pnpm install
 | `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
 | `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
+| `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME` | Имя очереди синхронизации прав (по умолчанию `documents.permissions.sync`). |
+| `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` | TTL задач синхронизации прав в очереди (секунды, по умолчанию 300). |
 | `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL объектного хранилища для формирования подписанной ссылки. |
 | `DOCUMENTS_UPLOAD_URL_TTL` | Время жизни подписанной ссылки на загрузку (секунды, по умолчанию 900). |
 | `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |
@@ -78,6 +81,7 @@ pnpm install
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
 - `POST /documents/:id/complete` — подтвердить завершение загрузки и поставить задачу синхронизации.
 - `POST /documents/:id/sync` — обновить метаданные из Drive.
+- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на обновление списка пользователей папки. Ошибки: `400 validation_error`, `404 folder_not_found`.
 
 Список статусов: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
 
@@ -93,6 +97,8 @@ pnpm typeorm migration:revert -d typeorm.config.ts
 Доступные миграции:
 - `1737043200000-init-documents-table.ts` — создаёт схему `documents`, перечисление статусов и таблицу `documents`.
 - `1739126400000-add-uploaded-status.ts` — добавляет статус `uploaded` в перечисление состояний.
+- `1740201600000-create-folders-table.ts` — создаёт таблицу `folders`.
+- `1740801600000-create-permissions-sync-tasks.ts` — добавляет таблицу `permissions_sync_tasks`.
 
 ## Локальный эмулятор Google Drive
 1. Поднимите MinIO/LocalStack и укажите `GOOGLE_DRIVE_EMULATOR_URL` (пример: `http://localhost:9000`).
