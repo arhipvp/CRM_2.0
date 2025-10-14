@@ -57,21 +57,37 @@ rabbitmq_status() {
 import json
 import sys
 
-lines = sys.stdin.read().splitlines()
-json_lines = []
+raw = sys.stdin.read()
 
-for line in lines:
-    stripped = line.lstrip()
-    if not stripped:
-        continue
-    if stripped[0] in '{[':
-        json_lines.append(line)
-    else:
-        print(line, file=sys.stderr)
+if not raw.strip():
+    print("absent")
+    print("")
+    sys.exit(0)
 
-payload = "\n".join(json_lines).strip()
+first_bracket = raw.find('[')
+last_bracket = raw.rfind(']')
+first_brace = raw.find('{')
+last_brace = raw.rfind('}')
 
-if not payload:
+payload = ""
+warnings_text = ""
+
+if first_bracket != -1 and last_bracket != -1 and last_bracket >= first_bracket:
+    payload = raw[first_bracket:last_bracket + 1].strip()
+    warnings_text = raw[:first_bracket] + raw[last_bracket + 1:]
+elif first_brace != -1 and last_brace != -1 and last_brace >= first_brace:
+    payload = raw[first_brace:last_brace + 1].strip()
+    warnings_text = raw[:first_brace] + raw[last_brace + 1:]
+
+if payload:
+    for line in warnings_text.splitlines():
+        if line.strip():
+            print(line, file=sys.stderr)
+else:
+    for line in raw.splitlines():
+        if line.strip():
+            print(line, file=sys.stderr)
+    print("[Предупреждение] docker compose ps не вернул JSON (получен только шум).", file=sys.stderr)
     print("absent")
     print("")
     sys.exit(0)
