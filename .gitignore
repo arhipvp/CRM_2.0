@@ -31,3 +31,5 @@ backups/**/*.log
 backups/**/snap-*/
 backups/**/weekly/
 backups/**/monthly/
+
+jdk-25/

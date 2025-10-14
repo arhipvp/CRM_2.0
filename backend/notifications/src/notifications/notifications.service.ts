@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@liaoliaots/nestjs-redis';
@@ -15,9 +15,11 @@ import {
   NotificationEntity,
   NotificationStatus
 } from './notification.entity';
+import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationsConfiguration } from '../config/configuration';
 import { IncomingNotificationDto } from './dto/incoming-notification.dto';
 import { QueryFailedError } from 'typeorm/error/QueryFailedError';
+import { NotificationStatusResponse } from './dto/notification-status.response';
 
 interface DispatchMessage {
   notificationId: string;
@@ -31,17 +33,22 @@ interface DispatchMessage {
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly retryOptions: NotificationsConfiguration['dispatch']['retry'];
 
   constructor(
     @InjectRepository(NotificationEntity)
     private readonly notificationsRepository: Repository<NotificationEntity>,
     @InjectRepository(NotificationDeliveryAttemptEntity)
     private readonly attemptsRepository: Repository<NotificationDeliveryAttemptEntity>,
+    @InjectRepository(NotificationEventEntity)
+    private readonly notificationEventsRepository: Repository<NotificationEventEntity>,
     private readonly notificationEventsService: NotificationEventsService,
     private readonly amqpConnection: AmqpConnection,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService<NotificationsConfiguration>
-  ) {}
+  ) {
+    this.retryOptions = this.configService.getOrThrow('dispatch.retry', { infer: true });
+  }
 
   async enqueue(dto: CreateNotificationDto): Promise<NotificationEntity> {
     if (dto.deduplicationKey) {
@@ -86,9 +93,17 @@ export class NotificationsService {
     let attemptNumber = 0;
 
     try {
-      await this.publishToRabbit(notification, message, ++attemptNumber);
-      await this.publishToRedis(notification, message, ++attemptNumber);
-      await this.dispatchInternally(dto, notification, ++attemptNumber);
+      await this.executeWithRetry('rabbitmq', async () => {
+        await this.publishToRabbit(notification, message, ++attemptNumber);
+      });
+
+      await this.executeWithRetry('redis', async () => {
+        await this.publishToRedis(notification, message, ++attemptNumber);
+      });
+
+      await this.executeWithRetry('events-service', async () => {
+        await this.dispatchInternally(dto, notification, ++attemptNumber);
+      });
 
       await this.notificationsRepository.update(notification.id, {
         status: NotificationStatus.PROCESSED
@@ -105,6 +120,50 @@ export class NotificationsService {
     }
 
     return this.notificationsRepository.findOneByOrFail({ id: notification.id });
+  }
+
+  async getStatus(id: string): Promise<NotificationStatusResponse | null> {
+    const notification = await this.notificationsRepository.findOne({
+      where: { id },
+      relations: { attempts: true }
+    });
+
+    if (!notification) {
+      return null;
+    }
+
+    const events = await this.notificationEventsRepository.find({
+      where: {
+        payload: Raw(
+          (alias) => `${alias} ->> 'notificationId' = :notificationId`,
+          { notificationId: id }
+        )
+      },
+      order: { createdAt: 'DESC' }
+    });
+
+    const attempts = notification.attempts ?? [];
+    const channels = Array.from(new Set(attempts.map((attempt) => attempt.channel))).sort();
+
+    const deliveredEvent = events.find((event) => {
+      if (event.deliveredToTelegram) {
+        return true;
+      }
+
+      const status = event.telegramDeliveryStatus?.toLowerCase();
+      return status === 'delivered';
+    });
+
+    const deliveredAt = deliveredEvent?.telegramDeliveryOccurredAt ?? null;
+    const status = deliveredEvent ? 'delivered' : notification.status;
+
+    return {
+      id: notification.id,
+      status,
+      attempts: attempts.length,
+      channels,
+      delivered_at: deliveredAt ? deliveredAt.toISOString() : null
+    };
   }
 
   private async publishToRabbit(
@@ -246,5 +305,45 @@ export class NotificationsService {
 
     const { code } = error as QueryFailedError & { code?: string };
     return code === '23505';
+  }
+
+  private async executeWithRetry(
+    channel: string,
+    operation: () => Promise<void>
+  ): Promise<void> {
+    const { maxAttempts, delayMs } = this.retryOptions;
+    let attempt = 0;
+    let lastError: unknown;
+
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      try {
+        await operation();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts) {
+          break;
+        }
+
+        const message =
+          error instanceof Error ? error.message : 'dispatch_retry_failed';
+        this.logger.warn(
+          `Channel ${channel} attempt ${attempt} failed: ${message}. Retrying in ${delayMs}ms.`
+        );
+
+        if (delayMs > 0) {
+          await this.wait(delayMs);
+        }
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(String(lastError));
+  }
+
+  private async wait(delayMs: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }

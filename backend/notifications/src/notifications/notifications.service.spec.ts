@@ -13,6 +13,8 @@ import {
   NotificationDeliveryAttemptEntity,
   NotificationDeliveryAttemptStatus
 } from './notification-delivery-attempt.entity';
+import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
+import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationsConfiguration } from '../config/configuration';
 import { NotificationEventsService } from './notification-events.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -22,10 +24,12 @@ describe('NotificationsService', () => {
   let service: NotificationsService;
   let notificationsRepository: jest.Mocked<Repository<NotificationEntity>>;
   let attemptsRepository: jest.Mocked<Repository<NotificationDeliveryAttemptEntity>>;
+  let eventsRepository: jest.Mocked<Repository<NotificationEventEntity>>;
   let amqpConnection: { publish: jest.Mock };
   let redisClient: { publish: jest.Mock };
   let notificationEventsService: { handleIncoming: jest.Mock };
   let configService: jest.Mocked<ConfigService<NotificationsConfiguration>>;
+  let retryOptions: NotificationsConfiguration['dispatch']['retry'];
 
   const dto: CreateNotificationDto = {
     eventKey: 'deal.created',
@@ -55,6 +59,10 @@ describe('NotificationsService', () => {
       async (entity) => entity as NotificationDeliveryAttemptEntity
     );
 
+    eventsRepository = {
+      find: jest.fn()
+    } as unknown as jest.Mocked<Repository<NotificationEventEntity>>;
+
     amqpConnection = { publish: jest.fn().mockResolvedValue(undefined) };
     redisClient = { publish: jest.fn().mockResolvedValue(1) };
 
@@ -66,18 +74,22 @@ describe('NotificationsService', () => {
       handleIncoming: jest.fn().mockResolvedValue(undefined)
     };
 
+    retryOptions = { maxAttempts: 3, delayMs: 0 };
+
     configService = {
       getOrThrow: jest.fn((key: string) => {
-        if (key === 'dispatch.exchange') {
-          return 'notifications.exchange';
+        switch (key) {
+          case 'dispatch.exchange':
+            return 'notifications.exchange';
+          case 'dispatch.routingKey':
+            return 'notifications.dispatch';
+          case 'dispatch.redisChannel':
+            return 'notifications:dispatch';
+          case 'dispatch.retry':
+            return retryOptions;
+          default:
+            throw new Error(`Unexpected config key ${key}`);
         }
-        if (key === 'dispatch.routingKey') {
-          return 'notifications.dispatch';
-        }
-        if (key === 'dispatch.redisChannel') {
-          return 'notifications:dispatch';
-        }
-        throw new Error(`Unexpected config key ${key}`);
       })
     } as unknown as jest.Mocked<ConfigService<NotificationsConfiguration>>;
 
@@ -109,6 +121,7 @@ describe('NotificationsService', () => {
           provide: getRepositoryToken(NotificationDeliveryAttemptEntity),
           useValue: attemptsRepository
         },
+        { provide: getRepositoryToken(NotificationEventEntity), useValue: eventsRepository },
         { provide: NotificationEventsService, useValue: notificationEventsService },
         { provide: AmqpConnection, useValue: amqpConnection },
         { provide: RedisService, useValue: redisService },
@@ -159,28 +172,46 @@ describe('NotificationsService', () => {
     await expect(service.enqueue(dto)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('marks notification as failed when internal dispatch fails', async () => {
-    notificationEventsService.handleIncoming.mockRejectedValue(
-      new InternalServerErrorException('notification_dispatch_failed')
-    );
+  it('retries transient failures before succeeding', async () => {
+    amqpConnection.publish
+      .mockRejectedValueOnce(new Error('rabbit temporary'))
+      .mockResolvedValue(undefined);
+    redisClient.publish
+      .mockRejectedValueOnce(new Error('redis temporary'))
+      .mockResolvedValue(1);
+    notificationEventsService.handleIncoming
+      .mockRejectedValueOnce(new Error('events temporary'))
+      .mockResolvedValue(undefined);
 
-    await expect(service.enqueue(dto)).rejects.toMatchObject({
-      response: expect.objectContaining({ message: 'notification_dispatch_failed' })
-    });
+    const result = await service.enqueue(dto);
 
-    expect(attemptsRepository.create).toHaveBeenCalledTimes(3);
-    const failureAttempt = (attemptsRepository.create as jest.Mock).mock.calls[2][0];
-    expect(failureAttempt.channel).toBe('events-service');
-    expect(failureAttempt.status).toBe(NotificationDeliveryAttemptStatus.FAILURE);
-    expect(failureAttempt.error).toBe('notification_dispatch_failed');
-
+    expect(result.id).toBe('notification-id');
+    expect(amqpConnection.publish).toHaveBeenCalledTimes(2);
+    expect(redisClient.publish).toHaveBeenCalledTimes(2);
+    expect(notificationEventsService.handleIncoming).toHaveBeenCalledTimes(2);
+    expect(attemptsRepository.save).toHaveBeenCalledTimes(6);
     expect(notificationsRepository.update).toHaveBeenCalledWith('notification-id', {
-      status: NotificationStatus.FAILED,
-      lastError: 'notification_dispatch_failed'
+      status: NotificationStatus.PROCESSED
     });
-    const statuses = notificationsRepository.update.mock.calls
-      .map(([, payload]) => (payload as Partial<NotificationEntity>).status)
-      .filter(Boolean);
-    expect(statuses).not.toContain(NotificationStatus.PROCESSED);
+  });
+
+  it('marks notification as failed after exhausting retries', async () => {
+    retryOptions.maxAttempts = 2;
+
+    amqpConnection.publish.mockRejectedValue(new Error('unavailable'));
+
+    await expect(service.enqueue(dto)).rejects.toThrow('unavailable');
+
+    expect(amqpConnection.publish).toHaveBeenCalledTimes(2);
+    expect(redisClient.publish).not.toHaveBeenCalled();
+    expect(notificationEventsService.handleIncoming).not.toHaveBeenCalled();
+    expect(attemptsRepository.save).toHaveBeenCalledTimes(2);
+    expect(notificationsRepository.update).toHaveBeenLastCalledWith(
+      'notification-id',
+      expect.objectContaining({
+        status: NotificationStatus.FAILED,
+        lastError: 'unavailable'
+      })
+    );
   });
 });
