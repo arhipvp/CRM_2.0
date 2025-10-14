@@ -8,6 +8,8 @@ export const validationSchema = Joi.object({
   DOCUMENTS_REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).required(),
   DOCUMENTS_REDIS_PREFIX: Joi.string().default('documents'),
   DOCUMENTS_QUEUE_NAME: Joi.string().default('documents:tasks'),
+  DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME: Joi.string().default('documents.permissions.sync'),
+  DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL: Joi.number().integer().min(60).default(300),
   DOCUMENTS_UPLOAD_URL_BASE: Joi.string().uri({ scheme: [/https?/] }).required(),
   DOCUMENTS_UPLOAD_URL_TTL: Joi.number().integer().min(60).default(900),
   GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: Joi.string().optional(),

@@ -13,6 +13,10 @@ export interface DocumentsConfiguration {
   };
   queues: {
     documents: string;
+    permissionsSync: {
+      name: string;
+      jobTtlSeconds: number;
+    };
   };
   storage: {
     uploadBaseUrl: string;
@@ -57,6 +61,10 @@ export default (): DocumentsConfiguration => ({
   },
   queues: {
     documents: process.env.DOCUMENTS_QUEUE_NAME ?? 'documents:tasks',
+    permissionsSync: {
+      name: process.env.DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME ?? 'documents.permissions.sync',
+      jobTtlSeconds: Number(process.env.DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL ?? 300),
+    },
   },
   storage: {
     uploadBaseUrl: process.env.DOCUMENTS_UPLOAD_URL_BASE ?? 'https://storage.local/documents/upload',

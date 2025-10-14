@@ -115,16 +115,25 @@
 ## Доступы
 
 ### POST `/permissions/sync`
-Синхронизирует доступы пользователей в папке с актуальными ролями.
+Ставит задачу `documents.permissions.sync` на обновление списка пользователей папки в Google Drive.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
 | owner_type | string | Да | Тип сущности. |
 | owner_id | UUID | Да | ID. |
-| users | array<object> | Да | Массив `{ "user_id": "uuid", "role": "viewer|editor" }`. |
+| users | array[string] | Да | Список идентификаторов пользователей (UUID/почта), которые должны получить доступ. |
 
-**Ответ 202** — задача синхронизации поставлена в очередь.
+**Ответ 202**
+```json
+{
+  "job_id": "bullmq-job-id",
+  "task_id": "permissions-task-id"
+}
+```
+
+`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. TTL задач регулируется
+переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
