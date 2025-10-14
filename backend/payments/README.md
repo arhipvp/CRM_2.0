@@ -55,7 +55,7 @@ gradle test
 
 ### Экспорт платежей
 
-`GET /api/v1/payments/export` ставит задачу генерации выгрузки (CSV/XLSX) в очередь `PAYMENTS_EXPORTS_QUEUE` и возвращает `job_id` c начальным статусом `processing`. Настройки хранилища (`PAYMENTS_EXPORTS_STORAGE_*`) проксируются воркеру экспорта; статус обновляется через сообщения из `PAYMENTS_EXPORTS_STATUS_QUEUE` (`processing` → `done`/`failed`). `GET /api/v1/payments/export/{job_id}` отдаёт актуальный статус и ссылку на скачивание после завершения.【F:docs/api/payments.md†L205-L239】
+`GET /api/v1/payments/export` ставит задачу генерации выгрузки (CSV/XLSX) в очередь `PAYMENTS_EXPORTS_QUEUE` и возвращает `job_id` c начальным статусом `processing`. Настройки хранилища (`PAYMENTS_EXPORTS_STORAGE_*`) проксируются воркеру экспорта; статус обновляется через сообщения из `PAYMENTS_EXPORTS_STATUS_QUEUE` (`processing` → `done`/`failed`). Запрос принимает те же фильтры, что и `/api/v1/payments`, причём параметры можно передавать как в единственном (`status`, `type`), так и во множественном числе (`statuses`, `types`) — значения автоматически нормализуются в списки. `GET /api/v1/payments/export/{job_id}` отдаёт актуальный статус и ссылку на скачивание после завершения.【F:docs/api/payments.md†L205-L239】
 
 ### Вебхуки CRM
 
