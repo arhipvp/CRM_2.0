@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from datetime import date, datetime, timezone
 from uuid import UUID, uuid4
 
 import aio_pika
 import pytest
+
+os.environ.setdefault("CRM_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/db")
+os.environ.setdefault("CRM_REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("CRM_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+os.environ.setdefault("CRM_PERMISSIONS_QUEUE_NAME", "permissions:sync")
+os.environ.setdefault("CRM_PERMISSIONS_QUEUE_PREFIX", "bull")
+os.environ.setdefault("CRM_PERMISSIONS_JOB_NAME", "permissions.sync")
+os.environ.setdefault("CRM_PERMISSIONS_REDIS_URL", "redis://localhost:6379/0")
 
 from crm.app import config as app_config
 from crm.app.events import PaymentsEventsSubscriber

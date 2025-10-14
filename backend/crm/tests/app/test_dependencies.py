@@ -30,6 +30,10 @@ if "crm.app.config" not in sys.modules:
             self.payments_retry_delay_ms = 0
             self.events_exchange = "crm.events"
             self.default_tenant_id = default_tenant_id
+            self.permissions_queue_name = "permissions:sync"
+            self.permissions_queue_prefix = "bull"
+            self.permissions_job_name = "permissions.sync"
+            self.permissions_redis_url = None
 
         def model_copy(self, *, update: dict | None = None, **_: object) -> DummySettings:
             if not update:
@@ -38,6 +42,10 @@ if "crm.app.config" not in sys.modules:
                 payments_retry_limit=update.get("payments_retry_limit", self.payments_retry_limit),
                 default_tenant_id=update.get("default_tenant_id", self.default_tenant_id),
             )
+
+        @property
+        def resolved_permissions_redis(self) -> str:
+            return str(self.permissions_redis_url or self.redis_url)
 
     config_module.Settings = DummySettings
     config_module.settings = DummySettings()

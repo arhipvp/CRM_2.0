@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration, { DocumentsConfiguration } from './config/configuration';
 import { validationSchema } from './config/validation';
 import { DocumentsModule } from './documents/documents.module';
+import { FoldersModule } from './folders/folders.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -36,6 +37,7 @@ import { AppController } from './app.controller';
       }),
     }),
     DocumentsModule,
+    FoldersModule,
   ],
   controllers: [AppController],
 })

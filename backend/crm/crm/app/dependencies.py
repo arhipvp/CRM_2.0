@@ -6,10 +6,12 @@ from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from redis.asyncio import Redis
 
 from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
+from crm.infrastructure.queues import PermissionsQueue
 from crm.infrastructure.db import AsyncSessionFactory
 
 
@@ -46,6 +48,37 @@ async def get_policy_service(session: AsyncSession = Depends(get_db_session)) ->
 
 async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> services.TaskService:
     return services.TaskService(repositories.TaskRepository(session))
+
+
+_permissions_queue: PermissionsQueue | None = None
+
+
+def get_permissions_queue() -> PermissionsQueue:
+    global _permissions_queue
+    if _permissions_queue is None:
+        redis = Redis.from_url(settings.resolved_permissions_redis, encoding="utf-8", decode_responses=True)
+        _permissions_queue = PermissionsQueue(
+            redis=redis,
+            queue_name=settings.permissions_queue_name,
+            prefix=settings.permissions_queue_prefix,
+            job_name=settings.permissions_job_name,
+        )
+    return _permissions_queue
+
+
+async def close_permissions_queue() -> None:
+    global _permissions_queue
+    if _permissions_queue is not None:
+        await _permissions_queue.close()
+        _permissions_queue = None
+
+
+async def get_permissions_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.PermissionSyncService:
+    queue = get_permissions_queue()
+    repository = repositories.PermissionSyncJobRepository(session)
+    return services.PermissionSyncService(repository, queue, settings.permissions_queue_name)
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:

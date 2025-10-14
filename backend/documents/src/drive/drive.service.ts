@@ -17,12 +17,69 @@ export interface DriveUploadResult {
   metadata?: Record<string, any>;
 }
 
+export interface DriveFolderMetadata {
+  id: string;
+  name: string;
+  webViewLink?: string | null;
+  metadata?: Record<string, any>;
+}
+
 @Injectable()
 export class DriveService {
   private readonly logger = new Logger(DriveService.name);
   private driveClient?: drive_v3.Drive;
 
   constructor(private readonly configService: ConfigService<DocumentsConfiguration, true>) {}
+
+  async createFolder(name: string, parentFolderId?: string): Promise<DriveFolderMetadata> {
+    const driveConfig = this.configService.get('drive', { infer: true });
+
+    const parents = parentFolderId
+      ? [parentFolderId]
+      : driveConfig.emulatorUrl && driveConfig.emulatorRoot
+        ? [driveConfig.emulatorRoot]
+        : undefined;
+
+    if (driveConfig.emulatorUrl) {
+      const response = await axios.post(
+        new URL('/files', driveConfig.emulatorUrl).toString(),
+        {
+          name,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents,
+        },
+      );
+
+      const data = response.data ?? {};
+      return {
+        id: data.id,
+        name: data.name ?? name,
+        webViewLink: data.webViewLink ?? null,
+        metadata: data,
+      };
+    }
+
+    const drive = await this.getDriveClient();
+    if (!drive) {
+      throw new Error('Google Drive client is not configured');
+    }
+
+    const { data } = await drive.files.create({
+      requestBody: {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents,
+      },
+      supportsAllDrives: true,
+      fields: 'id, name, webViewLink',
+    });
+    return {
+      id: data.id!,
+      name: data.name ?? name,
+      webViewLink: data.webViewLink ?? null,
+      metadata: data as unknown as Record<string, any>,
+    };
+  }
 
   async uploadDocument(
     document: DocumentEntity,
