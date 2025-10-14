@@ -7,7 +7,7 @@ from uuid import UUID
 
 try:  # pragma: no cover - optional dependency guard
     from asyncpg.pgproto.pgproto import Range as PgRange
-except ModuleNotFoundError:  # pragma: no cover - lightweight fallback for typing
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - lightweight fallback for typing
     class PgRange:  # type: ignore[override]
         def __init__(
             self,
@@ -151,11 +151,29 @@ class PolicyService:
 
     async def list_policies(self, tenant_id: UUID) -> Iterable[schemas.PolicyRead]:
         policies = await self.repository.list(tenant_id)
-        return [schemas.PolicyRead.model_validate(policy) for policy in policies]
+        return [self._to_schema(policy) for policy in policies]
 
     async def create_policy(self, tenant_id: UUID, payload: schemas.PolicyCreate) -> schemas.PolicyRead:
         entity = await self.repository.create(tenant_id, payload.model_dump())
-        return schemas.PolicyRead.model_validate(entity)
+        return self._to_schema(entity)
+
+    async def get_policy(self, tenant_id: UUID, policy_id: UUID) -> schemas.PolicyRead | None:
+        entity = await self.repository.get(tenant_id, policy_id)
+        if entity is None:
+            return None
+        return self._to_schema(entity)
+
+    async def update_policy(
+        self, tenant_id: UUID, policy_id: UUID, payload: schemas.PolicyUpdate
+    ) -> schemas.PolicyRead | None:
+        entity = await self.repository.update(tenant_id, policy_id, payload.model_dump(exclude_unset=True))
+        if entity is None:
+            return None
+        return self._to_schema(entity)
+
+    @staticmethod
+    def _to_schema(policy: models.Policy) -> schemas.PolicyRead:
+        return schemas.PolicyRead.model_validate(policy)
 
 
 class CalculationService:
@@ -164,9 +182,12 @@ class CalculationService:
         repository: repositories.CalculationRepository,
         policy_repository: repositories.PolicyRepository,
         events_publisher: EventsPublisherProtocol,
+        *,
+        policy_service: PolicyService | None = None,
     ) -> None:
         self.repository = repository
         self.policies = policy_repository
+        self.policy_service = policy_service or PolicyService(policy_repository)
         self.events = events_publisher
 
     async def list_calculations(
@@ -309,10 +330,10 @@ class CalculationService:
         deal_id: UUID,
         calculation_id: UUID,
         policy_id: UUID | None,
-    ) -> models.Policy | None:
+    ) -> schemas.PolicyRead | None:
         if policy_id is None:
             return None
-        policy = await self.policies.get(tenant_id, policy_id)
+        policy = await self.policy_service.get_policy(tenant_id, policy_id)
         if policy is None or policy.deal_id != deal_id:
             return None
         if policy.calculation_id and policy.calculation_id != calculation_id:
@@ -387,21 +408,6 @@ class CalculationService:
         if calculation.policy is not None:
             payload["policy_id"] = str(calculation.policy.id)
         await self.events.publish(routing_key, payload)
-
-    async def get_policy(self, tenant_id: UUID, policy_id: UUID) -> schemas.PolicyRead | None:
-        entity = await self.repository.get(tenant_id, policy_id)
-        if entity is None:
-            return None
-        return schemas.PolicyRead.model_validate(entity)
-
-    async def update_policy(
-        self, tenant_id: UUID, policy_id: UUID, payload: schemas.PolicyUpdate
-    ) -> schemas.PolicyRead | None:
-        entity = await self.repository.update(tenant_id, policy_id, payload.model_dump(exclude_unset=True))
-        if entity is None:
-            return None
-        return schemas.PolicyRead.model_validate(entity)
-
 
 class TaskService:
     def __init__(self, repository: repositories.TaskRepository):

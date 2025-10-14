@@ -15,6 +15,7 @@ router = APIRouter(prefix="/deals/{deal_id}/journal", tags=["deal-journal"])
 @router.get("/", response_model=schemas.DealJournalEntryList)
 async def list_deal_journal(
     deal_id: UUID,
+    *,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     service: Annotated[DealJournalService, Depends(get_deal_journal_service)],
