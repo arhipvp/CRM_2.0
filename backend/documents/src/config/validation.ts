@@ -14,4 +14,12 @@ export const validationSchema = Joi.object({
   GOOGLE_DRIVE_SHARED_DRIVE_ID: Joi.string().optional(),
   GOOGLE_DRIVE_EMULATOR_URL: Joi.string().uri({ scheme: [/https?/] }).optional(),
   GOOGLE_DRIVE_EMULATOR_ROOT: Joi.string().optional(),
+  DOCUMENTS_FOLDERS_TEMPLATE_DEFAULT: Joi.string().default('{title}'),
+  DOCUMENTS_FOLDERS_TEMPLATE_CLIENT: Joi.string().default('Client {ownerId}'),
+  DOCUMENTS_FOLDERS_TEMPLATE_DEAL: Joi.string().default('Deal {ownerId}'),
+  DOCUMENTS_FOLDERS_TEMPLATE_POLICY: Joi.string().default('Policy {ownerId}'),
+  DOCUMENTS_FOLDERS_TEMPLATE_PAYMENT: Joi.string().default('Payment {ownerId}'),
+  DOCUMENTS_FOLDERS_WEB_BASE_URL: Joi.string()
+    .uri({ scheme: [/https?/] })
+    .default('https://drive.google.com/drive/folders/'),
 });
