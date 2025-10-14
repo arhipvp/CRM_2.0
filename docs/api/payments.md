@@ -143,18 +143,18 @@
 | currency | string | Код валюты (пересчитывать существующие операции запрещено, только если ещё нет поступлений/расходов). |
 | comment | string | Комментарий. |
 | actual_date | date | Дата закрытия платежа. Должна быть не раньше `planned_date` (если задана) и не позже текущего дня. |
-| status | string | Принудительная установка статуса (`cancelled`). Доступна пользователям с ролью `financial_manager`. |
+| status | string | Принудительная установка статуса (`cancelled`). Доступна пользователям с ролью `admin` («главный админ»). |
 
 **Ответ 200** — обновлённый объект платежа.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`, `409 payment_has_transactions` (для изменений, требующих пустого списка операций).
+**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden` (попытка установить статус без прав главного админа), `404 payment_not_found`, `409 payment_has_transactions` (для изменений, требующих пустого списка операций).
 
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}`
-Удаляет платёж и связанные операции. Доступно только, если нет поступлений/расходов либо пользователь обладает ролью `financial_manager` и передал флаг `force=true` в query string.
+Удаляет платёж и связанные операции. Доступно только, если нет поступлений/расходов либо пользователь обладает ролью `admin` («главный админ») и передал флаг `force=true` в query string.
 
 **Ответ 204** — без тела.
 
-**Ошибки**: `400 validation_error` (при отсутствии `force=true` и наличии операций), `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
+**Ошибки**: `400 validation_error` (при отсутствии `force=true` и наличии операций либо попытке принудительного удаления без прав главного админа), `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
 
 ## Поступления (`/incomes`)
 

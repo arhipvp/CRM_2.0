@@ -71,7 +71,7 @@
   "user": {
     "id": "uuid",
     "full_name": "string",
-    "roles": ["agent", "financial_manager"],
+    "roles": ["agent", "executor", "admin"],
     "telegram_linked": true,
     "last_login_at": "2024-02-18T08:11:23Z"
   },
