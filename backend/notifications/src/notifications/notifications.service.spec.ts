@@ -10,6 +10,7 @@ import { RedisService } from '@liaoliaots/nestjs-redis';
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity, NotificationStatus } from './notification.entity';
 import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
+import { NotificationEventEntity } from './notification-event.entity';
 import { NotificationsConfiguration } from '../config/configuration';
 import { NotificationEventsService } from './notification-events.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -19,6 +20,7 @@ describe('NotificationsService', () => {
   let service: NotificationsService;
   let notificationsRepository: jest.Mocked<Repository<NotificationEntity>>;
   let attemptsRepository: jest.Mocked<Repository<NotificationDeliveryAttemptEntity>>;
+  let eventsRepository: jest.Mocked<Repository<NotificationEventEntity>>;
   let amqpConnection: { publish: jest.Mock };
   let redisClient: { publish: jest.Mock };
   let notificationEventsService: { handleIncoming: jest.Mock };
@@ -45,6 +47,10 @@ describe('NotificationsService', () => {
       create: jest.fn(),
       save: jest.fn()
     } as unknown as jest.Mocked<Repository<NotificationDeliveryAttemptEntity>>;
+
+    eventsRepository = {
+      find: jest.fn()
+    } as unknown as jest.Mocked<Repository<NotificationEventEntity>>;
 
     amqpConnection = { publish: jest.fn().mockResolvedValue(undefined) };
     redisClient = { publish: jest.fn().mockResolvedValue(1) };
@@ -100,6 +106,7 @@ describe('NotificationsService', () => {
           provide: getRepositoryToken(NotificationDeliveryAttemptEntity),
           useValue: attemptsRepository
         },
+        { provide: getRepositoryToken(NotificationEventEntity), useValue: eventsRepository },
         { provide: NotificationEventsService, useValue: notificationEventsService },
         { provide: AmqpConnection, useValue: amqpConnection },
         { provide: RedisService, useValue: redisService },
