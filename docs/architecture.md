@@ -16,7 +16,7 @@ CRM состоит из набора специализированных сер
 | Audit | Централизованный журнал действий пользователей и системных событий | PostgreSQL (схема `audit`), RabbitMQ (подписка на критичные события) |
 | Backup | Резервное копирование баз, политик и конфигураций | PostgreSQL (репликации и дампы), объектное хранилище |
 
-Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm` и REST API, а фронтенд получает обновления через общие эндпоинты CRM. Базовые реквизиты операций лежат в `crm.policy_payments`, детализация доходов и расходов — в таблицах `crm.policy_payment_incomes` и `crm.policy_payment_expenses`; оба набора синхронизируются событиями `deal.payment.updated` и `deal.payment.cashflow.synced` для потребителей (Notifications, Reports, Audit).
+Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm` и REST API, а фронтенд получает обновления через общие эндпоинты CRM. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для Notifications, Reports и Audit.
 
 Детализация технологического стека сервисов Tasks и Notifications приведена в разделах [«Tasks»](tech-stack.md#tasks) и [«Notifications»](tech-stack.md#notifications) документа `docs/tech-stack.md`.
 
@@ -62,7 +62,7 @@ Gateway — единственная точка входа для внешних
 3. CRM/Deals создаёт записи в своей схеме PostgreSQL, публикует событие `deal.created` в RabbitMQ и создаёт задачу в Tasks.
 4. Notifications подписывается на событие, формирует уведомления и отправляет их в очереди Telegram-бота и внутренней CRM.
 5. Telegram-бот и внутренняя CRM доставляют сообщения пользователю; подтверждения через Gateway возвращаются в CRM/Deals, обновляя статус задачи.
-6. При подтверждении оплаты продавец вызывает CRM API, который создаёт или обновляет запись `crm.policy_payments`, пересчитывает связанные позиции доходов/расходов, публикует события `deal.payment.updated` и `deal.payment.cashflow.synced`, а Audit фиксирует факт поступления и автора изменений.
+6. При подтверждении оплаты продавец вызывает CRM API, который создаёт или обновляет запись `crm.payments`, пересчитывает связанные позиции доходов/расходов, публикует события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*`, а Audit фиксирует факт поступления и автора изменений.
 
 ## 3. Диаграмма взаимодействий
 
