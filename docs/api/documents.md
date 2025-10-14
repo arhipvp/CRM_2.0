@@ -65,6 +65,8 @@
 }
 ```
 
+`expires_in` совпадает со значением `DOCUMENTS_UPLOAD_URL_TTL` (в секундах). `upload_url` — подписанная ссылка для одноразовой загрузки файла в объектное хранилище.
+
 **Ошибки:** `400 validation_error`, `404 owner_not_found`.
 
 ### POST `/documents/{document_id}/complete`

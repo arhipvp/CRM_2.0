@@ -6,6 +6,7 @@ import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { DocumentStatus } from './document-status.enum';
 import { DocumentEntity } from './document.entity';
 import { DocumentsService } from './documents.service';
+import { UploadUrlService } from './upload-url.service';
 
 const createQueryBuilderMock = () => ({
   where: jest.fn().mockReturnThis(),
@@ -31,15 +32,75 @@ const createDriveServiceMock = (): jest.Mocked<DriveService> =>
     revokeDocument: jest.fn(),
   } as unknown as jest.Mocked<DriveService>);
 
+const createUploadUrlServiceMock = (): jest.Mocked<UploadUrlService> =>
+  ({
+    createUploadUrl: jest.fn(),
+  } as unknown as jest.Mocked<UploadUrlService>);
+
 describe('DocumentsService', () => {
   let service: DocumentsService;
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let driveService: jest.Mocked<DriveService>;
+  let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
     driveService = createDriveServiceMock();
-    service = new DocumentsService(repository, driveService);
+    uploadUrlService = createUploadUrlServiceMock();
+    service = new DocumentsService(repository, uploadUrlService, driveService);
+  });
+
+  it('создаёт документ, заполняет метаданные и возвращает параметры загрузки', async () => {
+    const createdEntity: DocumentEntity = {
+      id: 'doc-1',
+      name: 'Полис',
+      description: 'Оригинал',
+      metadata: {
+        ownerType: 'client',
+        ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+        documentType: 'policy',
+        notes: 'Оригинал',
+        tags: ['2024'],
+      },
+      status: DocumentStatus.PendingUpload,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+    } as DocumentEntity;
+
+    repository.create.mockReturnValue(createdEntity);
+    repository.save.mockResolvedValue(createdEntity);
+    uploadUrlService.createUploadUrl.mockReturnValue({
+      url: 'https://storage.local/documents/doc-1?token=abc',
+      expiresIn: 600,
+    });
+
+    const result = await service.create({
+      ownerType: 'client',
+      ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+      title: 'Полис',
+      documentType: 'policy',
+      notes: 'Оригинал',
+      tags: ['2024'],
+    });
+
+    expect(repository.create).toHaveBeenCalledWith({
+      name: 'Полис',
+      description: 'Оригинал',
+      metadata: {
+        ownerType: 'client',
+        ownerId: '7c24c6f8-3f76-43d4-8596-0fb479c6b6d9',
+        documentType: 'policy',
+        notes: 'Оригинал',
+        tags: ['2024'],
+      },
+      status: DocumentStatus.PendingUpload,
+    });
+    expect(uploadUrlService.createUploadUrl).toHaveBeenCalledWith('doc-1');
+    expect(result).toEqual({
+      document: createdEntity,
+      uploadUrl: 'https://storage.local/documents/doc-1?token=abc',
+      expiresIn: 600,
+    });
   });
 
   it('исключает удалённые документы из поиска и применяет сортировку', async () => {
@@ -146,11 +207,13 @@ describe('DocumentsService.completeUpload', () => {
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let service: DocumentsService;
   let driveService: jest.Mocked<DriveService>;
+  let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
     driveService = createDriveServiceMock();
-    service = new DocumentsService(repository, driveService);
+    uploadUrlService = createUploadUrlServiceMock();
+    service = new DocumentsService(repository, uploadUrlService, driveService);
   });
 
   it('переводит документ в статус uploaded и сохраняет атрибуты файла', async () => {

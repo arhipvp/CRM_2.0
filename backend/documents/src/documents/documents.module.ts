@@ -9,6 +9,7 @@ import { DocumentsProcessor } from './documents.processor';
 import { DocumentsQueueService } from './documents-queue.service';
 import { DocumentsService } from './documents.service';
 import { DOCUMENTS_QUEUE, DEFAULT_DOCUMENTS_QUEUE } from './documents.constants';
+import { UploadUrlService } from './upload-url.service';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { DOCUMENTS_QUEUE, DEFAULT_DOCUMENTS_QUEUE } from './documents.constants'
     DriveModule,
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, DocumentsQueueService, DocumentsProcessor],
+  providers: [DocumentsService, DocumentsQueueService, DocumentsProcessor, UploadUrlService],
   exports: [DocumentsService, DocumentsQueueService],
 })
 export class DocumentsModule {}

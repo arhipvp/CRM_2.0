@@ -14,6 +14,10 @@ export interface DocumentsConfiguration {
   queues: {
     documents: string;
   };
+  storage: {
+    uploadBaseUrl: string;
+    uploadTtlSeconds: number;
+  };
   drive: {
     serviceAccountJson?: string;
     sharedDriveId?: string;
@@ -43,6 +47,10 @@ export default (): DocumentsConfiguration => ({
   },
   queues: {
     documents: process.env.DOCUMENTS_QUEUE_NAME ?? 'documents:tasks',
+  },
+  storage: {
+    uploadBaseUrl: process.env.DOCUMENTS_UPLOAD_URL_BASE ?? 'https://storage.local/documents/upload',
+    uploadTtlSeconds: Number(process.env.DOCUMENTS_UPLOAD_URL_TTL ?? 900),
   },
   drive: {
     serviceAccountJson: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,

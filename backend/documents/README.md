@@ -46,6 +46,8 @@ pnpm install
 | `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
 | `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
+| `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL объектного хранилища для формирования подписанной ссылки. |
+| `DOCUMENTS_UPLOAD_URL_TTL` | Время жизни подписанной ссылки на загрузку (секунды, по умолчанию 900). |
 | `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`/`GOOGLE_DRIVE_SERVICE_ACCOUNT_PATH` | JSON сервисного аккаунта или путь к файлу. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Альтернативный путь до JSON ключа (совместимо с SDK Google). |
 | `GOOGLE_DRIVE_SHARED_DRIVE_ID` | ID Shared Drive для реальной интеграции. |
@@ -65,7 +67,7 @@ pnpm install
 - `GET /health` — состояние сервиса.
 - `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`).
 - `GET /documents/:id` — детали документа.
-- `POST /documents` — создать запись. По умолчанию добавляет задание `documents.upload`.
+- `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
 - `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, доступ Drive отзывается (повторный вызов вернёт `409 already_deleted`).
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
