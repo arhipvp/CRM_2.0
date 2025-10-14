@@ -29,7 +29,15 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
 fi
 
 set -a
+nounset_was_set=0
+if [[ $- == *u* ]]; then
+  nounset_was_set=1
+  set +u
+fi
 source "${ENV_FILE}"
+if (( nounset_was_set )); then
+  set -u
+fi
 set +a
 
 if [[ -z "${RABBITMQ_DEFAULT_USER:-}" || -z "${RABBITMQ_DEFAULT_PASS:-}" || -z "${RABBITMQ_DEFAULT_VHOST:-}" ]]; then
