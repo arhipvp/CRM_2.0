@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { apiClient, type UpdateTaskPayload } from "@/lib/api/client";
+import { apiClient, type PaymentEntryPayload, type PaymentPayload, type PaymentUpdatePayload } from "@/lib/api/client";
 import {
   dealStageMetricsQueryKey,
   dealActivityQueryOptions,
@@ -17,6 +17,7 @@ import {
   dealsQueryOptions,
   dealStageMetricsQueryOptions,
   paymentsQueryOptions,
+  type PaymentsQueryParams,
   tasksQueryOptions,
 } from "@/lib/api/queries";
 import type { Deal, DealFilters, DealStage } from "@/types/crm";
@@ -149,8 +150,152 @@ export function useBulkUpdateTasks() {
   });
 }
 
-export function usePayments() {
-  return useQuery(paymentsQueryOptions());
+export function usePayments(params?: PaymentsQueryParams) {
+  return useQuery(paymentsQueryOptions(params));
+}
+
+const paymentsWithDetailsKey = paymentsQueryOptions({ include: ["incomes", "expenses"] }).queryKey;
+
+function invalidatePaymentQueries(queryClient: ReturnType<typeof useQueryClient>, dealId?: string) {
+  const invalidations: Array<Promise<unknown>> = [
+    queryClient.invalidateQueries({ queryKey: paymentsQueryOptions().queryKey }),
+    queryClient.invalidateQueries({ queryKey: paymentsWithDetailsKey }),
+    queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+    queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+  ];
+
+  if (dealId) {
+    invalidations.push(
+      queryClient.invalidateQueries({ queryKey: dealQueryOptions(dealId).queryKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: dealPaymentsQueryOptions(dealId).queryKey }),
+    );
+  }
+
+  return Promise.all(invalidations);
+}
+
+export function useCreatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["create-payment"],
+    mutationFn: (payload: PaymentPayload) => apiClient.createPayment(payload),
+    onSuccess: async (payment) => {
+      await invalidatePaymentQueries(queryClient, payment.dealId);
+    },
+  });
+}
+
+export function useUpdatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["update-payment"],
+    mutationFn: ({ paymentId, payload }: { paymentId: string; payload: PaymentUpdatePayload }) =>
+      apiClient.updatePayment(paymentId, payload),
+    onSuccess: async (payment) => {
+      await invalidatePaymentQueries(queryClient, payment.dealId);
+    },
+  });
+}
+
+export function useDeletePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["delete-payment"],
+    mutationFn: ({ paymentId }: { paymentId: string; dealId?: string }) => apiClient.deletePayment(paymentId),
+    onSuccess: async (_result, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useCreatePaymentIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["create-payment-income"],
+    mutationFn: ({ paymentId, dealId, payload }: { paymentId: string; dealId: string; payload: PaymentEntryPayload }) =>
+      apiClient.createPaymentIncome(paymentId, payload),
+    onSuccess: async (_entry, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useUpdatePaymentIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["update-payment-income"],
+    mutationFn: ({
+      paymentId,
+      incomeId,
+      dealId,
+      payload,
+    }: {
+      paymentId: string;
+      incomeId: string;
+      dealId: string;
+      payload: PaymentEntryPayload;
+    }) => apiClient.updatePaymentIncome(paymentId, incomeId, payload),
+    onSuccess: async (_entry, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useDeletePaymentIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["delete-payment-income"],
+    mutationFn: ({ paymentId, dealId, incomeId }: { paymentId: string; dealId: string; incomeId: string }) =>
+      apiClient.deletePaymentIncome(paymentId, incomeId),
+    onSuccess: async (_result, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useCreatePaymentExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["create-payment-expense"],
+    mutationFn: ({ paymentId, dealId, payload }: { paymentId: string; dealId: string; payload: PaymentEntryPayload }) =>
+      apiClient.createPaymentExpense(paymentId, payload),
+    onSuccess: async (_entry, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useUpdatePaymentExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["update-payment-expense"],
+    mutationFn: ({
+      paymentId,
+      expenseId,
+      dealId,
+      payload,
+    }: {
+      paymentId: string;
+      expenseId: string;
+      dealId: string;
+      payload: PaymentEntryPayload;
+    }) => apiClient.updatePaymentExpense(paymentId, expenseId, payload),
+    onSuccess: async (_entry, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
+}
+
+export function useDeletePaymentExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["delete-payment-expense"],
+    mutationFn: ({ paymentId, dealId, expenseId }: { paymentId: string; dealId: string; expenseId: string }) =>
+      apiClient.deletePaymentExpense(paymentId, expenseId),
+    onSuccess: async (_result, variables) => {
+      await invalidatePaymentQueries(queryClient, variables.dealId);
+    },
+  });
 }
 
 export function useCreateDealTask(dealId: string) {

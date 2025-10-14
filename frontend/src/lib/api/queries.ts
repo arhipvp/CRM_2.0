@@ -130,8 +130,25 @@ export const tasksQueryOptions = () =>
     queryFn: () => apiClient.getTasks(),
   });
 
-export const paymentsQueryOptions = () =>
-  queryOptions({
-    queryKey: ["payments"],
-    queryFn: () => apiClient.getPayments(),
+export interface PaymentsQueryParams {
+  include?: Array<"incomes" | "expenses">;
+}
+
+function normalizePaymentsInclude(include?: Array<"incomes" | "expenses">) {
+  if (!include || include.length === 0) {
+    return undefined;
+  }
+
+  const unique = Array.from(new Set(include.filter(Boolean)));
+  unique.sort();
+  return unique as Array<"incomes" | "expenses">;
+}
+
+export const paymentsQueryOptions = (params?: PaymentsQueryParams) => {
+  const include = normalizePaymentsInclude(params?.include);
+
+  return queryOptions({
+    queryKey: ["payments", include ?? []] as const,
+    queryFn: () => apiClient.getPayments({ include }),
   });
+};

@@ -117,15 +117,47 @@ export interface Task {
 
 export type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";
 
+export interface PaymentEntry {
+  id: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  category: string;
+  postedAt: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
 export interface Payment {
   id: string;
   dealId: string;
+  dealName?: string;
   clientId: string;
+  clientName?: string;
+  policyId?: string;
+  policyNumber?: string;
+  sequence: number;
   amount: number;
+  plannedAmount: number;
   currency: string;
   status: PaymentStatus;
   paidAt?: string;
-  dueDate: string;
+  dueDate?: string;
+  plannedDate?: string;
+  actualDate?: string;
+  comment?: string;
+  incomesTotal: number;
+  expensesTotal: number;
+  netTotal: number;
+  incomes: PaymentEntry[];
+  expenses: PaymentEntry[];
+  createdAt: string;
+  updatedAt: string;
+  recordedBy?: string;
+  updatedBy?: string;
 }
 
 export interface ActivityLogEntry {
