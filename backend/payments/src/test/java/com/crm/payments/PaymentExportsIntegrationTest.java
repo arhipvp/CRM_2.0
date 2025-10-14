@@ -2,12 +2,14 @@ package com.crm.payments;
 
 import com.crm.payments.api.dto.PaymentExportResponse;
 import com.crm.payments.domain.PaymentExportStatus;
+import com.crm.payments.domain.PaymentStatus;
 import com.crm.payments.repository.PaymentExportJobRepository;
 import com.crm.payments.service.export.PaymentExportService.PaymentExportJobMessage;
 import com.crm.payments.service.export.PaymentExportService.PaymentExportStatusMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,6 +108,13 @@ class PaymentExportsIntegrationTest {
         Assert.isTrue(jobId.equals(jobMessage.getJobId()), "В сообщении должен быть передан корректный jobId");
         Assert.isTrue("csv".equalsIgnoreCase(jobMessage.getFormat().getValue()), "Формат должен совпадать");
         Assert.isTrue(jobMessage.getFilters().containsKey("dealId"), "Фильтры должны включать dealId");
+        Assert.isTrue(jobMessage.getFilters().containsKey("statuses"), "Фильтры должны включать statuses");
+        Object statusesFilter = jobMessage.getFilters().get("statuses");
+        Assert.isInstanceOf(List.class, statusesFilter, "Фильтр statuses должен быть списком");
+        @SuppressWarnings("unchecked")
+        List<Object> statuses = (List<Object>) statusesFilter;
+        Assert.isTrue(statuses.contains(PaymentStatus.PENDING.name()),
+                "Фильтр statuses должен содержать значение PENDING");
         Assert.isTrue(jobMessage.getStorage() != null, "Параметры хранения должны присутствовать");
     }
 

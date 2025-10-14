@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -53,19 +54,43 @@ public class PaymentExportRequest {
     }
 
     public List<PaymentStatus> getStatuses() {
-        return statuses;
+        return statuses == null ? Collections.emptyList() : statuses;
     }
 
     public void setStatuses(List<PaymentStatus> statuses) {
         this.statuses = statuses;
     }
 
+    public PaymentStatus getStatus() {
+        return getStatuses().isEmpty() ? null : getStatuses().get(0);
+    }
+
+    public void setStatus(PaymentStatus status) {
+        if (status == null) {
+            this.statuses = null;
+        } else {
+            this.statuses = List.of(status);
+        }
+    }
+
     public List<PaymentType> getTypes() {
-        return types;
+        return types == null ? Collections.emptyList() : types;
     }
 
     public void setTypes(List<PaymentType> types) {
         this.types = types;
+    }
+
+    public PaymentType getType() {
+        return getTypes().isEmpty() ? null : getTypes().get(0);
+    }
+
+    public void setType(PaymentType type) {
+        if (type == null) {
+            this.types = null;
+        } else {
+            this.types = List.of(type);
+        }
     }
 
     public OffsetDateTime getFromDate() {
