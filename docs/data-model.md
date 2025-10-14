@@ -50,6 +50,9 @@ erDiagram
     CRM_DEALS ||--o{ CRM_CALCULATIONS : ""
     CRM_DEALS ||--o{ CRM_POLICIES : ""
     CRM_POLICIES ||--o{ CRM_POLICY_DOCUMENTS : ""
+    CRM_POLICIES ||--o{ CRM_PAYMENTS : ""
+    CRM_PAYMENTS ||--o{ CRM_PAYMENT_INCOMES : ""
+    CRM_PAYMENTS ||--o{ CRM_PAYMENT_EXPENSES : ""
 ```
 
 ### Таблицы
@@ -63,6 +66,9 @@ erDiagram
 | `crm.calculations` | Полученные расчёты/предложения страховых компаний. |
 | `crm.policies` | Оформленные страховые полисы. |
 | `crm.policy_documents` | Связи полисов с документами (метаданные для быстрого доступа). |
+| `crm.payments` | Фактические движения денежных средств по полисам. |
+| `crm.payment_incomes` | Позиции поступлений внутри платежей. |
+| `crm.payment_expenses` | Позиции списаний внутри платежей. |
 
 #### Поля `crm.deals`
 
@@ -77,25 +83,34 @@ erDiagram
 * `crm.calculations`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индекс по `insurance_company`, `calculation_date`.
 * `crm.policies`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, `FOREIGN KEY (calculation_id)` → `crm.calculations(id)`, `UNIQUE (policy_number)`, индексы по `status`, `(deal_id, effective_from)`.
 * `crm.policy_documents`: `PRIMARY KEY (id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (document_id)` → `documents.documents(id)`, уникальное ограничение `(policy_id, document_id)`.
+* `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы по `(policy_id, actual_date)`, `deal_id`, `recorded_by_id`.
+* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(occurred_on, payment_id)`.
+* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(occurred_on, payment_id)`.
 
 ## Платёжные записи (схема `crm`)
 
 ```mermaid
 erDiagram
     CRM_POLICIES ||--o{ CRM_PAYMENTS : ""
+    CRM_PAYMENTS ||--o{ CRM_PAYMENT_INCOMES : ""
+    CRM_PAYMENTS ||--o{ CRM_PAYMENT_EXPENSES : ""
 ```
 
 ### Таблицы
 
 | Таблица | Назначение |
 | --- | --- |
-| `crm.payments` | Единственная запись фактической оплаты по полису сделки: хранит сумму, валюту и обязательную фактическую дату без статусов. |
+| `crm.payments` | Запись совокупного платежа по полису сделки, агрегирующая все движения средств. |
+| `crm.payment_incomes` | Отдельные поступления денежных средств, входящие в платеж. |
+| `crm.payment_expenses` | Отдельные списания/комиссии, связанные с платежом. |
 
 ### Ключи и ограничения
 
-* `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Уникальный индекс по `policy_id`, индексы по `actual_date`, `recorded_by_id`.
+* `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы по `(policy_id, actual_date)`, `deal_id`, `recorded_by_id`.
+* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы `idx_payment_incomes_payment_id`, `idx_payment_incomes_occurred_on_payment` (`occurred_on`, `payment_id`).
+* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (recorded_by_id)` → `auth.users(id)`. Индексы `idx_payment_expenses_payment_id`, `idx_payment_expenses_occurred_on_payment` (`occurred_on`, `payment_id`).
 
-Поля таблицы включают сумму, валюту (`RUB`), обязательную фактическую дату (`actual_date`), комментарий и автора подтверждения (`recorded_by_id`). Платёж фиксируется только в `crm.payments`: статусы и плановые графики отсутствуют, хранится единственная фактическая дата, а правки отслеживаются средствами аудита CRM.
+Поля таблицы `crm.payments` включают агрегированную сумму (`amount`), валюту (`RUB`), фактическую дату последнего движения (`actual_date`), комментарий и автора подтверждения (`recorded_by_id`). Списки поступлений и списаний хранятся в таблицах `crm.payment_incomes` и `crm.payment_expenses`; суммы платежа рассчитываются как `sum(incomes.amount) - sum(expenses.amount)` и денормализуются в `crm.payments` для быстрого доступа. Удаление платежа каскадно удаляет связанные позиции, история изменений фиксируется в аудит-ленте CRM.
 
 ## Схема `tasks`
 
