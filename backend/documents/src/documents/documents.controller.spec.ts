@@ -56,6 +56,22 @@ describe('DocumentsController', () => {
     await app.close();
   });
 
+  it('GET /documents возвращает массив и X-Total-Count', async () => {
+    const documents = [
+      {
+        id: 'doc-1',
+        name: 'Документ 1',
+      },
+    ];
+    documentsService.findAll.mockResolvedValue([documents, documents.length]);
+
+    const response = await request(app.getHttpServer()).get('/documents').expect(200);
+
+    expect(documentsService.findAll).toHaveBeenCalledWith({});
+    expect(response.body).toEqual(JSON.parse(JSON.stringify(documents)));
+    expect(response.headers['x-total-count']).toBe(documents.length.toString());
+  });
+
   it('DELETE /documents/:id возвращает 204 при успешном удалении', async () => {
     documentsService.remove.mockResolvedValue(undefined);
 
