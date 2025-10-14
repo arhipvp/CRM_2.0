@@ -238,7 +238,7 @@
 
 - Установленный `psql` **или** запущенный Docker с контейнером `crm-postgres` (`docker compose up -d` в каталоге `infra/`).
 - Созданный `.env`, значения переменных подключения (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`) совпадают с шаблоном `env.example`, который остаётся источником правды.
-- Выполненные миграции схем `auth`, `crm`, `payments`.
+- Выполненные миграции схем `auth`, `crm`, `payments` (модуль платежей CRM).
 
 **Запуск**
 
@@ -246,7 +246,7 @@
 ./scripts/load-seeds.sh
 ```
 
-Скрипт применяет SQL-файлы в порядке Auth → CRM → Payments, выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить `payments`), воспользуйтесь фильтром по подстроке имени файла:
+Скрипт применяет SQL-файлы в порядке Auth → CRM → модуль платежей CRM (каталог `payments`), выводит прогресс и завершает работу при первой ошибке. Если нужно загрузить только часть набора (например, повторно применить `payments`), воспользуйтесь фильтром по подстроке имени файла:
 
 ```bash
 ./scripts/load-seeds.sh --only payments
@@ -262,7 +262,7 @@
 docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ```
 
-В выводе должны присутствовать схемы `auth`, `crm`, `payments`, `documents`, `tasks`, `notifications`, `audit`, `backup`.
+В выводе должны присутствовать схемы `auth`, `crm`, `payments` (модуль платежей CRM), `documents`, `tasks`, `notifications`, `audit`, `backup`.
 
 ## 4. Запуск миграций
 
