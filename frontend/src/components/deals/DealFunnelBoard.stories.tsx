@@ -96,7 +96,7 @@ const WithBulkSelection = () => {
     return () => {
       restoreUiStore(previousState);
     };
-  }, []);
+  }, [client]);
 
   return <DealFunnelBoard />;
 };
@@ -151,7 +151,7 @@ const WithActiveFilters = () => {
     return () => {
       restoreUiStore(previousState);
     };
-  }, []);
+  }, [client]);
 
   return <DealFunnelBoard />;
 };

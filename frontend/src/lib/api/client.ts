@@ -19,6 +19,7 @@ import type {
   DealStageMetrics,
   Payment,
   Task,
+  TaskStatus,
 } from "@/types/crm";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
@@ -114,6 +115,10 @@ export interface DealDocumentPayload {
   fileSize: number;
   url?: string;
 }
+
+export type UpdateTaskPayload = Partial<
+  Pick<Task, "status" | "owner" | "dueDate" | "tags" | "type" | "reminderAt" | "completed">
+>;
 
 export interface UpdateDealPayload {
   name?: string;
@@ -470,22 +475,72 @@ export class ApiClient {
     return this.request("/crm/tasks", undefined, async () => tasksMock);
   }
 
-  async updateTaskStatus(taskId: string, completed: boolean): Promise<Task> {
+  async updateTask(taskId: string, payload: UpdateTaskPayload): Promise<Task> {
+    const changes = sanitizeTaskPatch(payload);
+
     return this.request(
       `/crm/tasks/${taskId}`,
       {
         method: "PATCH",
-        body: JSON.stringify({ completed }),
+        body: JSON.stringify(changes),
       },
       async () => {
         const task = tasksMock.find((item) => item.id === taskId);
         if (!task) {
           throw new ApiError("Task not found", 404);
         }
-        task.completed = completed;
-        return task;
+
+        applyTaskPatch(task, changes);
+        return { ...task };
       },
     );
+  }
+
+  async bulkUpdateTasks(
+    taskIds: string[],
+    payload: UpdateTaskPayload,
+    options?: { shiftDueDateByDays?: number },
+  ): Promise<Task[]> {
+    const changes = sanitizeTaskPatch(payload);
+
+    return this.request(
+      `/crm/tasks/bulk`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ taskIds, changes, options }),
+      },
+      async () => {
+        const updated: Task[] = [];
+
+        for (const taskId of taskIds) {
+          const task = tasksMock.find((item) => item.id === taskId);
+          if (!task) {
+            continue;
+          }
+
+          const patch: UpdateTaskPayload = { ...changes };
+
+          if (options?.shiftDueDateByDays) {
+            const dueDate = new Date(task.dueDate);
+            dueDate.setDate(dueDate.getDate() + options.shiftDueDateByDays);
+            patch.dueDate = dueDate.toISOString();
+          }
+
+          applyTaskPatch(task, patch);
+          updated.push({ ...task });
+        }
+
+        if (updated.length === 0) {
+          throw new ApiError("Tasks not found", 404);
+        }
+
+        return updated;
+      },
+    );
+  }
+
+  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+    return this.updateTask(taskId, { status, completed: status === "done" });
   }
 
   getPayments(): Promise<Payment[]> {
@@ -497,6 +552,57 @@ export class ApiClient {
       activitiesMock.filter((entry) => entry.clientId === clientId),
     );
   }
+}
+
+function sanitizeTaskPatch(patch: UpdateTaskPayload): UpdateTaskPayload {
+  const result: UpdateTaskPayload = {};
+
+  for (const key of Object.keys(patch) as Array<keyof UpdateTaskPayload>) {
+    const value = patch[key];
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
+function applyTaskPatch(task: Task, patch: UpdateTaskPayload): Task {
+  if (patch.status) {
+    task.status = patch.status;
+    task.completed = patch.completed ?? patch.status === "done";
+  }
+
+  if (patch.completed !== undefined && !patch.status) {
+    task.completed = patch.completed;
+    if (patch.completed) {
+      task.status = "done";
+    } else if (task.status === "done") {
+      task.status = "in_progress";
+    }
+  }
+
+  if (patch.owner !== undefined) {
+    task.owner = patch.owner;
+  }
+
+  if (patch.dueDate !== undefined) {
+    task.dueDate = patch.dueDate;
+  }
+
+  if (patch.tags !== undefined) {
+    task.tags = [...patch.tags];
+  }
+
+  if (patch.type !== undefined) {
+    task.type = patch.type;
+  }
+
+  if (patch.reminderAt !== undefined) {
+    task.reminderAt = patch.reminderAt;
+  }
+
+  return task;
 }
 
 const DAY_IN_MS = 86_400_000;
