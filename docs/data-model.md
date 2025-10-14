@@ -84,8 +84,8 @@ erDiagram
 * `crm.policies`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, `FOREIGN KEY (calculation_id)` → `crm.calculations(id)`, `UNIQUE (policy_number)`, индексы по `status`, `(deal_id, effective_from)`.
 * `crm.policy_documents`: `PRIMARY KEY (id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (document_id)` → `documents.documents(id)`, уникальное ограничение `(policy_id, document_id)`.
 * `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `(policy_id, actual_date)`, `deal_id`, `updated_by_id`.
-* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(occurred_on, payment_id)`.
-* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(occurred_on, payment_id)`.
+* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(posted_at, payment_id)`.
+* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `payment_id`, `(posted_at, payment_id)`.
 
 ## Платёжные записи (схема `crm`)
 
@@ -107,8 +107,8 @@ erDiagram
 ### Ключи и ограничения
 
 * `crm.payments`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (policy_id)` → `crm.policies(id)`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы по `(policy_id, actual_date)`, `deal_id`, `updated_by_id`.
-* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы `idx_payment_incomes_payment_id`, `idx_payment_incomes_occurred_on_payment` (`occurred_on`, `payment_id`).
-* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы `idx_payment_expenses_payment_id`, `idx_payment_expenses_occurred_on_payment` (`occurred_on`, `payment_id`).
+* `crm.payment_incomes`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы `idx_payment_incomes_payment_id`, `idx_payment_incomes_posted_at_payment` (`posted_at`, `payment_id`).
+* `crm.payment_expenses`: `PRIMARY KEY (id)`, `FOREIGN KEY (payment_id)` → `crm.payments(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (created_by_id)` → `auth.users(id)`, `FOREIGN KEY (updated_by_id)` → `auth.users(id)`. Индексы `idx_payment_expenses_payment_id`, `idx_payment_expenses_posted_at_payment` (`posted_at`, `payment_id`).
 
 Поля таблицы `crm.payments` включают агрегированные суммы (`incomes_total`, `expenses_total`, `net_total`), валюту (`currency`, по умолчанию `RUB`), фактическую дату последнего движения (`actual_date`), комментарий и идентификаторы пользователей создания/последнего обновления (`created_by_id`, `updated_by_id`). Списки поступлений и списаний хранятся в таблицах `crm.payment_incomes` и `crm.payment_expenses`; каждая позиция фиксирует `category`, `posted_at`, `amount`, а также пользователей (`created_by_id`, `updated_by_id`). Агрегаты платежа денормализуются через `sum(incomes.amount)` и `sum(expenses.amount)` для быстрого доступа. Удаление платежа каскадно удаляет связанные позиции, история изменений фиксируется в аудит-ленте CRM.
 
