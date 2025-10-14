@@ -24,29 +24,28 @@
 | currency | string | Трёхбуквенный код валюты по ISO 4217. |
 | comment | string | Свободный комментарий (до 500 символов). |
 | recorded_by_id | UUID | Пользователь, подтвердивший закрытие платежа. |
+| created_by_id | UUID | Пользователь, создавший платёж. |
+| updated_by_id | UUID | Пользователь, отредактировавший платёж. |
 | incomes_total | string (decimal) | Совокупная сумма поступлений. |
 | expenses_total | string (decimal) | Совокупная сумма расходов, связанных с платёжной записью. |
 | net_total | string (decimal) | Разница `incomes_total - expenses_total`. |
 | created_at | datetime (ISO 8601) | Дата и время создания записи. |
 | updated_at | datetime (ISO 8601) | Дата и время последнего изменения. |
-| created_by | object | Сводные данные о пользователе, создавшем платёж (`id`, `full_name`). |
-| recorded_by | object | Сводные данные о пользователе, закрывшем платёж (`id`, `full_name`). |
-| incomes | array<object> | Подборка последних операций поступлений (можно отключить через `include[]=incomes`). |
-| expenses | array<object> | Подборка последних операций расходов (можно отключить через `include[]=expenses`). |
+| incomes | array<object> | Список операций поступлений (опционально, `include[]=incomes`). |
+| expenses | array<object> | Список операций расходов (опционально, `include[]=expenses`). |
 
 ### Поступление / Расход
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | id | UUID | Уникальный идентификатор операции. |
 | payment_id | UUID | Платёж, к которому относится операция. |
-| type | string | `income` или `expense`. |
 | amount | string (decimal) | Абсолютная сумма операции. |
 | currency | string | Код валюты. Должен совпадать с валютой платежа. |
 | category | string | Произвольная категория (`cash`, `wire`, `agency_fee`, `refund` и т.д.). |
 | posted_at | date (`YYYY-MM-DD`) | Дата фиксации операции. Не может быть в будущем. |
 | note | string | Комментарий (до 300 символов). |
-| created_by | object | Пользователь, создавший операцию (`id`, `full_name`). |
-| updated_by | object | Пользователь, отредактировавший операцию (`id`, `full_name`). |
+| created_by_id | UUID | Пользователь, создавший операцию. |
+| updated_by_id | UUID | Пользователь, отредактировавший операцию. |
 | created_at | datetime | Метка создания. |
 | updated_at | datetime | Метка последнего изменения. |
 
@@ -84,21 +83,21 @@
       "net_total": "80000.00",
       "created_at": "2024-02-20T11:42:31Z",
       "updated_at": "2024-03-12T08:15:03Z",
-      "created_by": {"id": "bd6e3c84-7a2c-4c7f-9be3-3f4f38f6d323", "full_name": "Мария Иванова"},
-      "recorded_by": null,
+      "created_by_id": "bd6e3c84-7a2c-4c7f-9be3-3f4f38f6d323",
+      "updated_by_id": "bd6e3c84-7a2c-4c7f-9be3-3f4f38f6d323",
       "incomes": [
         {
           "id": "a4ea740a-9607-4d12-88cf-ec0e823a531d",
-          "type": "income",
+          "payment_id": "7a0b99f3-0d19-48db-b229-feb62ad633c7",
           "amount": "80000.00",
           "currency": "RUB",
           "category": "wire",
           "posted_at": "2024-03-11",
           "note": "Поступление от клиента",
+          "created_by_id": "bd6e3c84-7a2c-4c7f-9be3-3f4f38f6d323",
+          "updated_by_id": null,
           "created_at": "2024-03-11T09:12:00Z",
-          "updated_at": "2024-03-11T09:12:00Z",
-          "created_by": {"id": "bd6e3c84-7a2c-4c7f-9be3-3f4f38f6d323", "full_name": "Мария Иванова"},
-          "updated_by": null
+          "updated_at": "2024-03-11T09:12:00Z"
         }
       ],
       "expenses": []
@@ -121,7 +120,7 @@
 | currency | string | Да | Код валюты. |
 | comment | string | Нет | Комментарий до 500 символов. |
 
-**Ответ 201** — объект платежа (см. выше).
+**Ответ 201** — объект платежа (см. выше). После создания CRM публикует событие `deal.payment.created` в exchange `crm.events`.
 
 **Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 policy_not_found`.
 
@@ -150,11 +149,11 @@
 **Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden` (попытка установить статус без прав главного админа), `404 payment_not_found`, `409 payment_has_transactions` (для изменений, требующих пустого списка операций).
 
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}`
-Удаляет платёж и связанные операции. Доступно только, если нет поступлений/расходов либо пользователь обладает ролью `admin` («главный админ») и передал флаг `force=true` в query string.
+Удаляет платёж и связанные операции. Доступно только, если у записи ещё нет поступлений и расходов.
 
-**Ответ 204** — без тела.
+**Ответ 204** — без тела. Удаление возможно только для платежей без операций; при наличии поступлений или расходов API вернёт `409 payment_has_transactions`.
 
-**Ошибки**: `400 validation_error` (при отсутствии `force=true` и наличии операций либо попытке принудительного удаления без прав главного админа), `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
+**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`, `409 payment_has_transactions`.
 
 ## Поступления (`/incomes`)
 

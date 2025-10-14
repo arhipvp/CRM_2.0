@@ -206,7 +206,7 @@ Gateway предоставляет typed-роуты поверх CRM Payments AP
 | `POST /api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Создание платежа. | Тело запроса: `planned_amount` (обязательно), `currency`, `planned_date`, `comment`. |
 | `GET /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Получение платежа. | Поддерживает `include[]=incomes`, `include[]=expenses`. |
 | `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Обновление платежа. | Допускает обновление плановых значений, комментария, `actual_date`, статуса. |
-| `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Удаление платежа. | Флаг `force=true` обязателен, если у платежа уже есть операции. |
+| `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Удаление платежа. | Успешно только при отсутствии операций; иначе CRM вернёт `409 payment_has_transactions`. |
 | `POST /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes` | Добавление поступления. | Тело запроса: `amount`, `currency`, `category`, `posted_at`, `note`. |
 | `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}` | Изменение поступления. | Поля `amount`, `category`, `posted_at`, `note` опциональны. |
 | `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}` | Удаление поступления. | 204 при успехе. |
