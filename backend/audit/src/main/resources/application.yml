@@ -4,37 +4,70 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     default-schema: ${AUDIT_DB_SCHEMA:audit}
+  rabbitmq:
+    host: ${AUDIT_RABBITMQ_HOST:localhost}
+    port: ${AUDIT_RABBITMQ_PORT:5672}
+    username: ${AUDIT_RABBITMQ_USER:audit}
+    password: ${AUDIT_RABBITMQ_PASSWORD:audit}
+    virtual-host: ${AUDIT_RABBITMQ_VHOST:audit}
+    listener:
+      simple:
+        default-requeue-rejected: false
   cloud:
     function:
-      definition: auditEventConsumer
+      definition: auditEventsConsumer;auditCoreConsumer;auditDlqConsumer
     stream:
       defaultBinder: rabbit
       bindings:
-        auditEventConsumer-in-0:
-          destination: ${AUDIT_EVENTS_QUEUE:audit.events}
-          group: ${AUDIT_EVENTS_GROUP:audit-service}
+        auditEventsConsumer-in-0:
+          destination: ${audit.messaging.events-queue}
+          group: ${audit.messaging.events-group}
+          contentType: application/json
           consumer:
             maxAttempts: 3
+        auditCoreConsumer-in-0:
+          destination: ${audit.messaging.core-queue}
+          group: ${audit.messaging.core-group}
+          contentType: application/json
+          consumer:
+            maxAttempts: 3
+        auditDlqConsumer-in-0:
+          destination: ${audit.messaging.dlq}
+          group: ${audit.messaging.dlq-group}
+          contentType: application/json
+          consumer:
+            maxAttempts: 1
       rabbit:
         bindings:
-          auditEventConsumer-in-0:
+          auditEventsConsumer-in-0:
             consumer:
               autoBindDlq: true
-              deadLetterQueueName: ${AUDIT_DLQ_NAME:audit.dlq}
+              deadLetterQueueName: ${audit.messaging.dlq}
               durableSubscription: true
-      binders:
-        rabbit:
-          type: rabbit
-          environment:
-            spring:
-              rabbitmq:
-                host: ${AUDIT_RABBITMQ_HOST:localhost}
-                port: ${AUDIT_RABBITMQ_PORT:5672}
-                username: ${AUDIT_RABBITMQ_USER:audit}
-                password: ${AUDIT_RABBITMQ_PASSWORD:audit}
-                virtual-host: ${AUDIT_RABBITMQ_VHOST:audit}
+              prefetch: ${audit.messaging.prefetch}
+          auditCoreConsumer-in-0:
+            consumer:
+              autoBindDlq: true
+              deadLetterQueueName: ${audit.messaging.dlq}
+              durableSubscription: true
+              prefetch: ${audit.messaging.prefetch}
+          auditDlqConsumer-in-0:
+            consumer:
+              autoBindDlq: false
+              prefetch: 10
 server:
   port: ${AUDIT_SERVICE_PORT:8088}
+
+audit:
+  messaging:
+    events-queue: ${AUDIT_EVENTS_QUEUE:audit.events}
+    events-group: ${AUDIT_EVENTS_GROUP:audit-service}
+    core-queue: ${AUDIT_CORE_QUEUE:audit.core}
+    core-group: ${AUDIT_CORE_GROUP:audit-service}
+    dlq: ${AUDIT_DLQ_QUEUE:audit.dlq}
+    dlq-group: ${AUDIT_DLQ_GROUP:audit-dlq-listener}
+    prefetch: ${AUDIT_RABBITMQ_PREFETCH:50}
+
 management:
   endpoints:
     web:

@@ -1,9 +1,9 @@
-package com.crm.audit.api
+package crm.audit.api
 
-import com.crm.audit.api.dto.AuditEventResponse
-import com.crm.audit.api.dto.AuditEventsPageResponse
-import com.crm.audit.api.dto.toResponse
-import com.crm.audit.domain.AuditEventRepository
+import crm.audit.api.dto.AuditEventResponse
+import crm.audit.api.dto.AuditEventsPageResponse
+import crm.audit.api.dto.toResponse
+import crm.audit.domain.AuditEventRepository
 import java.time.OffsetDateTime
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList

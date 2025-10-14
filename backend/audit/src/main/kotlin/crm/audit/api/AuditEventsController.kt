@@ -1,6 +1,6 @@
-package com.crm.audit.api
+package crm.audit.api
 
-import com.crm.audit.api.dto.AuditEventsPageResponse
+import crm.audit.api.dto.AuditEventsPageResponse
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import java.time.OffsetDateTime

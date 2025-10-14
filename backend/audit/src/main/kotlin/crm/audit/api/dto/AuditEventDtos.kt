@@ -1,6 +1,6 @@
-package com.crm.audit.api.dto
+package crm.audit.api.dto
 
-import com.crm.audit.domain.AuditEventEntity
+import crm.audit.domain.AuditEventEntity
 import java.time.OffsetDateTime
 import java.util.UUID
 
