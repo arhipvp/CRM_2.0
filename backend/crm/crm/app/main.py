@@ -8,14 +8,14 @@ from fastapi import FastAPI
 
 from crm.api.router import get_api_router
 from crm.app.config import settings
-from crm.app.dependencies import get_session_factory
+from crm.app.dependencies import close_permissions_queue, get_session_factory
 from crm.app.events import PaymentsEventsSubscriber
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     subscriber: PaymentsEventsSubscriber | None = None
     if settings.enable_payments_consumer:
         try:
@@ -31,6 +31,7 @@ def lifespan(app: FastAPI):
         if subscriber is not None:
             await subscriber.stop()
             logger.info("Payments events subscriber stopped")
+        await close_permissions_queue()
 
 
 def create_app() -> FastAPI:

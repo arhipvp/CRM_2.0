@@ -19,6 +19,13 @@ type BoardSnapshot = {
   viewMode?: DealViewMode;
 };
 
+type SavedUiState = {
+  filters: DealFiltersState;
+  selectedDealIds: string[];
+  previewDealId?: string;
+  highlightedDealId?: string;
+};
+
 const boardRenderSpy = vi.fn<(snapshot: BoardSnapshot) => void>();
 
 vi.mock("@/components/deals/DealFunnelBoard", () => ({
@@ -144,6 +151,8 @@ describe("HomeDealFunnelBoard", () => {
     expect(finalState.highlightedDealId).toBe("highlight-before");
     expect(finalState.selectedDealIds).not.toContain("deal-before");
     expect(finalState.previewDealId).not.toBe("preview-before");
+  });
+
   it("не перетирает подсветку, полученную во время работы виджета", async () => {
     const store = useUiStore.getState();
     store.setSelectedStage("proposal");
@@ -183,10 +192,3 @@ describe("HomeDealFunnelBoard", () => {
     expect(restored.highlightedDealId).toBe("deal-from-sse");
   });
 });
-
-type SavedUiState = {
-  filters: DealFiltersState;
-  selectedDealIds: string[];
-  previewDealId?: string;
-  highlightedDealId?: string;
-};

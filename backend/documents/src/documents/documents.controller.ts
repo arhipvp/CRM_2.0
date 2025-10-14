@@ -33,11 +33,14 @@ export class DocumentsController {
 
   @Post()
   async create(@Body() dto: CreateDocumentDto) {
-    const document = await this.documentsService.create(dto);
-    if (dto.enqueueUpload ?? true) {
-      await this.documentsQueue.enqueueUpload(document.id, dto.metadata);
-    }
-    return document;
+    const { document, uploadUrl, expiresIn } = await this.documentsService.create(dto);
+    await this.documentsQueue.enqueueUpload(document.id, document.metadata ?? undefined);
+
+    return {
+      document_id: document.id,
+      upload_url: uploadUrl,
+      expires_in: expiresIn,
+    };
   }
 
   @Patch(':id')

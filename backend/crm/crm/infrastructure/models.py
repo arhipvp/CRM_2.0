@@ -34,7 +34,7 @@ class TimestampMixin:
 
 
 class OwnershipMixin:
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -133,4 +133,24 @@ class PaymentSyncLog(CRMBase, TimestampMixin, OwnershipMixin):
     __table_args__ = (
         Index("ix_payment_sync_log_status", "status"),
         Index("ix_payment_sync_log_payment", "payment_id"),
+    )
+
+
+class PermissionSyncJob(CRMBase, TimestampMixin):
+    __tablename__ = "permission_sync_jobs"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    queue_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    users: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_permission_sync_jobs_tenant", "tenant_id"),
+        Index("ix_permission_sync_jobs_status", "status"),
+        Index("ix_permission_sync_jobs_owner", "owner_id"),
+        Index("ix_permission_sync_jobs_owner_type", "owner_type"),
     )

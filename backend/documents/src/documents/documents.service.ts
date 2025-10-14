@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
@@ -9,30 +9,63 @@ import { ListDocumentsDto } from './dto/list-documents.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DriveService } from '../drive/drive.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
+import {
+  DocumentAlreadyDeletedException,
+  DocumentNotFoundException,
+  DocumentUploadConflictException,
+} from './documents.exceptions';
+import { UploadUrlService } from './upload-url.service';
+
+export interface CreateDocumentResult {
+  document: DocumentEntity;
+  uploadUrl: string;
+  expiresIn: number;
+}
 
 @Injectable()
 export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly repository: Repository<DocumentEntity>,
+    private readonly uploadUrlService: UploadUrlService,
     private readonly driveService: DriveService = {
       revokeDocument: async () => undefined,
     } as unknown as DriveService,
   ) {}
 
-  async create(dto: CreateDocumentDto): Promise<DocumentEntity> {
+  async create(dto: CreateDocumentDto): Promise<CreateDocumentResult> {
+    const metadata: Record<string, any> = {
+      ownerType: dto.ownerType,
+      ownerId: dto.ownerId,
+    };
+
+    if (dto.documentType) {
+      metadata.documentType = dto.documentType;
+    }
+
+    if (dto.notes) {
+      metadata.notes = dto.notes;
+    }
+
+    if (dto.tags?.length) {
+      metadata.tags = dto.tags;
+    }
+
     const entity = this.repository.create({
-      name: dto.name,
-      description: dto.description,
-      mimeType: dto.mimeType,
-      size: dto.size,
-      checksumMd5: dto.checksumMd5,
-      sourceUri: dto.sourceUri,
-      metadata: dto.metadata,
-      status: dto.status ?? DocumentStatus.PendingUpload,
+      name: dto.title,
+      description: dto.notes ?? null,
+      metadata,
+      status: DocumentStatus.PendingUpload,
     });
 
-    return this.repository.save(entity);
+    const document = await this.repository.save(entity);
+    const { url, expiresIn } = this.uploadUrlService.createUploadUrl(document.id);
+
+    return {
+      document,
+      uploadUrl: url,
+      expiresIn,
+    };
   }
 
   async findAll(query: ListDocumentsDto): Promise<[DocumentEntity[], number]> {
@@ -79,15 +112,11 @@ export class DocumentsService {
     const entity = await this.repository.findOne({ where: { id } });
 
     if (!entity) {
-      throw new NotFoundException(`Документ ${id} не найден`);
+      throw new DocumentNotFoundException(id);
     }
 
     if (entity.deletedAt) {
-      throw new ConflictException({
-        statusCode: 409,
-        code: 'already_deleted',
-        message: `Документ ${id} уже удалён`,
-      });
+      throw new DocumentAlreadyDeletedException(id);
     }
 
     return entity;
@@ -95,16 +124,45 @@ export class DocumentsService {
 
   async update(id: string, dto: UpdateDocumentDto): Promise<DocumentEntity> {
     const entity = await this.findOne(id);
-    Object.assign(entity, {
-      name: dto.name ?? entity.name,
-      description: dto.description ?? entity.description,
-      mimeType: dto.mimeType ?? entity.mimeType,
-      size: dto.size ?? entity.size,
-      checksumMd5: dto.checksumMd5 ?? entity.checksumMd5,
-      sourceUri: dto.sourceUri ?? entity.sourceUri,
-      metadata: dto.metadata ?? entity.metadata,
-      status: dto.status ?? entity.status,
-    });
+    if (dto.title !== undefined) {
+      entity.name = dto.title;
+    }
+
+    if (dto.notes !== undefined) {
+      entity.description = dto.notes ?? null;
+    }
+
+    const metadata = { ...(entity.metadata ?? {}) };
+
+    if (dto.ownerType !== undefined) {
+      metadata.ownerType = dto.ownerType;
+    }
+
+    if (dto.ownerId !== undefined) {
+      metadata.ownerId = dto.ownerId;
+    }
+
+    if (dto.documentType !== undefined) {
+      if (dto.documentType) {
+        metadata.documentType = dto.documentType;
+      } else {
+        delete metadata.documentType;
+      }
+    }
+
+    if (dto.notes !== undefined) {
+      metadata.notes = dto.notes;
+    }
+
+    if (dto.tags !== undefined) {
+      if (dto.tags.length) {
+        metadata.tags = dto.tags;
+      } else {
+        delete metadata.tags;
+      }
+    }
+
+    entity.metadata = metadata;
 
     return this.repository.save(entity);
   }
@@ -152,7 +210,7 @@ export class DocumentsService {
     const entity = await this.findOne(id);
 
     if (![DocumentStatus.PendingUpload, DocumentStatus.Uploading].includes(entity.status)) {
-      throw new ConflictException(`Документ ${id} уже находится в статусе ${entity.status}`);
+      throw new DocumentUploadConflictException(id, entity.status);
     }
 
     Object.assign(entity, {
