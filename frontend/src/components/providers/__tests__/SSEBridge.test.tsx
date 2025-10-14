@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SSEBridge } from "../SSEBridge";
-import { dealStageMetricsQueryKey, dealsQueryKey } from "@/lib/api/queries";
 import { createEventStream } from "@/lib/sse/createEventStream";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -23,10 +22,9 @@ describe("SSEBridge", () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = "https://example.com/api";
     process.env.NEXT_PUBLIC_CRM_SSE_URL = "https://example.com/crm";
     process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL = "https://example.com/notifications";
-    process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL = "https://example.com/payments";
   });
 
-  it("создаёт три SSE соединения и не пересоздаёт их при повторном рендере", () => {
+  it("создаёт два SSE соединения и не пересоздаёт их при повторном рендере", () => {
     const queryClient = new QueryClient();
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
@@ -34,7 +32,7 @@ describe("SSEBridge", () => {
       </QueryClientProvider>,
     );
 
-    expect(createEventStreamMock).toHaveBeenCalledTimes(3);
+    expect(createEventStreamMock).toHaveBeenCalledTimes(2);
     expect(createEventStreamMock).toHaveBeenNthCalledWith(
       1,
       "https://example.com/crm",
@@ -45,11 +43,6 @@ describe("SSEBridge", () => {
       "https://example.com/notifications",
       expect.objectContaining({ onMessage: expect.any(Function) }),
     );
-    expect(createEventStreamMock).toHaveBeenNthCalledWith(
-      3,
-      "https://example.com/payments",
-      expect.objectContaining({ onMessage: expect.any(Function) }),
-    );
 
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -57,7 +50,7 @@ describe("SSEBridge", () => {
       </QueryClientProvider>,
     );
 
-    expect(createEventStreamMock).toHaveBeenCalledTimes(3);
+    expect(createEventStreamMock).toHaveBeenCalledTimes(2);
   });
 
   it("отключает поток после ошибки и не создаёт новую подписку", async () => {
@@ -93,7 +86,7 @@ describe("SSEBridge", () => {
         </QueryClientProvider>,
       );
 
-      expect(createEventStreamMock).toHaveBeenCalledTimes(3);
+      expect(createEventStreamMock).toHaveBeenCalledTimes(2);
       expect(
         createEventStreamMock.mock.calls.filter((call) => call[0] === "https://example.com/crm"),
       ).toHaveLength(1);
@@ -125,24 +118,6 @@ describe("SSEBridge", () => {
     );
 
     expect(createEventStreamMock).not.toHaveBeenCalled();
-  });
-
-  it("пропускает только отключённые потоки, если для них указан пустой URL", () => {
-    process.env.NEXT_PUBLIC_PAYMENTS_SSE_URL = "   ";
-
-    const queryClient = new QueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SSEBridge />
-      </QueryClientProvider>,
-    );
-
-    expect(createEventStreamMock).toHaveBeenCalledTimes(2);
-    expect(createEventStreamMock).not.toHaveBeenCalledWith(
-      expect.stringMatching(/payments/),
-      expect.anything(),
-    );
   });
 
   it("нормализует deal_id в CRM событиях", () => {
@@ -188,7 +163,7 @@ describe("SSEBridge", () => {
     }
   });
 
-  it("сбрасывает кэш сделок и метрик при платежном событии без deal_id", async () => {
+  it("инвалидирует кеш платежей при CRM-событии с типом платежа", async () => {
     const queryClient = new QueryClient();
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -199,21 +174,19 @@ describe("SSEBridge", () => {
         </QueryClientProvider>,
       );
 
-      const paymentsHandlers = createEventStreamMock.mock.calls[2]?.[1];
-      expect(paymentsHandlers?.onMessage).toBeTypeOf("function");
+      const crmHandlers = createEventStreamMock.mock.calls[0]?.[1];
+      expect(crmHandlers?.onMessage).toBeTypeOf("function");
 
-      const handleMessage = paymentsHandlers?.onMessage;
+      const handleMessage = crmHandlers?.onMessage;
       expect(handleMessage).toBeDefined();
 
       await act(async () => {
         handleMessage?.(
           new MessageEvent("message", {
             data: JSON.stringify({
-              event: "payment.created",
-              data: {
-                amount: 1500,
-                currency: "RUB",
-              },
+              id: "event-1",
+              type: "payments.payment.created",
+              message: "Создан новый платёж",
             }),
           }),
         );
@@ -221,12 +194,6 @@ describe("SSEBridge", () => {
         await Promise.resolve();
       });
 
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: dealsQueryKey }),
-      );
-      expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: dealStageMetricsQueryKey }),
-      );
       expect(invalidateQueriesSpy).toHaveBeenCalledWith(
         expect.objectContaining({ queryKey: ["payments"] }),
       );
