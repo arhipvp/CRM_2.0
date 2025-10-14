@@ -33,6 +33,7 @@ interface DispatchMessage {
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly retryOptions: NotificationsConfiguration['dispatch']['retry'];
 
   constructor(
     @InjectRepository(NotificationEntity)
@@ -45,7 +46,9 @@ export class NotificationsService {
     private readonly amqpConnection: AmqpConnection,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService<NotificationsConfiguration>
-  ) {}
+  ) {
+    this.retryOptions = this.configService.getOrThrow('dispatch.retry', { infer: true });
+  }
 
   async enqueue(dto: CreateNotificationDto): Promise<NotificationEntity> {
     if (dto.deduplicationKey) {
@@ -90,9 +93,17 @@ export class NotificationsService {
     let attemptNumber = 0;
 
     try {
-      await this.publishToRabbit(notification, message, ++attemptNumber);
-      await this.publishToRedis(notification, message, ++attemptNumber);
-      await this.dispatchInternally(dto, notification, ++attemptNumber);
+      await this.executeWithRetry('rabbitmq', async () => {
+        await this.publishToRabbit(notification, message, ++attemptNumber);
+      });
+
+      await this.executeWithRetry('redis', async () => {
+        await this.publishToRedis(notification, message, ++attemptNumber);
+      });
+
+      await this.executeWithRetry('events-service', async () => {
+        await this.dispatchInternally(dto, notification, ++attemptNumber);
+      });
 
       await this.notificationsRepository.update(notification.id, {
         status: NotificationStatus.PROCESSED
@@ -294,5 +305,45 @@ export class NotificationsService {
 
     const { code } = error as QueryFailedError & { code?: string };
     return code === '23505';
+  }
+
+  private async executeWithRetry(
+    channel: string,
+    operation: () => Promise<void>
+  ): Promise<void> {
+    const { maxAttempts, delayMs } = this.retryOptions;
+    let attempt = 0;
+    let lastError: unknown;
+
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      try {
+        await operation();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts) {
+          break;
+        }
+
+        const message =
+          error instanceof Error ? error.message : 'dispatch_retry_failed';
+        this.logger.warn(
+          `Channel ${channel} attempt ${attempt} failed: ${message}. Retrying in ${delayMs}ms.`
+        );
+
+        if (delayMs > 0) {
+          await this.wait(delayMs);
+        }
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(String(lastError));
+  }
+
+  private async wait(delayMs: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }

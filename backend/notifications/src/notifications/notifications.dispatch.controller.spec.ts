@@ -52,6 +52,9 @@ describe('NotificationsDispatchController (e2e)', () => {
       if (key === 'dispatch.redisChannel') {
         return 'notifications:dispatch';
       }
+      if (key === 'dispatch.retry') {
+        return { maxAttempts: 3, delayMs: 0 };
+      }
       throw new Error(`Unexpected config key ${key}`);
     })
   };
