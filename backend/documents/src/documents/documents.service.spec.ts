@@ -1,6 +1,6 @@
 import { Repository } from 'typeorm';
 
-import { DriveService } from '../drive/drive.service';
+import { StorageService } from '../storage/storage.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { DocumentStatus } from './document-status.enum';
 import { DocumentEntity } from './document.entity';
@@ -31,10 +31,10 @@ const createRepositoryMock = (): jest.Mocked<Repository<DocumentEntity>> =>
     update: jest.fn(),
   } as unknown as jest.Mocked<Repository<DocumentEntity>>);
 
-const createDriveServiceMock = (): jest.Mocked<DriveService> =>
+const createStorageServiceMock = (): jest.Mocked<StorageService> =>
   ({
     revokeDocument: jest.fn(),
-  } as unknown as jest.Mocked<DriveService>);
+  } as unknown as jest.Mocked<StorageService>);
 
 const createUploadUrlServiceMock = (): jest.Mocked<UploadUrlService> =>
   ({
@@ -44,14 +44,14 @@ const createUploadUrlServiceMock = (): jest.Mocked<UploadUrlService> =>
 describe('DocumentsService', () => {
   let service: DocumentsService;
   let repository: jest.Mocked<Repository<DocumentEntity>>;
-  let driveService: jest.Mocked<DriveService>;
+  let storageService: jest.Mocked<StorageService>;
   let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
-    driveService = createDriveServiceMock();
+    storageService = createStorageServiceMock();
     uploadUrlService = createUploadUrlServiceMock();
-    service = new DocumentsService(repository, uploadUrlService, driveService);
+    service = new DocumentsService(repository, uploadUrlService, storageService);
   });
 
   it('создаёт документ, заполняет метаданные и возвращает параметры загрузки', async () => {
@@ -160,20 +160,19 @@ describe('DocumentsService', () => {
       status: DocumentStatus.Synced,
       createdAt: new Date(),
       updatedAt: new Date(),
-      driveFileId: 'drive-1',
-      driveRevisionId: 'rev-1',
+      storagePath: 'client/123/doc-1.pdf',
     } as DocumentEntity;
     repository.findOne.mockResolvedValue(document);
 
     await service.remove(document.id);
 
     expect(repository.findOne).toHaveBeenCalledWith({ where: { id: document.id } });
-    expect(driveService.revokeDocument).toHaveBeenCalledWith(document);
+    expect(storageService.revokeDocument).toHaveBeenCalledWith(document);
     expect(repository.save).toHaveBeenCalled();
     const saved = repository.save.mock.calls[0][0];
     expect(saved.deletedAt).toBeInstanceOf(Date);
-    expect(saved.driveFileId).toBeNull();
-    expect(saved.driveRevisionId).toBeNull();
+    expect(saved.storagePath).toBeNull();
+    expect(saved.publicUrl).toBeNull();
     expect(saved.status).toBe(DocumentStatus.Draft);
     expect(repository.remove).not.toHaveBeenCalled();
   });
@@ -206,7 +205,7 @@ describe('DocumentsService', () => {
 
     const error = (await promise.catch((err) => err)) as DocumentAlreadyDeletedException;
     expect(error.getResponse()).toMatchObject({ code: 'already_deleted' });
-    expect(driveService.revokeDocument).not.toHaveBeenCalled();
+    expect(storageService.revokeDocument).not.toHaveBeenCalled();
     expect(repository.save).not.toHaveBeenCalled();
   });
 });
@@ -214,14 +213,14 @@ describe('DocumentsService', () => {
 describe('DocumentsService.completeUpload', () => {
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let service: DocumentsService;
-  let driveService: jest.Mocked<DriveService>;
+  let storageService: jest.Mocked<StorageService>;
   let uploadUrlService: jest.Mocked<UploadUrlService>;
 
   beforeEach(() => {
     repository = createRepositoryMock();
-    driveService = createDriveServiceMock();
+    storageService = createStorageServiceMock();
     uploadUrlService = createUploadUrlServiceMock();
-    service = new DocumentsService(repository, uploadUrlService, driveService);
+    service = new DocumentsService(repository, uploadUrlService, storageService);
   });
 
   it('переводит документ в статус uploaded и сохраняет атрибуты файла', async () => {

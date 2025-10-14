@@ -29,14 +29,15 @@ export class FolderEntity {
   @Column({ length: 255 })
   name!: string;
 
-  @Column({ name: 'drive_folder_id', length: 255 })
-  driveFolderId!: string;
+  @Column({ name: 'storage_path', length: 1024 })
+  @Index('folders_storage_path_idx')
+  storagePath!: string;
 
-  @Column({ name: 'parent_folder_id', length: 255, nullable: true })
-  parentFolderId?: string | null;
+  @Column({ name: 'parent_path', length: 1024, nullable: true })
+  parentPath?: string | null;
 
-  @Column({ name: 'web_link', type: 'varchar', length: 1024, nullable: true })
-  webLink?: string | null;
+  @Column({ name: 'public_url', type: 'varchar', length: 2048, nullable: true })
+  publicUrl?: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any> | null;

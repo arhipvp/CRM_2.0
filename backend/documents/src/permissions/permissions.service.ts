@@ -40,7 +40,7 @@ export class PermissionsService {
     const jobPayload: Record<string, any> = {
       ownerType: dto.ownerType,
       ownerId: dto.ownerId,
-      folderId: folder.folder_id,
+      folderPath: folder.folder_path,
       users: dto.users,
     };
 
@@ -60,7 +60,7 @@ export class PermissionsService {
     const entity = this.repository.create({
       ownerType: dto.ownerType,
       ownerId: dto.ownerId,
-      driveFolderId: folder.folder_id,
+      folderPath: folder.folder_path,
       jobId: String(job.id),
       users: dto.users,
     });

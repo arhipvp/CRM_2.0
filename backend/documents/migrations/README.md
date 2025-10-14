@@ -10,8 +10,9 @@
 | `1737043200000-init-documents-table.ts` | Создаёт схему `documents`, перечисление статусов и таблицу `documents`. |
 | `1738886400000-add-deleted-at-to-documents.ts` | Добавляет колонку `deleted_at` и индекс для мягкого удаления документов. |
 | `1739126400000-add-uploaded-status.ts` | Добавляет статус `uploaded` в перечисление состояний документов. |
-| `1740201600000-create-folders-table.ts` | Создаёт таблицу `folders` для хранения связей сущностей с папками Drive. |
+| `1740201600000-create-folders-table.ts` | Создаёт таблицу `folders` для хранения связей сущностей с каталогами хранилища. |
 | `1740801600000-create-permissions-sync-tasks.ts` | Добавляет таблицу `permissions_sync_tasks` для истории синхронизаций прав доступа. |
+| `1741209600000-drive-to-storage-refactor.ts` | Мигрирует столбцы `drive_*` в `storage_*`, добавляет `public_url` и увеличивает длину путей. |
 
 ## Запуск
 ```bash

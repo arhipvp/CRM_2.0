@@ -78,7 +78,11 @@ describe('PermissionsController', () => {
   });
 
   it('POST /api/v1/permissions/sync ставит задачу и возвращает идентификатор', async () => {
-    foldersService.findByOwner.mockResolvedValue({ folder_id: 'drive-folder', web_link: '' });
+    foldersService.findByOwner.mockResolvedValue({
+      folder_path: 'clients/owner-id',
+      full_path: '/mnt/documents/clients/owner-id',
+      public_url: null,
+    });
 
     const payload = {
       owner_type: FolderOwnerType.Client,

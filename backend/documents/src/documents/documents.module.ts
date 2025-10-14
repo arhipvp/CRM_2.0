@@ -2,7 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { DriveModule } from '../drive/drive.module';
+import { StorageModule } from '../storage/storage.module';
 import { DocumentEntity } from './document.entity';
 import { DocumentsController } from './documents.controller';
 import { DocumentsProcessor } from './documents.processor';
@@ -17,7 +17,7 @@ import { UploadUrlService } from './upload-url.service';
     BullModule.registerQueue({
       name: DOCUMENTS_QUEUE || DEFAULT_DOCUMENTS_QUEUE,
     }),
-    DriveModule,
+    StorageModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, DocumentsQueueService, DocumentsProcessor, UploadUrlService],

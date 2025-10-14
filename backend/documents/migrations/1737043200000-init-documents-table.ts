@@ -16,8 +16,8 @@ export class InitDocumentsTable1737043200000 implements MigrationInterface {
           { name: 'id', type: 'uuid', isPrimary: true, generationStrategy: 'uuid', default: 'gen_random_uuid()' },
           { name: 'name', type: 'varchar', length: '255', isNullable: false },
           { name: 'description', type: 'text', isNullable: true },
-          { name: 'drive_file_id', type: 'varchar', isNullable: true },
-          { name: 'drive_revision_id', type: 'varchar', isNullable: true },
+          { name: 'storage_path', type: 'varchar', length: '2048', isNullable: true },
+          { name: 'public_url', type: 'varchar', length: '2048', isNullable: true },
           { name: 'mime_type', type: 'varchar', length: '255', isNullable: true },
           { name: 'size', type: 'bigint', isNullable: true },
           { name: 'checksum_md5', type: 'varchar', length: '32', isNullable: true },
@@ -41,14 +41,14 @@ export class InitDocumentsTable1737043200000 implements MigrationInterface {
 
     await queryRunner.createIndices(this.tableName, [
       new TableIndex({ name: 'documents_name_idx', columnNames: ['name'] }),
-      new TableIndex({ name: 'documents_drive_file_id_idx', columnNames: ['drive_file_id'] }),
+      new TableIndex({ name: 'documents_storage_path_idx', columnNames: ['storage_path'] }),
       new TableIndex({ name: 'documents_status_idx', columnNames: ['status'] }),
     ]);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropIndex(this.tableName, 'documents_name_idx');
-    await queryRunner.dropIndex(this.tableName, 'documents_drive_file_id_idx');
+    await queryRunner.dropIndex(this.tableName, 'documents_storage_path_idx');
     await queryRunner.dropIndex(this.tableName, 'documents_status_idx');
     await queryRunner.dropTable(this.tableName, true);
     await queryRunner.query(`DROP TYPE IF EXISTS "${this.statusEnum}"`);

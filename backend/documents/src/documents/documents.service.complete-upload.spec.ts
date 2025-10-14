@@ -8,12 +8,14 @@ import {
   DocumentNotFoundException,
   DocumentUploadConflictException,
 } from './documents.exceptions';
+import { StorageService } from '../storage/storage.service';
 import { UploadUrlService } from './upload-url.service';
 
 describe('DocumentsService.completeUpload', () => {
   let repository: jest.Mocked<Repository<DocumentEntity>>;
   let service: DocumentsService;
   let uploadUrlService: jest.Mocked<UploadUrlService>;
+  let storageService: jest.Mocked<StorageService>;
 
   const createRepositoryMock = (): jest.Mocked<Repository<DocumentEntity>> => ({
     create: jest.fn(),
@@ -27,7 +29,8 @@ describe('DocumentsService.completeUpload', () => {
   beforeEach(() => {
     repository = createRepositoryMock();
     uploadUrlService = { createUploadUrl: jest.fn() } as unknown as jest.Mocked<UploadUrlService>;
-    service = new DocumentsService(repository, uploadUrlService);
+    storageService = { revokeDocument: jest.fn() } as unknown as jest.Mocked<StorageService>;
+    service = new DocumentsService(repository, uploadUrlService, storageService);
   });
 
   it('переводит документ в статус uploaded и сохраняет атрибуты файла', async () => {

@@ -4,13 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { DocumentsConfiguration } from '../config/configuration';
-import { DriveService } from '../drive/drive.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { FolderEntity, FolderOwnerType } from './folder.entity';
 
 interface FolderResponse {
-  folder_id: string;
-  web_link: string;
+  folder_path: string;
+  full_path: string;
+  public_url: string | null;
 }
 
 @Injectable()
@@ -18,7 +19,7 @@ export class FoldersService {
   constructor(
     @InjectRepository(FolderEntity)
     private readonly repository: Repository<FolderEntity>,
-    private readonly driveService: DriveService,
+    private readonly storageService: StorageService,
     private readonly configService: ConfigService<DocumentsConfiguration, true>,
   ) {}
 
@@ -35,25 +36,25 @@ export class FoldersService {
     }
 
     const { folderName, template } = this.buildFolderName(dto.ownerType, dto.ownerId, dto.title);
-    const driveFolder = await this.driveService.createFolder(folderName, dto.parentFolderId);
+    const storageFolder = await this.storageService.createFolder(folderName, dto.parentPath);
 
-    const webLink = driveFolder.webViewLink ?? this.buildWebLink(driveFolder.id);
+    const publicUrl = storageFolder.publicUrl ?? this.buildWebLink(storageFolder.path);
 
     const metadata: Record<string, any> = {
       template,
       requestedTitle: dto.title,
     };
-    if (driveFolder.metadata) {
-      metadata.drive = driveFolder.metadata;
+    if (storageFolder.metadata) {
+      metadata.storage = storageFolder.metadata;
     }
 
     const entity = this.repository.create({
       ownerType: dto.ownerType,
       ownerId: dto.ownerId,
-      name: driveFolder.name ?? folderName,
-      driveFolderId: driveFolder.id,
-      parentFolderId: dto.parentFolderId ?? null,
-      webLink,
+      name: storageFolder.metadata?.name ?? folderName,
+      storagePath: storageFolder.path,
+      parentPath: dto.parentPath ?? null,
+      publicUrl,
       metadata,
     });
 
@@ -74,9 +75,11 @@ export class FoldersService {
   }
 
   private mapToResponse(folder: FolderEntity): FolderResponse {
+    const publicUrl = folder.publicUrl ?? this.storageService.getPublicUrl(folder.storagePath) ?? this.buildWebLink(folder.storagePath);
     return {
-      folder_id: folder.driveFolderId,
-      web_link: folder.webLink ?? this.buildWebLink(folder.driveFolderId),
+      folder_path: folder.storagePath,
+      full_path: this.storageService.getAbsolutePath(folder.storagePath),
+      public_url: publicUrl,
     };
   }
 
@@ -97,10 +100,11 @@ export class FoldersService {
     return { folderName, template };
   }
 
-  private buildWebLink(folderId: string): string {
-    const base = this.configService.get('folders.webBaseUrl', { infer: true }) ??
-      'https://drive.google.com/drive/folders/';
+  private buildWebLink(folderPath: string): string {
+    const base =
+      this.configService.get('folders.webBaseUrl', { infer: true }) ?? 'https://files.local/documents/';
     const normalized = base.endsWith('/') ? base : `${base}/`;
-    return `${normalized}${folderId}`;
+    const normalizedPath = folderPath.replace(/\\/g, '/');
+    return `${normalized}${normalizedPath}`;
   }
 }

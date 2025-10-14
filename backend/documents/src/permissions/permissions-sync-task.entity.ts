@@ -19,8 +19,8 @@ export class PermissionsSyncTaskEntity {
   @Column({ name: 'owner_id', type: 'uuid' })
   ownerId!: string;
 
-  @Column({ name: 'drive_folder_id', type: 'varchar', length: 255 })
-  driveFolderId!: string;
+  @Column({ name: 'folder_path', type: 'varchar', length: 1024 })
+  folderPath!: string;
 
   @Column({ name: 'job_id', type: 'varchar', length: 255 })
   jobId!: string;

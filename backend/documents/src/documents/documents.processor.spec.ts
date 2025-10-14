@@ -2,14 +2,14 @@ import { Job } from 'bullmq';
 
 import { DocumentsProcessor } from './documents.processor';
 import { DocumentsService } from './documents.service';
-import { DriveService, DriveUploadResult } from '../drive/drive.service';
+import { StorageService, StorageUploadResult } from '../storage/storage.service';
 import { DOCUMENTS_UPLOAD_JOB } from './documents.constants';
 import { DocumentEntity } from './document.entity';
 import { DocumentStatus } from './document-status.enum';
 
 describe('DocumentsProcessor', () => {
   let documentsService: jest.Mocked<DocumentsService>;
-  let driveService: jest.Mocked<DriveService>;
+  let storageService: jest.Mocked<StorageService>;
   let processor: DocumentsProcessor;
 
   beforeEach(() => {
@@ -20,15 +20,15 @@ describe('DocumentsProcessor', () => {
       markFailed: jest.fn(),
     } as unknown as jest.Mocked<DocumentsService>;
 
-    driveService = {
+    storageService = {
       uploadDocument: jest.fn(),
       syncDocument: jest.fn(),
-    } as unknown as jest.Mocked<DriveService>;
+    } as unknown as jest.Mocked<StorageService>;
 
-    processor = new DocumentsProcessor(documentsService, driveService);
+    processor = new DocumentsProcessor(documentsService, storageService);
   });
 
-  it('сохраняет пустой объект метаданных, если документ содержит null и Drive не вернул данные', async () => {
+  it('сохраняет пустой объект метаданных, если документ содержит null и хранилище не вернуло данные', async () => {
     const document: DocumentEntity = {
       id: 'doc-1',
       name: 'Test document',
@@ -38,9 +38,9 @@ describe('DocumentsProcessor', () => {
       updatedAt: new Date('2024-01-01T00:00:00Z'),
     } as DocumentEntity;
 
-    const driveResult: DriveUploadResult = {
-      fileId: 'drive-file',
-      revisionId: '1',
+    const storageResult: StorageUploadResult = {
+      path: 'client/owner/doc-1.pdf',
+      publicUrl: null,
       uploadedAt: new Date('2024-01-01T00:00:01Z'),
       syncedAt: new Date('2024-01-01T00:00:02Z'),
       metadata: undefined,
@@ -49,7 +49,7 @@ describe('DocumentsProcessor', () => {
     documentsService.markUploading.mockResolvedValue(undefined);
     documentsService.findOne.mockResolvedValue(document);
     documentsService.markSynced.mockResolvedValue({ ...document, metadata: {} });
-    driveService.uploadDocument.mockResolvedValue(driveResult);
+    storageService.uploadDocument.mockResolvedValue(storageResult);
 
     const job = {
       name: DOCUMENTS_UPLOAD_JOB,
@@ -58,11 +58,15 @@ describe('DocumentsProcessor', () => {
 
     const result = await processor.process(job);
 
-    expect(result).toEqual(driveResult);
-    expect(driveService.uploadDocument).toHaveBeenCalledWith(document, undefined);
+    expect(result).toEqual(storageResult);
+    expect(storageService.uploadDocument).toHaveBeenCalledWith(document, undefined);
     expect(documentsService.markSynced).toHaveBeenCalledWith(
       document.id,
-      expect.objectContaining({ metadata: {} }),
+      expect.objectContaining({
+        metadata: {},
+        storagePath: storageResult.path,
+        publicUrl: storageResult.publicUrl,
+      }),
     );
     expect(documentsService.markFailed).not.toHaveBeenCalled();
   });
