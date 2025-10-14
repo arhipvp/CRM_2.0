@@ -23,6 +23,7 @@ describe('NotificationsService', () => {
   let redisClient: { publish: jest.Mock };
   let notificationEventsService: { handleIncoming: jest.Mock };
   let configService: jest.Mocked<ConfigService<NotificationsConfiguration>>;
+  let retryOptions: NotificationsConfiguration['dispatch']['retry'];
 
   const dto: CreateNotificationDto = {
     eventKey: 'deal.created',
@@ -57,18 +58,22 @@ describe('NotificationsService', () => {
       handleIncoming: jest.fn().mockResolvedValue(undefined)
     };
 
+    retryOptions = { maxAttempts: 3, delayMs: 0 };
+
     configService = {
       getOrThrow: jest.fn((key: string) => {
-        if (key === 'dispatch.exchange') {
-          return 'notifications.exchange';
+        switch (key) {
+          case 'dispatch.exchange':
+            return 'notifications.exchange';
+          case 'dispatch.routingKey':
+            return 'notifications.dispatch';
+          case 'dispatch.redisChannel':
+            return 'notifications:dispatch';
+          case 'dispatch.retry':
+            return retryOptions;
+          default:
+            throw new Error(`Unexpected config key ${key}`);
         }
-        if (key === 'dispatch.routingKey') {
-          return 'notifications.dispatch';
-        }
-        if (key === 'dispatch.redisChannel') {
-          return 'notifications:dispatch';
-        }
-        throw new Error(`Unexpected config key ${key}`);
       })
     } as unknown as jest.Mocked<ConfigService<NotificationsConfiguration>>;
 
@@ -148,5 +153,48 @@ describe('NotificationsService', () => {
     notificationsRepository.save.mockRejectedValue(queryError);
 
     await expect(service.enqueue(dto)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('retries transient failures before succeeding', async () => {
+    amqpConnection.publish
+      .mockRejectedValueOnce(new Error('rabbit temporary'))
+      .mockResolvedValue(undefined);
+    redisClient.publish
+      .mockRejectedValueOnce(new Error('redis temporary'))
+      .mockResolvedValue(1);
+    notificationEventsService.handleIncoming
+      .mockRejectedValueOnce(new Error('events temporary'))
+      .mockResolvedValue(undefined);
+
+    const result = await service.enqueue(dto);
+
+    expect(result.id).toBe('notification-id');
+    expect(amqpConnection.publish).toHaveBeenCalledTimes(2);
+    expect(redisClient.publish).toHaveBeenCalledTimes(2);
+    expect(notificationEventsService.handleIncoming).toHaveBeenCalledTimes(2);
+    expect(attemptsRepository.save).toHaveBeenCalledTimes(6);
+    expect(notificationsRepository.update).toHaveBeenCalledWith('notification-id', {
+      status: NotificationStatus.PROCESSED
+    });
+  });
+
+  it('marks notification as failed after exhausting retries', async () => {
+    retryOptions.maxAttempts = 2;
+
+    amqpConnection.publish.mockRejectedValue(new Error('unavailable'));
+
+    await expect(service.enqueue(dto)).rejects.toThrow('unavailable');
+
+    expect(amqpConnection.publish).toHaveBeenCalledTimes(2);
+    expect(redisClient.publish).not.toHaveBeenCalled();
+    expect(notificationEventsService.handleIncoming).not.toHaveBeenCalled();
+    expect(attemptsRepository.save).toHaveBeenCalledTimes(2);
+    expect(notificationsRepository.update).toHaveBeenLastCalledWith(
+      'notification-id',
+      expect.objectContaining({
+        status: NotificationStatus.FAILED,
+        lastError: 'unavailable'
+      })
+    );
   });
 });

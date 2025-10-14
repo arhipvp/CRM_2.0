@@ -22,6 +22,13 @@ Notifications доставляет события и уведомления во
    Для продакшен-режима используйте `pnpm start:api` — скрипт автоматически соберёт и запустит `dist/main.js`.
 4. Для запуска фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Команда поднимает Nest-приложение без HTTP и активирует `@RabbitSubscribe` обработчики. Скомпилированный воркер запускается через `pnpm start:workers` (перед выполнением скрипт соберёт `dist/worker.js`).
 
+## Очередь доставки и повторы
+
+- Каждое уведомление сохраняется в PostgreSQL со статусом `pending`, после чего сообщение отправляется в RabbitMQ, Redis и внутренний обработчик событий.
+- Для публикации используется единый механизм повторов: параметры `NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS` и `NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS` из `.env` применяются ко всем трём каналам (RabbitMQ, Redis, NotificationEventsService).
+- Ошибки помечаются в таблице `notification_delivery_attempts`. Если все попытки исчерпаны, сервис выбрасывает исключение, фиксируя статус уведомления как `failed` и последнюю попытку как `failure`.
+- При успешной публикации хотя бы одного канала статус обновляется на `queued`, а после завершения всех шагов — на `processed`.
+
 ## Миграции и фоновые процессы
 - TypeORM конфигурация размещена в [`typeorm.config.ts`](typeorm.config.ts); миграции — в каталоге [`migrations`](migrations/).
 - Запуск миграций: `pnpm run migrations:run` (bootstrap вызывает команду автоматически через [`scripts/migrate-local.sh`](../../scripts/migrate-local.sh)).
