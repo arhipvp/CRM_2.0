@@ -6,7 +6,7 @@
 - [Gateway / BFF](gateway.md)
 - [Auth](auth.md)
 - [CRM / Deals](crm-deals.md)
-- [Платежи (CRM)](payments.md)
+- [Платежи (CRM)](payments.md) — график платежей полиса, операции поступлений и расходов.
 - [Tasks](tasks.md)
 - [Notifications](notifications.md)
 - [Documents](documents.md)
