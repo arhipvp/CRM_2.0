@@ -9,7 +9,7 @@
 - [Детали сделки](deal-details.md)
   - [Вкладка «Полисы»](deal-details.md#полисы)
 - [Карточка клиента и полиса](client-policy-card.md)
-- [Платежи](payments.md)
+- [Подтверждение оплаты](payments.md)
 - [Задачи и планирование](tasks.md)
 - [Уведомления и журнал событий](notifications.md)
 - [Пользовательские сценарии по ролям](user-scenarios.md)
