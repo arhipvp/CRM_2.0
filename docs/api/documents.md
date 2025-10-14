@@ -78,7 +78,9 @@
 
 **Ответ 200** — документ переводится в статус `uploaded`, сохраняются размер и контрольная сумма. После подтверждения сервис ставит задачу синхронизации (`POST /documents/{document_id}/sync`).
 
-**Ошибки:** `404 document_not_found`, `409 upload_conflict` (документ уже подтверждён или находится в финальном статусе).
+**Ошибки:**
+- `404 document_not_found` — документ не найден или был помечен удалённым (`{"statusCode":404,"code":"document_not_found","message":"Документ {document_id} не найден"}`).
+- `409 upload_conflict` — документ уже подтверждён/финализирован. Ответ содержит статус в деталях (`{"statusCode":409,"code":"upload_conflict","message":"Документ {document_id} уже находится в статусе {status}","details":{"status":"synced"}}`).
 
 ### GET `/documents`
 Поиск документов.
@@ -100,7 +102,9 @@
 
 **Ответ 204** — без тела. Повторная попытка удалить уже помеченный документ возвращает `409 already_deleted`.
 
-**Ошибки:** `404 document_not_found`, `409 already_deleted`.
+**Ошибки:**
+- `404 document_not_found` — запись не найдена (`{"statusCode":404,"code":"document_not_found","message":"Документ {document_id} не найден"}`).
+- `409 already_deleted` — документ был ранее удалён (`{"statusCode":409,"code":"already_deleted","message":"Документ {document_id} уже удалён"}`).
 
 ## Доступы
 
@@ -125,7 +129,7 @@
 | 400 | `validation_error` | Ошибка входных данных. |
 | 401 | `unauthorized` | Неверный токен. |
 | 403 | `forbidden` | Нет прав на работу с папкой. |
-| 404 | `not_found` | Папка/документ не найден. |
-| 409 | `conflict` | Конфликт состояния (дубликат, уже загружено). |
+| 404 | `document_not_found` | Документ не найден или удалён. |
+| 409 | `upload_conflict`/`already_deleted` | Конфликт состояния (повторное подтверждение загрузки или удаление). |
 | 413 | `file_too_large` | Файл превышает допустимый размер. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
