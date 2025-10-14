@@ -14,9 +14,17 @@ class Settings(BaseSettings):
     service_host: str = Field(default="0.0.0.0", alias="service_host")
     service_port: int = Field(default=8082, alias="service_port")
 
-    database_url: AnyUrl = Field(..., alias="database_url")
-    redis_url: AnyUrl = Field(..., alias="redis_url")
-    rabbitmq_url: AnyUrl = Field(..., alias="rabbitmq_url")
+    database_url: AnyUrl = Field(
+        default="postgresql+asyncpg://user:pass@localhost:5432/crm",
+        alias="database_url",
+    )
+    redis_url: AnyUrl = Field(default="redis://localhost:6379/0", alias="redis_url")
+    rabbitmq_url: AnyUrl = Field(default="amqp://guest:guest@localhost:5672/", alias="rabbitmq_url")
+
+    permissions_queue_name: str = Field(default="permissions:sync")
+    permissions_queue_prefix: str = Field(default="bull")
+    permissions_job_name: str = Field(default="permissions.sync")
+    permissions_redis_url: Optional[AnyUrl] = Field(default=None, alias="permissions_redis_url")
 
     celery_broker_url: Optional[AnyUrl] = Field(default=None, alias="celery_broker_url")
     celery_result_backend: Optional[AnyUrl] = Field(default=None, alias="celery_result_backend")
@@ -49,6 +57,10 @@ class Settings(BaseSettings):
     @property
     def resolved_celery_backend(self) -> str:
         return str(self.celery_result_backend or self.redis_url)
+
+    @property
+    def resolved_permissions_redis(self) -> str:
+        return str(self.permissions_redis_url or self.redis_url)
 
 
 @lru_cache(maxsize=1)

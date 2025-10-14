@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, date
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core import PydanticUndefined
 
 
@@ -156,3 +156,28 @@ class PaymentEvent(BaseModel):
 class PaymentEventResult(BaseModel):
     processed: bool
     reason: Optional[str] = None
+
+
+class SyncPermissionsUser(BaseModel):
+    user_id: UUID
+    role: Literal["viewer", "editor"]
+
+
+class SyncPermissionsDto(BaseModel):
+    owner_type: str = Field(min_length=1, max_length=64)
+    owner_id: UUID
+    users: list[SyncPermissionsUser]
+
+    @model_validator(mode="after")
+    def validate_users(self) -> "SyncPermissionsDto":
+        if not self.users:
+            raise ValueError("users must not be empty")
+        ids = [user.user_id for user in self.users]
+        if len(ids) != len(set(ids)):
+            raise ValueError("users must be unique")
+        return self
+
+
+class SyncPermissionsResponse(BaseModel):
+    job_id: UUID
+    status: str

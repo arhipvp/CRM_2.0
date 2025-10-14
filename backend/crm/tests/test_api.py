@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from crm.domain import schemas
+from crm.infrastructure.models import PermissionSyncJob
+from sqlalchemy import select
 
 
 @pytest.mark.asyncio
@@ -185,3 +187,37 @@ async def test_deal_patch_next_review_at_validation(api_client):
         f"/api/v1/deals/{deal.id}", json={"next_review_at": None}, headers=headers
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_permissions_sync_endpoint(api_client, db_session):
+    tenant_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+    owner_id = uuid4()
+    user_one = uuid4()
+    user_two = uuid4()
+
+    payload = {
+        "owner_type": "deal",
+        "owner_id": str(owner_id),
+        "users": [
+            {"user_id": str(user_one), "role": "viewer"},
+            {"user_id": str(user_two), "role": "editor"},
+        ],
+    }
+
+    response = await api_client.post("/api/v1/permissions/sync", json=payload, headers=headers)
+
+    assert response.status_code == 202
+    body = response.json()
+    assert UUID(body["job_id"])  # valid uuid
+    assert body["status"] == "queued"
+
+    result = await db_session.execute(
+        select(PermissionSyncJob).where(PermissionSyncJob.id == UUID(body["job_id"]))
+    )
+    job = result.scalars().first()
+    assert job is not None
+    assert job.owner_id == owner_id
+    assert job.owner_type == "deal"
+    assert len(job.users) == 2

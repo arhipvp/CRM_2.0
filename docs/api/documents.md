@@ -7,8 +7,10 @@
 
 ## Папки и структура
 
-### POST `/folders`
+### POST `/api/v1/folders`
 Создаёт папку на Google Drive для клиента/сделки/полиса.
+
+> Название формируется из шаблонов `DOCUMENTS_FOLDERS_TEMPLATE_*`. Доступные плейсхолдеры: `{title}`, `{ownerId}`, `{ownerType}`.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
@@ -28,7 +30,7 @@
 
 **Ошибки:** `400 validation_error`, `404 owner_not_found`, `409 folder_exists`.
 
-### GET `/folders/{owner_type}/{owner_id}`
+### GET `/api/v1/folders/{owner_type}/{owner_id}`
 Возвращает метаданные папки сущности.
 
 **Ответ 200** — `{ "folder_id": "...", "web_link": "..." }`.
@@ -64,6 +66,8 @@
   "expires_in": 900
 }
 ```
+
+`expires_in` совпадает со значением `DOCUMENTS_UPLOAD_URL_TTL` (в секундах). `upload_url` — подписанная ссылка для одноразовой загрузки файла в объектное хранилище.
 
 **Ошибки:** `400 validation_error`, `404 owner_not_found`.
 
