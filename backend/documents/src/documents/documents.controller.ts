@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 
 import { DocumentsQueueService } from './documents-queue.service';
 import { DocumentsService } from './documents.service';
@@ -15,8 +16,10 @@ export class DocumentsController {
   ) {}
 
   @Get()
-  async findAll(@Query() query: ListDocumentsDto) {
-    return this.documentsService.findAll(query);
+  async findAll(@Query() query: ListDocumentsDto, @Res({ passthrough: true }) res: Response) {
+    const [documents, total] = await this.documentsService.findAll(query);
+    res.setHeader('X-Total-Count', total.toString());
+    return documents;
   }
 
   @Get(':id')
