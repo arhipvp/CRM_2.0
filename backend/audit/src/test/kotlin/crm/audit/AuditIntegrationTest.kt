@@ -62,14 +62,14 @@ class AuditIntegrationTest @Autowired constructor(
         )
 
         val json = objectMapper.writeValueAsString(payload)
-        rabbitTemplate.convertAndSend(messagingProperties.eventsQueue, json)
+        rabbitTemplate.sendToDestination(messagingProperties.eventsExchange, messagingProperties.eventsQueue, json)
 
         await.atMost(Duration.ofSeconds(10)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
         }
 
         // Отправляем дубликат в другую очередь, чтобы проверить идемпотентность
-        rabbitTemplate.convertAndSend(messagingProperties.coreQueue, json)
+        rabbitTemplate.sendToDestination(messagingProperties.coreExchange, messagingProperties.coreQueue, json)
 
         await.atMost(Duration.ofSeconds(5)).until {
             runBlocking { auditEventRepository.countEvents(null, null, null) } == 1L
@@ -100,6 +100,14 @@ class AuditIntegrationTest @Autowired constructor(
             .jsonPath("$.content[0].payload").value<String> { body ->
                 assertTrue(body.contains("\"dealId\":\"DL-42\""))
             }
+    }
+
+    private fun RabbitTemplate.sendToDestination(exchange: String?, routingKey: String, payload: Any) {
+        if (exchange.isNullOrBlank()) {
+            convertAndSend(routingKey, payload)
+        } else {
+            convertAndSend(exchange, routingKey, payload)
+        }
     }
 
     companion object {

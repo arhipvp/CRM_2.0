@@ -108,7 +108,7 @@ Telegram Bot. Отдельный сервис, обеспечивающий пе
 
 Reports. FastAPI-сервис с материализованными витринами PostgreSQL: отдаёт агрегаты по сделкам и предоставляет CLI для обновления витрин (подробности в [`backend/reports/README.md`](backend/reports/README.md)).
 
-Audit. Централизованный журнал действий пользователей и системных событий. Подробнее см. [`backend/audit/README.md`](backend/audit/README.md) и раздел [«Audit» технологического стека](docs/tech-stack.md#audit).
+Audit. Централизованный журнал действий пользователей и системных событий. Подробнее см. [`backend/audit/README.md`](backend/audit/README.md) и раздел [«Audit» технологического стека](docs/tech-stack.md#audit). Для подключения к RabbitMQ учтите разницу между именем exchange (`AUDIT_EVENTS_EXCHANGE`/`AUDIT_CORE_EXCHANGE`) и очередей (`AUDIT_EVENTS_QUEUE`/`AUDIT_CORE_QUEUE`): первое определяет точку публикации событий, второе — конкретные очереди, которые привязываются к exchange для чтения сервисом.
 
 Backup. Резервное копирование баз, метаданных и файлового хранилища документов. Описание текущих скриптов и артефактов — в [`backups/README.md`](backups/README.md) и разделе [«Backup» технологического стека](docs/tech-stack.md#backup).
 
