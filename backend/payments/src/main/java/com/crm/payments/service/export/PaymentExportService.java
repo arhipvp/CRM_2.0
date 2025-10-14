@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 public class PaymentExportService {
@@ -102,18 +103,21 @@ public class PaymentExportService {
     }
 
     private Mono<Void> publishExportJob(PaymentExportJobEntity entity) {
-        PaymentExportJobMessage message = new PaymentExportJobMessage();
-        message.setJobId(entity.getId());
-        message.setRequestedAt(entity.getCreatedAt());
-        message.setFormat(entity.getFormat());
-        message.setFilters(deserializeFilters(entity.getFilters()));
-        message.setStorage(new PaymentExportJobMessage.StorageParameters(
-                properties.getStorage().getBucket(),
-                properties.getStorage().getPrefix(),
-                properties.getStorage().getBaseUrl(),
-                properties.getStorage().getUrlTtl()));
+        return Mono.fromCallable(() -> {
+            PaymentExportJobMessage message = new PaymentExportJobMessage();
+            message.setJobId(entity.getId());
+            message.setRequestedAt(entity.getCreatedAt());
+            message.setFormat(entity.getFormat());
+            message.setFilters(deserializeFilters(entity.getFilters()));
+            message.setStorage(new PaymentExportJobMessage.StorageParameters(
+                    properties.getStorage().getBucket(),
+                    properties.getStorage().getPrefix(),
+                    properties.getStorage().getBaseUrl(),
+                    properties.getStorage().getUrlTtl()));
 
-        return Mono.fromRunnable(() -> rabbitTemplate.convertAndSend(properties.getQueue(), message));
+            rabbitTemplate.convertAndSend(properties.getQueue(), message);
+            return (Void) null;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     private PaymentExportResponse toResponse(PaymentExportJobEntity entity) {

@@ -57,6 +57,8 @@ gradle test
 
 `GET /api/v1/payments/export` ставит задачу генерации выгрузки (CSV/XLSX) в очередь `PAYMENTS_EXPORTS_QUEUE` и возвращает `job_id` c начальным статусом `processing`. Настройки хранилища (`PAYMENTS_EXPORTS_STORAGE_*`) проксируются воркеру экспорта; статус обновляется через сообщения из `PAYMENTS_EXPORTS_STATUS_QUEUE` (`processing` → `done`/`failed`). `GET /api/v1/payments/export/{job_id}` отдаёт актуальный статус и ссылку на скачивание после завершения.【F:docs/api/payments.md†L205-L239】
 
+> ℹ️ Публикация задач выполняется асинхронно на пуле `Schedulers.boundedElastic()`, что позволяет безопасно вызывать RabbitMQ из реактивного кода без блокировки потоков ввода-вывода.
+
 ### Вебхуки CRM
 
 События `payment.created` и `payment.updated` приходят через `/api/v1/webhooks/crm`. Для обновлений CRM обязана передавать идентификатор платежа и версию (`updatedAt` в ISO 8601 или числовой `revision` — миллисекунды Unix-эпохи). Если версия устарела относительно `payments.updated_at`, сервис отвечает `409 stale_update` и не изменяет данные. Это предотвращает перезапись актуальной информации более ранним состоянием.
