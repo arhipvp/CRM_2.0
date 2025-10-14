@@ -153,6 +153,30 @@ run_seed_docker() {
     psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$file"
 }
 
+psql_query() {
+  local query="$1"
+  case "$PSQL_MODE" in
+    local)
+      PGPASSWORD="$POSTGRES_PASSWORD" psql \
+        -h "$POSTGRES_HOST" \
+        -p "$POSTGRES_PORT" \
+        -U "$POSTGRES_USER" \
+        -d "$POSTGRES_DB" \
+        -tA \
+        -c "$query"
+      ;;
+    docker)
+      "${DOCKER_COMPOSE_CMD[@]}" -f "$REPO_ROOT/infra/docker-compose.yml" exec -T postgres \
+        env PGPASSWORD="$POSTGRES_PASSWORD" \
+        psql -tA -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$query"
+      ;;
+    *)
+      log ERROR "Неизвестный режим выполнения: $PSQL_MODE"
+      return 1
+      ;;
+  esac
+}
+
 apply_seed() {
   local file="$1"
   case "$PSQL_MODE" in
@@ -168,6 +192,39 @@ apply_seed() {
       ;;
   esac
 }
+
+check_required_tables() {
+  local required=(
+    "auth.users"
+    "crm.clients"
+    "crm.deals"
+    "crm.policies"
+    "crm.payments"
+    "crm.payment_incomes"
+    "crm.payment_expenses"
+  )
+  local missing=()
+  for table in "${required[@]}"; do
+    local result
+    if ! result="$(psql_query "SELECT to_regclass('$table') IS NOT NULL;")"; then
+      log ERROR "Не удалось проверить наличие таблицы $table"
+      return 1
+    fi
+    if [[ "$result" != "t" ]]; then
+      missing+=("$table")
+    fi
+  done
+  if (( ${#missing[@]} > 0 )); then
+    log ERROR "В базе отсутствуют обязательные таблицы: ${missing[*]}. Выполните миграции Auth и CRM перед загрузкой seed-данных."
+    return 1
+  fi
+  log INFO "Проверка схемы пройдена: таблицы Auth/CRM доступны."
+  return 0
+}
+
+if ! check_required_tables; then
+  exit 1
+fi
 
 for file in "${seed_files[@]}"; do
   base="$(basename "$file")"
