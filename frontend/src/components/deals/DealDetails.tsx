@@ -1,418 +1,324 @@
 "use client";
 
-import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  dealQueryOptions,
-  dealsQueryKey,
-  dealStageMetricsQueryKey,
-} from "@/lib/api/queries";
-import { useDeal, useUpdateDeal } from "@/lib/api/hooks";
-import type { DealStage } from "@/types/crm";
-import { DealActivity } from "@/components/deals/DealActivity";
-import { DealDocuments } from "@/components/deals/DealDocuments";
-import { DealFinance } from "@/components/deals/DealFinance";
-import { DealTasks } from "@/components/deals/DealTasks";
-import { useUiStore } from "@/stores/uiStore";
+import { useDealDetails, useUpdateDeal } from "@/lib/api/hooks";
+import { DealDetailsHeader } from "@/components/deals/details/DealDetailsHeader";
+import { DealDetailsTabsNav } from "@/components/deals/details/DealDetailsTabsNav";
+import { OverviewTab } from "@/components/deals/details/OverviewTab";
+import { FormsTab } from "@/components/deals/details/FormsTab";
+import { PoliciesTab } from "@/components/deals/details/PoliciesTab";
+import { JournalTab } from "@/components/deals/details/JournalTab";
+import { ActionsTab } from "@/components/deals/details/ActionsTab";
+import { TasksTab } from "@/components/deals/details/TasksTab";
+import { DocumentsTab } from "@/components/deals/details/DocumentsTab";
+import { FinanceTab } from "@/components/deals/details/FinanceTab";
+import { useUiStore, type DealDetailsTabKey } from "@/stores/uiStore";
+import type { DealDetailsData, DealFormGroup } from "@/types/crm";
 
-const STAGE_LABELS: Record<DealStage, string> = {
-  qualification: "Квалификация",
-  negotiation: "Переговоры",
-  proposal: "Предложение",
-  closedWon: "Закрыта (успех)",
-  closedLost: "Закрыта (неуспех)",
-};
-
-type DealDetailsTab = "activity" | "tasks" | "documents" | "finance";
-
-type TabConfig = {
-  id: DealDetailsTab;
-  title: string;
-};
-
-const TABS: TabConfig[] = [
-  { id: "activity", title: "Журнал" },
-  { id: "tasks", title: "Задачи" },
-  { id: "documents", title: "Документы" },
-  { id: "finance", title: "Финансы" },
+const DEAL_TABS: Array<{ id: DealDetailsTabKey; label: string }> = [
+  { id: "overview", label: "Обзор" },
+  { id: "forms", label: "Формы" },
+  { id: "policies", label: "Полисы" },
+  { id: "journal", label: "Журнал" },
+  { id: "actions", label: "Действия" },
+  { id: "tasks", label: "Задачи" },
+  { id: "documents", label: "Документы" },
+  { id: "finance", label: "Финансы" },
 ];
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(value);
+function cloneForms(forms: DealFormGroup[]): DealFormGroup[] {
+  return forms.map((group) => ({
+    ...group,
+    fields: group.fields.map((field) => ({ ...field })),
+  }));
 }
 
-function formatDateTime(value?: string) {
-  if (!value) {
-    return "—";
+function findField(groups: DealFormGroup[], fieldId: string) {
+  for (const group of groups) {
+    const field = group.fields.find((item) => item.id === fieldId);
+    if (field) {
+      return field;
+    }
   }
-
-  try {
-    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-  } catch {
-    return value;
-  }
+  return undefined;
 }
 
-function formatDate(value?: string) {
-  if (!value) {
-    return "—";
+function getChangedFields(original: DealFormGroup[], current: DealFormGroup[]) {
+  const changes: Record<string, string> = {};
+  for (const group of current) {
+    for (const field of group.fields) {
+      const initial = findField(original, field.id);
+      if (!initial) {
+        continue;
+      }
+      if ((initial.value ?? "") !== (field.value ?? "")) {
+        changes[field.id] = field.value;
+      }
+    }
   }
-
-  try {
-    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(new Date(value));
-  } catch {
-    return value;
-  }
+  return changes;
 }
 
-function toDateInput(value?: string) {
+function parseNumber(value: string | undefined) {
   if (!value) {
-    return "";
+    return undefined;
   }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toISOString().slice(0, 10);
+  const parsed = Number.parseFloat(value.replace(/\s+/g, ""));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export function DealDetails({ dealId }: { dealId: string }) {
-  const { data: deal, isLoading } = useDeal(dealId);
+  const { data: deal, isLoading, isError, error, refetch } = useDealDetails(dealId);
   const { mutateAsync: updateDeal, isPending: isSaving } = useUpdateDeal(dealId);
-  const queryClient = useQueryClient();
-  const markDealUpdated = useUiStore((state) => state.markDealUpdated);
-  const dealUpdateToken = useUiStore((state) => state.dealUpdates[dealId]);
-  const clearDealUpdate = useUiStore((state) => state.clearDealUpdate);
+  const activeTab = useUiStore((state) => state.dealDetailsTab);
+  const setActiveTab = useUiStore((state) => state.setDealDetailsTab);
+  const triggerRequest = useUiStore((state) => state.triggerDealDetailsRequest);
+  const requests = useUiStore((state) => state.dealDetailsRequests);
+  const consumeRequest = useUiStore((state) => state.consumeDealDetailsRequest);
 
-  const [activeTab, setActiveTab] = useState<DealDetailsTab>("activity");
-  const [taskRequestKey, setTaskRequestKey] = useState<string>();
-  const [noteRequestKey, setNoteRequestKey] = useState<string>();
-  const [documentRequestKey, setDocumentRequestKey] = useState<string>();
-
-  const [stage, setStage] = useState<DealStage>("qualification");
-  const [value, setValue] = useState("");
-  const [probability, setProbability] = useState(50);
-  const [expectedCloseDate, setExpectedCloseDate] = useState("");
-  const [nextReviewDate, setNextReviewDate] = useState("");
-  const [owner, setOwner] = useState("");
-  const [isHighlighted, setIsHighlighted] = useState(false);
-
-  const dealKey = useMemo(() => dealQueryOptions(dealId).queryKey, [dealId]);
+  const [formState, setFormState] = useState<DealFormGroup[]>([]);
+  const [saveError, setSaveError] = useState<string | undefined>();
 
   useEffect(() => {
+    if (deal) {
+      setFormState(cloneForms(deal.forms));
+    }
+  }, [deal]);
+
+  useEffect(() => {
+    if (requests.task) {
+      consumeRequest("task");
+    }
+    if (requests.note) {
+      consumeRequest("note");
+    }
+  }, [consumeRequest, requests.note, requests.task]);
+
+  useEffect(() => {
+    if (requests.document) {
+      // consumption happens after highlight is passed to DocumentsTab
+      const timeout = window.setTimeout(() => consumeRequest("document"), 0);
+      return () => window.clearTimeout(timeout);
+    }
+    return undefined;
+  }, [consumeRequest, requests.document]);
+
+  const hasChanges = useMemo(() => {
+    if (!deal) {
+      return false;
+    }
+    const changes = getChangedFields(deal.forms, formState);
+    return Object.keys(changes).length > 0;
+  }, [deal, formState]);
+
+  const handleFieldChange = (groupId: string, fieldId: string, value: string) => {
+    setFormState((prev) =>
+      prev.map((group) => {
+        if (group.id !== groupId) {
+          return group;
+        }
+        return {
+          ...group,
+          fields: group.fields.map((field) =>
+            field.id === fieldId
+              ? {
+                  ...field,
+                  value,
+                  error: undefined,
+                }
+              : field,
+          ),
+        };
+      }),
+    );
+  };
+
+  const resetForm = () => {
+    if (deal) {
+      setFormState(cloneForms(deal.forms));
+    }
+    setSaveError(undefined);
+  };
+
+  const handleSave = async () => {
     if (!deal) {
       return;
     }
 
-    setStage(deal.stage);
-    setValue(String(deal.value));
-    setProbability(Math.round(deal.probability * 100));
-    setExpectedCloseDate(toDateInput(deal.expectedCloseDate));
-    setNextReviewDate(toDateInput(deal.nextReviewAt));
-    setOwner(deal.owner ?? "");
-  }, [deal]);
-
-  useEffect(() => {
-    if (!dealUpdateToken) {
+    const nextReviewField = findField(formState, "nextReviewAt");
+    if (!nextReviewField || !nextReviewField.value) {
+      setFormState((prev) =>
+        prev.map((group) => ({
+          ...group,
+          fields: group.fields.map((field) =>
+            field.id === "nextReviewAt"
+              ? { ...field, error: "Поле обязательно для сохранения" }
+              : field,
+          ),
+        })),
+      );
+      setSaveError("Заполните дату следующего просмотра.");
+      setActiveTab("forms");
       return;
     }
 
-    setIsHighlighted(true);
-    const timeoutId = window.setTimeout(() => {
-      setIsHighlighted(false);
-      clearDealUpdate(dealId);
-    }, 2500);
+    setSaveError(undefined);
+    const changes = getChangedFields(deal.forms, formState);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [clearDealUpdate, dealId, dealUpdateToken]);
+    const payload = {
+      name: changes.name ?? deal.name,
+      owner: changes.owner ?? deal.owner,
+      nextReviewAt: new Date((changes.nextReviewAt ?? findField(formState, "nextReviewAt")?.value) ?? deal.nextReviewAt)
+        .toISOString(),
+      expectedCloseDate: changes.expectedCloseDate
+        ? new Date(changes.expectedCloseDate).toISOString()
+        : deal.expectedCloseDate ?? null,
+      value: parseNumber(changes.value) ?? deal.value,
+      probability: (() => {
+        const raw = parseNumber(changes.probability);
+        if (raw === undefined) {
+          return deal.probability;
+        }
+        return Math.min(Math.max(raw, 0), 100) / 100;
+      })(),
+    };
+
+    try {
+      await updateDeal(payload);
+      await refetch();
+    } catch (updateError) {
+      setSaveError(updateError instanceof Error ? updateError.message : "Не удалось сохранить изменения");
+    }
+  };
+
+  const renderContent = (currentDeal: DealDetailsData) => {
+    switch (activeTab) {
+      case "overview":
+        return <OverviewTab deal={currentDeal} onOpenPolicies={() => setActiveTab("policies")} />;
+      case "forms":
+        return <FormsTab groups={formState} onFieldChange={handleFieldChange} />;
+      case "policies":
+        return <PoliciesTab policies={currentDeal.policies} />;
+      case "journal":
+        return <JournalTab activity={currentDeal.activity} />;
+      case "actions":
+        return <ActionsTab actions={currentDeal.actions} />;
+      case "tasks":
+        return <TasksTab board={currentDeal.tasksBoard} onCreateTask={() => triggerRequest("task")} />;
+      case "documents":
+        return (
+          <DocumentsTab
+            categories={currentDeal.documentsV2}
+            highlightKey={requests.document}
+            onUpload={(files) => {
+              console.info("Загруженные файлы", files);
+            }}
+          />
+        );
+      case "finance":
+        return <FinanceTab summary={currentDeal.finance} />;
+      default:
+        return null;
+    }
+  };
 
   if (isLoading) {
-    return <div className="h-80 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="h-[540px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"
+      />
+    );
   }
 
-  if (!deal) {
-    return <p className="text-sm text-slate-500">Сделка не найдена.</p>;
+  if (isError || !deal) {
+    return (
+      <div className="space-y-4 rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-200">
+        <p>Не удалось загрузить сделку. {error instanceof Error ? error.message : "Попробуйте обновить страницу."}</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-400"
+        >
+          Повторить попытку
+        </button>
+      </div>
+    );
   }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const sanitizedProbability = Math.min(Math.max(probability, 0), 100);
-    const normalizedValue = Number.parseFloat(value);
-    const expected = expectedCloseDate ? new Date(expectedCloseDate).toISOString() : null;
-    const nextReview = (() => {
-      if (!nextReviewDate) {
-        return deal.nextReviewAt;
-      }
-
-      const parsed = new Date(nextReviewDate);
-      if (Number.isNaN(parsed.getTime())) {
-        return deal.nextReviewAt;
-      }
-
-      return parsed.toISOString();
-    })();
-
-    const updated = await updateDeal({
-      stage,
-      owner: owner.trim() || undefined,
-      probability: Number.isFinite(sanitizedProbability) ? sanitizedProbability / 100 : deal.probability,
-      value: Number.isFinite(normalizedValue) ? normalizedValue : deal.value,
-      expectedCloseDate: expected,
-      nextReviewAt: nextReview,
-    });
-
-    queryClient.setQueryData(dealKey, updated);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
-    ]);
-    markDealUpdated(dealId);
-  };
-
-  const switchTab = (tab: DealDetailsTab) => {
-    setActiveTab(tab);
-  };
-
-  const triggerTaskCreation = () => {
-    setActiveTab("tasks");
-    setTaskRequestKey(String(Date.now()));
-  };
-
-  const triggerNoteCreation = () => {
-    setActiveTab("activity");
-    setNoteRequestKey(String(Date.now()));
-  };
-
-  const triggerDocumentUpload = () => {
-    setActiveTab("documents");
-    setDocumentRequestKey(String(Date.now()));
-  };
 
   return (
-    <article
-      className={`space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition dark:border-slate-700 dark:bg-slate-900/80 ${
-        isHighlighted ? "ring-2 ring-sky-400" : ""
-      }`}
-    >
-      <header className="space-y-2 border-b border-slate-100 pb-4 dark:border-slate-800">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{deal.name}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-300">
-              Клиент:{" "}
-              <Link href={`/clients/${deal.clientId}`} className="text-sky-600 hover:underline">
-                {deal.clientName}
-              </Link>
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">
-            Обновлено: {formatDateTime(deal.updatedAt)}
-          </div>
-        </div>
-        <dl className="grid gap-4 text-sm text-slate-600 dark:text-slate-200 sm:grid-cols-5">
-          <div>
-            <dt className="font-medium">Сумма</dt>
-            <dd>{formatCurrency(deal.value)}</dd>
-          </div>
-          <div>
-            <dt className="font-medium">Вероятность</dt>
-            <dd>{Math.round(deal.probability * 100)}%</dd>
-          </div>
-          <div>
-            <dt className="font-medium">Стадия</dt>
-            <dd>{STAGE_LABELS[deal.stage]}</dd>
-          </div>
-          <div>
-            <dt className="font-medium">Ожидаемое закрытие</dt>
-            <dd>{formatDate(deal.expectedCloseDate)}</dd>
-          </div>
-          <div>
-            <dt className="font-medium">Следующий просмотр</dt>
-            <dd
-              className={deal.nextReviewAt && new Date(deal.nextReviewAt).getTime() < Date.now()
-                ? "font-semibold text-amber-600 dark:text-amber-300"
-                : undefined}
-            >
-              {formatDate(deal.nextReviewAt)}
-            </dd>
-          </div>
-        </dl>
-      </header>
+    <article className="space-y-6">
+      <DealDetailsHeader deal={deal} />
 
-      <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-        <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Быстрое редактирование</h2>
-        <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Стадия</label>
-            <select
-              value={stage}
-              onChange={(event) => setStage(event.target.value as DealStage)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            >
-              {Object.entries(STAGE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Сумма, ₽</label>
-            <input
-              type="number"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              min={0}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Вероятность, %</label>
-            <input
-              type="number"
-              value={probability}
-              onChange={(event) => {
-                const parsed = Number.parseInt(event.target.value, 10);
-                setProbability(Number.isNaN(parsed) ? 0 : parsed);
-              }}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              min={0}
-              max={100}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Ожидаемое закрытие</label>
-            <input
-              type="date"
-              value={expectedCloseDate}
-              onChange={(event) => setExpectedCloseDate(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Следующий просмотр</label>
-            <input
-              type="date"
-              value={nextReviewDate}
-              onChange={(event) => setNextReviewDate(event.target.value)}
-              required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            />
-          </div>
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Ответственный</label>
-            <input
-              value={owner}
-              onChange={(event) => setOwner(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              placeholder="Укажите владельца сделки"
-            />
-          </div>
-          <div className="flex items-center justify-end gap-3 sm:col-span-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (!deal) {
-                  return;
-                }
-                setStage(deal.stage);
-                setValue(String(deal.value));
-                setProbability(Math.round(deal.probability * 100));
-                setExpectedCloseDate(toDateInput(deal.expectedCloseDate));
-                setNextReviewDate(toDateInput(deal.nextReviewAt));
-                setOwner(deal.owner ?? "");
-              }}
-              className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              Сбросить
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? "Сохраняем..." : "Обновить"}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => switchTab(tab.id)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                activeTab === tab.id
-                  ? "bg-sky-600 text-white shadow"
-                  : "border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              }`}
-            >
-              {tab.title}
-            </button>
-          ))}
+      {saveError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-200">
+          {saveError}
         </div>
-        <div className="flex flex-wrap gap-2">
+      ) : null}
+
+      <DealDetailsTabsNav
+        tabs={DEAL_TABS.map((tab) => ({
+          ...tab,
+          badge:
+            tab.id === "documents"
+              ? deal.documentsV2.reduce((acc, category) => acc + category.documents.length, 0)
+              : tab.id === "tasks"
+                ? deal.tasksBoard.lanes.reduce((acc, lane) => acc + lane.tasks.length, 0)
+                : undefined,
+        }))}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+
+      <section>{renderContent(deal)}</section>
+
+      <footer className="sticky bottom-4 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span>
+            Следующий обзор:{" "}
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              {new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(new Date(deal.nextReviewAt))}
+            </span>
+          </span>
+          <span>·</span>
+          <Link href="#" className="text-sky-600 hover:underline">
+            Настройки напоминаний
+          </Link>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={triggerTaskCreation}
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+            onClick={resetForm}
+            disabled={isSaving || !hasChanges}
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Создать задачу
+            Отменить
           </button>
           <button
             type="button"
-            onClick={triggerNoteCreation}
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+            onClick={() => triggerRequest("document")}
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Добавить заметку
+            Создать документ
           </button>
           <button
             type="button"
-            onClick={triggerDocumentUpload}
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Загрузить файл
+            Дополнительно
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!hasChanges || isSaving}
+            className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Сохраняем..." : "Сохранить"}
           </button>
         </div>
-      </section>
-
-      <section>
-        {activeTab === "activity" && (
-          <DealActivity
-            dealId={dealId}
-            createRequestKey={noteRequestKey}
-            onCreateHandled={() => setNoteRequestKey(undefined)}
-          />
-        )}
-        {activeTab === "tasks" && (
-          <DealTasks
-            dealId={dealId}
-            createRequestKey={taskRequestKey}
-            onCreateHandled={() => setTaskRequestKey(undefined)}
-          />
-        )}
-        {activeTab === "documents" && (
-          <DealDocuments
-            dealId={dealId}
-            createRequestKey={documentRequestKey}
-            onCreateHandled={() => setDocumentRequestKey(undefined)}
-          />
-        )}
-        {activeTab === "finance" && <DealFinance dealId={dealId} />}
-      </section>
+      </footer>
     </article>
   );
 }

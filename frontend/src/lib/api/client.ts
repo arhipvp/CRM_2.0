@@ -1,6 +1,7 @@
 import {
   activitiesMock,
   clientsMock,
+  dealDetailsMock,
   dealDocumentsMock,
   dealNotesMock,
   dealsMock,
@@ -11,6 +12,7 @@ import type {
   ActivityLogEntry,
   Client,
   Deal,
+  DealDetailsData,
   DealDocument,
   DealFilters,
   DealPeriodFilter,
@@ -276,27 +278,25 @@ export class ApiClient {
     );
   }
 
-  getDeal(id: string): Promise<Deal> {
+  getDealDetails(id: string): Promise<DealDetailsData> {
     return this.request(`/crm/deals/${id}`, undefined, async () => {
-      const deal = dealsMock.find((item) => item.id === id);
+      const deal = dealDetailsMock[id];
       if (!deal) {
         throw new ApiError("Deal not found", 404);
       }
 
-      const tasks = tasksMock.filter((item) => item.dealId === id);
-      const notes = dealNotesMock.filter((item) => item.dealId === id);
-      const documents = dealDocumentsMock.filter((item) => item.dealId === id);
-      const payments = paymentsMock.filter((item) => item.dealId === id);
-      const activity = activitiesMock.filter((item) => item.dealId === id);
+      const base = dealsMock.find((item) => item.id === id);
+      if (base) {
+        deal.value = base.value;
+        deal.probability = base.probability;
+        deal.stage = base.stage;
+        deal.owner = base.owner;
+        deal.nextReviewAt = base.nextReviewAt;
+        deal.expectedCloseDate = base.expectedCloseDate;
+        deal.updatedAt = base.updatedAt;
+      }
 
-      return {
-        ...deal,
-        tasks,
-        notes,
-        documents,
-        payments,
-        activity,
-      };
+      return JSON.parse(JSON.stringify(deal)) as DealDetailsData;
     });
   }
 
@@ -436,7 +436,26 @@ export class ApiClient {
 
         deal.updatedAt = new Date().toISOString();
 
-        return this.getDeal(dealId);
+        const details = dealDetailsMock[dealId];
+        if (details) {
+          details.name = deal.name;
+          details.stage = deal.stage;
+          details.value = deal.value;
+          details.probability = deal.probability;
+          details.owner = deal.owner;
+          details.nextReviewAt = deal.nextReviewAt;
+          details.expectedCloseDate = deal.expectedCloseDate;
+          details.updatedAt = deal.updatedAt;
+
+          const nextReviewField = details.forms
+            .flatMap((group) => group.fields)
+            .find((field) => field.id === "nextReviewAt");
+          if (nextReviewField) {
+            nextReviewField.value = deal.nextReviewAt.slice(0, 10);
+          }
+        }
+
+        return this.getDealDetails(dealId);
       },
     );
   }
@@ -628,6 +647,12 @@ function updateDealStageMock(dealId: string, stage: DealStage): Deal {
 
   deal.stage = stage;
   deal.updatedAt = new Date().toISOString();
+
+  const details = dealDetailsMock[dealId];
+  if (details) {
+    details.stage = stage;
+    details.updatedAt = deal.updatedAt;
+  }
 
   return { ...deal };
 }

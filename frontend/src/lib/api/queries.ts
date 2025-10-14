@@ -62,10 +62,10 @@ export const dealStageMetricsQueryOptions = (filters?: DealFilters) => {
   });
 };
 
-export const dealQueryOptions = (dealId: string) =>
+export const dealDetailsQueryOptions = (dealId: string) =>
   queryOptions({
-    queryKey: ["deal", dealId],
-    queryFn: () => apiClient.getDeal(dealId),
+    queryKey: ["deal", dealId, "details"],
+    queryFn: () => apiClient.getDealDetails(dealId),
     enabled: Boolean(dealId),
   });
 
