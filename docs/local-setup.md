@@ -83,7 +83,7 @@
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
-- Для локальной обработки платежных событий убедитесь, что RabbitMQ запущен и в `.env` включено `CRM_ENABLE_PAYMENTS_CONSUMER=true`; тестовую публикацию можно выполнить через `backend/crm/tests/test_payments_events.py`.
+- Для проверки подтверждения оплат используйте REST-запрос `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payment` (через Gateway или напрямую в CRM). Отдельный consumer RabbitMQ не требуется: платежи обрабатываются внутри CRM.
 
 ### Notifications: быстрый старт
 
