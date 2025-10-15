@@ -9,14 +9,12 @@ import {
   clientTasksChecklistQueryOptions,
 } from "@/lib/api/queries";
 
-interface ClientPageProps {
-  params: { clientId: string };
-}
+type ClientPageProps = PageProps<"/clients/[clientId]">;
 
 export const revalidate = 0;
 
 export default async function ClientPage({ params }: ClientPageProps) {
-  const { clientId } = params;
+  const { clientId } = await params;
   const queryClient = new QueryClient();
   const clientQuery = clientQueryOptions(clientId);
   const clientResult = await queryClient.fetchQuery(clientQuery);

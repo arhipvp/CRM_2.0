@@ -637,6 +637,12 @@ export interface UpsertClientPolicyPayload {
   managerPhone?: string;
 }
 
+export interface UpdateClientContactsPayload {
+  email: string;
+  phone: string;
+  contacts?: Array<Omit<ClientContact, "id"> & { id?: string }>;
+}
+
 export interface ClientPoliciesQueryParams {
   status?: "active" | "archived";
   search?: string;

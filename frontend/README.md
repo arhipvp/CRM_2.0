@@ -71,6 +71,21 @@ CRM-шлюз может отправлять идентификатор сдел
 - `src/components/admin` — панель главного админа: управление пользователями, справочниками и аудитом с правами доступа и экспортом отчётов.
 - `src/hooks/useEventStream.ts` и `src/components/providers/SSEBridge.tsx` — подключение к SSE с автореконнектом и записью в стор.
 
+### typedRoutes и PageProps
+
+Начиная с Next.js 15.5 в проекте активирован [`typedRoutes`](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links). Для динамических страниц App Router используйте глобальный helper `PageProps` и ожидайте, что `params` передаётся как `Promise`. Пример корректной сигнатуры:
+
+```ts
+type ExamplePageProps = PageProps<"/example/[id]">;
+
+export default async function ExamplePage({ params }: ExamplePageProps) {
+  const { id } = await params;
+  // ...
+}
+```
+
+Это гарантирует совместимость с проверками typedRoutes и корректную генерацию типов для ссылок и роутинга.
+
 ## Тестирование и качество
 
 1. **Unit/RTL:** `pnpm test` — прогон Vitest с `jsdom` и coverage.
