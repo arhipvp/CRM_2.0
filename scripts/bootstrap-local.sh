@@ -84,6 +84,14 @@ try:
             sock.close()
             if exc.errno in {getattr(errno, "EADDRINUSE", 98), getattr(errno, "WSAEADDRINUSE", 10048)}:
                 sys.exit(10)
+            if (
+                family == socket.AF_INET6
+                and exc.errno in {
+                    getattr(errno, "EADDRNOTAVAIL", 99),
+                    getattr(errno, "WSAEADDRNOTAVAIL", 10049),
+                }
+            ):
+                continue
             raise
         else:
             sock.close()
