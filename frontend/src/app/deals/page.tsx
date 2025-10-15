@@ -2,6 +2,7 @@ import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
 import { DealFunnelHeader } from "@/components/deals/DealFunnelHeader";
 import { DealFunnelTable } from "@/components/deals/DealFunnelTable";
+import { getServerApiClient } from "@/lib/api/client";
 import { dealsQueryOptions, dealStageMetricsQueryOptions } from "@/lib/api/queries";
 import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
 
@@ -10,8 +11,9 @@ export const revalidate = 0;
 export default async function DealsPage() {
   const queryClient = new QueryClient();
   const defaultFilters = createDefaultDealFilters();
-  await queryClient.prefetchQuery(dealsQueryOptions(defaultFilters));
-  await queryClient.prefetchQuery(dealStageMetricsQueryOptions(defaultFilters));
+  const serverApiClient = getServerApiClient();
+  await queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient));
+  await queryClient.prefetchQuery(dealStageMetricsQueryOptions(defaultFilters, serverApiClient));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

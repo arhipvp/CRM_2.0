@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { ClientWorkspace } from "@/components/clients/ClientWorkspace";
+import { getServerApiClient } from "@/lib/api/client";
 import {
   clientActivityQueryOptions,
   clientPoliciesQueryOptions,
@@ -16,7 +17,8 @@ export const revalidate = 0;
 export default async function ClientPage({ params }: ClientPageProps) {
   const { clientId } = await params;
   const queryClient = new QueryClient();
-  const clientQuery = clientQueryOptions(clientId);
+  const serverApiClient = getServerApiClient();
+  const clientQuery = clientQueryOptions(clientId, serverApiClient);
   const clientResult = await queryClient.fetchQuery(clientQuery);
 
   if (!clientResult) {
@@ -24,11 +26,17 @@ export default async function ClientPage({ params }: ClientPageProps) {
   }
 
   await Promise.all([
-    queryClient.prefetchQuery(clientPoliciesQueryOptions(clientId, { status: "active" })),
-    queryClient.prefetchQuery(clientPoliciesQueryOptions(clientId, { status: "archived" })),
-    queryClient.prefetchQuery(clientActivityQueryOptions(clientId, { page: 1, pageSize: 5 })),
-    queryClient.prefetchQuery(clientTasksChecklistQueryOptions(clientId)),
-    queryClient.prefetchQuery(clientRemindersQueryOptions(clientId)),
+    queryClient.prefetchQuery(
+      clientPoliciesQueryOptions(clientId, { status: "active" }, serverApiClient),
+    ),
+    queryClient.prefetchQuery(
+      clientPoliciesQueryOptions(clientId, { status: "archived" }, serverApiClient),
+    ),
+    queryClient.prefetchQuery(
+      clientActivityQueryOptions(clientId, { page: 1, pageSize: 5 }, serverApiClient),
+    ),
+    queryClient.prefetchQuery(clientTasksChecklistQueryOptions(clientId, serverApiClient)),
+    queryClient.prefetchQuery(clientRemindersQueryOptions(clientId, serverApiClient)),
   ]);
 
   return (

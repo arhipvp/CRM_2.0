@@ -1,12 +1,14 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { TaskList } from "@/components/tasks/TaskList";
+import { getServerApiClient } from "@/lib/api/client";
 import { tasksQueryOptions } from "@/lib/api/queries";
 
 export const revalidate = 0;
 
 export default async function TasksPage() {
   const queryClient = new QueryClient();
-  await queryClient.prefetchQuery(tasksQueryOptions());
+  const serverApiClient = getServerApiClient();
+  await queryClient.prefetchQuery(tasksQueryOptions(serverApiClient));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

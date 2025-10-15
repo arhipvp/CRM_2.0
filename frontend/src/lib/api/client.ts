@@ -4,16 +4,20 @@ import {
   adminDictionariesMock,
   adminRolesMock,
   adminUsersMock,
+  clientPoliciesMock,
+  clientRemindersMock,
+  clientTaskChecklistMock,
   clientsMock,
   dealDetailsMock,
   dealDocumentsMock,
   dealNotesMock,
   dealsMock,
-  paymentsMock,
-  tasksMock,
+  filterDealsMock,
   notificationChannelSettingsMock,
   notificationEventJournalMock,
   notificationFeedMock,
+  paymentsMock,
+  tasksMock,
 } from "@/mocks/data";
 import type {
   ActivityLogEntry,
@@ -77,10 +81,12 @@ export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
   timeoutMs?: number;
+  serverTimeoutMs?: number;
   adminPermissions?: AdminPermission[];
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_SERVER_TIMEOUT_MS = 7_500;
 const DEFAULT_ADMIN_PERMISSIONS: AdminPermission[] = [
   "manage:users",
   "manage:dictionaries",
@@ -102,6 +108,7 @@ function parseTimeout(value: string | undefined): number | undefined {
 }
 
 const ENV_TIMEOUT_MS = parseTimeout(process.env.FRONTEND_PROXY_TIMEOUT);
+const ENV_SERVER_TIMEOUT_MS = parseTimeout(process.env.FRONTEND_SERVER_TIMEOUT_MS);
 
 function normalizeTimeout(value: number | undefined): number | undefined {
   if (value === undefined) {
@@ -696,7 +703,20 @@ export class ApiClient {
   }
 
   private get timeoutMs(): number {
-    return normalizeTimeout(this.config.timeoutMs) ?? ENV_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS;
+    const isServer = typeof window === "undefined";
+    const configTimeout = normalizeTimeout(
+      isServer ? this.config.serverTimeoutMs ?? this.config.timeoutMs : this.config.timeoutMs,
+    );
+
+    if (configTimeout !== undefined) {
+      return configTimeout;
+    }
+
+    if (isServer) {
+      return ENV_SERVER_TIMEOUT_MS ?? ENV_TIMEOUT_MS ?? DEFAULT_SERVER_TIMEOUT_MS;
+    }
+
+    return ENV_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS;
   }
 
   private async request<T>(
@@ -3005,4 +3025,19 @@ export const apiClient = new ApiClient();
 
 export function createApiClient(config: ApiClientConfig = {}) {
   return new ApiClient(config);
+}
+
+export function getServerApiClient(config: ApiClientConfig = {}) {
+  const serverConfig: ApiClientConfig = { ...config };
+
+  if (serverConfig.serverTimeoutMs === undefined) {
+    const normalizedTimeout = normalizeTimeout(serverConfig.timeoutMs);
+    if (normalizedTimeout !== undefined) {
+      serverConfig.serverTimeoutMs = normalizedTimeout;
+    } else {
+      serverConfig.serverTimeoutMs = ENV_SERVER_TIMEOUT_MS ?? ENV_TIMEOUT_MS ?? DEFAULT_SERVER_TIMEOUT_MS;
+    }
+  }
+
+  return createApiClient(serverConfig);
 }

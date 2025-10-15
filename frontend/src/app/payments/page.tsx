@@ -1,12 +1,14 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { PaymentsTable } from "@/components/payments/PaymentsTable";
+import { getServerApiClient } from "@/lib/api/client";
 import { paymentsQueryOptions } from "@/lib/api/queries";
 
 export const revalidate = 0;
 
 export default async function PaymentsPage() {
   const queryClient = new QueryClient();
-  await queryClient.prefetchQuery(paymentsQueryOptions());
+  const serverApiClient = getServerApiClient();
+  await queryClient.prefetchQuery(paymentsQueryOptions(undefined, serverApiClient));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

@@ -2,6 +2,7 @@ import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query
 import { AuditLog } from "@/components/admin/AuditLog";
 import { DictionaryEditor } from "@/components/admin/DictionaryEditor";
 import { UserManagement } from "@/components/admin/UserManagement";
+import { getServerApiClient } from "@/lib/api/client";
 import {
   adminAuditLogQueryOptions,
   adminDictionariesQueryOptions,
@@ -13,12 +14,13 @@ export const revalidate = 0;
 
 export default async function AdminPage() {
   const queryClient = new QueryClient();
+  const serverApiClient = getServerApiClient();
 
   await Promise.all([
-    queryClient.prefetchQuery(adminRolesQueryOptions()),
-    queryClient.prefetchQuery(adminUsersQueryOptions()),
-    queryClient.prefetchQuery(adminDictionariesQueryOptions()),
-    queryClient.prefetchQuery(adminAuditLogQueryOptions()),
+    queryClient.prefetchQuery(adminRolesQueryOptions(serverApiClient)),
+    queryClient.prefetchQuery(adminUsersQueryOptions(undefined, serverApiClient)),
+    queryClient.prefetchQuery(adminDictionariesQueryOptions(undefined, serverApiClient)),
+    queryClient.prefetchQuery(adminAuditLogQueryOptions(undefined, serverApiClient)),
   ]);
 
   return (

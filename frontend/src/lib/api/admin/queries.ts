@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
+import { apiClient, type ApiClient } from "@/lib/api/client";
 import type {
   AdminAuditFilters,
   AdminDictionaryFilters,
@@ -93,35 +93,38 @@ function sanitizeAdminAuditFilters(filters?: AdminAuditFilters): AdminAuditFilte
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-export const adminRolesQueryOptions = () =>
+export const adminRolesQueryOptions = (client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["admin", "roles"] as const,
-    queryFn: () => apiClient.getAdminRoles(),
+    queryFn: () => client.getAdminRoles(),
   });
 
-export const adminUsersQueryOptions = (filters?: AdminUserFilters) => {
+export const adminUsersQueryOptions = (filters?: AdminUserFilters, client: ApiClient = apiClient) => {
   const sanitized = sanitizeAdminUserFilters(filters);
 
   return queryOptions({
     queryKey: ["admin", "users", sanitized ?? emptyObject] as const,
-    queryFn: () => apiClient.getAdminUsers(sanitized),
+    queryFn: () => client.getAdminUsers(sanitized),
   });
 };
 
-export const adminDictionariesQueryOptions = (filters?: AdminDictionaryFilters) => {
+export const adminDictionariesQueryOptions = (
+  filters?: AdminDictionaryFilters,
+  client: ApiClient = apiClient,
+) => {
   const sanitized = sanitizeAdminDictionaryFilters(filters);
 
   return queryOptions({
     queryKey: ["admin", "dictionaries", sanitized ?? emptyObject] as const,
-    queryFn: () => apiClient.getAdminDictionaries(sanitized),
+    queryFn: () => client.getAdminDictionaries(sanitized),
   });
 };
 
-export const adminAuditLogQueryOptions = (filters?: AdminAuditFilters) => {
+export const adminAuditLogQueryOptions = (filters?: AdminAuditFilters, client: ApiClient = apiClient) => {
   const sanitized = sanitizeAdminAuditFilters(filters);
 
   return queryOptions({
     queryKey: ["admin", "audit", sanitized ?? emptyObject] as const,
-    queryFn: () => apiClient.getAdminAuditLog(sanitized),
+    queryFn: () => client.getAdminAuditLog(sanitized),
   });
 };

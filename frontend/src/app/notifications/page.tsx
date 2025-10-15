@@ -3,6 +3,7 @@ import { NotificationFeed } from "@/components/notifications/NotificationFeed";
 import { NotificationsHeader } from "@/components/notifications/NotificationsHeader";
 import { DeliverySettingsPanel } from "@/components/notifications/DeliverySettingsPanel";
 import { EventJournal } from "@/components/notifications/EventJournal";
+import { getServerApiClient } from "@/lib/api/client";
 import {
   notificationJournalQueryOptions,
   notificationsFeedQueryOptions,
@@ -12,13 +13,20 @@ export const revalidate = 0;
 
 export default async function NotificationsPage() {
   const queryClient = new QueryClient();
+  const serverApiClient = getServerApiClient();
 
   await Promise.all([
     queryClient.prefetchQuery(
-      notificationsFeedQueryOptions({ status: "all", source: "all", category: "all", search: "" }),
+      notificationsFeedQueryOptions(
+        { status: "all", source: "all", category: "all", search: "" },
+        serverApiClient,
+      ),
     ),
     queryClient.prefetchQuery(
-      notificationJournalQueryOptions({ severity: "all", source: "all", category: "all", search: "" }),
+      notificationJournalQueryOptions(
+        { severity: "all", source: "all", category: "all", search: "" },
+        serverApiClient,
+      ),
     ),
   ]);
 

@@ -1,6 +1,7 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { HomeDealFunnelBoard } from "@/components/deals/HomeDealFunnelBoard";
 import { TaskList } from "@/components/tasks/TaskList";
+import { getServerApiClient } from "@/lib/api/client";
 import { dealsQueryOptions, tasksQueryOptions } from "@/lib/api/queries";
 import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
 import Link from "next/link";
@@ -10,10 +11,11 @@ export const revalidate = 0;
 export default async function HomePage() {
   const queryClient = new QueryClient();
   const defaultFilters = createDefaultDealFilters();
+  const serverApiClient = getServerApiClient();
 
   await Promise.all([
-    queryClient.prefetchQuery(dealsQueryOptions(defaultFilters)),
-    queryClient.prefetchQuery(tasksQueryOptions()),
+    queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient)),
+    queryClient.prefetchQuery(tasksQueryOptions(serverApiClient)),
   ]);
 
   return (
