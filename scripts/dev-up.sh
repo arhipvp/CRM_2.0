@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 INFRA_DIR="${ROOT_DIR}/infra"
 ENV_FILE="${ROOT_DIR}/.env"
+COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 LOG_PREFIX="[dev-up]"
 
 log_info() {
@@ -71,7 +72,7 @@ fi
 if [[ "${skip_frontend}" == "false" ]]; then
   log_info "Запуск фронтенда в Docker Compose"
   (
-    cd "${INFRA_DIR}" && docker compose --profile app up -d frontend
+    cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" --profile app up -d frontend
   )
 else
   log_warn "Пропущен запуск фронтенда (--skip-frontend)"

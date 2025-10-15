@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 INFRA_DIR="${ROOT_DIR}/infra"
 ENV_FILE="${ROOT_DIR}/.env"
+COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
 LOG_PREFIX="[bootstrap-local]"
 
@@ -174,13 +175,15 @@ step_sync_env() {
 }
 
 step_compose_up() {
-  (cd "${INFRA_DIR}" && docker compose up -d)
+  (
+    cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" up -d
+  )
 }
 
 step_wait_infra() {
   (
     cd "${INFRA_DIR}" || return 1
-    if docker compose wait >/dev/null 2>&1; then
+    if "${COMPOSE_CMD[@]}" wait >/dev/null 2>&1; then
       echo "docker compose wait завершён успешно"
       return 0
     fi
@@ -192,7 +195,7 @@ step_wait_infra() {
     local ps_output=""
 
     while (( attempt < max_attempts )); do
-      if ! ps_output=$(docker compose ps); then
+      if ! ps_output=$("${COMPOSE_CMD[@]}" ps); then
         sleep "$sleep_seconds"
         attempt=$((attempt + 1))
         continue
@@ -222,7 +225,7 @@ step_wait_infra() {
     done
 
     echo "Истёк таймаут ожидания готовности контейнеров" >&2
-    docker compose ps
+    "${COMPOSE_CMD[@]}" ps
     return 1
   )
 }
@@ -236,7 +239,9 @@ step_migrate() {
 }
 
 step_start_frontend() {
-  (cd "${INFRA_DIR}" && docker compose --profile app up -d frontend)
+  (
+    cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" --profile app up -d frontend
+  )
 }
 
 step_load_seeds() {
