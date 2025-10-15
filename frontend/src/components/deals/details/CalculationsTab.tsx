@@ -35,6 +35,9 @@ const STATUS_TONES: Record<DealCalculationStatus, string> = {
   archived: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };
 
+const READY_CONFIRMATION_BADGE_TONE =
+  "bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/30 dark:bg-amber-400/10 dark:text-amber-200 dark:ring-amber-300/30";
+
 function formatCurrency(value: number, currency: string) {
   try {
     return new Intl.NumberFormat("ru-RU", {
@@ -306,9 +309,20 @@ export function CalculationsTab({ calculations, isLoading, error, onRetry }: Cal
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{calc.period}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_TONES[calc.status]}`}>
-                      {STATUS_LABELS[calc.status]}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_TONES[calc.status]}`}
+                      >
+                        {STATUS_LABELS[calc.status]}
+                      </span>
+                      {calc.status === "ready" ? (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${READY_CONFIRMATION_BADGE_TONE}`}
+                        >
+                          Ожидает подтверждения
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                     {calc.policyId ? (
