@@ -168,7 +168,7 @@
 Ответ возвращает объект `Calculation` со статусом `draft`.
 
 ### PATCH `/deals/{deal_id}/calculations/{calculation_id}`
-Частично обновляет расчёт. Допустимы поля из тела запроса создания; отсутствие поля означает «оставить без изменений». Передача `validity_period: null` очищает диапазон действия.
+Частично обновляет расчёт. Допустимы поля из тела запроса создания; отсутствие поля означает «оставить без изменений». Передача `validity_period: null` очищает диапазон действия. Попытка изменить расчёт в статусе `confirmed` или `archived` завершится ошибкой `400` с кодом `calculation_update_forbidden`.
 
 ### POST `/deals/{deal_id}/calculations/{calculation_id}/status`
 Меняет статус расчёта. Допустимые переходы: `draft → ready`, `ready → confirmed`, `ready → archived`, `confirmed → archived`. Архивные расчёты изменить нельзя.
