@@ -114,6 +114,8 @@ export function PaymentFormModal({
   const [recordedBy, setRecordedBy] = useState("");
   const [recordedByRole, setRecordedByRole] = useState("");
 
+  const originalCurrency = payment?.currency;
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -150,6 +152,11 @@ export function PaymentFormModal({
   }, [clientOptions, dealOptions, isOpen, mode, payment]);
 
   const isEdit = mode === "edit";
+
+  const summaryCurrency = originalCurrency ?? currency;
+  const currencyChanged = Boolean(
+    isEdit && originalCurrency && currency && originalCurrency !== currency,
+  );
 
   const changeReason = editContext?.reason ?? "";
   const reasonError = useMemo(() => {
@@ -424,34 +431,44 @@ export function PaymentFormModal({
               <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
                 <span className="block text-xs text-slate-400">Плановая сумма</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-100">
-                  {formatCurrency(editContext.summary.plannedAmount, currency)}
+                  {formatCurrency(editContext.summary.plannedAmount, summaryCurrency)}
                 </span>
               </div>
               <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
                 <span className="block text-xs text-slate-400">Фактическая сумма</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-100">
-                  {formatCurrency(editContext.summary.actualAmount, currency)}
+                  {formatCurrency(editContext.summary.actualAmount, summaryCurrency)}
                 </span>
               </div>
               <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
                 <span className="block text-xs text-slate-400">Доходы</span>
                 <span className="font-semibold text-emerald-600 dark:text-emerald-300">
-                  {formatCurrency(editContext.summary.incomesTotal, currency)}
+                  {formatCurrency(editContext.summary.incomesTotal, summaryCurrency)}
                 </span>
               </div>
               <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80">
                 <span className="block text-xs text-slate-400">Расходы</span>
                 <span className="font-semibold text-rose-600 dark:text-rose-300">
-                  {formatCurrency(editContext.summary.expensesTotal, currency)}
+                  {formatCurrency(editContext.summary.expensesTotal, summaryCurrency)}
                 </span>
               </div>
               <div className="rounded-md bg-white px-3 py-2 text-sm shadow-sm dark:bg-slate-900/80 sm:col-span-2">
                 <span className="block text-xs text-slate-400">Чистый результат</span>
                 <span className={`font-semibold ${editContext.summary.netTotal >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
-                  {formatCurrency(editContext.summary.netTotal, currency)}
+                  {formatCurrency(editContext.summary.netTotal, summaryCurrency)}
                 </span>
               </div>
             </div>
+            {isEdit ? (
+              <p className="mt-2 text-[11px] uppercase tracking-wide text-slate-400">
+                Сводка показана в валюте {summaryCurrency}
+              </p>
+            ) : null}
+            {currencyChanged ? (
+              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-200">
+                Текущие значения сводки отображаются в исходной валюте {originalCurrency}. Новая валюта {currency} будет применена после сохранения.
+              </div>
+            ) : null}
           </div>
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">История версий</h4>
@@ -481,13 +498,13 @@ export function PaymentFormModal({
                       <div>
                         <span className="block text-[11px] uppercase tracking-wide text-slate-400">Плановая сумма</span>
                         <span className="text-sm text-slate-600 dark:text-slate-200">
-                          {formatCurrency(entry.snapshot.plannedAmount, currency)}
+                          {formatCurrency(entry.snapshot.plannedAmount, summaryCurrency)}
                         </span>
                       </div>
                       <div>
                         <span className="block text-[11px] uppercase tracking-wide text-slate-400">Фактическая сумма</span>
                         <span className="text-sm text-slate-600 dark:text-slate-200">
-                          {formatCurrency(entry.snapshot.actualAmount, currency)}
+                          {formatCurrency(entry.snapshot.actualAmount, summaryCurrency)}
                         </span>
                       </div>
                       <div className="sm:col-span-2">

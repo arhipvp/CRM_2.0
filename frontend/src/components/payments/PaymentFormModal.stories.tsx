@@ -98,3 +98,42 @@ export const EditRequiresReason: Story = {
     },
   },
 };
+
+export const EditWithCurrencyChange: Story = {
+  render: () => {
+    const [reason, setReason] = useState("Корректировка валюты платежа для международного перевода.");
+
+    return (
+      <PaymentFormModal
+        mode="edit"
+        isOpen
+        onClose={() => {}}
+        onSubmit={async () => {}}
+        isSubmitting={false}
+        payment={{ ...samplePayment, currency: "RUB" }}
+        dealOptions={[{ value: samplePayment.dealId, label: samplePayment.dealName ?? samplePayment.dealId }]}
+        clientOptions={[{ value: samplePayment.clientId, label: samplePayment.clientName ?? samplePayment.clientId }]}
+        editContext={{
+          reason,
+          onReasonChange: setReason,
+          history: samplePayment.history,
+          summary: {
+            plannedAmount: samplePayment.plannedAmount,
+            actualAmount: samplePayment.actualAmount,
+            incomesTotal: samplePayment.incomesTotal,
+            expensesTotal: samplePayment.expensesTotal,
+            netTotal: samplePayment.netTotal,
+          },
+        }}
+      />
+    );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Измените валюту в выпадающем списке, чтобы увидеть уведомление о несоответствии. История и сводка остаются в исходной валюте, пока изменения не сохранены.",
+      },
+    },
+  },
+};
