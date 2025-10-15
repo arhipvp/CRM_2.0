@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 
 from .api.routes import router
@@ -11,7 +13,7 @@ from .executors.rabbitmq import build_rabbitmq_export_executor
 from .executors.redis import build_redis_backup_executor
 from .notifications import NotificationPublisher
 from .service import BackupService
-from .storage import S3Storage
+from .storage import DummyStorage, build_storage
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -20,7 +22,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Backup Service", version="0.1.0")
 
     repository_factory = RepositoryFactory(settings)
-    storage = S3Storage(settings)
+    storage = build_storage(settings)
+    if isinstance(storage, DummyStorage):
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "S3 сконфигурирован не полностью, используется DummyStorage c локальным каталогом %s",
+            settings.artifacts_dir,
+        )
     publisher = NotificationPublisher(settings)
     service = BackupService(settings, repository_factory, storage, publisher)
     service.register_executor("postgres.pg_dump", build_pg_dump_executor(settings))
