@@ -87,6 +87,24 @@ function formatDateTime(value: string | undefined) {
   }
 }
 
+function formatFileSize(size: number | undefined) {
+  if (typeof size !== "number" || Number.isNaN(size)) {
+    return "—";
+  }
+
+  const units = ["Б", "КБ", "МБ", "ГБ"] as const;
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const precision = value < 10 && unitIndex > 0 ? 1 : 0;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
 const ENTRY_STATUS_LABELS = {
   confirmed: {
     label: "Подтверждено",
@@ -285,6 +303,17 @@ export function PaymentCard({
       ? `${diffAmount > 0 ? "+" : "-"}${formatCurrency(Math.abs(diffAmount), payment.currency)}`
       : null;
 
+  const combinedAttachments = [
+    ...payment.incomes.map((entry) => ({ entry, type: "income" as const })),
+    ...payment.expenses.map((entry) => ({ entry, type: "expense" as const })),
+  ].flatMap(({ entry, type }) =>
+    entry.attachments.map((attachment) => ({
+      attachment,
+      entry,
+      type,
+    })),
+  );
+
   return (
     <article className="rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-900/70">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
@@ -418,6 +447,106 @@ export function PaymentCard({
             onDelete={onDeleteExpense}
             onConfirm={onConfirmExpense}
           />
+          <section className="space-y-3">
+            <header className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">История изменений</h4>
+            </header>
+            {payment.history.length > 0 ? (
+              <ol className="space-y-3">
+                {payment.history.map((change) => (
+                  <li
+                    key={change.id}
+                    className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-slate-700 dark:text-slate-100">
+                        {formatDateTime(change.changedAt)} • {change.changedBy}
+                      </span>
+                      <span className="text-slate-500 dark:text-slate-400">{change.reason}</span>
+                    </div>
+                    <dl className="mt-2 grid gap-2 text-[11px] text-slate-500 dark:text-slate-400 sm:grid-cols-2">
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="font-semibold text-slate-600 dark:text-slate-300">Плановая сумма</dt>
+                        <dd>{formatCurrency(change.snapshot.plannedAmount, payment.currency)}</dd>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="font-semibold text-slate-600 dark:text-slate-300">Фактическая сумма</dt>
+                        <dd>
+                          {change.snapshot.actualAmount != null
+                            ? formatCurrency(change.snapshot.actualAmount, payment.currency)
+                            : "—"}
+                        </dd>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="font-semibold text-slate-600 dark:text-slate-300">Плановая дата</dt>
+                        <dd>{formatDate(change.snapshot.plannedDate)}</dd>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="font-semibold text-slate-600 dark:text-slate-300">Фактическая дата</dt>
+                        <dd>{formatDate(change.snapshot.actualDate)}</dd>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="font-semibold text-slate-600 dark:text-slate-300">Статус</dt>
+                        <dd>{STATUS_LABELS[change.snapshot.status]?.label ?? change.snapshot.status}</dd>
+                      </div>
+                    </dl>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                История изменений пока пуста.
+              </p>
+            )}
+          </section>
+          <section className="space-y-3">
+            <header className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Связанные документы</h4>
+            </header>
+            {combinedAttachments.length > 0 ? (
+              <ul className="space-y-2">
+                {combinedAttachments.map(({ attachment, entry, type }) => {
+                  const sourceLabel = type === "income" ? "Поступление" : "Расход";
+                  return (
+                    <li
+                      key={`${entry.id}-${attachment.id}`}
+                      className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white/70 p-3 text-xs text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        {attachment.url ? (
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate font-semibold text-sky-600 hover:underline dark:text-sky-300"
+                          >
+                            {attachment.fileName}
+                          </a>
+                        ) : (
+                          <span className="block truncate font-semibold text-slate-700 dark:text-slate-100">
+                            {attachment.fileName}
+                          </span>
+                        )}
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {formatDateTime(attachment.uploadedAt)} • {attachment.uploadedBy}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Источник: {sourceLabel} • {entry.category}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                        {formatFileSize(attachment.fileSize)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                Документы ещё не прикреплены.
+              </p>
+            )}
+          </section>
         </div>
       ) : null}
     </article>
