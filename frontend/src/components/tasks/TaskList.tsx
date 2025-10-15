@@ -4,6 +4,8 @@ import { Fragment, useEffect, useMemo, useState, useId } from "react";
 import Link from "next/link";
 import {
   useBulkUpdateTasks,
+  useClients,
+  useDeals,
   useTasks,
   useToggleTask,
   useUpdateTask,
@@ -15,6 +17,7 @@ import {
   type TaskFiltersState,
   type TaskViewMode,
 } from "@/stores/tasksViewStore";
+import { TaskCreateModal } from "./TaskCreateModal";
 
 const STATUS_CONFIG: Record<
   TaskStatus,
@@ -94,9 +97,12 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
     error: bulkError,
     reset: resetBulkError,
   } = useBulkUpdateTasks();
+  const { data: dealsData } = useDeals();
+  const { data: clientsData } = useClients();
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
 
   const viewMode = useTasksViewStore((state) => state.viewMode);
   const setViewMode = useTasksViewStore((state) => state.setViewMode);
@@ -131,6 +137,25 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
       ),
     [tasks],
   );
+
+  const selectedContextTask = useMemo(() => {
+    if (selectedTaskIds.length !== 1) {
+      return undefined;
+    }
+
+    return tasks.find((task) => task.id === selectedTaskIds[0]);
+  }, [selectedTaskIds, tasks]);
+
+  const defaultOwnerForCreation = useMemo(() => {
+    if (owners.length === 1) {
+      return owners[0];
+    }
+
+    return selectedContextTask?.owner;
+  }, [owners, selectedContextTask]);
+
+  const defaultDealForCreation = selectedContextTask?.dealId;
+  const defaultClientForCreation = selectedContextTask?.clientId;
 
   const tasksByNonDateFilters = useMemo(
     () => filterTasksByAttributes(tasks, { statuses, owners, types, tags }),
@@ -282,6 +307,20 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
 
   return (
     <div className="space-y-6">
+      <TaskCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        owners={uniqueOwners}
+        deals={dealsData ?? []}
+        clients={clientsData ?? []}
+        defaultOwner={defaultOwnerForCreation}
+        defaultDealId={defaultDealForCreation}
+        defaultClientId={defaultClientForCreation}
+        onTaskCreated={(task) => {
+          setFeedback({ type: "success", message: `Задача «${task.title}» создана` });
+        }}
+      />
+
       <TaskHeader
         viewMode={viewMode}
         onChangeView={setViewMode}
@@ -297,6 +336,7 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
         owners={uniqueOwners}
         types={uniqueTypes}
         tags={uniqueTags}
+        onCreateTask={() => setCreateModalOpen(true)}
       />
 
       {feedback && (
@@ -397,6 +437,7 @@ interface TaskHeaderProps {
   owners: string[];
   types: TaskActivityType[];
   tags: string[];
+  onCreateTask: () => void;
 }
 
 function TaskHeader({
@@ -411,6 +452,7 @@ function TaskHeader({
   owners,
   types,
   tags,
+  onCreateTask,
 }: TaskHeaderProps) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
@@ -421,7 +463,17 @@ function TaskHeader({
             Отслеживайте статусы, исполнителей и дедлайны
           </p>
         </div>
-        <ViewModeToggle value={viewMode} onChange={onChangeView} />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onCreateTask}
+            className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+          >
+            <span aria-hidden="true">+</span>
+            Создать задачу
+          </button>
+          <ViewModeToggle value={viewMode} onChange={onChangeView} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
