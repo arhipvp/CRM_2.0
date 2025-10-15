@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+
 from telegram_bot.clients.auth import AuthUser
 from telegram_bot.clients.crm import CRMClient, Client, Deal
 from telegram_bot.clients.notifications import NotificationsClient

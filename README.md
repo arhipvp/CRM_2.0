@@ -39,6 +39,7 @@ CRM предназначена для небольшой команды стра
 - [`backend/payments/README.md`](backend/payments/README.md) — архивная документация прежнего отдельного сервиса, который заменён модулем платежей CRM.
   - [`backend/documents/README.md`](backend/documents/README.md) — NestJS-сервис для серверного файлового хранилища и BullMQ.【F:backend/documents/README.md†L1-L30】
   - [`backend/notifications/README.md`](backend/notifications/README.md) — SSE, очереди и отправка уведомлений.【F:backend/notifications/README.md†L1-L30】
+  - [`backend/telegram-bot/README.md`](backend/telegram-bot/README.md) — FastAPI + aiogram сервис Telegram-бота с вебхуком и интеграциями CRM/Auth/Notifications.
   - [`backend/tasks/README.md`](backend/tasks/README.md) — обработка задач и отложенных событий.【F:backend/tasks/README.md†L1-L30】
   - [`backend/reports/README.md`](backend/reports/README.md) — FastAPI-сервис Reports и инструкции по подключению к CRM/Audit.【F:backend/reports/README.md†L1-L47】
   - [`backend/audit/README.md`](backend/audit/README.md) — журналирование и агрегаты для аналитики.【F:backend/audit/README.md†L1-L30】
