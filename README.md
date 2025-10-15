@@ -8,17 +8,20 @@
 ./scripts/bootstrap-local.sh
 ```
 
-Сценарий последовательно выполняет ключевые шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и печатает агрегированную таблицу статусов:
+Сценарий последовательно выполняет ключевые шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и печатает агрегированную таблицу статусов. Перед каждым запуском Docker Compose скрипт импортирует переменные из актуального `.env`, поэтому вложенные ссылки вида `VAR=${OTHER_VAR}` раскрываются автоматически. После ручного изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы новые значения оказались в окружении контейнеров.
+
+Сценарий включает следующие этапы:
 
 1. синхронизацию `.env` через `scripts/sync-env.sh --non-interactive` (создаёт файл или обновляет значения из `env.example`, пропуская уже существующие локальные `.env` без пауз);
 2. запуск инфраструктуры `docker compose --env-file .env up -d` в каталоге `infra/`;
-3. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
-4. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
-5. миграции CRM/Auth через `scripts/migrate-local.sh`;
-6. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
+3. smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливается при обнаружении пустых значений;
+4. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
+5. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
+6. миграции CRM/Auth через `scripts/migrate-local.sh`;
+7. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
    или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
-7. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
-8. smoke-проверку окружения `scripts/check-local-infra.sh`.
+8. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
+9. smoke-проверку окружения `scripts/check-local-infra.sh`.
 
 Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому фронтенд не стартует ни на одном этапе.
 

@@ -36,6 +36,28 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+load_env() {
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    log_error "Файл окружения ${ENV_FILE} не найден. Запустите scripts/sync-env.sh и повторите попытку."
+    return 1
+  fi
+
+  set -a
+  local had_nounset=false
+  if [[ $- == *u* ]]; then
+    had_nounset=true
+    set +u
+  fi
+
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+
+  if [[ "${had_nounset}" == true ]]; then
+    set -u
+  fi
+  set +a
+}
+
 usage() {
   cat <<USAGE
 Использование: $0 [--skip-frontend]
@@ -175,12 +197,14 @@ step_sync_env() {
 }
 
 step_compose_up() {
+  load_env || return 1
   (
     cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" up -d
   )
 }
 
 step_wait_infra() {
+  load_env || return 1
   (
     cd "${INFRA_DIR}" || return 1
     if "${COMPOSE_CMD[@]}" wait >/dev/null 2>&1; then
@@ -239,9 +263,33 @@ step_migrate() {
 }
 
 step_start_frontend() {
+  load_env || return 1
   (
     cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" --profile app up -d frontend
   )
+}
+
+step_check_backup_env() {
+  load_env || return 1
+  local required=(
+    BACKUP_S3_BUCKET
+    BACKUP_S3_ACCESS_KEY
+    BACKUP_S3_SECRET_KEY
+  )
+  local missing=()
+
+  for var in "${required[@]}"; do
+    if [[ -z "${!var:-}" ]]; then
+      missing+=("$var")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    log_error "Переменные ${missing[*]} не заданы. Обновите .env (см. env.example) и перезапустите bootstrap."
+    return 1
+  fi
+
+  log_info "Ключевые BACKUP_* переменные заполнены."
 }
 
 step_load_seeds() {
@@ -266,6 +314,7 @@ main() {
   fi
 
   run_step "docker compose up -d" step_compose_up
+  run_step "Smoke-проверка BACKUP_*" step_check_backup_env
   run_step "Ожидание готовности docker compose" step_wait_infra
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
