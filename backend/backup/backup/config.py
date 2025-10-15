@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,9 +70,19 @@ class Settings(BaseSettings):
         mode="before",
     )
     @classmethod
-    def _empty_string_to_none(cls, value: Optional[str]) -> Optional[str]:
-        if isinstance(value, str) and value.strip() == "":
+    def _empty_string_to_none(
+        cls, value: Optional[str], info: ValidationInfo
+    ) -> Optional[str]:
+        if not isinstance(value, str):
+            return value
+
+        value = value.strip()
+        if value == "":
             return None
+
+        if info.field_name == "s3_endpoint_url" and not value.startswith(("http://", "https://")):
+            raise ValueError("S3 endpoint URL должен начинаться с http:// или https://")
+
         return value
 
 
