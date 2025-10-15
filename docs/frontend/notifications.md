@@ -45,7 +45,7 @@
 
 ## Реализация
 
-- Страница `/notifications` отрисовывается через SSR и предварительно прогружает данные ленты уведомлений и журнала событий через `QueryClient.prefetchQuery`. После гидратации клиентские компоненты используют те же ключи React Query, поэтому повторная загрузка не требуется.
+- Страница `/notifications` рендерится без серверного префетча. Компоненты `NotificationFeed` и `EventJournal` выполняют запросы на клиенте, показывая собственные skeleton-состояния и ошибки загрузки, поэтому отдача страницы не блокируется ожиданием REST-ответов.
 - Состояние ленты уведомлений и настроек доставки хранится в zustand-хранилище `useNotificationsStore`. В нём реализованы фильтры, выборка, операции «прочитано/важно», синхронизация каналов и интеграция с SSE.
 - Поток SSE (`SSEBridge`) конвертирует события в типизированные элементы `NotificationFeedItem`, обновляет стор и актуализирует кэш React Query (`notificationsFeedQueryKey`), чтобы новые уведомления появлялись без перезагрузки.
 - Для REST-мутаторов (`mark/read`, `important`, `delete`, `update channel`) добавлены хуки `useMarkNotificationsRead`, `useToggleNotificationsImportant`, `useDeleteNotifications`, `useUpdateNotificationChannel`, которые синхронно обновляют zustand и кэш запросов.

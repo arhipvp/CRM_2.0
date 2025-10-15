@@ -1,4 +1,3 @@
-import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { AuditLog } from "@/components/admin/AuditLog";
 import { DictionaryEditor } from "@/components/admin/DictionaryEditor";
 import { UserManagement } from "@/components/admin/UserManagement";
@@ -24,12 +23,10 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <div className="space-y-8 pb-12">
-        <UserManagement />
-        <DictionaryEditor />
-        <AuditLog />
-      </div>
-    </HydrationBoundary>
+    <main className="space-y-8 pb-12">
+      <UserManagement />
+      <DictionaryEditor />
+      <AuditLog />
+    </main>
   );
 }

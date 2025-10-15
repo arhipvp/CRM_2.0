@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { ClientWorkspace } from "@/components/clients/ClientWorkspace";
 import { getServerApiClient } from "@/lib/api/client";
 import {
@@ -40,10 +40,8 @@ export default async function ClientPage({ params }: ClientPageProps) {
   ]);
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-        <ClientWorkspace clientId={clientId} />
-      </main>
-    </HydrationBoundary>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
+      <ClientWorkspace clientId={clientId} />
+    </main>
   );
 }
