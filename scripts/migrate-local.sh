@@ -8,7 +8,15 @@ fi
 
 # Загружаем переменные окружения из .env
 set -a
+nounset_was_set=0
+if [[ $- == *u* ]]; then
+  nounset_was_set=1
+  set +u
+fi
 source .env
+if (( nounset_was_set )); then
+  set -u
+fi
 set +a
 
 ROOT_DIR=$(pwd)
