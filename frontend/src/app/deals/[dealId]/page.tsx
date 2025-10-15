@@ -3,9 +3,7 @@ import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query
 import { DealDetails } from "@/components/deals/DealDetails";
 import { dealDetailsQueryOptions } from "@/lib/api/queries";
 
-interface DealPageProps {
-  params: { dealId: string };
-}
+type DealPageProps = PageProps<"/deals/[dealId]">;
 
 export const revalidate = 0;
 

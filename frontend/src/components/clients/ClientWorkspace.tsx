@@ -115,8 +115,15 @@ function initialPolicyForm(policy?: ClientPolicy): PolicyFormState {
   };
 }
 
-function sanitizeContactsPayload(client: Client | undefined, payload: { email: string; phone: string }): UpdateClientContactsPayload {
-  const contacts = [...(client?.contacts ?? [])];
+type ContactInput = NonNullable<UpdateClientContactsPayload["contacts"]>[number];
+
+function sanitizeContactsPayload(
+  client: Client | undefined,
+  payload: { email: string; phone: string },
+): UpdateClientContactsPayload {
+  const contacts: ContactInput[] = (client?.contacts ?? []).map((contact) => ({
+    ...contact,
+  }));
   const emailIndex = contacts.findIndex((item) => item.type === "email");
   const phoneIndex = contacts.findIndex((item) => item.type === "phone");
 

@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { QueryKey, QueryObserverOptions } from "@tanstack/react-query";
 import { AuditLog } from "./AuditLog";
 import { adminAuditLogMock } from "@/mocks/data";
 import { adminAuditLogQueryOptions } from "@/lib/api/admin/queries";
 import { useAdminFiltersStore } from "@/stores/adminFiltersStore";
 import { useAdminAccessStore } from "@/stores/adminAccessStore";
+import type { AdminAuditLogEntry } from "@/types/admin";
 
 const meta: Meta<typeof AuditLog> = {
   title: "Admin/AuditLog",
@@ -32,16 +34,22 @@ function resetStores() {
   useAdminAccessStore.getState().setPermissions(["view:audit", "export:audit", "manage:users", "manage:dictionaries"]);
 }
 
+type AdminAuditLogData = AdminAuditLogEntry[];
+
 function AuditLogStoryState({ scenario }: { scenario: "default" | "empty" | "loading" | "error" }) {
   const client = useQueryClient();
 
   useEffect(() => {
-    const queryKey = adminAuditLogQueryOptions().queryKey;
-    const defaultFn = adminAuditLogQueryOptions().queryFn;
+    const baseQueryOptions = adminAuditLogQueryOptions();
+    const queryKey = baseQueryOptions.queryKey as QueryKey;
+    const defaultOptions = {
+      ...baseQueryOptions,
+      queryKey,
+    } as unknown as QueryObserverOptions<AdminAuditLogData, Error>;
     resetStores();
 
     client.removeQueries({ queryKey });
-    client.setQueryDefaults(queryKey, { queryFn: defaultFn });
+    client.setQueryDefaults(queryKey, defaultOptions);
 
     switch (scenario) {
       case "default": {
@@ -53,19 +61,31 @@ function AuditLogStoryState({ scenario }: { scenario: "default" | "empty" | "loa
         break;
       }
       case "loading": {
-        client.setQueryDefaults(queryKey, { queryFn: () => new Promise<never>(() => {}) });
+        client.setQueryDefaults(
+          queryKey,
+          {
+            ...defaultOptions,
+            queryFn: () => new Promise<never>(() => {}),
+          } as QueryObserverOptions<AdminAuditLogData, Error>,
+        );
         client.invalidateQueries({ queryKey });
         break;
       }
       case "error": {
-        client.setQueryDefaults(queryKey, { queryFn: () => Promise.reject(new Error("Ошибка загрузки аудита")) });
+        client.setQueryDefaults(
+          queryKey,
+          {
+            ...defaultOptions,
+            queryFn: () => Promise.reject(new Error("Ошибка загрузки аудита")),
+          } as QueryObserverOptions<AdminAuditLogData, Error>,
+        );
         client.invalidateQueries({ queryKey });
         break;
       }
     }
 
     return () => {
-      client.setQueryDefaults(queryKey, { queryFn: defaultFn });
+      client.setQueryDefaults(queryKey, defaultOptions);
       client.removeQueries({ queryKey });
     };
   }, [client, scenario]);
