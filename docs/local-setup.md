@@ -10,18 +10,21 @@
 
 > ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2. Bootstrap-скрипты корректно работают и с устаревшими инсталляциями Docker Compose без поддержки `docker compose ps --format json`, однако рекомендуется обновиться до Compose V2, чтобы сохранить совместимость с инфраструктурными сценариями и профилями.
 
-Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры и автоматически поднимает фронтенд. Сценарий последовательно запускает:
+Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры и автоматически поднимает фронтенд. Перед запуском Docker Compose он импортирует переменные из актуального `.env`, поэтому вложенные ссылки (`VAR=${OTHER_VAR}`) подставляются автоматически. После изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы обновлённые значения попали в контейнеры и дочерние процессы.
+
+Сценарий последовательно запускает:
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизацию `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
 2. `docker compose --env-file .env up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов с подстановкой значений из актуального корневого `.env`.
-3. ожидание готовности контейнеров через healthcheck (используется `docker compose ps --format json`, а при отсутствии этой опции — табличный вывод старых версий Compose).
-4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
-5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
-6. `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
-7. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
-8. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
+3. Smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливает bootstrap при обнаружении пустых значений.
+4. ожидание готовности контейнеров через healthcheck (используется `docker compose ps --format json`, а при отсутствии этой опции — табличный вывод старых версий Compose).
+5. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
+6. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
+7. `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
+8. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
+9. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
 
-Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому контейнер фронтенда не стартует. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --env-file .env --profile app up -d frontend` в `infra/`.
+Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому контейнер фронтенда не стартует. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --env-file .env --profile app up -d frontend` в `infra/`. После ручного редактирования `.env` обязательно перезапустите bootstrap, чтобы переменные снова экспортировались и попали в Docker Compose.
 
 > ℹ️ Все инфраструктурные скрипты и команды Docker Compose теперь вызываются с `--env-file .env`, поэтому важно поддерживать корневой `.env` в актуальном состоянии: новые переменные следует подтягивать через `scripts/sync-env.sh`, а значения секретов обновлять вручную.
 

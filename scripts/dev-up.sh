@@ -21,6 +21,28 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+load_env() {
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    log_error "Файл окружения ${ENV_FILE} не найден. Запустите scripts/sync-env.sh и повторите попытку."
+    return 1
+  fi
+
+  set -a
+  local had_nounset=false
+  if [[ $- == *u* ]]; then
+    had_nounset=true
+    set +u
+  fi
+
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+
+  if [[ "${had_nounset}" == true ]]; then
+    set -u
+  fi
+  set +a
+}
+
 usage() {
   cat <<USAGE
 Использование: $0 [--open-browser|--no-browser] [--skip-frontend]
@@ -71,6 +93,7 @@ fi
 
 if [[ "${skip_frontend}" == "false" ]]; then
   log_info "Запуск фронтенда в Docker Compose"
+  load_env || exit 1
   (
     cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" --profile app up -d frontend
   )
