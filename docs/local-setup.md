@@ -58,9 +58,10 @@
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
 | 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
 | 6. Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
-| 7. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
-| 8. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
-| 9. Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
+| 7. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture/bot.md†L1-L36】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
+| 8. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
+| 9. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
+| 10. Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
