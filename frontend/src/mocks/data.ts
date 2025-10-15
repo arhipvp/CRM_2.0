@@ -8,6 +8,11 @@ import {
   Payment,
   Task,
 } from "@/types/crm";
+import {
+  NotificationChannelState,
+  NotificationEventEntry,
+  NotificationFeedItem,
+} from "@/types/notifications";
 
 export const dealNotesMock: DealNote[] = [
   {
@@ -44,6 +49,182 @@ export const dealDocumentsMock: DealDocument[] = [
     fileSize: 92_000,
     uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
     uploadedBy: "Мария Орлова",
+  },
+];
+
+const notificationNow = new Date();
+
+function subtractMinutes(minutes: number) {
+  return new Date(notificationNow.getTime() - minutes * 60_000).toISOString();
+}
+
+export const notificationFeedMock: NotificationFeedItem[] = [
+  {
+    id: "notification-1",
+    title: "Новый комментарий в сделке",
+    message: "Анна Савельева оставила заметку в сделке «Корпоративная страховка».",
+    createdAt: subtractMinutes(12),
+    source: "crm",
+    category: "deal",
+    tags: ["Заметка", "Корпоративная страховка"],
+    context: {
+      dealId: "deal-1",
+      link: {
+        href: "/deals/deal-1",
+        label: "Открыть сделку",
+      },
+    },
+    channels: ["sse"],
+    deliveryStatus: "delivered",
+    read: false,
+    important: true,
+  },
+  {
+    id: "notification-2",
+    title: "Просроченный платёж",
+    message: "Платёж по сделке «Обновление полиса КАСКО» просрочен на 3 дня.",
+    createdAt: subtractMinutes(48),
+    source: "payments",
+    category: "payment",
+    tags: ["Платежи", "Просрочено"],
+    context: {
+      dealId: "deal-2",
+      link: {
+        href: "/payments?dealId=deal-2",
+        label: "Посмотреть платёж",
+      },
+    },
+    channels: ["sse", "telegram"],
+    deliveryStatus: "failed",
+    read: false,
+    important: true,
+  },
+  {
+    id: "notification-3",
+    title: "Новая задача",
+    message: "Назначена задача «Подготовить КП» по клиенту ООО «Альфа Логистик».",
+    createdAt: subtractMinutes(90),
+    source: "crm",
+    category: "task",
+    tags: ["Задачи"],
+    context: {
+      clientId: "client-1",
+      link: {
+        href: "/tasks",
+        label: "Перейти к задачам",
+      },
+    },
+    channels: ["sse"],
+    deliveryStatus: "delivered",
+    read: true,
+    important: false,
+  },
+  {
+    id: "notification-4",
+    title: "Обновление политики безопасности",
+    message: "Система безопасности CRM обновила список разрешений для роли «Менеджер».",
+    createdAt: subtractMinutes(240),
+    source: "system",
+    category: "security",
+    tags: ["Безопасность"],
+    channels: ["sse"],
+    deliveryStatus: "delivered",
+    read: true,
+    important: false,
+  },
+  {
+    id: "notification-5",
+    title: "Успешная отправка в Telegram",
+    message: "Уведомление о продлении ДМС доставлено в канал Telegram",
+    createdAt: subtractMinutes(360),
+    source: "system",
+    category: "system",
+    tags: ["Интеграции"],
+    channels: ["sse", "telegram"],
+    deliveryStatus: "delivered",
+    read: true,
+    important: false,
+  },
+];
+
+export const notificationChannelSettingsMock: NotificationChannelState[] = [
+  {
+    channel: "sse",
+    label: "Встроенный канал (браузер)",
+    description: "Обновления в реальном времени через SSE без дополнительных настроек.",
+    enabled: true,
+    editable: false,
+    lastChangedAt: subtractMinutes(5),
+  },
+  {
+    channel: "telegram",
+    label: "Telegram",
+    description: "Пересылать критичные уведомления в корпоративный канал Telegram.",
+    enabled: false,
+    editable: true,
+    lastChangedAt: subtractMinutes(120),
+  },
+];
+
+export const notificationEventJournalMock: NotificationEventEntry[] = [
+  {
+    id: "event-1",
+    timestamp: subtractMinutes(8),
+    actor: "Анна Савельева",
+    summary: "Изменила этап сделки «Корпоративная страховка» на 'Переговоры'",
+    source: "crm",
+    category: "deal",
+    severity: "info",
+    tags: ["Изменение этапа"],
+    metadata: {
+      dealId: "deal-1",
+    },
+  },
+  {
+    id: "event-2",
+    timestamp: subtractMinutes(55),
+    actor: "Сервис платежей",
+    summary: "Платёж #PAY-2042 помечен как просроченный",
+    source: "payments",
+    category: "payment",
+    severity: "warning",
+    tags: ["Просрочено"],
+    metadata: {
+      dealId: "deal-2",
+    },
+  },
+  {
+    id: "event-3",
+    timestamp: subtractMinutes(180),
+    actor: "Система безопасности",
+    summary: "Пользователь Алексей Романов получил роль «Администратор»",
+    source: "system",
+    category: "security",
+    severity: "error",
+    tags: ["Доступ"],
+  },
+  {
+    id: "event-4",
+    timestamp: subtractMinutes(260),
+    actor: "Сервис уведомлений",
+    summary: "Пересылает уведомления о платежах в Telegram",
+    source: "system",
+    category: "system",
+    severity: "info",
+    tags: ["Интеграции"],
+  },
+  {
+    id: "event-5",
+    timestamp: subtractMinutes(400),
+    actor: "Мария Орлова",
+    summary: "Создала задачу «Подготовить КП» для клиента ООО «Альфа Логистик»",
+    source: "crm",
+    category: "task",
+    severity: "info",
+    tags: ["Задачи"],
+    metadata: {
+      clientId: "client-1",
+    },
   },
 ];
 

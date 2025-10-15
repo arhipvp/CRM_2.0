@@ -43,6 +43,19 @@
 - Все уведомления попадают в `aria-live="polite"`, приоритетные — в `aria-live="assertive"`.
 - Настройки имеют понятные подписи и описания, доступные screen reader'у.
 
+## Реализация
+
+- Страница `/notifications` отрисовывается через SSR и предварительно прогружает данные ленты уведомлений и журнала событий через `QueryClient.prefetchQuery`. После гидратации клиентские компоненты используют те же ключи React Query, поэтому повторная загрузка не требуется.
+- Состояние ленты уведомлений и настроек доставки хранится в zustand-хранилище `useNotificationsStore`. В нём реализованы фильтры, выборка, операции «прочитано/важно», синхронизация каналов и интеграция с SSE.
+- Поток SSE (`SSEBridge`) конвертирует события в типизированные элементы `NotificationFeedItem`, обновляет стор и актуализирует кэш React Query (`notificationsFeedQueryKey`), чтобы новые уведомления появлялись без перезагрузки.
+- Для REST-мутаторов (`mark/read`, `important`, `delete`, `update channel`) добавлены хуки `useMarkNotificationsRead`, `useToggleNotificationsImportant`, `useDeleteNotifications`, `useUpdateNotificationChannel`, которые синхронно обновляют zustand и кэш запросов.
+- UI разбит на независимые компоненты: `NotificationsHeader`, `NotificationFeed`, `DeliverySettingsPanel`, `EventJournal`. Для Storybook экспортированы состояния «загрузка», «пусто», «ошибка», чтобы демонстрировать ключевые сценарии без обращения к API.
+- Журнал событий использует локальные фильтры, поддерживает пакетные действия и выводит статусные бейджи с текстовыми обозначениями для соответствия требованиям доступности.
+
+## Changelog
+
+- 2024-12-05 — добавлен экран «Уведомления и журнал», zustand-хранилище уведомлений и сценарии Storybook/ Vitest для основных состояний.
+
 ## Инфраструктурные зависимости и запуск backend-сервиса
 
 - SSE-канал `/notifications/stream` обслуживается сервисом Notifications (NestJS). Для локальной разработки запустите `pnpm start:dev` в `backend/notifications` — эндпоинт отдаёт `text/event-stream` и пересылает события, поступающие из RabbitMQ или REST-хука `/notifications/events`.

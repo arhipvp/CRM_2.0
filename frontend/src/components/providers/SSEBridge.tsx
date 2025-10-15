@@ -8,9 +8,12 @@ import {
   dealStageMetricsQueryKey,
   dealsQueryKey,
   paymentsQueryOptions,
+  notificationsFeedQueryKey,
 } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
+import { useNotificationsStore } from "@/stores/notificationsStore";
+import type { NotificationChannel, NotificationFeedItem, NotificationFeedResponse } from "@/types/notifications";
 
 type StreamHandlers = Parameters<typeof useEventStream>[1];
 
@@ -35,23 +38,139 @@ function normalizeUrl(value?: string | null) {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeNotificationSource(value?: string): NotificationFeedItem["source"] {
+  const normalized = value?.trim().toLowerCase();
+  switch (normalized) {
+    case "crm":
+    case "deals":
+      return "crm";
+    case "payments":
+    case "payment":
+      return "payments";
+    default:
+      return "system";
+  }
+}
+
+function normalizeNotificationCategory(value?: string): NotificationFeedItem["category"] {
+  const normalized = value?.trim().toLowerCase();
+  switch (normalized) {
+    case "deal":
+    case "crm":
+    case "sales":
+      return "deal";
+    case "task":
+    case "tasks":
+      return "task";
+    case "payment":
+    case "payments":
+      return "payment";
+    case "security":
+    case "access":
+      return "security";
+    default:
+      return "system";
+  }
+}
+
+function normalizeNotificationChannels(value?: string | string[]): NotificationFeedItem["channels"] {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  const channels = new Set<NotificationChannel>();
+
+  for (const channel of raw) {
+    const normalized = channel.trim().toLowerCase();
+    if (normalized === "telegram") {
+      channels.add("telegram");
+    }
+
+    if (["sse", "web", "browser", "inbox"].includes(normalized)) {
+      channels.add("sse");
+    }
+  }
+
+  if (channels.size === 0) {
+    channels.add("sse");
+  }
+
+  return Array.from(channels);
+}
+
+function normalizeNotificationContext(
+  context: Pick<NotificationFeedItem, "context">["context"] & {
+    dealId?: string;
+    clientId?: string;
+    link?: { href?: string; label?: string };
+  },
+): NotificationFeedItem["context"] | undefined {
+  const dealId = context.dealId?.trim();
+  const clientId = context.clientId?.trim();
+  const href = context.link?.href?.trim();
+
+  if (!dealId && !clientId && !href) {
+    return undefined;
+  }
+
+  return {
+    dealId: dealId || undefined,
+    clientId: clientId || undefined,
+    link: href
+      ? {
+          href,
+          label: context.link?.label,
+        }
+      : undefined,
+  };
+}
+
+function normalizeDeliveryStatus(value?: string): NotificationFeedItem["deliveryStatus"] {
+  const normalized = value?.trim().toLowerCase();
+  switch (normalized) {
+    case "failed":
+    case "error":
+    case "undelivered":
+      return "failed";
+    case "pending":
+    case "retry":
+      return "pending";
+    default:
+      return "delivered";
+  }
+}
+
 interface CrmEventPayload {
   id?: string;
   message?: string;
   dealId?: string;
   deal_id?: string;
+  clientId?: string;
+  client_id?: string;
   type?: string;
   level?: "info" | "success" | "warning" | "error";
 }
 
 interface NotificationPayload extends CrmEventPayload {
   title?: string;
+  category?: string;
+  source?: string;
+  channels?: string | string[];
+  important?: boolean;
+  read?: boolean;
+  createdAt?: string;
+  created_at?: string;
+  tags?: string[];
+  deliveryStatus?: string;
+  delivery_status?: string;
+  link?: {
+    href?: string;
+    label?: string;
+  };
 }
 
 function parsePayload(event: MessageEvent<string>): CrmEventPayload {
   try {
     const parsed = JSON.parse(event.data) as CrmEventPayload & {
       deal_id?: string | null;
+      client_id?: string | null;
     };
 
     if (parsed && typeof parsed === "object") {
@@ -70,6 +189,11 @@ function parsePayload(event: MessageEvent<string>): CrmEventPayload {
       return {
         ...parsed,
         dealId: normalizedDealId,
+        clientId:
+          parsed.clientId ??
+          (typeof parsed.client_id === "string" && parsed.client_id.trim().length > 0
+            ? parsed.client_id.trim()
+            : undefined),
       };
     }
 
@@ -95,6 +219,7 @@ export function SSEBridge({
   const highlightDeal = useUiStore((state) => state.highlightDeal);
   const markDealUpdated = useUiStore((state) => state.markDealUpdated);
   const queryClient = useQueryClient();
+  const ingestNotification = useNotificationsStore((state) => state.ingestNotification);
 
   const [crmStreamEnabled, setCrmStreamEnabled] = useState(true);
   const [notificationsStreamEnabled, setNotificationsStreamEnabled] = useState(true);
@@ -173,15 +298,56 @@ export function SSEBridge({
   const handleNotificationMessage = useCallback(
     (event: MessageEvent<string>) => {
       const payload = parsePayload(event) as NotificationPayload;
+      const now = new Date().toISOString();
+      const id = payload.id ?? createRandomId();
+
+      const notification: NotificationFeedItem = {
+        id,
+        title: payload.title ?? payload.message ?? "Новое уведомление",
+        message: payload.message ?? payload.title ?? "",
+        createdAt: payload.createdAt ?? payload.created_at ?? now,
+        source: normalizeNotificationSource(payload.source),
+        category: normalizeNotificationCategory(payload.category),
+        tags: payload.tags?.filter(Boolean),
+        context: normalizeNotificationContext({
+          dealId: payload.dealId,
+          clientId: payload.clientId,
+          link: payload.link,
+        }),
+        channels: normalizeNotificationChannels(payload.channels),
+        deliveryStatus: normalizeDeliveryStatus(payload.deliveryStatus ?? payload.delivery_status),
+        read: Boolean(payload.read),
+        important: Boolean(payload.important),
+      };
+
+      ingestNotification(notification);
+      queryClient.setQueriesData({ queryKey: notificationsFeedQueryKey }, (data: NotificationFeedResponse | undefined) => {
+        if (!data) {
+          return data;
+        }
+
+        const exists = data.items.some((item) => item.id === notification.id);
+        const items = exists
+          ? data.items.map((item) => (item.id === notification.id ? notification : item))
+          : [notification, ...data.items];
+        const unreadCount = items.filter((item) => !item.read).length;
+
+        return {
+          ...data,
+          items,
+          unreadCount,
+        } satisfies NotificationFeedResponse;
+      });
+
       pushNotification({
-        id: payload.id ?? createRandomId(),
+        id,
         message: payload.message ?? payload.title ?? "Новое уведомление",
         type: payload.level ?? "info",
-        timestamp: new Date().toISOString(),
+        timestamp: now,
         source: "notifications",
       });
     },
-    [pushNotification],
+    [ingestNotification, pushNotification, queryClient],
   );
 
   const handleNotificationsError = useCallback((event: Event) => {
