@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings, description="Настройки планировщика")
 
     health_timeout_seconds: float = Field(default=2.0, description="Таймаут проверок здоровья зависимостей")
+
+    @field_validator("s3_endpoint_url", mode="before")
+    @classmethod
+    def _empty_string_to_none(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
 
 
 @lru_cache
