@@ -1,6 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import React from "react";
 
 import { DealDetails } from "@/components/deals/DealDetails";
 import { OverviewTab } from "@/components/deals/details/OverviewTab";
