@@ -7,7 +7,7 @@ from backup.config import Settings
 from backup.storage import DummyStorage, S3Storage, build_storage
 
 
-def _build_settings(**overrides: object) -> Settings:
+def _settings_payload(**overrides: object) -> dict[str, object]:
     base = {
         "database_url": "postgresql://user:pass@localhost:5432/db",
         "s3_access_key": "access",
@@ -21,7 +21,11 @@ def _build_settings(**overrides: object) -> Settings:
         "rabbitmq_admin_password": "guest",
     }
     base.update(overrides)
-    return Settings(**base)
+    return base
+
+
+def _build_settings(**overrides: object) -> Settings:
+    return Settings(**_settings_payload(**overrides))
 
 
 def test_s3_storage_uses_none_endpoint_when_not_provided(monkeypatch) -> None:
@@ -75,8 +79,42 @@ def test_build_storage_returns_s3_when_all_params_present(monkeypatch) -> None:
     assert created_clients, "Ожидали создание клиента S3"
 
 
-def test_build_storage_returns_dummy_when_params_missing() -> None:
-    settings = _build_settings(s3_endpoint_url=None, s3_access_key="", s3_secret_key="")
+def test_settings_normalize_empty_s3_values_to_none() -> None:
+    settings = Settings(
+        **_settings_payload(s3_access_key="", s3_secret_key="  ", s3_bucket=""),
+    )
+
+    assert settings.s3_access_key is None
+    assert settings.s3_secret_key is None
+    assert settings.s3_bucket is None
+
+
+def test_settings_use_none_when_s3_fields_absent() -> None:
+    payload = _settings_payload()
+    payload.pop("s3_access_key")
+    payload.pop("s3_secret_key")
+    payload.pop("s3_bucket")
+
+    settings = Settings(**payload)
+
+    assert settings.s3_access_key is None
+    assert settings.s3_secret_key is None
+    assert settings.s3_bucket is None
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"s3_access_key": None},
+        {"s3_secret_key": None},
+        {"s3_bucket": None},
+        {"s3_access_key": "", "s3_secret_key": "secret"},
+        {"s3_secret_key": "", "s3_access_key": "access"},
+        {"s3_bucket": ""},
+    ],
+)
+def test_build_storage_returns_dummy_when_s3_params_missing(overrides: dict[str, object]) -> None:
+    settings = _build_settings(**overrides)
 
     storage = build_storage(settings)
 

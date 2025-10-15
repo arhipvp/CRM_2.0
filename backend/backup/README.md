@@ -17,9 +17,9 @@
 |------------|------------|
 | `BACKUP_DATABASE_URL` | PostgreSQL DSN для хранения заданий и истории |
 | `BACKUP_POSTGRES_BACKUP_DSN` | DSN целевого кластера PostgreSQL для `pg_dump`/`pg_basebackup` |
-| `BACKUP_S3_ENDPOINT_URL` | endpoint S3 (обязателен для включения `S3Storage`) |
-| `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | креды доступа к бакету (обязательны для `S3Storage`) |
-| `BACKUP_S3_BUCKET` | имя бакета для артефактов |
+| `BACKUP_S3_ENDPOINT_URL` | endpoint S3 (опционально; при пустом значении используется `DummyStorage`) |
+| `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | креды доступа к бакету (оставьте пустыми или удалите, чтобы выключить `S3Storage`) |
+| `BACKUP_S3_BUCKET` | имя бакета для артефактов (пустое значение отключает `S3Storage`) |
 | `BACKUP_ARTIFACTS_DIR` | локальный каталог для временных артефактов и `DummyStorage` |
 | `BACKUP_RABBITMQ_URL` | AMQP URL для публикации уведомлений |
 | `BACKUP_RABBITMQ_MANAGEMENT_URL` | HTTP-URL RabbitMQ для экспорта через `rabbitmqadmin` |
@@ -38,7 +38,8 @@ poetry run uvicorn backup.main:create_app --factory --reload --port 8094
 
 Перед запуском убедитесь, что заданы переменные окружения `BACKUP_*` (можно воспользоваться `.env`).
 Если параметры S3 (endpoint, bucket и ключи) отсутствуют или пустые, сервис автоматически переключится на
-`DummyStorage` и будет складывать файлы в `BACKUP_ARTIFACTS_DIR`.
+`DummyStorage` и будет складывать файлы в `BACKUP_ARTIFACTS_DIR`. Для отключения S3 достаточно удалить
+переменные окружения или оставить их пустыми — валидатор настроек преобразует пустые строки в `None`.
 
 Для ручного запуска задания:
 ```bash
@@ -73,7 +74,8 @@ poetry run pytest
 
 Для локальной разработки не всегда требуется поднимать MinIO/S3. Если переменные `BACKUP_S3_ENDPOINT_URL`,
 `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY` или `BACKUP_S3_BUCKET` не заданы (или заданы пустыми строками),
-приложение использует `DummyStorage`. Все артефакты будут копироваться в каталог `BACKUP_ARTIFACTS_DIR`
+приложение использует `DummyStorage`. Переменные можно удалить из `.env` или оставить пустыми — приложение
+воспримет это как сигнал отключить S3. Все артефакты будут копироваться в каталог `BACKUP_ARTIFACTS_DIR`
 (по умолчанию `/tmp/backup-artifacts`). Логи FastAPI выдадут предупреждение о переключении на заглушку.
 
 В production-среде рекомендуется явно указывать все параметры S3 — тогда будет использован `S3Storage`.
