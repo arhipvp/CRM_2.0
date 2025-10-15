@@ -32,6 +32,7 @@ USAGE
 
 open_browser_mode="auto"
 skip_frontend=false
+bootstrap_args=()
 
 while (($# > 0)); do
   case "$1" in
@@ -43,6 +44,7 @@ while (($# > 0)); do
       ;;
     --skip-frontend)
       skip_frontend=true
+      bootstrap_args+=(--skip-frontend)
       ;;
     -h|--help)
       usage
@@ -58,7 +60,7 @@ while (($# > 0)); do
 done
 
 log_info "Запуск bootstrap-скрипта"
-"${ROOT_DIR}/scripts/bootstrap-local.sh"
+"${ROOT_DIR}/scripts/bootstrap-local.sh" "${bootstrap_args[@]}"
 
 log_info "Синхронизация .env для фронтенда"
 if ! "${ROOT_DIR}/scripts/sync-env.sh" --non-interactive frontend; then

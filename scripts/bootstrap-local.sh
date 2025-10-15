@@ -9,6 +9,8 @@ ENV_FILE="${ROOT_DIR}/.env"
 TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
 LOG_PREFIX="[bootstrap-local]"
 
+BOOTSTRAP_SKIP_FRONTEND_FLAG="${BOOTSTRAP_SKIP_FRONTEND:-false}"
+
 cleanup() {
   if [[ -d "${TMP_DIR}" ]]; then
     if (( FAIL_COUNT == 0 )); then
@@ -31,6 +33,47 @@ log_warn() {
 
 log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
+}
+
+usage() {
+  cat <<USAGE
+Использование: $0 [--skip-frontend]
+
+  --skip-frontend  пропустить запуск контейнера фронтенда
+USAGE
+}
+
+is_truthy() {
+  local value="${1:-}"
+  value="${value,,}"
+  case "$value" in
+    1|true|yes|y)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+parse_args() {
+  while (($# > 0)); do
+    case "$1" in
+      --skip-frontend)
+        BOOTSTRAP_SKIP_FRONTEND_FLAG="true"
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        log_error "Неизвестный аргумент: $1"
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
 }
 
 require_command() {
@@ -205,6 +248,8 @@ step_check_infra() {
 }
 
 main() {
+  parse_args "$@"
+
   run_step "Проверка зависимостей" step_check_dependencies
   run_step "Синхронизация .env" step_sync_env
 
@@ -219,7 +264,11 @@ main() {
   run_step "Ожидание готовности docker compose" step_wait_infra
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
-  run_step "Запуск фронтенда" step_start_frontend
+  if is_truthy "${BOOTSTRAP_SKIP_FRONTEND_FLAG}"; then
+    run_step_skip "Запуск фронтенда" "передан флаг пропуска фронтенда"
+  else
+    run_step "Запуск фронтенда" step_start_frontend
+  fi
 
   if [[ -x "${ROOT_DIR}/scripts/load-seeds.sh" ]]; then
     run_step "Загрузка seed-данных" step_load_seeds

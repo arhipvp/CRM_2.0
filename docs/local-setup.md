@@ -17,11 +17,11 @@ Bootstrap-скрипт выполняет полный цикл подготов
 3. ожидание готовности контейнеров через healthcheck (используется `docker compose ps --format json`, а при отсутствии этой опции — табличный вывод старых версий Compose).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
-6. `docker compose --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры.
+6. `docker compose --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
 7. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
 8. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
 
-Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --profile app up -d frontend` в `infra/`.
+Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому контейнер фронтенда не стартует. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --profile app up -d frontend` в `infra/`.
 
 ### Режимы синхронизации `.env`
 
