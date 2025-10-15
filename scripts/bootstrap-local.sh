@@ -271,6 +271,25 @@ step_start_frontend() {
 
 step_check_backup_env() {
   load_env || return 1
+
+  local s3_vars=(
+    BACKUP_S3_ENDPOINT_URL
+    BACKUP_S3_BUCKET
+    BACKUP_S3_ACCESS_KEY
+    BACKUP_S3_SECRET_KEY
+  )
+  local populated=()
+  for var in "${s3_vars[@]}"; do
+    if [[ -n "${!var:-}" ]]; then
+      populated+=("$var")
+    fi
+  done
+
+  if (( ${#populated[@]} == 0 )); then
+    log_info "BACKUP_S3_* переменные отсутствуют или пусты — будет использован DummyStorage."
+    return 0
+  fi
+
   local required=(
     BACKUP_S3_BUCKET
     BACKUP_S3_ACCESS_KEY
@@ -285,11 +304,69 @@ step_check_backup_env() {
   done
 
   if (( ${#missing[@]} > 0 )); then
-    log_error "Переменные ${missing[*]} не заданы. Обновите .env (см. env.example) и перезапустите bootstrap."
+    log_error "Переменные ${missing[*]} не заданы. Заполните конфигурацию S3 или удалите значения, чтобы использовать DummyStorage."
     return 1
   fi
 
-  log_info "Ключевые BACKUP_* переменные заполнены."
+  log_info "Обнаружена полная конфигурация S3 для backup (переменные ${required[*]})."
+}
+
+step_smoke_backup_dummy_storage() {
+  load_env || return 1
+
+  local s3_vars=(
+    BACKUP_S3_ENDPOINT_URL
+    BACKUP_S3_BUCKET
+    BACKUP_S3_ACCESS_KEY
+    BACKUP_S3_SECRET_KEY
+  )
+
+  for var in "${s3_vars[@]}"; do
+    if [[ -n "${!var:-}" ]]; then
+      log_info "Переменная ${var} задана — предполагается S3, проверка DummyStorage не требуется."
+      return 0
+    fi
+  done
+
+  log_info "BACKUP_S3_* пусты — проверяем, что контейнер backup работает в режиме DummyStorage."
+
+  (
+    cd "${INFRA_DIR}" || return 1
+
+    local container_id
+    if ! container_id=$("${COMPOSE_CMD[@]}" ps -q backup); then
+      log_error "Не удалось получить идентификатор контейнера backup."
+      return 1
+    fi
+    if [[ -z "${container_id}" ]]; then
+      log_error "Контейнер backup не запущен (docker compose ps -q вернул пустой результат)."
+      return 1
+    fi
+
+    local status
+    if ! status=$(docker inspect -f '{{.State.Status}}' "${container_id}"); then
+      log_error "Не удалось получить статус контейнера backup через docker inspect."
+      return 1
+    fi
+    if [[ "${status}" != "running" ]]; then
+      log_error "Контейнер backup имеет статус '${status}', ожидался 'running'."
+      return 1
+    fi
+
+    local logs
+    if logs=$("${COMPOSE_CMD[@]}" logs --no-color --tail 200 backup 2>/dev/null); then
+      if grep -q "DummyStorage" <<<"${logs}"; then
+        log_info "Логи backup содержат предупреждение о DummyStorage — fallback активен."
+      else
+        log_warn "Логи backup не содержат явного сообщения о DummyStorage. Это не критично, но проверьте конфигурацию при необходимости."
+      fi
+    else
+      log_warn "Не удалось получить логи backup для проверки DummyStorage."
+    fi
+
+    log_info "Контейнер backup запущен и работает без конфигурации S3."
+    return 0
+  )
 }
 
 step_load_seeds() {
@@ -315,6 +392,7 @@ main() {
 
   run_step "docker compose up -d" step_compose_up
   run_step "Smoke-проверка BACKUP_*" step_check_backup_env
+  run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
   run_step "Ожидание готовности docker compose" step_wait_infra
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
