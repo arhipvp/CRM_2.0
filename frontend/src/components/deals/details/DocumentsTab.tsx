@@ -556,11 +556,12 @@ export function DocumentsTab({ dealId, categories, onUpload, highlightKey }: Doc
                   if (!current.document) {
                     return;
                   }
+                  const document = current.document;
                   setCategoryQueue((prev) => [
                     ...prev,
                     {
-                      id: current.document.id,
-                      document: current.document,
+                      id: document.id,
+                      document,
                       origin: "upload",
                       uploadId: current.id,
                     },
