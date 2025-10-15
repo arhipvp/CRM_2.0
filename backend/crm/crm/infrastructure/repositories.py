@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Generic, Iterable, Sequence, TypeVar
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -190,6 +190,86 @@ class PolicyRepository(BaseRepository[models.Policy]):
         return policy
 
 
+class PolicyDocumentRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list(self, tenant_id: UUID, policy_id: UUID) -> list[models.PolicyDocument]:
+        stmt = (
+            select(models.PolicyDocument)
+            .join(models.Policy, models.Policy.id == models.PolicyDocument.policy_id)
+            .where(
+                models.Policy.tenant_id == tenant_id,
+                models.Policy.id == policy_id,
+                models.Policy.is_deleted.is_(False),
+            )
+            .order_by(models.PolicyDocument.created_at.asc(), models.PolicyDocument.id.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def attach(
+        self,
+        tenant_id: UUID,
+        policy_id: UUID,
+        document_id: UUID,
+    ) -> models.PolicyDocument | None:
+        policy_exists = await self.session.scalar(
+            select(models.Policy.id).where(
+                models.Policy.tenant_id == tenant_id,
+                models.Policy.id == policy_id,
+                models.Policy.is_deleted.is_(False),
+            )
+        )
+        if policy_exists is None:
+            return None
+        entity = models.PolicyDocument(
+            tenant_id=tenant_id,
+            policy_id=policy_id,
+            document_id=document_id,
+        )
+        self.session.add(entity)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:  # pragma: no cover - defensive guard
+            await self.session.rollback()
+            raise RepositoryError(self._map_integrity_error(exc)) from exc
+        await self.session.refresh(entity)
+        return entity
+
+    async def detach(
+        self,
+        tenant_id: UUID,
+        policy_id: UUID,
+        document_id: UUID,
+    ) -> bool:
+        stmt = (
+            delete(models.PolicyDocument)
+            .where(
+                models.PolicyDocument.tenant_id == tenant_id,
+                models.PolicyDocument.policy_id == policy_id,
+                models.PolicyDocument.document_id == document_id,
+            )
+            .returning(models.PolicyDocument.id)
+        )
+        result = await self.session.execute(stmt)
+        deleted_id = result.scalar_one_or_none()
+        if deleted_id is None:
+            await self.session.rollback()
+            return False
+        await self.session.commit()
+        return True
+
+    @staticmethod
+    def _map_integrity_error(exc: IntegrityError) -> str:
+        message = str(exc.orig)
+        if "ux_policy_documents_policy_document" in message:
+            return "document_already_linked"
+        if "fk_policy_documents_document_id" in message:
+            return "document_not_found"
+        return "policy_document_integrity_error"
+
+
 class TaskRepository(BaseRepository[models.Task]):
     model = models.Task
 
@@ -257,6 +337,15 @@ class CalculationRepository:
         deal_id: UUID,
         data: dict[str, object],
     ) -> models.Calculation:
+        deal_exists = await self.session.scalar(
+            select(models.Deal.id).where(
+                models.Deal.id == deal_id,
+                models.Deal.tenant_id == tenant_id,
+                models.Deal.is_deleted.is_(False),
+            )
+        )
+        if deal_exists is None:
+            raise RepositoryError("deal_not_found")
         calculation = models.Calculation(tenant_id=tenant_id, deal_id=deal_id, **data)
         self.session.add(calculation)
         try:

@@ -44,7 +44,11 @@ async def create_calculation(
     service: Annotated[CalculationService, Depends(get_calculation_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
-    return await service.create_calculation(tenant_id, deal_id, payload)
+    try:
+        return await service.create_calculation(tenant_id, deal_id, payload)
+    except RepositoryError as exc:
+        status_code = status.HTTP_404_NOT_FOUND if str(exc) == "deal_not_found" else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.get("/{calculation_id}", response_model=schemas.CalculationRead)

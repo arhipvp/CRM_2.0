@@ -42,6 +42,8 @@ class Settings(BaseSettings):
 
     default_tenant_id: Optional[str] = None
 
+    documents_base_url: Optional[AnyUrl] = Field(default=None, alias="documents_base_url")
+
     @property
     def resolved_celery_broker(self) -> str:
         return str(self.celery_broker_url or self.redis_url)
