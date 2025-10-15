@@ -36,6 +36,77 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+check_port_available() {
+  local var_name="$1"
+  local port="${!var_name:-}"
+
+  if [[ -z "${port}" ]]; then
+    return 0
+  fi
+
+  if ! [[ "${port}" =~ ^[0-9]+$ ]]; then
+    log_error "Переменная ${var_name} содержит некорректное значение '${port}'. Обновите ${var_name} в ${ENV_FILE}."
+    return 1
+  fi
+
+  local port_num=$((10#${port}))
+  if (( port_num < 1 || port_num > 65535 )); then
+    log_error "Переменная ${var_name} содержит некорректное значение '${port}'. Обновите ${var_name} в ${ENV_FILE}."
+    return 1
+  fi
+
+  if python3 - "$port_num" <<'PY'; then
+import errno
+import socket
+import sys
+
+port = int(sys.argv[1])
+
+families = (
+    (socket.AF_INET, ("0.0.0.0", port)),
+    (socket.AF_INET6, ("::", port)),
+)
+
+try:
+    for family, address in families:
+        try:
+            sock = socket.socket(family, socket.SOCK_STREAM)
+        except OSError:
+            continue
+        try:
+            if family == socket.AF_INET6:
+                try:
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                except (AttributeError, OSError):
+                    pass
+            sock.bind(address)
+        except OSError as exc:
+            sock.close()
+            if exc.errno in {getattr(errno, "EADDRINUSE", 98), getattr(errno, "WSAEADDRINUSE", 10048)}:
+                sys.exit(10)
+            raise
+        else:
+            sock.close()
+except OSError:
+    sys.exit(11)
+else:
+    sys.exit(0)
+PY
+    return 0
+  fi
+
+  local exit_code=$?
+  case "$exit_code" in
+    10)
+      log_error "Порт ${port}, заданный переменной ${var_name} в ${ENV_FILE}, уже используется. Измените ${var_name} в ${ENV_FILE} и повторите запуск."
+      ;;
+    *)
+      log_error "Не удалось проверить порт ${port} из переменной ${var_name}. Проверьте настройки ${ENV_FILE}."
+      ;;
+  esac
+  return 1
+}
+
 load_env() {
   if [[ ! -f "${ENV_FILE}" ]]; then
     log_error "Файл окружения ${ENV_FILE} не найден. Запустите scripts/sync-env.sh и повторите попытку."
@@ -189,6 +260,34 @@ step_check_dependencies() {
     log_warn "Делаем gradlew исполняемым"
     chmod +x "${ROOT_DIR}/backend/auth/gradlew"
   fi
+  return $status
+}
+
+step_check_ports() {
+  load_env || return 1
+
+  local status=0
+  local port_vars=(
+    POSTGRES_PORT
+    RABBITMQ_PORT
+    REDIS_PORT
+    PGADMIN_PORT
+  )
+
+  local checked=()
+  for var_name in "${port_vars[@]}"; do
+    if [[ -n "${!var_name:-}" ]]; then
+      checked+=("$var_name")
+      if ! check_port_available "$var_name"; then
+        status=1
+      fi
+    fi
+  done
+
+  if (( ${#checked[@]} == 0 )); then
+    log_warn "Не найдено переменных портов для проверки. Обновите ${ENV_FILE}, если требуется изменить порты."
+  fi
+
   return $status
 }
 
@@ -390,6 +489,7 @@ main() {
     add_result "Проверка .env" "FAIL" "Файл .env отсутствует после sync-env"
   fi
 
+  run_step "Проверка портов .env" step_check_ports
   run_step "docker compose up -d" step_compose_up
   run_step "Smoke-проверка BACKUP_*" step_check_backup_env
   run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
