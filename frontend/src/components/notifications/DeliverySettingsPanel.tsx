@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { shallow } from "zustand/shallow";
 import { useUpdateNotificationChannel } from "@/lib/api/hooks";
 import {
   selectChannelSettings,
@@ -9,7 +10,7 @@ import {
 import type { NotificationChannel } from "@/types/notifications";
 
 export function DeliverySettingsPanel() {
-  const channels = useNotificationsStore(selectChannelSettings);
+  const channels = useNotificationsStore(selectChannelSettings, shallow);
   const channelPending = useNotificationsStore((state) => state.channelPending);
   const updateChannel = useUpdateNotificationChannel();
 
