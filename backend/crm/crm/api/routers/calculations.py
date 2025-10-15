@@ -66,7 +66,10 @@ async def update_calculation(
     service: Annotated[CalculationService, Depends(get_calculation_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
-    calculation = await service.update_calculation(tenant_id, deal_id, calculation_id, payload)
+    try:
+        calculation = await service.update_calculation(tenant_id, deal_id, calculation_id, payload)
+    except RepositoryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if calculation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="calculation_not_found")
     return calculation

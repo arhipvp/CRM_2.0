@@ -246,6 +246,8 @@ class CalculationService:
         calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
         if calculation is None:
             return None
+        if calculation.status in {"confirmed", "archived"}:
+            raise repositories.RepositoryError("calculation_update_forbidden")
         data = payload.model_dump(exclude_unset=True, exclude={"validity_period"})
         if "validity_period" in payload.model_fields_set:
             data["validity_period"] = self._date_range_to_pg(payload.validity_period)

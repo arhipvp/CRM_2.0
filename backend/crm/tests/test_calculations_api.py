@@ -224,6 +224,23 @@ async def test_calculations_flow(api_client, configure_environment):
     assert confirmed_calc.status == "confirmed"
     assert confirmed_calc.linked_policy_id == policy.id
 
+    forbidden_confirm_update = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}",
+        json={"comments": "Невозможное обновление после подтверждения"},
+        headers=headers,
+    )
+    assert forbidden_confirm_update.status_code == 400
+    assert forbidden_confirm_update.json()["detail"] == "calculation_update_forbidden"
+
+    confirmed_after_failed_patch = await api_client.get(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}",
+        headers=headers,
+    )
+    assert confirmed_after_failed_patch.status_code == 200
+    confirmed_unchanged = schemas.CalculationRead.model_validate(confirmed_after_failed_patch.json())
+    assert confirmed_unchanged.comments == confirmed_calc.comments
+    assert confirmed_unchanged.status == confirmed_calc.status
+
     policy_after_confirm = await api_client.get(
         f"/api/v1/policies/{policy.id}",
         headers=headers,
@@ -241,6 +258,23 @@ async def test_calculations_flow(api_client, configure_environment):
     archived_calc = schemas.CalculationRead.model_validate(archive_resp.json())
     assert archived_calc.status == "archived"
     assert archived_calc.linked_policy_id is None
+
+    forbidden_archived_update = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}",
+        json={"comments": "Невозможное обновление после архивации"},
+        headers=headers,
+    )
+    assert forbidden_archived_update.status_code == 400
+    assert forbidden_archived_update.json()["detail"] == "calculation_update_forbidden"
+
+    archived_after_failed_patch = await api_client.get(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}",
+        headers=headers,
+    )
+    assert archived_after_failed_patch.status_code == 200
+    archived_unchanged = schemas.CalculationRead.model_validate(archived_after_failed_patch.json())
+    assert archived_unchanged.comments == archived_calc.comments
+    assert archived_unchanged.status == archived_calc.status
 
     policy_after_archive = await api_client.get(
         f"/api/v1/policies/{policy.id}",
