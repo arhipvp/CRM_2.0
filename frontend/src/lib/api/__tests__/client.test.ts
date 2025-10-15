@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sortDealsByNextReview } from "@/lib/utils/deals";
+import type { PaymentEntry } from "@/types/crm";
 
 const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -12,6 +13,14 @@ async function importClient() {
 
 async function importMocks() {
   return await import("@/mocks/data");
+}
+
+function normalizeEntry(entry: PaymentEntry): PaymentEntry {
+  return {
+    ...entry,
+    attachments: entry.attachments?.map((item) => ({ ...item })) ?? [],
+    history: entry.history?.map((item) => ({ ...item })) ?? [],
+  };
 }
 
 describe("ApiClient mock mode", () => {
@@ -72,7 +81,11 @@ describe("ApiClient mock mode", () => {
       })),
     );
     await expect(apiClient.getPayments({ include: ["incomes", "expenses"] })).resolves.toEqual(
-      paymentsMock,
+      paymentsMock.map((payment) => ({
+        ...payment,
+        incomes: payment.incomes.map((entry) => normalizeEntry(entry)),
+        expenses: payment.expenses.map((entry) => normalizeEntry(entry)),
+      })),
     );
     await expect(apiClient.getClientActivities(clientId)).resolves.toEqual(
       activitiesMock.filter((entry) => entry.clientId === clientId),

@@ -2,11 +2,17 @@ import { queryOptions } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { DealFilters } from "@/types/crm";
 import { NO_MANAGER_VALUE, getManagerLabel } from "@/lib/utils/managers";
+import type {
+  NotificationEventJournalFilters,
+  NotificationFeedFilters,
+} from "@/types/notifications";
 
 const emptyObject = {} as const;
 
 export const dealsQueryKey = ["deals"] as const;
 export const dealStageMetricsQueryKey = ["deal-stage-metrics"] as const;
+export const notificationsFeedQueryKey = ["notifications", "feed"] as const;
+export const notificationsJournalQueryKey = ["notifications", "journal"] as const;
 
 function sanitizeDealFilters(filters?: DealFilters): DealFilters | undefined {
   if (!filters) {
@@ -150,5 +156,79 @@ export const paymentsQueryOptions = (params?: PaymentsQueryParams) => {
   return queryOptions({
     queryKey: ["payments", include ?? []] as const,
     queryFn: () => apiClient.getPayments({ include }),
+  });
+};
+
+function sanitizeNotificationFeedFilters(
+  filters?: NotificationFeedFilters,
+): NotificationFeedFilters | undefined {
+  if (!filters) {
+    return undefined;
+  }
+
+  const sanitized: NotificationFeedFilters = {};
+
+  if (filters.category && filters.category !== "all") {
+    sanitized.category = filters.category;
+  }
+
+  if (filters.source && filters.source !== "all") {
+    sanitized.source = filters.source;
+  }
+
+  if (filters.status && filters.status !== "all") {
+    sanitized.status = filters.status;
+  }
+
+  if (filters.search && filters.search.trim().length > 0) {
+    sanitized.search = filters.search.trim();
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeNotificationJournalFilters(
+  filters?: NotificationEventJournalFilters,
+): NotificationEventJournalFilters | undefined {
+  if (!filters) {
+    return undefined;
+  }
+
+  const sanitized: NotificationEventJournalFilters = {};
+
+  if (filters.category && filters.category !== "all") {
+    sanitized.category = filters.category;
+  }
+
+  if (filters.source && filters.source !== "all") {
+    sanitized.source = filters.source;
+  }
+
+  if (filters.severity && filters.severity !== "all") {
+    sanitized.severity = filters.severity;
+  }
+
+  if (filters.search && filters.search.trim().length > 0) {
+    sanitized.search = filters.search.trim();
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+export const notificationsFeedQueryOptions = (filters?: NotificationFeedFilters) => {
+  const sanitized = sanitizeNotificationFeedFilters(filters);
+
+  return queryOptions({
+    queryKey: [...notificationsFeedQueryKey, sanitized ?? emptyObject] as const,
+    queryFn: () => apiClient.getNotificationFeed(sanitized),
+  });
+};
+
+export const notificationJournalQueryOptions = (filters?: NotificationEventJournalFilters) => {
+  const sanitized = sanitizeNotificationJournalFilters(filters);
+
+  return queryOptions({
+    queryKey: [...notificationsJournalQueryKey, sanitized ?? emptyObject] as const,
+    queryFn: () => apiClient.getNotificationEventJournal(sanitized),
   });
 };

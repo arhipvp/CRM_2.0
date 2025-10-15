@@ -11,6 +11,9 @@ import {
   dealsMock,
   paymentsMock,
   tasksMock,
+  notificationChannelSettingsMock,
+  notificationEventJournalMock,
+  notificationFeedMock,
 } from "@/mocks/data";
 import type {
   ActivityLogEntry,
@@ -31,6 +34,16 @@ import type {
   TaskStatus,
 } from "@/types/crm";
 import type {
+  NotificationChannel,
+  NotificationChannelState,
+  NotificationEventEntry,
+  NotificationEventJournalFilters,
+  NotificationEventJournalResponse,
+  NotificationFilterOption,
+  NotificationFeedFilters,
+  NotificationFeedItem,
+  NotificationFeedResponse,
+} from "@/types/notifications";
   AdminAuditExportFormat,
   AdminAuditExportResult,
   AdminAuditFilters,
@@ -123,6 +136,206 @@ function mergeAbortSignals(signals: Array<AbortSignal | undefined>): AbortSignal
   }
 
   return controller.signal;
+}
+
+const NOTIFICATION_SOURCE_LABELS: Record<NotificationFeedItem["source"], string> = {
+  crm: "CRM",
+  payments: "Платежи",
+  system: "Система",
+};
+
+const NOTIFICATION_CATEGORY_LABELS: Record<NotificationFeedItem["category"], string> = {
+  deal: "Сделки",
+  task: "Задачи",
+  payment: "Платежи",
+  security: "Безопасность",
+  system: "Система",
+};
+
+function cloneNotification(item: NotificationFeedItem): NotificationFeedItem {
+  return {
+    ...item,
+    context: item.context ? { ...item.context, link: item.context.link ? { ...item.context.link } : undefined } : undefined,
+    tags: item.tags ? [...item.tags] : undefined,
+    channels: [...item.channels],
+  };
+}
+
+function matchesNotificationStatus(item: NotificationFeedItem, status: NotificationFeedFilters["status"]): boolean {
+  if (!status || status === "all") {
+    return true;
+  }
+
+  switch (status) {
+    case "unread":
+      return !item.read;
+    case "important":
+      return item.important;
+    case "failed":
+      return item.deliveryStatus === "failed";
+    default:
+      return true;
+  }
+}
+
+function matchesNotificationSearch(item: NotificationFeedItem, search?: string): boolean {
+  if (!search) {
+    return true;
+  }
+
+  const query = search.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    item.title,
+    item.message,
+    ...(item.tags ?? []),
+    item.context?.dealId ?? "",
+    item.context?.clientId ?? "",
+  ]
+    .filter(Boolean)
+    .join(" \u0000")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function matchesNotificationFeedFilters(
+  item: NotificationFeedItem,
+  filters?: NotificationFeedFilters,
+): boolean {
+  if (!filters) {
+    return true;
+  }
+
+  if (filters.category && filters.category !== "all" && item.category !== filters.category) {
+    return false;
+  }
+
+  if (filters.source && filters.source !== "all" && item.source !== filters.source) {
+    return false;
+  }
+
+  if (!matchesNotificationStatus(item, filters.status)) {
+    return false;
+  }
+
+  if (!matchesNotificationSearch(item, filters.search)) {
+    return false;
+  }
+
+  return true;
+}
+
+function sortNotifications(items: NotificationFeedItem[]): NotificationFeedItem[] {
+  return [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function buildNotificationFilterOptions(
+  items: NotificationFeedItem[],
+  key: "category" | "source",
+): NotificationFilterOption[] {
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    const value = item[key];
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  const options = Array.from(counts.entries()).map(([value, count]) => ({
+    value,
+    count,
+    label:
+      key === "source"
+        ? NOTIFICATION_SOURCE_LABELS[value as NotificationFeedItem["source"]] ?? value
+        : NOTIFICATION_CATEGORY_LABELS[value as NotificationFeedItem["category"]] ?? value,
+  }));
+
+  options.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+
+  return options;
+}
+
+function cloneNotificationChannel(state: NotificationChannelState): NotificationChannelState {
+  return { ...state };
+}
+
+function cloneEvent(entry: NotificationEventEntry): NotificationEventEntry {
+  return {
+    ...entry,
+    tags: entry.tags ? [...entry.tags] : undefined,
+    metadata: entry.metadata ? { ...entry.metadata } : undefined,
+  };
+}
+
+function matchesEventFilters(entry: NotificationEventEntry, filters?: NotificationEventJournalFilters): boolean {
+  if (!filters) {
+    return true;
+  }
+
+  if (filters.category && filters.category !== "all" && entry.category !== filters.category) {
+    return false;
+  }
+
+  if (filters.source && filters.source !== "all" && entry.source !== filters.source) {
+    return false;
+  }
+
+  if (filters.severity && filters.severity !== "all" && entry.severity !== filters.severity) {
+    return false;
+  }
+
+  if (filters.search) {
+    const query = filters.search.trim().toLowerCase();
+    if (query) {
+      const haystack = [
+        entry.summary,
+        entry.actor,
+        ...(entry.tags ?? []),
+        ...Object.values(entry.metadata ?? {}),
+      ]
+        .filter(Boolean)
+        .join(" \u0000")
+        .toLowerCase();
+
+      if (!haystack.includes(query)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function sortEvents(items: NotificationEventEntry[]): NotificationEventEntry[] {
+  return [...items].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+function buildEventFilterOptions(
+  items: NotificationEventEntry[],
+  key: "category" | "source",
+): NotificationFilterOption[] {
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    const value = item[key];
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  const options = Array.from(counts.entries()).map(([value, count]) => ({
+    value,
+    count,
+    label:
+      key === "source"
+        ? NOTIFICATION_SOURCE_LABELS[value as NotificationFeedItem["source"]] ?? value
+        : NOTIFICATION_CATEGORY_LABELS[value as NotificationFeedItem["category"]] ?? value,
+  }));
+
+  options.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+
+  return options;
 }
 
 export class ApiError extends Error {
@@ -546,6 +759,60 @@ export class ApiClient {
 
     if (filters.search) {
       params.set("search", filters.search);
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  private buildNotificationFeedQuery(filters?: NotificationFeedFilters): string {
+    if (!filters) {
+      return "";
+    }
+
+    const params = new URLSearchParams();
+
+    if (filters.category && filters.category !== "all") {
+      params.set("category", filters.category);
+    }
+
+    if (filters.source && filters.source !== "all") {
+      params.set("source", filters.source);
+    }
+
+    if (filters.status && filters.status !== "all") {
+      params.set("status", filters.status);
+    }
+
+    if (filters.search?.trim()) {
+      params.set("search", filters.search.trim());
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  private buildNotificationJournalQuery(filters?: NotificationEventJournalFilters): string {
+    if (!filters) {
+      return "";
+    }
+
+    const params = new URLSearchParams();
+
+    if (filters.category && filters.category !== "all") {
+      params.set("category", filters.category);
+    }
+
+    if (filters.source && filters.source !== "all") {
+      params.set("source", filters.source);
+    }
+
+    if (filters.severity && filters.severity !== "all") {
+      params.set("severity", filters.severity);
+    }
+
+    if (filters.search?.trim()) {
+      params.set("search", filters.search.trim());
     }
 
     const query = params.toString();
@@ -1561,6 +1828,154 @@ export class ApiClient {
     );
   }
 
+  async getNotificationFeed(filters?: NotificationFeedFilters): Promise<NotificationFeedResponse> {
+    const query = this.buildNotificationFeedQuery(filters);
+
+    return this.request(
+      `/notifications/feed${query}`,
+      undefined,
+      async () => {
+        const allItems = sortNotifications(notificationFeedMock).map(cloneNotification);
+        const filteredItems = allItems.filter((item) => matchesNotificationFeedFilters(item, filters));
+
+        return {
+          items: filteredItems,
+          unreadCount: notificationFeedMock.filter((item) => !item.read).length,
+          availableCategories: buildNotificationFilterOptions(allItems, "category"),
+          availableSources: buildNotificationFilterOptions(allItems, "source"),
+          channelSettings: notificationChannelSettingsMock.map(cloneNotificationChannel),
+        } satisfies NotificationFeedResponse;
+      },
+    );
+  }
+
+  async getNotificationEventJournal(
+    filters?: NotificationEventJournalFilters,
+  ): Promise<NotificationEventJournalResponse> {
+    const query = this.buildNotificationJournalQuery(filters);
+
+    return this.request(
+      `/notifications/events${query}`,
+      undefined,
+      async () => {
+        const allEvents = sortEvents(notificationEventJournalMock).map(cloneEvent);
+        const filteredEvents = allEvents.filter((event) => matchesEventFilters(event, filters));
+
+        return {
+          items: filteredEvents,
+          availableCategories: buildEventFilterOptions(allEvents, "category"),
+          availableSources: buildEventFilterOptions(allEvents, "source"),
+        } satisfies NotificationEventJournalResponse;
+      },
+    );
+  }
+
+  async markNotificationsRead(ids: string[]): Promise<NotificationFeedItem[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.request(
+      `/notifications/feed/read`,
+      {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      },
+      async () => {
+        const updated: NotificationFeedItem[] = [];
+        for (const item of notificationFeedMock) {
+          if (ids.includes(item.id)) {
+            if (!item.read) {
+              item.read = true;
+            }
+            updated.push(cloneNotification(item));
+          }
+        }
+
+        return updated;
+      },
+    );
+  }
+
+  async toggleNotificationsImportant(ids: string[], important: boolean): Promise<NotificationFeedItem[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.request(
+      `/notifications/feed/important`,
+      {
+        method: "POST",
+        body: JSON.stringify({ ids, important }),
+      },
+      async () => {
+        const updated: NotificationFeedItem[] = [];
+        for (const item of notificationFeedMock) {
+          if (ids.includes(item.id)) {
+            item.important = important;
+            updated.push(cloneNotification(item));
+          }
+        }
+
+        return updated;
+      },
+    );
+  }
+
+  async deleteNotifications(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.request(
+      `/notifications/feed`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      },
+      async () => {
+        const idSet = new Set(ids);
+        let removed = 0;
+        for (let index = notificationFeedMock.length - 1; index >= 0; index -= 1) {
+          if (idSet.has(notificationFeedMock[index]?.id ?? "")) {
+            notificationFeedMock.splice(index, 1);
+            removed += 1;
+          }
+        }
+
+        if (removed === 0) {
+          throw new ApiError("Notifications not found", 404);
+        }
+
+        return ids;
+      },
+    );
+  }
+
+  async updateNotificationChannel(channel: NotificationChannel, enabled: boolean): Promise<NotificationChannelState> {
+    return this.request(
+      `/notifications/channels/${channel}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ enabled }),
+      },
+      async () => {
+        const entry = notificationChannelSettingsMock.find((item) => item.channel === channel);
+        if (!entry) {
+          throw new ApiError("Channel not found", 404);
+        }
+
+        if (!entry.editable) {
+          throw new ApiError("Channel is read-only", 400);
+        }
+
+        entry.enabled = enabled;
+        entry.lastChangedAt = new Date().toISOString();
+
+        return cloneNotificationChannel(entry);
+      },
+    );
+  }
   getAdminRoles(): Promise<AdminRole[]> {
     this.ensureAdminPermission("manage:users");
 
@@ -2016,6 +2431,8 @@ function clonePayment(payment: Payment): Payment {
       ...change,
       snapshot: { ...change.snapshot },
     })),
+    incomes: payment.incomes.map((income) => clonePaymentEntry(income)),
+    expenses: payment.expenses.map((expense) => clonePaymentEntry(expense)),
   };
 }
 

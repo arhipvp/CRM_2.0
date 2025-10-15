@@ -26,9 +26,20 @@ import {
   dealStageMetricsQueryOptions,
   paymentsQueryOptions,
   type PaymentsQueryParams,
+  notificationJournalQueryOptions,
+  notificationsFeedQueryKey,
+  notificationsFeedQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
 import type { Deal, DealFilters, DealStage } from "@/types/crm";
+import type {
+  NotificationChannel,
+  NotificationEventJournalFilters,
+  NotificationFeedFilters,
+  NotificationFeedItem,
+  NotificationFeedResponse,
+} from "@/types/notifications";
+import { useNotificationsStore } from "@/stores/notificationsStore";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
@@ -181,6 +192,184 @@ export function useBulkUpdateTasks() {
 
 export function usePayments(params?: PaymentsQueryParams) {
   return useQuery(paymentsQueryOptions(params));
+}
+
+export function useNotificationFeed(filters?: NotificationFeedFilters) {
+  return useQuery(notificationsFeedQueryOptions(filters));
+}
+
+export function useNotificationEventJournal(filters?: NotificationEventJournalFilters) {
+  return useQuery(notificationJournalQueryOptions(filters));
+}
+
+function updateFeedQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updater: (item: NotificationFeedItem) => NotificationFeedItem,
+) {
+  queryClient.setQueriesData({ queryKey: notificationsFeedQueryKey }, (data: NotificationFeedResponse | undefined) => {
+    if (!data) {
+      return data;
+    }
+
+    const items = data.items.map((item) => updater(item));
+    const unreadCount = items.filter((item) => !item.read).length;
+
+    return {
+      ...data,
+      items,
+      unreadCount,
+    } satisfies NotificationFeedResponse;
+  });
+}
+
+function removeFromFeedQueries(queryClient: ReturnType<typeof useQueryClient>, ids: string[]) {
+  queryClient.setQueriesData({ queryKey: notificationsFeedQueryKey }, (data: NotificationFeedResponse | undefined) => {
+    if (!data) {
+      return data;
+    }
+
+    const idSet = new Set(ids);
+    const items = data.items.filter((item) => !idSet.has(item.id));
+    const unreadCount = items.filter((item) => !item.read).length;
+
+    return {
+      ...data,
+      items,
+      unreadCount,
+    } satisfies NotificationFeedResponse;
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const queryClient = useQueryClient();
+  const markAsRead = useNotificationsStore((state) => state.markAsRead);
+
+  return useMutation({
+    mutationKey: ["notifications", "mark-read"],
+    mutationFn: ({ ids }: { ids: string[] }) => apiClient.markNotificationsRead(ids),
+    onMutate: async ({ ids }) => {
+      const snapshot = ids.map((id) => useNotificationsStore.getState().items[id]).filter(Boolean);
+      markAsRead(ids);
+      updateFeedQueries(queryClient, (item) => (ids.includes(item.id) ? { ...item, read: true } : item));
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.snapshot) {
+        useNotificationsStore.getState().replaceNotifications(context.snapshot);
+        updateFeedQueries(queryClient, (item) => {
+          const previous = context.snapshot?.find((snapshotItem) => snapshotItem.id === item.id);
+          return previous ? { ...item, read: previous.read } : item;
+        });
+      }
+    },
+    onSuccess: (updated) => {
+      if (updated.length > 0) {
+        useNotificationsStore.getState().replaceNotifications(updated);
+      }
+    },
+  });
+}
+
+export function useToggleNotificationsImportant() {
+  const queryClient = useQueryClient();
+  const markImportant = useNotificationsStore((state) => state.markImportant);
+
+  return useMutation({
+    mutationKey: ["notifications", "mark-important"],
+    mutationFn: ({ ids, important }: { ids: string[]; important: boolean }) =>
+      apiClient.toggleNotificationsImportant(ids, important),
+    onMutate: async ({ ids, important }) => {
+      const snapshot = ids.map((id) => useNotificationsStore.getState().items[id]).filter(Boolean);
+      markImportant(ids, important);
+      updateFeedQueries(queryClient, (item) => (ids.includes(item.id) ? { ...item, important } : item));
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.snapshot) {
+        useNotificationsStore.getState().replaceNotifications(context.snapshot);
+        updateFeedQueries(queryClient, (item) => {
+          const previous = context.snapshot?.find((snapshotItem) => snapshotItem.id === item.id);
+          return previous ? { ...item, important: previous.important } : item;
+        });
+      }
+    },
+    onSuccess: (updated) => {
+      if (updated.length > 0) {
+        useNotificationsStore.getState().replaceNotifications(updated);
+      }
+    },
+  });
+}
+
+export function useDeleteNotifications() {
+  const queryClient = useQueryClient();
+  const removeNotifications = useNotificationsStore((state) => state.removeNotifications);
+
+  return useMutation({
+    mutationKey: ["notifications", "delete"],
+    mutationFn: ({ ids }: { ids: string[] }) => apiClient.deleteNotifications(ids),
+    onMutate: async ({ ids }) => {
+      const snapshot = ids.map((id) => useNotificationsStore.getState().items[id]).filter(Boolean);
+      removeNotifications(ids);
+      removeFromFeedQueries(queryClient, ids);
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.snapshot) {
+        useNotificationsStore.getState().restoreNotifications(context.snapshot);
+        queryClient.invalidateQueries({ queryKey: notificationsFeedQueryKey });
+      }
+    },
+    onSuccess: () => {
+      useNotificationsStore.getState().clearSelection();
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsFeedQueryKey });
+    },
+  });
+}
+
+export function useUpdateNotificationChannel() {
+  const queryClient = useQueryClient();
+  const setChannelEnabled = useNotificationsStore((state) => state.setChannelEnabled);
+  const setChannelPending = useNotificationsStore((state) => state.setChannelPending);
+
+  return useMutation({
+    mutationKey: ["notifications", "channel"],
+    mutationFn: ({ channel, enabled }: { channel: NotificationChannel; enabled: boolean }) =>
+      apiClient.updateNotificationChannel(channel, enabled),
+    onMutate: async ({ channel, enabled }) => {
+      const previous = useNotificationsStore.getState().channels[channel];
+      setChannelPending(channel, true);
+      setChannelEnabled(channel, enabled);
+      return { previous };
+    },
+    onError: (_error, { channel }, context) => {
+      if (context?.previous) {
+        useNotificationsStore.getState().setChannelState(channel, context.previous);
+      }
+    },
+    onSuccess: (updated) => {
+      useNotificationsStore.getState().setChannelState(updated.channel, updated);
+      queryClient.setQueriesData({ queryKey: notificationsFeedQueryKey }, (data: NotificationFeedResponse | undefined) => {
+        if (!data) {
+          return data;
+        }
+
+        const channels = data.channelSettings.map((channelSetting) =>
+          channelSetting.channel === updated.channel ? updated : channelSetting,
+        );
+
+        return {
+          ...data,
+          channelSettings: channels,
+        } satisfies NotificationFeedResponse;
+      });
+    },
+    onSettled: (_data, _error, { channel }) => {
+      setChannelPending(channel, false);
+    },
+  });
 }
 
 const paymentsWithDetailsKey = paymentsQueryOptions({ include: ["incomes", "expenses"] }).queryKey;
