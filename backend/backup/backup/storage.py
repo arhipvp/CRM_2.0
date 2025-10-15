@@ -95,16 +95,9 @@ class DummyStorage:
 
 
 def build_storage(settings: Settings) -> Storage:
-    required_params = (
-        "s3_bucket",
-        "s3_access_key",
-        "s3_secret_key",
-        "s3_endpoint_url",
-    )
+    required_params = ("s3_bucket", "s3_access_key", "s3_secret_key")
     missing = [
-        name
-        for name in required_params
-        if not _is_filled(getattr(settings, name, None))
+        name for name in required_params if not _is_filled(getattr(settings, name, None))
     ]
 
     if missing:

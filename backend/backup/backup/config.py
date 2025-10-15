@@ -25,9 +25,9 @@ class Settings(BaseSettings):
 
     s3_endpoint_url: Optional[str] = Field(default=None, description="Пользовательская точка доступа S3")
     s3_region_name: str = Field(default="us-east-1", description="Регион S3")
-    s3_access_key: str = Field(..., description="Ключ доступа S3")
-    s3_secret_key: str = Field(..., description="Секретный ключ доступа S3")
-    s3_bucket: str = Field(..., description="Бакет для артефактов бэкапов")
+    s3_access_key: Optional[str] = Field(default=None, description="Ключ доступа S3")
+    s3_secret_key: Optional[str] = Field(default=None, description="Секретный ключ доступа S3")
+    s3_bucket: Optional[str] = Field(default=None, description="Бакет для артефактов бэкапов")
     s3_prefix: str = Field(default="backups", description="Префикс ключей в бакете")
 
     rabbitmq_url: str = Field(..., description="AMQP URL для публикации уведомлений")
@@ -62,7 +62,13 @@ class Settings(BaseSettings):
 
     health_timeout_seconds: float = Field(default=2.0, description="Таймаут проверок здоровья зависимостей")
 
-    @field_validator("s3_endpoint_url", mode="before")
+    @field_validator(
+        "s3_endpoint_url",
+        "s3_access_key",
+        "s3_secret_key",
+        "s3_bucket",
+        mode="before",
+    )
     @classmethod
     def _empty_string_to_none(cls, value: Optional[str]) -> Optional[str]:
         if isinstance(value, str) and value.strip() == "":
