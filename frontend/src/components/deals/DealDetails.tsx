@@ -215,11 +215,9 @@ export function DealDetails({ dealId }: { dealId: string }) {
       case "documents":
         return (
           <DocumentsTab
+            dealId={dealId}
             categories={currentDeal.documentsV2}
             highlightKey={requests.document}
-            onUpload={(files) => {
-              console.info("Загруженные файлы", files);
-            }}
           />
         );
       case "finance":
