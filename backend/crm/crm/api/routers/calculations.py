@@ -1,3 +1,5 @@
+"""Маршруты API для работы с расчетами."""
+
 from datetime import date
 from typing import Annotated, Sequence
 from uuid import UUID
