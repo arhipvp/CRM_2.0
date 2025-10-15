@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-import { DealFilters } from "@/types/crm";
+import { apiClient, type ClientActivityQueryParams, type ClientPoliciesQueryParams } from "@/lib/api/client";
+import { ActivityLogEntry, DealFilters } from "@/types/crm";
 import { NO_MANAGER_VALUE, getManagerLabel } from "@/lib/utils/managers";
 import type {
   NotificationEventJournalFilters,
@@ -123,10 +123,85 @@ export const clientQueryOptions = (clientId: string) =>
     enabled: Boolean(clientId),
   });
 
-export const clientActivityQueryOptions = (clientId: string) =>
+const clientActivityTypes = new Set<ActivityLogEntry["type"]>(["email", "meeting", "note", "system"]);
+
+function normalizeClientPoliciesParams(params?: ClientPoliciesQueryParams) {
+  if (!params) {
+    return undefined;
+  }
+
+  const normalized: ClientPoliciesQueryParams = {};
+
+  if (params.status && (params.status === "active" || params.status === "archived")) {
+    normalized.status = params.status;
+  }
+
+  if (params.search && params.search.trim().length > 0) {
+    normalized.search = params.search.trim();
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeClientActivityParams(params?: ClientActivityQueryParams) {
+  if (!params) {
+    return undefined;
+  }
+
+  const normalized: ClientActivityQueryParams = {};
+
+  if (params.type && params.type !== "all" && clientActivityTypes.has(params.type)) {
+    normalized.type = params.type;
+  }
+
+  if (params.page && Number.isFinite(params.page)) {
+    const page = Math.max(1, Math.floor(params.page));
+    if (page > 1) {
+      normalized.page = page;
+    }
+  }
+
+  if (params.pageSize && Number.isFinite(params.pageSize)) {
+    const pageSize = Math.max(1, Math.floor(params.pageSize));
+    if (pageSize !== 5) {
+      normalized.pageSize = Math.min(50, pageSize);
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+export const clientActivityQueryOptions = (clientId: string, params?: ClientActivityQueryParams) => {
+  const normalized = normalizeClientActivityParams(params);
+
+  return queryOptions({
+    queryKey: ["client", clientId, "activity", normalized ?? emptyObject] as const,
+    queryFn: () => apiClient.getClientActivities(clientId, normalized),
+    enabled: Boolean(clientId),
+  });
+};
+
+export const clientPoliciesQueryOptions = (clientId: string, params?: ClientPoliciesQueryParams) => {
+  const normalized = normalizeClientPoliciesParams(params);
+
+  return queryOptions({
+    queryKey: ["client", clientId, "policies", normalized ?? emptyObject] as const,
+    queryFn: () => apiClient.getClientPolicies(clientId, normalized),
+    enabled: Boolean(clientId),
+  });
+};
+
+export const clientTasksChecklistQueryOptions = (clientId: string) =>
   queryOptions({
-    queryKey: ["client", clientId, "activity"],
-    queryFn: () => apiClient.getClientActivities(clientId),
+    queryKey: ["client", clientId, "tasks", "checklist"],
+    queryFn: () => apiClient.getClientTasks(clientId),
+    enabled: Boolean(clientId),
+  });
+
+export const clientRemindersQueryOptions = (clientId: string) =>
+  queryOptions({
+    queryKey: ["client", clientId, "reminders"],
+    queryFn: () => apiClient.getClientReminders(clientId),
     enabled: Boolean(clientId),
   });
 

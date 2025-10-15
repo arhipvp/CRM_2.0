@@ -79,6 +79,17 @@ export interface DealStageMetrics {
   avgCycleDurationDays: number | null;
 }
 
+export type ClientKycStatus = "pending" | "in_review" | "verified" | "rejected";
+
+export interface ClientContact {
+  id: string;
+  type: "email" | "phone" | "address" | "messenger" | "website";
+  label: string;
+  value: string;
+  primary?: boolean;
+  comment?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -89,6 +100,91 @@ export interface Client {
   totalDeals: number;
   lifetimeValue: number;
   lastActivityAt: string;
+  status?: "active" | "paused" | "archived";
+  segment?: string;
+  kycStatus?: ClientKycStatus;
+  owner?: string;
+  tags?: string[];
+  contacts?: ClientContact[];
+  notes?: string;
+}
+
+export type ClientPolicyStatus =
+  | "draft"
+  | "pending"
+  | "active"
+  | "expiring"
+  | "expired"
+  | "cancelled"
+  | "archived";
+
+export interface ClientPolicyReminder {
+  id: string;
+  title: string;
+  dueDate: string;
+  description?: string;
+  policyId?: string;
+  taskId?: string;
+}
+
+export interface ClientPolicyManagerInfo {
+  id: string;
+  name: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface ClientPolicy {
+  id: string;
+  clientId: string;
+  number: string;
+  product: string;
+  insurer: string;
+  status: ClientPolicyStatus;
+  premium: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  updatedAt: string;
+  nextPaymentDate?: string;
+  lastInteractionAt?: string;
+  manager: ClientPolicyManagerInfo;
+  tags?: string[];
+  coverageSummary?: string;
+  attachmentsCount?: number;
+  reminders?: ClientPolicyReminder[];
+}
+
+export interface ClientTaskChecklistItem {
+  id: string;
+  title: string;
+  dueDate: string;
+  completed: boolean;
+  type: TaskActivityType;
+  owner: string;
+  clientId: string;
+  policyId?: string;
+  reminderAt?: string | null;
+}
+
+export interface ClientReminderCalendarItem {
+  id: string;
+  title: string;
+  occursAt: string;
+  kind: "task" | "payment" | "checkup" | "other";
+  description?: string;
+  clientId: string;
+  relatedPolicyId?: string;
+  relatedTaskId?: string;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export type TaskStatus = "new" | "in_progress" | "waiting" | "done" | "cancelled";

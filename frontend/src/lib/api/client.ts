@@ -18,6 +18,11 @@ import {
 import type {
   ActivityLogEntry,
   Client,
+  ClientContact,
+  ClientPolicy,
+  ClientPolicyStatus,
+  ClientReminderCalendarItem,
+  ClientTaskChecklistItem,
   Deal,
   DealDetailsData,
   DealDocument,
@@ -26,6 +31,7 @@ import type {
   DealNote,
   DealStage,
   DealStageMetrics,
+  PaginatedResult,
   Payment,
   PaymentEntry,
   PaymentStatus,
@@ -595,6 +601,35 @@ export type UpdateTaskPayload = Partial<
   Pick<Task, "status" | "owner" | "dueDate" | "tags" | "type" | "reminderAt" | "completed">
 >;
 
+export interface UpsertClientPolicyPayload {
+  number: string;
+  product: string;
+  insurer: string;
+  premium: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  status?: ClientPolicyStatus;
+  tags?: string[];
+  coverageSummary?: string;
+  managerId?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerEmail?: string;
+  managerPhone?: string;
+}
+
+export interface ClientPoliciesQueryParams {
+  status?: "active" | "archived";
+  search?: string;
+}
+
+export interface ClientActivityQueryParams {
+  type?: ActivityLogEntry["type"] | "all";
+  page?: number;
+  pageSize?: number;
+}
+
 export interface UpdateDealPayload {
   name?: string;
   stage?: Deal["stage"];
@@ -1057,6 +1092,230 @@ export class ApiClient {
       }
       return client;
     });
+  }
+
+  updateClientContacts(clientId: string, payload: UpdateClientContactsPayload): Promise<Client> {
+    return this.request(
+      `/crm/clients/${clientId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const client = clientsMock.find((item) => item.id === clientId);
+        if (!client) {
+          throw new ApiError("Client not found", 404);
+        }
+
+        client.email = payload.email;
+        client.phone = payload.phone;
+
+        if (payload.contacts) {
+          client.contacts = payload.contacts.map((contact) => ({
+            ...contact,
+            id: contact.id ?? createRandomId(),
+          }));
+        }
+
+        client.lastActivityAt = new Date().toISOString();
+        return {
+          ...client,
+          contacts: client.contacts?.map((contact) => ({ ...contact })),
+        };
+      },
+    );
+  }
+
+  getClientPolicies(clientId: string, params?: ClientPoliciesQueryParams): Promise<ClientPolicy[]> {
+    return this.request(
+      `/crm/clients/${clientId}/policies`,
+      undefined,
+      async () => {
+        const normalizedSearch = params?.search?.trim().toLowerCase();
+        const statusFilter = params?.status;
+
+        const policies = clientPoliciesMock.filter((policy) => {
+          if (policy.clientId !== clientId) {
+            return false;
+          }
+
+          if (statusFilter === "active" && !isActiveClientPolicyStatus(policy.status)) {
+            return false;
+          }
+
+          if (statusFilter === "archived" && !isArchivedClientPolicyStatus(policy.status)) {
+            return false;
+          }
+
+          if (normalizedSearch) {
+            const haystack = `${policy.number} ${policy.product} ${policy.insurer}`.toLowerCase();
+            return haystack.includes(normalizedSearch);
+          }
+
+          return true;
+        });
+
+        policies.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+        return policies.map((policy) => cloneClientPolicy(policy));
+      },
+    );
+  }
+
+  createClientPolicy(clientId: string, payload: UpsertClientPolicyPayload): Promise<ClientPolicy> {
+    return this.request(
+      `/crm/clients/${clientId}/policies`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const now = new Date().toISOString();
+        const client = clientsMock.find((item) => item.id === clientId);
+        if (!client) {
+          throw new ApiError("Client not found", 404);
+        }
+
+        const managerName = payload.managerName ?? client.owner ?? "Менеджер CRM";
+        const managerId = payload.managerId ?? `manager-${clientId}`;
+
+        const policy: ClientPolicy = {
+          id: createRandomId(),
+          clientId,
+          number: payload.number,
+          product: payload.product,
+          insurer: payload.insurer,
+          status: payload.status ?? "draft",
+          premium: payload.premium,
+          currency: payload.currency,
+          periodStart: payload.periodStart,
+          periodEnd: payload.periodEnd,
+          createdAt: now,
+          updatedAt: now,
+          nextPaymentDate: payload.periodStart,
+          lastInteractionAt: now,
+          manager: {
+            id: managerId,
+            name: managerName,
+            title: payload.managerTitle ?? "Клиентский менеджер",
+            email: payload.managerEmail ?? `${managerId}@crm.local`,
+            phone: payload.managerPhone ?? client.phone,
+          },
+          tags: payload.tags ? Array.from(new Set(payload.tags.filter(Boolean))) : undefined,
+          coverageSummary: payload.coverageSummary,
+          attachmentsCount: 0,
+          reminders: [],
+        };
+
+        clientPoliciesMock.unshift(policy);
+        return cloneClientPolicy(policy);
+      },
+    );
+  }
+
+  updateClientPolicy(policyId: string, payload: Partial<UpsertClientPolicyPayload>): Promise<ClientPolicy> {
+    return this.request(
+      `/crm/policies/${policyId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const policy = clientPoliciesMock.find((item) => item.id === policyId);
+        if (!policy) {
+          throw new ApiError("Policy not found", 404);
+        }
+
+        if (payload.number !== undefined) {
+          policy.number = payload.number;
+        }
+        if (payload.product !== undefined) {
+          policy.product = payload.product;
+        }
+        if (payload.insurer !== undefined) {
+          policy.insurer = payload.insurer;
+        }
+        if (payload.premium !== undefined) {
+          policy.premium = payload.premium;
+        }
+        if (payload.currency !== undefined) {
+          policy.currency = payload.currency;
+        }
+        if (payload.periodStart !== undefined) {
+          policy.periodStart = payload.periodStart;
+        }
+        if (payload.periodEnd !== undefined) {
+          policy.periodEnd = payload.periodEnd;
+        }
+        if (payload.status !== undefined) {
+          policy.status = payload.status;
+        }
+        if (payload.tags !== undefined) {
+          policy.tags = Array.from(new Set(payload.tags.filter(Boolean)));
+        }
+        if (payload.coverageSummary !== undefined) {
+          policy.coverageSummary = payload.coverageSummary ?? undefined;
+        }
+        if (payload.managerId || payload.managerName || payload.managerTitle || payload.managerEmail || payload.managerPhone) {
+          policy.manager = {
+            ...policy.manager,
+            id: payload.managerId ?? policy.manager.id,
+            name: payload.managerName ?? policy.manager.name,
+            title: payload.managerTitle ?? policy.manager.title,
+            email: payload.managerEmail ?? policy.manager.email,
+            phone: payload.managerPhone ?? policy.manager.phone,
+          };
+        }
+
+        policy.updatedAt = new Date().toISOString();
+        policy.lastInteractionAt = policy.updatedAt;
+
+        return cloneClientPolicy(policy);
+      },
+    );
+  }
+
+  getClientTasks(clientId: string): Promise<ClientTaskChecklistItem[]> {
+    return this.request(
+      `/crm/clients/${clientId}/tasks`,
+      undefined,
+      async () =>
+        clientTaskChecklistMock
+          .filter((task) => task.clientId === clientId)
+          .map((task) => cloneClientTaskChecklistItem(task)),
+    );
+  }
+
+  toggleClientTask(taskId: string, completed: boolean): Promise<ClientTaskChecklistItem> {
+    return this.request(
+      `/crm/client-tasks/${taskId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ completed }),
+      },
+      async () => {
+        const task = clientTaskChecklistMock.find((item) => item.id === taskId);
+        if (!task) {
+          throw new ApiError("Task not found", 404);
+        }
+
+        task.completed = completed;
+        task.reminderAt = completed ? null : task.reminderAt ?? undefined;
+        return cloneClientTaskChecklistItem(task);
+      },
+    );
+  }
+
+  getClientReminders(clientId: string): Promise<ClientReminderCalendarItem[]> {
+    return this.request(
+      `/crm/clients/${clientId}/reminders`,
+      undefined,
+      async () =>
+        clientRemindersMock
+          .filter((reminder) => reminder.clientId === clientId)
+          .sort((a, b) => new Date(a.occursAt).getTime() - new Date(b.occursAt).getTime())
+          .map((reminder) => cloneClientReminder(reminder)),
+    );
   }
 
   getTasks(): Promise<Task[]> {
@@ -1822,10 +2081,35 @@ export class ApiClient {
     return this.updateTask(taskId, { status, completed: status === "done" });
   }
 
-  getClientActivities(clientId: string): Promise<ActivityLogEntry[]> {
-    return this.request(`/crm/clients/${clientId}/activity`, undefined, async () =>
-      activitiesMock.filter((entry) => entry.clientId === clientId),
-    );
+  getClientActivities(
+    clientId: string,
+    params?: ClientActivityQueryParams,
+  ): Promise<PaginatedResult<ActivityLogEntry>> {
+    return this.request(`/crm/clients/${clientId}/activity`, undefined, async () => {
+      const pageSize = Math.max(1, params?.pageSize ?? 5);
+      const page = Math.max(1, params?.page ?? 1);
+      const typeFilter = params?.type && params.type !== "all" ? params.type : undefined;
+
+      let entries = activitiesMock.filter((entry) => entry.clientId === clientId);
+
+      if (typeFilter) {
+        entries = entries.filter((entry) => entry.type === typeFilter);
+      }
+
+      entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      const total = entries.length;
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const items = entries.slice(start, end).map((entry) => ({ ...entry }));
+
+      return {
+        items,
+        total,
+        page,
+        pageSize,
+      };
+    });
   }
 
   async getNotificationFeed(filters?: NotificationFeedFilters): Promise<NotificationFeedResponse> {
@@ -2414,7 +2698,38 @@ export class ApiClient {
   }
 }
 
+const ACTIVE_CLIENT_POLICY_STATUSES: ClientPolicyStatus[] = ["draft", "pending", "active", "expiring"];
+const ARCHIVED_CLIENT_POLICY_STATUSES: ClientPolicyStatus[] = ["archived", "cancelled", "expired"];
+
+function isActiveClientPolicyStatus(status: ClientPolicyStatus) {
+  return ACTIVE_CLIENT_POLICY_STATUSES.includes(status);
+}
+
+function isArchivedClientPolicyStatus(status: ClientPolicyStatus) {
+  return ARCHIVED_CLIENT_POLICY_STATUSES.includes(status);
+}
+
+function cloneClientPolicy(policy: ClientPolicy): ClientPolicy {
+  return {
+    ...policy,
+    manager: { ...policy.manager },
+    tags: policy.tags ? [...policy.tags] : undefined,
+    reminders: policy.reminders ? policy.reminders.map((reminder) => ({ ...reminder })) : undefined,
+  };
+}
+
+function cloneClientTaskChecklistItem(task: ClientTaskChecklistItem): ClientTaskChecklistItem {
+  return { ...task };
+}
+
+function cloneClientReminder(reminder: ClientReminderCalendarItem): ClientReminderCalendarItem {
+  return { ...reminder };
+}
+
 function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
+  const attachments = entry.attachments?.map((attachment) => ({ ...attachment }));
+  const history = entry.history?.map((record) => ({ ...record }));
+
   return {
     ...entry,
     attachments: entry.attachments.map((attachment) => ({ ...attachment })),
