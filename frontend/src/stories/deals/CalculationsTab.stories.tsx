@@ -1,5 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import React from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import { CalculationsTab } from "@/components/deals/details/CalculationsTab";
 import type { DealCalculation } from "@/types/crm";
