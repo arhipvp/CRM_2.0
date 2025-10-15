@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import {
   apiClient,
+  type CreateTaskPayload,
   type PaymentConfirmationPayload,
   type PaymentEntryPayload,
   type PaymentPayload,
@@ -84,17 +85,17 @@ function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>,
     queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
   ];
 
-      if (task.dealId) {
-        invalidations.push(
-          queryClient.invalidateQueries({
-            queryKey: dealDetailsQueryOptions(task.dealId).queryKey,
-            exact: true,
-          }),
-          queryClient.invalidateQueries({
-            queryKey: dealTasksQueryOptions(task.dealId).queryKey,
-          }),
-        );
-      }
+  if (task.dealId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: dealDetailsQueryOptions(task.dealId).queryKey,
+        exact: true,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: dealTasksQueryOptions(task.dealId).queryKey,
+      }),
+    );
+  }
 
   return invalidations;
 }
@@ -137,6 +138,19 @@ export function useUpdateTask() {
     mutationKey: ["update-task"],
     mutationFn: ({ taskId, payload }: { taskId: string; payload: UpdateTaskPayload }) =>
       apiClient.updateTask(taskId, payload),
+    onSuccess: async (task) => {
+      const invalidations = createTaskInvalidations(queryClient, task);
+      await Promise.all(invalidations);
+    },
+  });
+}
+
+export function useCreateTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["create-task"],
+    mutationFn: (payload: CreateTaskPayload) => apiClient.createTask(payload),
     onSuccess: async (task) => {
       const invalidations = createTaskInvalidations(queryClient, task);
       await Promise.all(invalidations);

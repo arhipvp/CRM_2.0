@@ -23,6 +23,7 @@ import type {
   PaymentEntry,
   PaymentStatus,
   Task,
+  TaskActivityType,
   TaskStatus,
 } from "@/types/crm";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
@@ -161,6 +162,18 @@ export interface PaymentRevokePayload {
   recordedBy: string;
   recordedByRole?: string;
   reason?: string;
+}
+
+export interface CreateTaskPayload {
+  title: string;
+  dueDate: string;
+  owner: string;
+  status?: TaskStatus;
+  type?: TaskActivityType;
+  tags?: string[];
+  dealId?: string;
+  clientId?: string;
+  reminderAt?: string | null;
 }
 
 export interface PaymentEntryAttachmentPayload {
@@ -574,6 +587,40 @@ export class ApiClient {
 
   getTasks(): Promise<Task[]> {
     return this.request("/crm/tasks", undefined, async () => tasksMock);
+  }
+
+  createTask(payload: CreateTaskPayload): Promise<Task> {
+    return this.request(
+      "/crm/tasks",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const status = payload.status ?? "new";
+        const completed = status === "done";
+        const type = payload.type ?? "other";
+        const tags = payload.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [];
+        const reminderAt = payload.reminderAt ?? undefined;
+
+        const task: Task = {
+          id: createRandomId(),
+          title: payload.title,
+          dueDate: payload.dueDate,
+          status,
+          completed,
+          owner: payload.owner,
+          type,
+          tags,
+          dealId: payload.dealId ?? undefined,
+          clientId: payload.clientId ?? undefined,
+          reminderAt,
+        };
+
+        tasksMock.unshift(task);
+        return { ...task };
+      },
+    );
   }
 
   async updateTask(taskId: string, payload: UpdateTaskPayload): Promise<Task> {

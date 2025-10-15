@@ -2,8 +2,8 @@ import React from "react";
 import userEvent from "@testing-library/user-event";
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { tasksQueryOptions } from "@/lib/api/queries";
-import { tasksMock } from "@/mocks/data";
+import { clientsQueryOptions, dealsQueryOptions, tasksQueryOptions } from "@/lib/api/queries";
+import { clientsMock, dealsMock, tasksMock } from "@/mocks/data";
 import { TaskList } from "@/components/tasks/TaskList";
 import { apiClient } from "@/lib/api/client";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
@@ -77,4 +77,68 @@ describe("TaskList", () => {
 
     await waitFor(() => expect(spy).toHaveBeenCalledWith([tasksMock[0].id, tasksMock[1].id], { status: "cancelled" }, undefined));
   });
+
+  it("создаёт задачу через модальное окно", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(tasksQueryOptions().queryKey, tasksMock);
+    client.setQueryData(dealsQueryOptions().queryKey, dealsMock);
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
+
+    const now = new Date();
+    const dueDate = new Date(now.getTime());
+    dueDate.setDate(dueDate.getDate() + 2);
+    dueDate.setHours(11, 0, 0, 0);
+    const dueDateValue = formatDateTimeLocal(dueDate);
+    const dueDateIso = new Date(dueDateValue).toISOString();
+
+    const createSpy = vi.spyOn(apiClient, "createTask").mockResolvedValue({
+      id: "task-new",
+      title: "Новая задача",
+      dueDate: dueDateIso,
+      status: "new",
+      completed: false,
+      owner: "Иван Плахов",
+      type: "other",
+      tags: [],
+    });
+
+    renderWithQueryClient(<TaskList />, client);
+
+    await screen.findByText(tasksMock[0].title);
+
+    await userEvent.click(screen.getByRole("button", { name: /создать задачу/i }));
+
+    expect(await screen.findByRole("heading", { name: /создание задачи/i })).toBeInTheDocument();
+
+    const titleInput = screen.getByLabelText(/Название задачи/i);
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, "Новая задача");
+
+    const ownerInput = screen.getByLabelText(/Исполнитель/i);
+    await userEvent.clear(ownerInput);
+    await userEvent.type(ownerInput, "Иван Плахов");
+
+    const dueDateInput = screen.getByLabelText(/^Срок/i);
+    await userEvent.clear(dueDateInput);
+    await userEvent.type(dueDateInput, dueDateValue);
+
+    await userEvent.click(screen.getByRole("button", { name: /Сохранить задачу/i }));
+
+    await waitFor(() =>
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Новая задача",
+          owner: "Иван Плахов",
+          dueDate: dueDateIso,
+        }),
+      ),
+    );
+
+    expect(screen.getByText(/Задача «Новая задача» создана/i)).toBeInTheDocument();
+  });
 });
+
+function formatDateTimeLocal(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
