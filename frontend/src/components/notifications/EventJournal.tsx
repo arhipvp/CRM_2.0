@@ -84,7 +84,12 @@ export function EventJournal() {
           </div>
           <div className="flex min-w-[180px] flex-col gap-1 text-xs">
             <span className="font-medium text-slate-500 dark:text-slate-400">Источник</span>
-            {buildFilter(availableSources, filters.source, (value) => setFilters((prev) => ({ ...prev, source: value })))}
+            {buildFilter(availableSources, filters.source, (value) =>
+              setFilters((prev) => ({
+                ...prev,
+                source: value as NotificationEventJournalFilters["source"],
+              })),
+            )}
           </div>
           <div className="flex min-w-[180px] flex-col gap-1 text-xs">
             <span className="font-medium text-slate-500 dark:text-slate-400">Статус</span>

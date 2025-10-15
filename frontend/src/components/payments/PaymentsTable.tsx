@@ -177,6 +177,8 @@ export function PaymentsTable() {
   const [pendingConfirmationId, setPendingConfirmationId] = useState<string | null>(null);
   const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
 
+  const dialogPayment = dialog && "payment" in dialog ? dialog.payment : undefined;
+
   const pushNotification = useUiStore((state) => state.pushNotification);
 
   const notify = (message: string, type: "success" | "info" | "warning" | "error" = "success") => {
@@ -296,7 +298,7 @@ export function PaymentsTable() {
           paymentId: payment.id,
           payload: {
             plannedAmount: values.plannedAmount,
-            plannedDate: values.plannedDate || null,
+            plannedDate: values.plannedDate || undefined,
             currency: values.currency,
             status: values.status,
             actualDate: values.actualDate ?? null,
@@ -689,7 +691,7 @@ export function PaymentsTable() {
             ? isCreatingExpense
             : false
         }
-        currency={dialog?.payment?.currency ?? "RUB"}
+        currency={dialogPayment?.currency ?? "RUB"}
       />
 
       <PaymentEntryConfirmModal
@@ -697,7 +699,7 @@ export function PaymentsTable() {
         isOpen={dialog?.type === "confirmIncome" || dialog?.type === "confirmExpense"}
         entry={dialog && (dialog.type === "confirmIncome" || dialog.type === "confirmExpense") ? dialog.entry : undefined}
         payment={dialog && (dialog.type === "confirmIncome" || dialog.type === "confirmExpense") ? dialog.payment : undefined}
-        currency={dialog?.payment?.currency ?? "RUB"}
+        currency={dialogPayment?.currency ?? "RUB"}
         onClose={() => setDialog(null)}
         isSubmitting={
           dialog?.type === "confirmIncome"
