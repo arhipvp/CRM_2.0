@@ -5,14 +5,16 @@ import importlib
 import os
 import sys
 from collections.abc import AsyncIterator, Iterator
+from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from httpx import AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
@@ -122,3 +124,35 @@ async def db_session(apply_migrations) -> AsyncIterator[AsyncSession]:
 
     async with AsyncSessionFactory() as session:
         yield session
+
+
+@pytest_asyncio.fixture()
+async def document_id(db_session: AsyncSession) -> AsyncIterator[UUID]:
+    document_id = uuid4()
+    now = datetime.now(timezone.utc)
+
+    await db_session.execute(
+        text(
+            """
+            INSERT INTO documents.documents (id, name, status, created_at, updated_at)
+            VALUES (:id, :name, :status, :created_at, :updated_at)
+            """
+        ),
+        {
+            "id": document_id,
+            "name": "test-policy-document",
+            "status": "pending_upload",
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+    await db_session.commit()
+
+    try:
+        yield document_id
+    finally:
+        await db_session.execute(
+            text("DELETE FROM documents.documents WHERE id = :id"),
+            {"id": document_id},
+        )
+        await db_session.commit()

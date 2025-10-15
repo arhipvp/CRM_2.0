@@ -7,7 +7,7 @@ from crm.domain import schemas
 
 
 @pytest.mark.asyncio
-async def test_policy_documents_flow(api_client):
+async def test_policy_documents_flow(api_client, document_id):
     tenant_id = uuid4()
     owner_id = uuid4()
     headers = {"X-Tenant-ID": str(tenant_id)}
@@ -34,7 +34,6 @@ async def test_policy_documents_flow(api_client):
     assert policy_resp.status_code == 201
     policy = schemas.PolicyRead.model_validate(policy_resp.json())
 
-    document_id = uuid4()
     attach_resp = await api_client.post(
         f"/api/v1/policies/{policy.id}/documents",
         json={"document_id": str(document_id)},
@@ -78,6 +77,28 @@ async def test_policy_documents_flow(api_client):
     )
     assert missing_delete.status_code == 404
     assert missing_delete.json()["detail"] == "document_not_linked"
+
+    reattach_resp = await api_client.post(
+        f"/api/v1/policies/{policy.id}/documents",
+        json={"document_id": str(document_id)},
+        headers=headers,
+    )
+    assert reattach_resp.status_code == 201
+    reattached = schemas.PolicyDocumentRead.model_validate(reattach_resp.json())
+    assert reattached.document_id == document_id
+    assert reattached.policy_id == policy.id
+
+    final_list = await api_client.get(f"/api/v1/policies/{policy.id}/documents", headers=headers)
+    assert final_list.status_code == 200
+    final_items = [schemas.PolicyDocumentRead.model_validate(item) for item in final_list.json()]
+    assert len(final_items) == 1
+    assert final_items[0].document_id == document_id
+
+    final_delete = await api_client.delete(
+        f"/api/v1/policies/{policy.id}/documents/{document_id}",
+        headers=headers,
+    )
+    assert final_delete.status_code == 204
 
 
 @pytest.mark.asyncio
