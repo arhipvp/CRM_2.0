@@ -4,7 +4,20 @@ from datetime import datetime, date
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, Text, func, Integer, JSON
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    Integer,
+    JSON,
+)
 from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.schema import MetaData
@@ -117,6 +130,11 @@ class Policy(CRMBase, TimestampMixin, OwnershipMixin):
     client: Mapped[Client] = relationship()
     deal: Mapped[Deal | None] = relationship(back_populates="policies")
     calculation: Mapped["Calculation | None"] = relationship(back_populates="policy")
+    documents: Mapped[list["PolicyDocument"]] = relationship(
+        back_populates="policy",
+        cascade="all, delete-orphan",
+        order_by="PolicyDocument.created_at.asc()",
+    )
 
     __table_args__ = (
         Index("ix_policies_status", "status"),
@@ -242,6 +260,26 @@ class PaymentExpense(CRMBase, TimestampMixin):
     updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     payment: Mapped[Payment] = relationship(back_populates="expenses")
+
+
+class PolicyDocument(CRMBase):
+    __tablename__ = "policy_documents"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    policy_id: Mapped[UUID] = mapped_column(
+        ForeignKey("crm.policies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    document_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    policy: Mapped[Policy] = relationship(back_populates="documents")
+
+    __table_args__ = (
+        UniqueConstraint("policy_id", "document_id", name="ux_policy_documents_policy_document"),
+    )
 
 
 class PermissionSyncJob(CRMBase, TimestampMixin):

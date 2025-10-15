@@ -24,6 +24,7 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - lightweight fal
 
 from crm.domain import schemas
 from crm.infrastructure import models, repositories
+from crm.infrastructure.repositories import RepositoryError
 
 
 class ClientService:
@@ -146,8 +147,13 @@ class DealJournalService:
 
 
 class PolicyService:
-    def __init__(self, repository: repositories.PolicyRepository):
+    def __init__(
+        self,
+        repository: repositories.PolicyRepository,
+        policy_documents: repositories.PolicyDocumentRepository | None = None,
+    ) -> None:
         self.repository = repository
+        self.policy_documents = policy_documents
 
     async def list_policies(self, tenant_id: UUID) -> Iterable[schemas.PolicyRead]:
         policies = await self.repository.list(tenant_id)
@@ -171,9 +177,44 @@ class PolicyService:
             return None
         return self._to_schema(entity)
 
+    async def list_policy_documents(
+        self, tenant_id: UUID, policy_id: UUID
+    ) -> Iterable[schemas.PolicyDocumentRead] | None:
+        if self.policy_documents is None:  # pragma: no cover - defensive
+            raise RepositoryError("policy_documents_repository_not_configured")
+        policy = await self.repository.get(tenant_id, policy_id)
+        if policy is None:
+            return None
+        items = await self.policy_documents.list(tenant_id, policy_id)
+        return [self._policy_document_to_schema(item) for item in items]
+
+    async def attach_document(
+        self, tenant_id: UUID, policy_id: UUID, document_id: UUID
+    ) -> schemas.PolicyDocumentRead | None:
+        if self.policy_documents is None:  # pragma: no cover - defensive
+            raise RepositoryError("policy_documents_repository_not_configured")
+        entity = await self.policy_documents.attach(tenant_id, policy_id, document_id)
+        if entity is None:
+            return None
+        return self._policy_document_to_schema(entity)
+
+    async def detach_document(
+        self, tenant_id: UUID, policy_id: UUID, document_id: UUID
+    ) -> bool | None:
+        if self.policy_documents is None:  # pragma: no cover - defensive
+            raise RepositoryError("policy_documents_repository_not_configured")
+        policy = await self.repository.get(tenant_id, policy_id)
+        if policy is None:
+            return None
+        return await self.policy_documents.detach(tenant_id, policy_id, document_id)
+
     @staticmethod
     def _to_schema(policy: models.Policy) -> schemas.PolicyRead:
         return schemas.PolicyRead.model_validate(policy)
+
+    @staticmethod
+    def _policy_document_to_schema(document: models.PolicyDocument) -> schemas.PolicyDocumentRead:
+        return schemas.PolicyDocumentRead.model_validate(document)
 
 
 class CalculationService:

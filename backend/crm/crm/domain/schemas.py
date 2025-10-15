@@ -130,6 +130,18 @@ class PolicyRead(ORMModel, PolicyBase):
     updated_at: datetime
 
 
+class PolicyDocumentLink(BaseModel):
+    document_id: UUID
+
+
+class PolicyDocumentRead(ORMModel):
+    id: UUID
+    tenant_id: UUID
+    policy_id: UUID
+    document_id: UUID
+    created_at: datetime
+
+
 class DateRange(BaseModel):
     start: Optional[date] = None
     end: Optional[date] = None
