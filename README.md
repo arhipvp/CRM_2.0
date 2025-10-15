@@ -10,14 +10,16 @@
 
 Сценарий последовательно выполняет ключевые шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и печатает агрегированную таблицу статусов:
 
-1. синхронизация `.env` через `scripts/sync-env.sh --mode=skip-existing` (создаёт файл или обновляет значения из `env.example` без пауз для уже существующих `.env`);
-1. синхронизация `.env` через `scripts/sync-env.sh` (создаёт файл или обновляет значения из `env.example` и фиксирует пропуски);
+1. синхронизацию `.env` через `scripts/sync-env.sh --non-interactive` (создаёт файл или обновляет значения из `env.example`, пропуская уже существующие локальные `.env` без пауз);
 2. запуск инфраструктуры `docker compose up -d` в каталоге `infra/`;
 3. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
-4. автоматическая настройка RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
+4. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
 5. миграции CRM/Auth через `scripts/migrate-local.sh`;
-6. загрузка seed-данных, если существует `scripts/load-seeds.sh`;
-7. smoke-проверка окружения `scripts/check-local-infra.sh`.
+6. запуск фронтенда `docker compose --profile app up -d frontend` в каталоге `infra/`;
+7. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
+8. smoke-проверку окружения `scripts/check-local-infra.sh`.
+
+Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда.
 
 Обязательные зависимости: Docker с Compose V2, Python 3 (`python3`), Poetry и JDK 17+ (для Gradle wrapper в `backend/auth`). Отсутствие CLI `psql`, `redis-cli`, `curl` приводит только к предупреждениям — bootstrap продолжится, а для соответствующих шагов можно использовать `docker compose exec` или альтернативные инструменты. Скрипт автоматически выдаёт предупреждение о пропущенных шагах и сохраняет логи неудачных этапов во временной директории.
 

@@ -192,6 +192,10 @@ step_migrate() {
   (cd "${ROOT_DIR}" && ./scripts/migrate-local.sh)
 }
 
+step_start_frontend() {
+  (cd "${INFRA_DIR}" && docker compose --profile app up -d frontend)
+}
+
 step_load_seeds() {
   (cd "${ROOT_DIR}" && ./scripts/load-seeds.sh)
 }
@@ -215,6 +219,7 @@ main() {
   run_step "Ожидание готовности docker compose" step_wait_infra
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
+  run_step "Запуск фронтенда" step_start_frontend
 
   if [[ -x "${ROOT_DIR}/scripts/load-seeds.sh" ]]; then
     run_step "Загрузка seed-данных" step_load_seeds
