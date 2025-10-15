@@ -326,7 +326,10 @@ export function CalculationsTab({ calculations, isLoading, error, onRetry }: Cal
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                     {calc.policyId ? (
-                      <Link href={`/policies/${calc.policyId}`} className="text-sky-600 hover:underline">
+                      <Link
+                        href={{ pathname: "/policies/[policyId]", query: { policyId: calc.policyId } }}
+                        className="text-sky-600 hover:underline"
+                      >
                         Перейти
                       </Link>
                     ) : (
@@ -496,7 +499,10 @@ export function CalculationsTab({ calculations, isLoading, error, onRetry }: Cal
               <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Связанный полис</dt>
               <dd>
                 {selectedCalculation.policyId ? (
-                  <Link href={`/policies/${selectedCalculation.policyId}`} className="text-sky-600 hover:underline">
+                  <Link
+                    href={{ pathname: "/policies/[policyId]", query: { policyId: selectedCalculation.policyId } }}
+                    className="text-sky-600 hover:underline"
+                  >
                     Открыть полис
                   </Link>
                 ) : (
