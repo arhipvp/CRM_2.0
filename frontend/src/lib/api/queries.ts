@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
-import { apiClient, type ClientActivityQueryParams, type ClientPoliciesQueryParams } from "@/lib/api/client";
+import {
+  apiClient,
+  type ApiClient,
+  type ClientActivityQueryParams,
+  type ClientPoliciesQueryParams,
+} from "@/lib/api/client";
 import { ActivityLogEntry, DealFilters } from "@/types/crm";
 import { NO_MANAGER_VALUE, getManagerLabel } from "@/lib/utils/managers";
 import type {
@@ -50,76 +55,76 @@ function sanitizeDealFilters(filters?: DealFilters): DealFilters | undefined {
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-export const dealsQueryOptions = (filters?: DealFilters) => {
+export const dealsQueryOptions = (filters?: DealFilters, client: ApiClient = apiClient) => {
   const sanitizedFilters = sanitizeDealFilters(filters);
 
   return queryOptions({
     queryKey: [...dealsQueryKey, sanitizedFilters ?? emptyObject] as const,
-    queryFn: () => apiClient.getDeals(sanitizedFilters),
+    queryFn: () => client.getDeals(sanitizedFilters),
   });
 };
 
-export const dealStageMetricsQueryOptions = (filters?: DealFilters) => {
+export const dealStageMetricsQueryOptions = (filters?: DealFilters, client: ApiClient = apiClient) => {
   const sanitizedFilters = sanitizeDealFilters(filters);
 
   return queryOptions({
     queryKey: [...dealStageMetricsQueryKey, sanitizedFilters ?? emptyObject] as const,
-    queryFn: () => apiClient.getDealStageMetrics(sanitizedFilters),
+    queryFn: () => client.getDealStageMetrics(sanitizedFilters),
   });
 };
 
-export const dealDetailsQueryOptions = (dealId: string) =>
+export const dealDetailsQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "details"],
-    queryFn: () => apiClient.getDealDetails(dealId),
+    queryFn: () => client.getDealDetails(dealId),
     enabled: Boolean(dealId),
   });
 
-export const dealTasksQueryOptions = (dealId: string) =>
+export const dealTasksQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "tasks"],
-    queryFn: () => apiClient.getDealTasks(dealId),
+    queryFn: () => client.getDealTasks(dealId),
     enabled: Boolean(dealId),
   });
 
-export const dealNotesQueryOptions = (dealId: string) =>
+export const dealNotesQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "notes"],
-    queryFn: () => apiClient.getDealNotes(dealId),
+    queryFn: () => client.getDealNotes(dealId),
     enabled: Boolean(dealId),
   });
 
-export const dealDocumentsQueryOptions = (dealId: string) =>
+export const dealDocumentsQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "documents"],
-    queryFn: () => apiClient.getDealDocuments(dealId),
+    queryFn: () => client.getDealDocuments(dealId),
     enabled: Boolean(dealId),
   });
 
-export const dealPaymentsQueryOptions = (dealId: string) =>
+export const dealPaymentsQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "payments"],
-    queryFn: () => apiClient.getDealPayments(dealId),
+    queryFn: () => client.getDealPayments(dealId),
     enabled: Boolean(dealId),
   });
 
-export const dealActivityQueryOptions = (dealId: string) =>
+export const dealActivityQueryOptions = (dealId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["deal", dealId, "activity"],
-    queryFn: () => apiClient.getDealActivity(dealId),
+    queryFn: () => client.getDealActivity(dealId),
     enabled: Boolean(dealId),
   });
 
-export const clientsQueryOptions = () =>
+export const clientsQueryOptions = (client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["clients"],
-    queryFn: () => apiClient.getClients(),
+    queryFn: () => client.getClients(),
   });
 
-export const clientQueryOptions = (clientId: string) =>
+export const clientQueryOptions = (clientId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["client", clientId],
-    queryFn: () => apiClient.getClient(clientId),
+    queryFn: () => client.getClient(clientId),
     enabled: Boolean(clientId),
   });
 
@@ -171,44 +176,52 @@ function normalizeClientActivityParams(params?: ClientActivityQueryParams) {
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
-export const clientActivityQueryOptions = (clientId: string, params?: ClientActivityQueryParams) => {
+export const clientActivityQueryOptions = (
+  clientId: string,
+  params?: ClientActivityQueryParams,
+  client: ApiClient = apiClient,
+) => {
   const normalized = normalizeClientActivityParams(params);
 
   return queryOptions({
     queryKey: ["client", clientId, "activity", normalized ?? emptyObject] as const,
-    queryFn: () => apiClient.getClientActivities(clientId, normalized),
+    queryFn: () => client.getClientActivities(clientId, normalized),
     enabled: Boolean(clientId),
   });
 };
 
-export const clientPoliciesQueryOptions = (clientId: string, params?: ClientPoliciesQueryParams) => {
+export const clientPoliciesQueryOptions = (
+  clientId: string,
+  params?: ClientPoliciesQueryParams,
+  client: ApiClient = apiClient,
+) => {
   const normalized = normalizeClientPoliciesParams(params);
 
   return queryOptions({
     queryKey: ["client", clientId, "policies", normalized ?? emptyObject] as const,
-    queryFn: () => apiClient.getClientPolicies(clientId, normalized),
+    queryFn: () => client.getClientPolicies(clientId, normalized),
     enabled: Boolean(clientId),
   });
 };
 
-export const clientTasksChecklistQueryOptions = (clientId: string) =>
+export const clientTasksChecklistQueryOptions = (clientId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["client", clientId, "tasks", "checklist"],
-    queryFn: () => apiClient.getClientTasks(clientId),
+    queryFn: () => client.getClientTasks(clientId),
     enabled: Boolean(clientId),
   });
 
-export const clientRemindersQueryOptions = (clientId: string) =>
+export const clientRemindersQueryOptions = (clientId: string, client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["client", clientId, "reminders"],
-    queryFn: () => apiClient.getClientReminders(clientId),
+    queryFn: () => client.getClientReminders(clientId),
     enabled: Boolean(clientId),
   });
 
-export const tasksQueryOptions = () =>
+export const tasksQueryOptions = (client: ApiClient = apiClient) =>
   queryOptions({
     queryKey: ["tasks"],
-    queryFn: () => apiClient.getTasks(),
+    queryFn: () => client.getTasks(),
   });
 
 export interface PaymentsQueryParams {
@@ -225,12 +238,12 @@ function normalizePaymentsInclude(include?: Array<"incomes" | "expenses">) {
   return unique as Array<"incomes" | "expenses">;
 }
 
-export const paymentsQueryOptions = (params?: PaymentsQueryParams) => {
+export const paymentsQueryOptions = (params?: PaymentsQueryParams, client: ApiClient = apiClient) => {
   const include = normalizePaymentsInclude(params?.include);
 
   return queryOptions({
     queryKey: ["payments", include ?? []] as const,
-    queryFn: () => apiClient.getPayments({ include }),
+    queryFn: () => client.getPayments({ include }),
   });
 };
 
@@ -290,20 +303,26 @@ function sanitizeNotificationJournalFilters(
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-export const notificationsFeedQueryOptions = (filters?: NotificationFeedFilters) => {
+export const notificationsFeedQueryOptions = (
+  filters?: NotificationFeedFilters,
+  client: ApiClient = apiClient,
+) => {
   const sanitized = sanitizeNotificationFeedFilters(filters);
 
   return queryOptions({
     queryKey: [...notificationsFeedQueryKey, sanitized ?? emptyObject] as const,
-    queryFn: () => apiClient.getNotificationFeed(sanitized),
+    queryFn: () => client.getNotificationFeed(sanitized),
   });
 };
 
-export const notificationJournalQueryOptions = (filters?: NotificationEventJournalFilters) => {
+export const notificationJournalQueryOptions = (
+  filters?: NotificationEventJournalFilters,
+  client: ApiClient = apiClient,
+) => {
   const sanitized = sanitizeNotificationJournalFilters(filters);
 
   return queryOptions({
     queryKey: [...notificationsJournalQueryKey, sanitized ?? emptyObject] as const,
-    queryFn: () => apiClient.getNotificationEventJournal(sanitized),
+    queryFn: () => client.getNotificationEventJournal(sanitized),
   });
 };

@@ -48,7 +48,8 @@ docker compose --profile app up -d frontend
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
 - `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Укажите значение `mock`, чтобы отключить реальные запросы и всегда использовать встроенные мок-данные из `src/mocks`.
-- `FRONTEND_PROXY_TIMEOUT` — таймаут (в миллисекундах) для Next.js middleware и клиента `apiClient`. Значение доступно и на сервере, и в браузере; дефолтный лимит 15 секунд защищает от зависших запросов.
+- `FRONTEND_PROXY_TIMEOUT` — таймаут (в миллисекундах) для Next.js middleware и браузерных запросов клиента `apiClient`. Значение по умолчанию — 15 секунд.
+- `FRONTEND_SERVER_TIMEOUT_MS` — укороченный таймаут (7.5 секунд по умолчанию) для SSR и серверных экшенов Next.js; при превышении лимита клиент автоматически возвращает мок-данные или ошибку.
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://gateway:8080/api/v1/streams/notifications`).
 

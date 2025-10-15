@@ -4,6 +4,8 @@ import { sortDealsByNextReview } from "@/lib/utils/deals";
 import type { PaymentEntry } from "@/types/crm";
 
 const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+const originalProxyTimeout = process.env.FRONTEND_PROXY_TIMEOUT;
+const originalServerTimeout = process.env.FRONTEND_SERVER_TIMEOUT_MS;
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -33,6 +35,8 @@ describe("ApiClient mock mode", () => {
 
   afterEach(() => {
     process.env.NEXT_PUBLIC_API_BASE_URL = originalBaseUrl;
+    process.env.FRONTEND_PROXY_TIMEOUT = originalProxyTimeout;
+    process.env.FRONTEND_SERVER_TIMEOUT_MS = originalServerTimeout;
     vi.restoreAllMocks();
   });
 
@@ -191,5 +195,57 @@ describe("ApiClient mock mode", () => {
 
     await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ApiClient серверные таймауты", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = originalBaseUrl;
+    process.env.FRONTEND_PROXY_TIMEOUT = originalProxyTimeout;
+    process.env.FRONTEND_SERVER_TIMEOUT_MS = originalServerTimeout;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("переходит на fallback после досрочного серверного таймаута", async () => {
+    vi.useFakeTimers();
+    process.env.FRONTEND_SERVER_TIMEOUT_MS = "25";
+    const originalWindow = globalThis.window;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).window = undefined;
+
+    try {
+      fetchMock.mockImplementation((_url, init?: RequestInit) => {
+        const signal = init?.signal;
+        return new Promise((_, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => {
+              reject(new Error("Aborted"));
+            },
+            { once: true },
+          );
+        });
+      });
+
+      const { apiClient } = await importClient();
+      const { dealsMock } = await importMocks();
+
+      const promise = apiClient.getDeals();
+      await vi.advanceTimersByTimeAsync(25);
+
+      await expect(promise).resolves.toEqual(sortDealsByNextReview(dealsMock));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).window = originalWindow;
+    }
   });
 });

@@ -1,8 +1,14 @@
 import { TaskList } from "@/components/tasks/TaskList";
+import { getServerApiClient } from "@/lib/api/client";
+import { tasksQueryOptions } from "@/lib/api/queries";
 
 export const revalidate = 0;
 
 export default async function TasksPage() {
+  const queryClient = new QueryClient();
+  const serverApiClient = getServerApiClient();
+  await queryClient.prefetchQuery(tasksQueryOptions(serverApiClient));
+
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <header className="space-y-2">
