@@ -553,18 +553,19 @@ export function DocumentsTab({ dealId, categories, onUpload, highlightKey }: Doc
                 onCancel={handleCancelUpload}
                 onRetry={handleRetry}
                 onAssign={(current) => {
-                  if (!current.document) {
+                  const document = current.document;
+                  if (!document) {
                     return;
                   }
-                  const document = current.document;
+                  const request: CategoryDialogRequest = {
+                    id: document.id,
+                    document,
+                    origin: "upload",
+                    uploadId: current.id,
+                  };
                   setCategoryQueue((prev) => [
                     ...prev,
-                    {
-                      id: document.id,
-                      document,
-                      origin: "upload",
-                      uploadId: current.id,
-                    },
+                    request,
                   ]);
                 }}
               />
