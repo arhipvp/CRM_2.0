@@ -23,11 +23,16 @@ export class ActivateScheduledTaskHandler
       throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
+    const previousStatus = task.statusCode;
+
     task.statusCode = TaskStatusCode.PENDING;
     task.scheduledFor = null;
 
     const saved = await this.taskRepository.save(task);
-    await this.eventsPublisher.taskReady(saved);
+
+    if (previousStatus !== saved.statusCode) {
+      await this.eventsPublisher.taskStatusChanged(saved, previousStatus);
+    }
     return (await this.taskRepository.findOne({ where: { id: saved.id }, relations: ['status'] }))!;
   }
 }

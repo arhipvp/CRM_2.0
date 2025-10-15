@@ -1,11 +1,20 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsUUID, IsISO8601 } from 'class-validator';
 
 export class IncomingNotificationDto {
+  @IsUUID()
+  id!: string;
+
   @IsString()
-  eventType!: string;
+  source!: string;
+
+  @IsString()
+  type!: string;
+
+  @IsISO8601()
+  time!: string;
 
   @IsObject()
-  payload!: Record<string, unknown>;
+  data!: Record<string, unknown>;
 
   @IsOptional()
   @IsString()

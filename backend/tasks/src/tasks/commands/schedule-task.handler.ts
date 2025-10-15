@@ -23,6 +23,8 @@ export class ScheduleTaskHandler implements ICommandHandler<ScheduleTaskCommand,
       throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
+    const previousStatus = task.statusCode;
+
     task.scheduledFor = command.scheduledFor;
     task.statusCode = TaskStatusCode.SCHEDULED;
     if (command.title) {
@@ -34,7 +36,10 @@ export class ScheduleTaskHandler implements ICommandHandler<ScheduleTaskCommand,
 
     await this.delayedQueue.schedule(task.id, command.scheduledFor);
     const saved = await this.taskRepository.save(task);
-    await this.eventsPublisher.taskScheduled(saved);
+
+    if (previousStatus !== saved.statusCode) {
+      await this.eventsPublisher.taskStatusChanged(saved, previousStatus);
+    }
     return (await this.taskRepository.findOne({ where: { id: saved.id }, relations: ['status'] }))!;
   }
 }

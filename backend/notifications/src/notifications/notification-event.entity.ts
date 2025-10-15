@@ -16,6 +16,9 @@ export class NotificationEventEntity {
   @Column({ type: 'jsonb' })
   payload!: Record<string, unknown>;
 
+  @Column({ type: 'uuid', nullable: true, unique: true })
+  eventId!: string | null;
+
   @Column({ type: 'boolean', default: false })
   deliveredToTelegram!: boolean;
 

@@ -61,6 +61,7 @@ export class TaskUpdateService {
 
     const previousStatus = task.statusCode;
     const nextStatus = command.status ?? task.statusCode;
+    const statusChanged = previousStatus !== nextStatus;
 
     if (command.status && command.status !== previousStatus) {
       this.ensureTransition(previousStatus, command.status);
@@ -139,8 +140,8 @@ export class TaskUpdateService {
       await this.delayedQueue.remove(saved.id);
     }
 
-    if (previousStatus !== TaskStatusCode.COMPLETED && nextStatus === TaskStatusCode.COMPLETED) {
-      await this.eventsPublisher.taskCompleted(saved);
+    if (statusChanged) {
+      await this.eventsPublisher.taskStatusChanged(saved, previousStatus);
     }
 
     return (await this.taskRepository.findOne({ where: { id: saved.id }, relations: ['status'] }))!;

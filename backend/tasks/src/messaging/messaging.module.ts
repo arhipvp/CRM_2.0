@@ -8,14 +8,14 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const uri = configService.get<string>('tasks.rabbitmq.url');
-        const exchange = configService.get<string>('tasks.rabbitmq.eventsExchange');
+        const exchange = configService.get<string>('tasks.rabbitmq.events.exchange');
 
         if (!uri) {
           throw new Error('TASKS_RABBITMQ_URL is not configured');
         }
 
         if (!exchange) {
-          throw new Error('tasks.rabbitmq.eventsExchange is not configured');
+          throw new Error('tasks.rabbitmq.events.exchange is not configured');
         }
 
         return {

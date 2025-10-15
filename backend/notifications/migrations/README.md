@@ -6,6 +6,7 @@
 2. `1705000001000-create-notification-templates-table.ts` — таблица `notification_templates` с уникальным ключом `key` + `channel`, полями `locale`, `body`, `metadata`, `status` и временными метками.
 2. `1710000000001-add-telegram-delivery-columns.ts` — дополнительные поля для идентификатора сообщения и статусов webhook-доставки.
 3. `1715000000002-create-notifications-dispatch-tables.ts` — таблицы `notifications` и `notification_delivery_attempts` для API постановки уведомлений и учёта попыток доставки.
+4. `1716000000003-add-event-id-to-notification-events.ts` — добавляет колонку `eventId` и уникальный индекс для идемпотентной обработки входящих CloudEvents.
 
 ## Правила версионирования
 

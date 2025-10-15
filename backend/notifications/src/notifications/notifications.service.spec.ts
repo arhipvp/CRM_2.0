@@ -147,7 +147,10 @@ describe('NotificationsService', () => {
       expect.stringContaining('notification-id')
     );
     expect(notificationEventsService.handleIncoming).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: dto.eventKey })
+      expect.objectContaining({
+        type: dto.eventKey,
+        data: expect.objectContaining({ notificationId: 'notification-id' })
+      })
     );
     expect(attemptsRepository.save).toHaveBeenCalledTimes(3);
     expect(notificationsRepository.update).toHaveBeenCalledWith('notification-id', {

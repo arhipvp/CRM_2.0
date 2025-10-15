@@ -34,16 +34,19 @@
 - **Exchange:** `tasks.events`
 - **Тип обмена:** topic
 - **Очереди-потребители:** `notifications.tasks`, `audit.tasks`
+- **Source:** `tasks.service`
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
-| `task.created` | `tasks.task.created` | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "context": { "deal_id": "uuid" } }` | Notifications хранит `task_id` + `event_id`. |
+| `task.created` | `tasks.task.created` | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid\|null", "author_id": "uuid\|null", "status": "pending", "due_date": "datetime\|null", "scheduled_for": "datetime\|null", "context": { "deal_id": "uuid", "client_id": "uuid", "policy_id": "uuid" } }` | Notifications хранит `event_id` и журналирует дополнительные поля для аналитики задач. |
 | `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "in_progress", "new_status": "waiting", "changed_at": "datetime" }` | Повторы определяются по `event_id`. Доступные значения `old_status`/`new_status`: `new` (Новая), `in_progress` (В работе), `waiting` (В ожидании), `done` (Выполнена), `cancelled` (Отменена). |
-| `task.reminder` | `tasks.task.reminder` | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` | Notifications проверяет комбинацию (`task_id`, `remind_at`). |
+| `task.reminder` | `tasks.task.reminder` | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` | Notifications хранит `event_id` и дополнительно учитывает комбинацию (`task_id`, `remind_at`) при построении витрин. |
 
 > Обработка напоминаний выполняется сервисом `TaskReminderProcessor`: он опрашивает Redis-очередь `TASKS_REMINDERS_QUEUE_KEY` каждые `TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд, публикуя событие и удаляя элемент из очереди; при ошибке напоминание переотправляется с задержкой.
 
 > Поле `channel` соответствует каналу доставки напоминания и принимает значения `sse` (значение по умолчанию) или `telegram` — в зависимости от параметра, который был передан при создании напоминания через Tasks API.
+
+> Поля `assignee_id`, `author_id`, `due_date`, `scheduled_for` и ключи объекта `context` могут принимать значение `null`, если соответствующие данные не заданы в задаче.
 
 ## События Notifications
 - **Exchange:** `notifications.events`

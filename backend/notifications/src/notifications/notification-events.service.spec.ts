@@ -37,13 +37,20 @@ describe('NotificationEventsService', () => {
 
   describe('handleIncoming', () => {
     const incoming: IncomingNotificationDto = {
-      eventType: 'deal.created',
-      payload: { id: 'deal-1' },
+      id: 'event-1',
+      source: 'tasks.service',
+      type: 'tasks.task.created',
+      time: '2024-03-10T09:00:00.000Z',
+      data: { id: 'deal-1' },
       chatId: '1000'
     };
 
+    beforeEach(() => {
+      (repository.findOne as jest.Mock).mockResolvedValue(null);
+    });
+
     it('throws and records failure when Telegram rejects the message', async () => {
-      const entity = { id: 'event-1' } as NotificationEventEntity;
+      const entity = { id: 'stored-1' } as NotificationEventEntity;
       (repository.create as jest.Mock).mockReturnValue(entity);
       (repository.save as jest.Mock).mockResolvedValue(entity);
       (telegram.send as jest.Mock).mockResolvedValue({
@@ -59,7 +66,13 @@ describe('NotificationEventsService', () => {
         response: expect.objectContaining({ message: 'notification_dispatch_failed' })
       });
 
-      expect(repository.update).toHaveBeenCalledWith('event-1', {
+      expect(repository.create).toHaveBeenCalledWith({
+        eventId: incoming.id,
+        eventType: incoming.type,
+        payload: incoming.data
+      });
+
+      expect(repository.update).toHaveBeenCalledWith('stored-1', {
         deliveredToTelegram: false,
         telegramMessageId: null,
         telegramDeliveryStatus: 'failed',
@@ -67,13 +80,24 @@ describe('NotificationEventsService', () => {
         telegramDeliveryOccurredAt: null
       });
       expect(stream.publish).toHaveBeenCalledTimes(2);
-      expect(stream.publish).toHaveBeenCalledWith('deal.created', incoming.payload);
+      expect(stream.publish).toHaveBeenCalledWith(incoming.type, incoming.data);
       expect(stream.publish).toHaveBeenCalledWith('notifications.telegram.error', {
-        notificationId: 'event-1',
+        notificationId: 'stored-1',
         messageId: null,
         status: 'failed',
         reason: 'bot disabled'
       });
+    });
+
+    it('ignores duplicate events by eventId', async () => {
+      (repository.findOne as jest.Mock).mockResolvedValue({ id: 'existing' } as NotificationEventEntity);
+
+      await service.handleIncoming(incoming);
+
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+      expect(stream.publish).not.toHaveBeenCalled();
+      expect(telegram.send).not.toHaveBeenCalled();
     });
   });
 

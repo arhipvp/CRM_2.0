@@ -15,11 +15,11 @@ import { TaskNotFoundException } from '../exceptions/task-not-found.exception';
 describe('TaskUpdateService', () => {
   let service: TaskUpdateService;
   let repository: jest.Mocked<Repository<TaskEntity>>;
-  let eventsPublisher: { taskCompleted: jest.Mock };
+  let eventsPublisher: { taskStatusChanged: jest.Mock };
   let delayedQueue: { remove: jest.Mock };
 
   beforeEach(async () => {
-    eventsPublisher = { taskCompleted: jest.fn() };
+    eventsPublisher = { taskStatusChanged: jest.fn() };
     delayedQueue = { remove: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
@@ -297,7 +297,10 @@ describe('TaskUpdateService', () => {
 
     const savedTask = repository.save.mock.calls[0][0];
     expect(savedTask.completedAt).toEqual(new Date('2024-04-01T12:00:00Z'));
-    expect(eventsPublisher.taskCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'task-5' }));
+    expect(eventsPublisher.taskStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-5' }),
+      TaskStatusCode.IN_PROGRESS
+    );
     expect(result.statusCode).toBe(TaskStatusCode.COMPLETED);
   });
 
