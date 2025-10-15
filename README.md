@@ -15,11 +15,12 @@
 3. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
 4. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
 5. миграции CRM/Auth через `scripts/migrate-local.sh`;
-6. запуск фронтенда `docker compose --profile app up -d frontend` в каталоге `infra/`;
+6. запуск фронтенда `docker compose --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
+   или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
 7. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
 8. smoke-проверку окружения `scripts/check-local-infra.sh`.
 
-Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда.
+Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому фронтенд не стартует ни на одном этапе.
 
 Обязательные зависимости: Docker с Compose V2, Python 3 (`python3`), Poetry и JDK 17+ (для Gradle wrapper в `backend/auth`). Отсутствие CLI `psql`, `redis-cli`, `curl` приводит только к предупреждениям — bootstrap продолжится, а для соответствующих шагов можно использовать `docker compose exec` или альтернативные инструменты. Скрипт автоматически выдаёт предупреждение о пропущенных шагах и сохраняет логи неудачных этапов во временной директории.
 
