@@ -32,6 +32,9 @@ describe("ApiClient mock mode", () => {
     const {
       activitiesMock,
       clientsMock,
+      clientPoliciesMock,
+      clientRemindersMock,
+      clientTaskChecklistMock,
       dealsMock,
       paymentsMock,
       tasksMock,
@@ -74,9 +77,51 @@ describe("ApiClient mock mode", () => {
     await expect(apiClient.getPayments({ include: ["incomes", "expenses"] })).resolves.toEqual(
       paymentsMock,
     );
-    await expect(apiClient.getClientActivities(clientId)).resolves.toEqual(
-      activitiesMock.filter((entry) => entry.clientId === clientId),
+    const activity = await apiClient.getClientActivities(clientId, { page: 1, pageSize: 5 });
+    expect(activity.items).toEqual(
+      activitiesMock
+        .filter((entry) => entry.clientId === clientId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5),
     );
+    expect(activity.total).toBeGreaterThan(0);
+
+    const sortByUpdatedAtDesc = <T extends { updatedAt: string }>(items: T[]) =>
+      [...items].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    const activePolicies = sortByUpdatedAtDesc(
+      clientPoliciesMock.filter(
+        (policy) => policy.clientId === clientId && !["archived", "cancelled", "expired"].includes(policy.status),
+      ),
+    );
+    const archivedPolicies = sortByUpdatedAtDesc(
+      clientPoliciesMock.filter(
+        (policy) => policy.clientId === clientId && ["archived", "cancelled", "expired"].includes(policy.status),
+      ),
+    );
+
+    await expect(apiClient.getClientPolicies(clientId, { status: "active" })).resolves.toEqual(activePolicies);
+    await expect(apiClient.getClientPolicies(clientId, { status: "archived" })).resolves.toEqual(archivedPolicies);
+    await expect(apiClient.getClientTasks(clientId)).resolves.toEqual(
+      clientTaskChecklistMock.filter((task) => task.clientId === clientId),
+    );
+    await expect(apiClient.getClientReminders(clientId)).resolves.toEqual(
+      clientRemindersMock
+        .filter((reminder) => reminder.clientId === clientId)
+        .sort((a, b) => new Date(a.occursAt).getTime() - new Date(b.occursAt).getTime()),
+    );
+
+    const updatedClient = await apiClient.updateClientContacts(clientId, {
+      email: "new@example.com",
+      phone: "+7 000 000-00-00",
+      contacts: [
+        { id: "email", type: "email", label: "E-mail", value: "new@example.com", primary: true },
+        { id: "phone", type: "phone", label: "Телефон", value: "+7 000 000-00-00", primary: true },
+      ],
+    });
+    expect(updatedClient.email).toBe("new@example.com");
+    expect(updatedClient.phone).toBe("+7 000 000-00-00");
+
     await expect(apiClient.getDealStageMetrics()).resolves.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ stage: "qualification" }),

@@ -3,17 +3,22 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import {
   apiClient,
+  type ClientActivityQueryParams,
+  type ClientPoliciesQueryParams,
   type CreateTaskPayload,
   type PaymentConfirmationPayload,
   type PaymentEntryPayload,
   type PaymentPayload,
   type PaymentRevokePayload,
   type PaymentUpdatePayload,
+  type UpdateClientContactsPayload,
+  type UpsertClientPolicyPayload,
 } from "@/lib/api/client";
 import {
   dealStageMetricsQueryKey,
   dealActivityQueryOptions,
   clientActivityQueryOptions,
+  clientPoliciesQueryOptions,
   clientQueryOptions,
   clientsQueryOptions,
   dealsQueryKey,
@@ -24,11 +29,15 @@ import {
   dealPaymentsQueryOptions,
   dealsQueryOptions,
   dealStageMetricsQueryOptions,
+  clientRemindersQueryOptions,
+  clientTasksChecklistQueryOptions,
   paymentsQueryOptions,
   type PaymentsQueryParams,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import type { Deal, DealFilters, DealStage } from "@/types/crm";
+import type { ClientPolicyStatus, Deal, DealFilters, DealStage } from "@/types/crm";
+
+const archivedPolicyStatuses: ClientPolicyStatus[] = ["archived", "cancelled", "expired"];
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
@@ -70,12 +79,96 @@ export function useClient(clientId: string) {
   return useQuery(clientQueryOptions(clientId));
 }
 
-export function useClientActivity(clientId: string) {
-  return useQuery(clientActivityQueryOptions(clientId));
+export function useClientActivity(clientId: string, params?: ClientActivityQueryParams) {
+  return useQuery(clientActivityQueryOptions(clientId, params));
+}
+
+export function useClientPolicies(clientId: string, params?: ClientPoliciesQueryParams) {
+  return useQuery(clientPoliciesQueryOptions(clientId, params));
+}
+
+export function useClientTaskChecklist(clientId: string) {
+  return useQuery(clientTasksChecklistQueryOptions(clientId));
+}
+
+export function useClientReminders(clientId: string) {
+  return useQuery(clientRemindersQueryOptions(clientId));
 }
 
 export function useTasks() {
   return useQuery(tasksQueryOptions());
+}
+
+export function useUpdateClientContacts(clientId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["update-client-contacts", clientId],
+    mutationFn: (payload: UpdateClientContactsPayload) => apiClient.updateClientContacts(clientId, payload),
+    onSuccess: async (client) => {
+      queryClient.setQueryData(clientQueryOptions(clientId).queryKey, client);
+      await queryClient.invalidateQueries({ queryKey: clientsQueryOptions().queryKey });
+    },
+  });
+}
+
+function invalidateClientPolicyLists(queryClient: ReturnType<typeof useQueryClient>, clientId: string) {
+  const activeKey = clientPoliciesQueryOptions(clientId, { status: "active" }).queryKey;
+  const archivedKey = clientPoliciesQueryOptions(clientId, { status: "archived" }).queryKey;
+
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: activeKey }),
+    queryClient.invalidateQueries({ queryKey: archivedKey }),
+  ]);
+}
+
+export function useCreateClientPolicy(clientId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["create-client-policy", clientId],
+    mutationFn: (payload: UpsertClientPolicyPayload) => apiClient.createClientPolicy(clientId, payload),
+    onSuccess: async (policy) => {
+      await invalidateClientPolicyLists(queryClient, clientId);
+
+      if (policy.status && archivedPolicyStatuses.includes(policy.status)) {
+        await queryClient.invalidateQueries({ queryKey: clientRemindersQueryOptions(clientId).queryKey });
+      }
+    },
+  });
+}
+
+export function useUpdateClientPolicy(clientId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["update-client-policy", clientId],
+    mutationFn: ({ policyId, payload }: { policyId: string; payload: Partial<UpsertClientPolicyPayload> }) =>
+      apiClient.updateClientPolicy(policyId, payload),
+    onSuccess: async (policy) => {
+      await invalidateClientPolicyLists(queryClient, clientId);
+
+      if (policy.status && archivedPolicyStatuses.includes(policy.status)) {
+        await queryClient.invalidateQueries({ queryKey: clientRemindersQueryOptions(clientId).queryKey });
+      }
+    },
+  });
+}
+
+export function useToggleClientChecklistTask(clientId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["toggle-client-task", clientId],
+    mutationFn: ({ taskId, completed }: { taskId: string; completed: boolean }) =>
+      apiClient.toggleClientTask(taskId, completed),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: clientTasksChecklistQueryOptions(clientId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: clientRemindersQueryOptions(clientId).queryKey }),
+      ]);
+    },
+  });
 }
 
 function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>, task: { dealId?: string }) {

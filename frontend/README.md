@@ -68,6 +68,7 @@ CRM-шлюз может отправлять идентификатор сдел
 - `src/lib/api` — обёртка над REST API Gateway + описания React Query options.
 - `src/stores` — Zustand-хранилища (фильтры воронки, уведомления).
 - `src/components` — модульные UI-блоки (воронка, карточки, таблицы). Для ключевых компонентов есть Vitest-тесты и Storybook stories.
+  - `components/clients/ClientWorkspace.tsx` — составная карточка клиента с вкладками профиля, полисов, активности и задач, модальными формами и экспортом в PDF.
 - `src/hooks/useEventStream.ts` и `src/components/providers/SSEBridge.tsx` — подключение к SSE с автореконнектом и записью в стор.
 
 ## Тестирование и качество
