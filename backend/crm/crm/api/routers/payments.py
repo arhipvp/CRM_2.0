@@ -13,6 +13,12 @@ from crm.infrastructure.repositories import RepositoryError
 router = APIRouter(prefix="/deals/{deal_id}/policies/{policy_id}/payments", tags=["payments"])
 
 
+def _handle_repository_error(exc: RepositoryError) -> None:
+    if str(exc) == "policy_not_found":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found") from exc
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
 @router.get("/", response_model=schemas.PaymentList)
 async def list_payments(
     deal_id: UUID,
@@ -25,15 +31,18 @@ async def list_payments(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentList:
-    return await service.list_payments(
-        tenant_id,
-        deal_id,
-        policy_id,
-        include=include,
-        statuses=status_filter,
-        limit=limit,
-        offset=offset,
-    )
+    try:
+        return await service.list_payments(
+            tenant_id,
+            deal_id,
+            policy_id,
+            include=include,
+            statuses=status_filter,
+            limit=limit,
+            offset=offset,
+        )
+    except RepositoryError as exc:
+        _handle_repository_error(exc)
 
 
 @router.post("/", response_model=schemas.PaymentRead, status_code=status.HTTP_201_CREATED)
@@ -44,7 +53,10 @@ async def create_payment(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentRead:
-    return await service.create_payment(tenant_id, deal_id, policy_id, payload)
+    try:
+        return await service.create_payment(tenant_id, deal_id, policy_id, payload)
+    except RepositoryError as exc:
+        _handle_repository_error(exc)
 
 
 @router.get("/{payment_id}", response_model=schemas.PaymentRead)
@@ -57,7 +69,10 @@ async def get_payment(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentRead:
-    payment = await service.get_payment(tenant_id, deal_id, policy_id, payment_id, include=include)
+    try:
+        payment = await service.get_payment(tenant_id, deal_id, policy_id, payment_id, include=include)
+    except RepositoryError as exc:
+        _handle_repository_error(exc)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return payment
@@ -75,7 +90,7 @@ async def update_payment(
     try:
         payment = await service.update_payment(tenant_id, deal_id, policy_id, payment_id, payload)
     except RepositoryError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        _handle_repository_error(exc)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return payment
@@ -89,7 +104,10 @@ async def delete_payment(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> Response:
-    deleted = await service.delete_payment(tenant_id, deal_id, policy_id, payment_id)
+    try:
+        deleted = await service.delete_payment(tenant_id, deal_id, policy_id, payment_id)
+    except RepositoryError as exc:
+        _handle_repository_error(exc)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

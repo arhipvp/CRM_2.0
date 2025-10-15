@@ -53,6 +53,8 @@
 
 ## Ресурс `/deals/{deal_id}/policies/{policy_id}/payments`
 
+> **Важно.** Все маршруты раздела возвращают `404 policy_not_found`, если указанный полис не принадлежит текущему арендатору, не связан со сделкой `deal_id` или был удалён.
+
 ### GET `/deals/{deal_id}/policies/{policy_id}/payments`
 Возвращает список платежей полиса.
 
@@ -109,7 +111,7 @@
 }
 ```
 
-**Ошибки**: `401 invalid_token`, `403 forbidden`, `404 policy_not_found`.
+**Ошибки**: `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанного `tenant_id` или сделки).
 
 ### POST `/deals/{deal_id}/policies/{policy_id}/payments`
 Создаёт новую запись платежа.
@@ -124,7 +126,7 @@
 
 **Ответ 201** — объект платежа (см. выше). После создания CRM публикует событие `deal.payment.created` в exchange `crm.events`.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 policy_not_found`.
+**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанного `tenant_id` или сделки).
 
 ### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}`
 Возвращает платёж вместе с агрегированными данными и, опционально, операциями.
