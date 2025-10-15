@@ -8,5 +8,9 @@ resources:
   - gateway-secret.yaml
   - gateway-deployment.yaml
   - gateway-service.yaml
+  - backup-configmap.yaml
+  - backup-secret.yaml
+  - backup-deployment.yaml
+  - backup-service.yaml
   - redis-deployment.yaml
   - redis-service.yaml

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: backup
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: crm-platform
+data:
+  BACKUP_SERVICE_PORT: "8094"
+  BACKUP_TIMEZONE: "Europe/Moscow"
+  BACKUP_NOTIFICATION_EXCHANGE: "backup.notifications"
+  BACKUP_NOTIFICATION_ROUTING_KEY: "jobs"
