@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 import type {
   NotificationChannel,
   NotificationChannelState,
@@ -125,7 +125,7 @@ function mergeChannels(
   return next;
 }
 
-export const useNotificationsStore = create<NotificationsState>((set, get) => ({
+export const useNotificationsStore = createWithEqualityFn<NotificationsState>((set, get) => ({
   ...createInitialDataState(),
   setFeed: (items, unreadCount) => {
     set((state) => {
@@ -398,4 +398,6 @@ export const selectNotificationItems = (state: NotificationsState) =>
   state.order.map((id) => state.items[id]).filter((item): item is NotificationFeedItem => Boolean(item));
 
 export const selectChannelSettings = (state: NotificationsState) =>
-  state.channelOrder.map((channel) => state.channels[channel]).filter(Boolean);
+  state.channelOrder
+    .map((channel) => state.channels[channel])
+    .filter((value): value is NotificationChannelState => Boolean(value));

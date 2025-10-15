@@ -63,7 +63,7 @@ function formatCurrency(amount: number, currency: string) {
   }
 }
 
-function formatDate(value: string | undefined) {
+function formatDate(value: string | null | undefined) {
   if (!value) {
     return "—";
   }
@@ -75,7 +75,7 @@ function formatDate(value: string | undefined) {
   }
 }
 
-function formatDateTime(value: string | undefined) {
+function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "—";
   }
@@ -169,13 +169,13 @@ function EntriesList({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    {formatCurrency(entry.actualAmount ?? entry.amount ?? entry.plannedAmount, entry.currency || currency)}
+                    {formatCurrency(entry.actualAmount ?? entry.amount ?? entry.plannedAmount, entry.currency ?? currency)}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    План: {formatCurrency(entry.plannedAmount ?? entry.amount, entry.currency || currency)} • {formatDate(entry.postedAt)}
+                    План: {formatCurrency(entry.plannedAmount ?? entry.amount, entry.currency ?? currency)} • {formatDate(entry.postedAt)}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Факт: {entry.actualAmount != null ? formatCurrency(entry.actualAmount, entry.currency || currency) : "—"} • {formatDate(entry.actualPostedAt)}
+                    Факт: {entry.actualAmount != null ? formatCurrency(entry.actualAmount, entry.currency ?? currency) : "—"} • {formatDate(entry.actualPostedAt)}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">Категория: {entry.category}</span>
                   {entry.note ? (
@@ -254,7 +254,7 @@ function EntriesList({
                           {formatDateTime(historyItem.changedAt)} • {historyItem.changedBy}
                         </span>
                         <span>
-                          План {formatCurrency(historyItem.plannedAmount, entry.currency || currency)} → {historyItem.actualAmount != null ? formatCurrency(historyItem.actualAmount, entry.currency || currency) : "—"}
+                        План {formatCurrency(historyItem.plannedAmount, entry.currency ?? currency)} → {historyItem.actualAmount != null ? formatCurrency(historyItem.actualAmount, entry.currency ?? currency) : "—"}
                         </span>
                         {historyItem.reason ? (
                           <span>Причина: {REASON_LABELS[historyItem.reason] ?? historyItem.reason}</span>

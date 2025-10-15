@@ -96,15 +96,16 @@ function normalizeNotificationChannels(value?: string | string[]): NotificationF
 }
 
 function normalizeNotificationContext(
-  context: Pick<NotificationFeedItem, "context">["context"] & {
+  context: {
     dealId?: string;
     clientId?: string;
-    link?: { href?: string; label?: string };
+    link?: { href?: string | null; label?: string | null };
   },
 ): NotificationFeedItem["context"] | undefined {
   const dealId = context.dealId?.trim();
   const clientId = context.clientId?.trim();
   const href = context.link?.href?.trim();
+  const label = context.link?.label?.trim();
 
   if (!dealId && !clientId && !href) {
     return undefined;
@@ -116,7 +117,7 @@ function normalizeNotificationContext(
     link: href
       ? {
           href,
-          label: context.link?.label,
+          label: label || undefined,
         }
       : undefined,
   };

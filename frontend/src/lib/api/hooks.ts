@@ -12,7 +12,9 @@ import {
   type PaymentRevokePayload,
   type PaymentUpdatePayload,
   type UpdateClientContactsPayload,
+  type UpdateTaskPayload,
   type UpsertClientPolicyPayload,
+  isArchivedClientPolicyStatus,
 } from "@/lib/api/client";
 import {
   dealStageMetricsQueryKey,
@@ -38,7 +40,7 @@ import {
   notificationsFeedQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import type { Deal, DealFilters, DealStage } from "@/types/crm";
+import type { Deal, DealDetailsData, DealFilters, DealStage } from "@/types/crm";
 import type {
   NotificationChannel,
   NotificationEventJournalFilters,
@@ -140,7 +142,7 @@ export function useCreateClientPolicy(clientId: string) {
     onSuccess: async (policy) => {
       await invalidateClientPolicyLists(queryClient, clientId);
 
-      if (policy.status && archivedPolicyStatuses.includes(policy.status)) {
+      if (policy.status && isArchivedClientPolicyStatus(policy.status)) {
         await queryClient.invalidateQueries({ queryKey: clientRemindersQueryOptions(clientId).queryKey });
       }
     },
@@ -157,7 +159,7 @@ export function useUpdateClientPolicy(clientId: string) {
     onSuccess: async (policy) => {
       await invalidateClientPolicyLists(queryClient, clientId);
 
-      if (policy.status && archivedPolicyStatuses.includes(policy.status)) {
+      if (policy.status && isArchivedClientPolicyStatus(policy.status)) {
         await queryClient.invalidateQueries({ queryKey: clientRemindersQueryOptions(clientId).queryKey });
       }
     },
@@ -667,7 +669,7 @@ type UpdateDealStageVariables = {
 
 type UpdateDealStageContext = {
   previousDeals: Array<[QueryKey, Deal[] | Deal | undefined]>;
-  previousDeal?: Deal;
+  previousDetails?: DealDetailsData;
 };
 
 export function useUpdateDealStage() {
@@ -687,7 +689,7 @@ export function useUpdateDealStage() {
       const previousDeals = queryClient.getQueriesData<Deal[] | Deal>({
         queryKey: dealsQueryKey,
       });
-      const previousDeal = queryClient.getQueryData<Deal>(singleDealQueryKey);
+      const previousDetails = queryClient.getQueryData<DealDetailsData>(singleDealQueryKey);
 
       const applyOptimisticUpdate = (deal: Deal): Deal => {
         if (optimisticUpdate) {
@@ -713,14 +715,19 @@ export function useUpdateDealStage() {
         });
       }
 
-      if (previousDeal) {
-        queryClient.setQueryData<Deal>(
-          singleDealQueryKey,
-          applyOptimisticUpdate(previousDeal),
+      if (previousDetails) {
+        queryClient.setQueryData<DealDetailsData | undefined>(singleDealQueryKey, (current) =>
+          current
+            ? {
+                ...current,
+                stage,
+                updatedAt: new Date().toISOString(),
+              }
+            : current,
         );
       }
 
-      return { previousDeals, previousDeal } satisfies UpdateDealStageContext;
+      return { previousDeals, previousDetails } satisfies UpdateDealStageContext;
     },
     onError: (_error, { dealId }, context) => {
       if (!context) {
@@ -731,10 +738,10 @@ export function useUpdateDealStage() {
         queryClient.setQueryData(queryKey, data);
       }
 
-      if (context.previousDeal) {
+      if (context.previousDetails) {
         queryClient.setQueryData(
           dealDetailsQueryOptions(dealId).queryKey,
-          context.previousDeal,
+          context.previousDetails,
         );
       }
     },
@@ -755,7 +762,17 @@ export function useUpdateDealStage() {
         });
       }
 
-      queryClient.setQueryData(dealDetailsQueryOptions(deal.id).queryKey, deal);
+      queryClient.setQueryData<DealDetailsData | undefined>(
+        dealDetailsQueryOptions(deal.id).queryKey,
+        (current) =>
+          current
+            ? {
+                ...current,
+                stage: deal.stage,
+                updatedAt: deal.updatedAt,
+              }
+            : current,
+      );
     },
     onSettled: async (_data, _error, variables) => {
       if (!variables) {

@@ -12,7 +12,6 @@ import {
   dealDocumentsMock,
   dealNotesMock,
   dealsMock,
-  filterDealsMock,
   notificationChannelSettingsMock,
   notificationEventJournalMock,
   notificationFeedMock,
@@ -970,8 +969,11 @@ export class ApiClient {
           id: createRandomId(),
           title: payload.title,
           dueDate: payload.dueDate ?? new Date().toISOString(),
+          status: "new",
           completed: false,
           owner: payload.owner ?? deal?.owner ?? "",
+          type: "other",
+          tags: [],
           dealId,
           clientId: deal?.clientId,
         };
@@ -1052,7 +1054,7 @@ export class ApiClient {
     );
   }
 
-  updateDeal(dealId: string, payload: UpdateDealPayload): Promise<Deal> {
+  updateDeal(dealId: string, payload: UpdateDealPayload): Promise<DealDetailsData> {
     return this.request(
       `/crm/deals/${dealId}`,
       {
@@ -2755,7 +2757,7 @@ function isActiveClientPolicyStatus(status: ClientPolicyStatus) {
   return ACTIVE_CLIENT_POLICY_STATUSES.includes(status);
 }
 
-function isArchivedClientPolicyStatus(status: ClientPolicyStatus) {
+export function isArchivedClientPolicyStatus(status: ClientPolicyStatus) {
   return ARCHIVED_CLIENT_POLICY_STATUSES.includes(status);
 }
 
@@ -2777,13 +2779,13 @@ function cloneClientReminder(reminder: ClientReminderCalendarItem): ClientRemind
 }
 
 function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
-  const attachments = entry.attachments?.map((attachment) => ({ ...attachment }));
-  const history = entry.history?.map((record) => ({ ...record }));
+  const attachments = entry.attachments.map((attachment) => ({ ...attachment }));
+  const history = entry.history.map((record) => ({ ...record }));
 
   return {
     ...entry,
-    attachments: entry.attachments.map((attachment) => ({ ...attachment })),
-    history: entry.history.map((record) => ({ ...record })),
+    attachments,
+    history,
   };
 }
 
@@ -2796,8 +2798,6 @@ function clonePayment(payment: Payment): Payment {
       ...change,
       snapshot: { ...change.snapshot },
     })),
-    incomes: payment.incomes.map((income) => clonePaymentEntry(income)),
-    expenses: payment.expenses.map((expense) => clonePaymentEntry(expense)),
   };
 }
 
@@ -2820,12 +2820,12 @@ function recalculateTotals(payment: Payment): Payment {
 }
 
 function sanitizeTaskPatch(patch: UpdateTaskPayload): UpdateTaskPayload {
-  const result: UpdateTaskPayload = {};
+  const result = {} as UpdateTaskPayload;
 
   for (const key of Object.keys(patch) as Array<keyof UpdateTaskPayload>) {
     const value = patch[key];
     if (value !== undefined) {
-      result[key] = value;
+      Object.assign(result, { [key]: value });
     }
   }
 
