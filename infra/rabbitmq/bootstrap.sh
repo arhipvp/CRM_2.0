@@ -23,6 +23,10 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+ENV_FILE="$(cd "$(dirname "${ENV_FILE}")" && pwd)/$(basename "${ENV_FILE}")"
+DOCKER_COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
+DOCKER_COMPOSE_DISPLAY="${DOCKER_COMPOSE_CMD[*]}"
+
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
   echo "[Ошибка] Не найден docker-compose файл: ${COMPOSE_FILE}" >&2
   exit 1
@@ -46,13 +50,13 @@ if [[ -z "${RABBITMQ_DEFAULT_USER:-}" || -z "${RABBITMQ_DEFAULT_PASS:-}" || -z "
 fi
 
 compose_rabbitmqctl() {
-  docker compose -f "${COMPOSE_FILE}" exec -T rabbitmq rabbitmqctl "$@"
+  "${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" exec -T rabbitmq rabbitmqctl "$@"
 }
 
 rabbitmq_status() {
   local ps_output="" ps_status=0
 
-  if ps_output=$(docker compose -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1); then
+  if ps_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1); then
     printf '%s\n' "${ps_output}" | python3 - <<'PY'
 import json
 import sys
@@ -119,7 +123,7 @@ PY
   local ps_output_lower="${ps_output,,}"
   if [[ "${ps_output_lower}" == *"unknown flag: --format"* || "${ps_output_lower}" == *"no such option: --format"* || "${ps_output_lower}" == *"no such option --format"* ]]; then
     local fallback_output="" fallback_status=0
-    if fallback_output=$(docker compose -f "${COMPOSE_FILE}" ps rabbitmq 2>&1); then
+    if fallback_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps rabbitmq 2>&1); then
       printf '%s\n' "${fallback_output}" | python3 - <<'PY'
 import re
 import sys
@@ -287,7 +291,7 @@ wait_for_rabbitmq_ready() {
     fi
 
     if [[ "${state}" == "exited" || "${state}" == "dead" ]]; then
-      echo "[Ошибка] Контейнер RabbitMQ завершился (state='${state}', health='${health:-n/a}'). Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs rabbitmq" >&2
+      echo "[Ошибка] Контейнер RabbitMQ завершился (state='${state}', health='${health:-n/a}'). Проверьте логи: ${DOCKER_COMPOSE_DISPLAY} -f '${COMPOSE_FILE}' logs rabbitmq" >&2
       return 1
     fi
 
@@ -297,7 +301,7 @@ wait_for_rabbitmq_ready() {
   done
 
   local waited_seconds=$((max_attempts * delay_seconds))
-  echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за ${waited_seconds} секунд (state='${state:-unknown}', health='${health:-n/a}'). Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
+  echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за ${waited_seconds} секунд (state='${state:-unknown}', health='${health:-n/a}'). Проверьте логи: ${DOCKER_COMPOSE_DISPLAY} -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
   return 1
 }
 
@@ -315,7 +319,7 @@ ensure_rabbitmq_ready() {
 
   if [[ "${state}" != "running" ]]; then
     echo "[Инфо] Контейнер RabbitMQ не запущен (state='${state:-unknown}'). Пытаемся стартовать..."
-    if ! docker compose -f "${COMPOSE_FILE}" up -d rabbitmq; then
+    if ! "${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" up -d rabbitmq; then
       echo "[Ошибка] Не удалось автоматически запустить контейнер RabbitMQ." >&2
       exit 1
     fi
@@ -324,7 +328,7 @@ ensure_rabbitmq_ready() {
   fi
 
   if ! wait_for_rabbitmq_ready; then
-    echo "[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: docker compose -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
+    echo "[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: ${DOCKER_COMPOSE_DISPLAY} -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
     exit 1
   fi
 }

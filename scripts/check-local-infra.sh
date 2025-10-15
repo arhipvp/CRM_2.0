@@ -35,9 +35,9 @@ function add_result() {
 
 function detect_docker_compose() {
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD=(docker compose)
+    DOCKER_COMPOSE_CMD=(docker compose --env-file "$ENV_FILE")
   elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD=(docker-compose)
+    DOCKER_COMPOSE_CMD=(docker-compose --env-file "$ENV_FILE")
   fi
 
   if [[ ${#DOCKER_COMPOSE_CMD[@]} -eq 0 ]]; then
@@ -261,7 +261,7 @@ function check_backup_api() {
   if [[ -z "$base_url" ]]; then
     add_result "$name" "WARN" "BACKUP_BASE_URL не задан"
     return
-  }
+  fi
 
   local health_url
   health_url="${base_url%/}/health"
@@ -274,6 +274,41 @@ function check_backup_api() {
     fi
   else
     add_result "$name" "WARN" "Недоступен: $response"
+  fi
+}
+
+function check_backup_env_vars() {
+  local name="Backup env"
+  if [[ "$CHECK_MODE" != "docker" ]]; then
+    add_result "$name" "WARN" "Проверка доступна только в Docker Compose режиме"
+    return
+  fi
+
+  local output
+  if ! output=$(docker_exec backup sh -c 'env | grep "^BACKUP_"' 2>&1); then
+    add_result "$name" "FAIL" "$output"
+    return
+  fi
+
+  if [[ -z "$output" ]]; then
+    add_result "$name" "FAIL" "Переменные BACKUP_* не найдены"
+    return
+  fi
+
+  local missing=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local var_name="${line%%=*}"
+    local var_value="${line#*=}"
+    if [[ -z "$var_value" ]]; then
+      missing+=("$var_name")
+    fi
+  done <<<"$output"
+
+  if (( ${#missing[@]} > 0 )); then
+    add_result "$name" "FAIL" "Пустые значения: ${missing[*]}"
+  else
+    add_result "$name" "OK" "Все BACKUP_* заданы"
   fi
 }
 
@@ -293,6 +328,7 @@ check_consul
 check_rabbitmq
 check_reports_api
 check_backup_api
+check_backup_env_vars
 
 printf "\n%-18s | %-6s | %s\n" "Проверка" "Статус" "Комментарий"
 printf '%s\n' "------------------+--------+--------------------------------"

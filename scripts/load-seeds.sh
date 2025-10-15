@@ -113,9 +113,9 @@ else
   fi
 
   if docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD=(docker compose)
+    DOCKER_COMPOSE_CMD=(docker compose --env-file "$ENV_FILE")
   elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD=(docker-compose)
+    DOCKER_COMPOSE_CMD=(docker-compose --env-file "$ENV_FILE")
   else
     log ERROR "Не удалось определить команду docker compose."
     exit 1
@@ -127,7 +127,7 @@ else
   fi
 
   if ! docker ps --filter "name=crm-postgres" --format '{{.Names}}' | grep -qx 'crm-postgres'; then
-    log ERROR "Контейнер 'crm-postgres' не запущен. Выполните 'docker compose up -d' в каталоге infra/."
+    log ERROR "Контейнер 'crm-postgres' не запущен. Выполните '${DOCKER_COMPOSE_CMD[*]}' -f '$REPO_ROOT/infra/docker-compose.yml' up -d postgres."
     exit 1
   fi
 

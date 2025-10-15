@@ -13,15 +13,17 @@
 Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры и автоматически поднимает фронтенд. Сценарий последовательно запускает:
 
 1. `scripts/sync-env.sh --non-interactive` — синхронизацию `.env` во всех сервисах с шаблоном `env.example` без ожидания ввода при наличии локальных файлов (существующие файлы пропускаются).
-2. `docker compose up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов.
+2. `docker compose --env-file .env up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов с подстановкой значений из актуального корневого `.env`.
 3. ожидание готовности контейнеров через healthcheck (используется `docker compose ps --format json`, а при отсутствии этой опции — табличный вывод старых версий Compose).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`).
-6. `docker compose --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
+6. `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
 7. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
 8. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
 
-Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому контейнер фронтенда не стартует. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --profile app up -d frontend` в `infra/`.
+Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, принудительный отказ от запуска фронтенда), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому контейнер фронтенда не стартует. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --env-file .env --profile app up -d frontend` в `infra/`.
+
+> ℹ️ Все инфраструктурные скрипты и команды Docker Compose теперь вызываются с `--env-file .env`, поэтому важно поддерживать корневой `.env` в актуальном состоянии: новые переменные следует подтягивать через `scripts/sync-env.sh`, а значения секретов обновлять вручную.
 
 ### Режимы синхронизации `.env`
 
@@ -126,6 +128,12 @@ Bootstrap-скрипт выполняет полный цикл подготов
 
 - GitHub Actions приостановлены: пайплайны сохранены как `.github/workflows/ci.yml.disabled` и `.github/workflows/frontend.yml.disabled`, поэтому при пуше и открытии PR задачи не запускаются. Чтобы восстановить автоматический пайплайн, верните расширение `.yml` у нужного файла и запушьте изменение в `main`.
 - Для локальной проверки повторите шаги пайплайнов вручную: выполните линтеры, тесты и сборку контейнеров по инструкциям соответствующих сервисов. Рекомендуемый порядок: `lint` → `unit-tests` → `contract-tests` → `build`.
+- Для резервного копирования добавлена smoke-проверка `scripts/check-local-infra.sh`, которая убеждается, что все переменные `BACKUP_*` внутри контейнера заполнены. При необходимости выполните ручную диагностику:
+  ```bash
+  cd infra/
+  docker compose --env-file ../.env exec backup sh -c 'env | grep "^BACKUP_"'
+  ```
+  Пустые значения сигнализируют о необходимости обновить `.env` по шаблону `env.example` и повторно синхронизировать переменные.
 - При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`. Флаг `CI_CD_DISABLED=true` (см. шаблон `env.example`) можно использовать в локальных скриптах, чтобы пропускать этапы, завязанные на GitHub Actions.
 
 ## Kubernetes-манифесты и Argo CD
