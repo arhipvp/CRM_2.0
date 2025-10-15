@@ -1351,6 +1351,27 @@ export const tasksMock: Task[] = [
     dealId: "deal-1",
     clientId: "client-1",
     reminderAt: new Date(Date.now() + 1000 * 60 * 30).toISOString(),
+    description:
+      "Согласовать с клиентом ключевые условия договора и зафиксировать вопросы, которые нужно обсудить на встрече.",
+    checklist: [
+      { id: "task-1-check-1", label: "Подготовить повестку", completed: true },
+      { id: "task-1-check-2", label: "Собрать актуальные тарифы", completed: false },
+      { id: "task-1-check-3", label: "Отправить приглашение клиенту", completed: false },
+    ],
+    comments: [
+      {
+        id: "task-1-comment-1",
+        author: "Анна Савельева",
+        message: "Клиент подтвердил доступность на завтра в 11:00.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      },
+      {
+        id: "task-1-comment-2",
+        author: "Мария Орлова",
+        message: "Подготовила шаблон презентации, осталось добавить расчёт.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+      },
+    ],
   },
   {
     id: "task-2",
@@ -1363,6 +1384,19 @@ export const tasksMock: Task[] = [
     tags: ["ДМС", "коммерческое предложение"],
     dealId: "deal-3",
     clientId: "client-3",
+    description: "Собрать информацию по новым тарифам и согласовать предложение с юристами.",
+    checklist: [
+      { id: "task-2-check-1", label: "Получить входные данные", completed: true },
+      { id: "task-2-check-2", label: "Согласовать расчёт", completed: false },
+    ],
+    comments: [
+      {
+        id: "task-2-comment-1",
+        author: "Мария Орлова",
+        message: "Жду подтверждения от страховой компании, обещали к вечеру.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+      },
+    ],
   },
   {
     id: "task-3",
@@ -1376,6 +1410,20 @@ export const tasksMock: Task[] = [
     dealId: "deal-2",
     clientId: "client-2",
     reminderAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    description: "Отправить клиенту письмо с напоминанием об оплате и уточнить статус платежа.",
+    checklist: [
+      { id: "task-3-check-1", label: "Подготовить шаблон письма", completed: true },
+      { id: "task-3-check-2", label: "Проверить контактные данные", completed: true },
+      { id: "task-3-check-3", label: "Отправить уведомление", completed: false },
+    ],
+    comments: [
+      {
+        id: "task-3-comment-1",
+        author: "Иван Плахов",
+        message: "Созвонился с бухгалтерией клиента, ждут оплату до конца дня.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      },
+    ],
   },
   {
     id: "task-4",
@@ -1388,6 +1436,19 @@ export const tasksMock: Task[] = [
     tags: ["документы"],
     dealId: "deal-4",
     clientId: "client-1",
+    description: "Все документы подписаны клиентом, нужно добавить их в карточку сделки.",
+    checklist: [
+      { id: "task-4-check-1", label: "Проверить подписи", completed: true },
+      { id: "task-4-check-2", label: "Загрузить в систему", completed: true },
+    ],
+    comments: [
+      {
+        id: "task-4-comment-1",
+        author: "Анна Савельева",
+        message: "Документы загружены, ссылку отправила клиенту.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+      },
+    ],
   },
 ];
 

@@ -37,6 +37,8 @@ import type {
   PaymentStatus,
   Task,
   TaskActivityType,
+  TaskChecklistItem,
+  TaskComment,
   TaskStatus,
 } from "@/types/crm";
 import type {
@@ -50,6 +52,7 @@ import type {
   NotificationFeedItem,
   NotificationFeedResponse,
 } from "@/types/notifications";
+import type {
   AdminAuditExportFormat,
   AdminAuditExportResult,
   AdminAuditFilters,
@@ -576,6 +579,9 @@ export interface CreateTaskPayload {
   dealId?: string;
   clientId?: string;
   reminderAt?: string | null;
+  description?: string;
+  checklist?: TaskChecklistItem[];
+  comments?: TaskComment[];
 }
 
 export interface PaymentEntryAttachmentPayload {
@@ -598,7 +604,19 @@ export interface PaymentEntryPayload {
   attachments?: PaymentEntryAttachmentPayload[];
 }
 export type UpdateTaskPayload = Partial<
-  Pick<Task, "status" | "owner" | "dueDate" | "tags" | "type" | "reminderAt" | "completed">
+  Pick<
+    Task,
+    | "status"
+    | "owner"
+    | "dueDate"
+    | "tags"
+    | "type"
+    | "reminderAt"
+    | "completed"
+    | "description"
+    | "checklist"
+    | "comments"
+  >
 >;
 
 export interface UpsertClientPolicyPayload {
@@ -1336,6 +1354,9 @@ export class ApiClient {
         const tags = payload.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [];
         const reminderAt = payload.reminderAt ?? undefined;
 
+        const checklist = payload.checklist?.map((item) => ({ ...item })) ?? [];
+        const comments = payload.comments?.map((comment) => ({ ...comment })) ?? [];
+
         const task: Task = {
           id: createRandomId(),
           title: payload.title,
@@ -1348,6 +1369,9 @@ export class ApiClient {
           dealId: payload.dealId ?? undefined,
           clientId: payload.clientId ?? undefined,
           reminderAt,
+          description: payload.description,
+          checklist,
+          comments,
         };
 
         tasksMock.unshift(task);
@@ -2815,6 +2839,18 @@ function applyTaskPatch(task: Task, patch: UpdateTaskPayload): Task {
 
   if (patch.reminderAt !== undefined) {
     task.reminderAt = patch.reminderAt;
+  }
+
+  if (patch.description !== undefined) {
+    task.description = patch.description;
+  }
+
+  if (patch.checklist !== undefined) {
+    task.checklist = patch.checklist?.map((item) => ({ ...item })) ?? [];
+  }
+
+  if (patch.comments !== undefined) {
+    task.comments = patch.comments?.map((comment) => ({ ...comment })) ?? [];
   }
 
   return task;

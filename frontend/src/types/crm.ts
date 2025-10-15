@@ -197,6 +197,19 @@ export type TaskActivityType =
   | "follow_up"
   | "other";
 
+export interface TaskChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  author: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -209,6 +222,9 @@ export interface Task {
   dealId?: string;
   clientId?: string;
   reminderAt?: string;
+  description?: string;
+  checklist?: TaskChecklistItem[];
+  comments?: TaskComment[];
 }
 
 export type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";

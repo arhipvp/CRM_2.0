@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, useId } from "react";
+import { Fragment, useEffect, useMemo, useState, useId, useRef } from "react";
 import Link from "next/link";
 import {
   useBulkUpdateTasks,
@@ -18,6 +18,7 @@ import {
   type TaskViewMode,
 } from "@/stores/tasksViewStore";
 import { TaskCreateModal } from "./TaskCreateModal";
+import { TaskDetailsDrawer } from "./TaskDetailsDrawer";
 
 const STATUS_CONFIG: Record<
   TaskStatus,
@@ -101,8 +102,10 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
   const { data: clientsData } = useClients();
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const previousSelectionRef = useRef<string[]>([]);
 
   const viewMode = useTasksViewStore((state) => state.viewMode);
   const setViewMode = useTasksViewStore((state) => state.setViewMode);
@@ -146,6 +149,14 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
     return tasks.find((task) => task.id === selectedTaskIds[0]);
   }, [selectedTaskIds, tasks]);
 
+  const activeTask = useMemo(() => {
+    if (!activeTaskId) {
+      return null;
+    }
+
+    return tasks.find((task) => task.id === activeTaskId) ?? null;
+  }, [activeTaskId, tasks]);
+
   const defaultOwnerForCreation = useMemo(() => {
     if (owners.length === 1) {
       return owners[0];
@@ -175,6 +186,13 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
       }
       return visible;
     });
+    setActiveTaskId((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      return filteredTasks.some((task) => task.id === prev) ? prev : null;
+    });
   }, [filteredTasks]);
 
   useEffect(() => {
@@ -183,6 +201,7 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
     }
 
     setSelectedTaskIds((prev) => (prev.length === 0 ? initialSelectedTaskIds : prev));
+    setActiveTaskId((prev) => prev ?? initialSelectedTaskIds[0] ?? null);
   }, [initialSelectedTaskIds]);
 
   useEffect(() => {
@@ -193,6 +212,23 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
       });
     }
   }, [bulkError]);
+
+  useEffect(() => {
+    const previous = previousSelectionRef.current;
+    const unchanged =
+      previous.length === selectedTaskIds.length &&
+      previous.every((id, index) => id === selectedTaskIds[index]);
+
+    if (!unchanged) {
+      if (selectedTaskIds.length === 1) {
+        setActiveTaskId(selectedTaskIds[0]);
+      } else if (selectedTaskIds.length > 1) {
+        setActiveTaskId(null);
+      }
+    }
+
+    previousSelectionRef.current = [...selectedTaskIds];
+  }, [selectedTaskIds]);
 
   const handleSelectTask = (taskId: string, selected: boolean) => {
     setSelectedTaskIds((prev) => {
@@ -216,6 +252,16 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
         return Array.from(next);
       }
       return Array.from(new Set([...prev, ...taskIds]));
+    });
+  };
+
+  const handleOpenTask = (taskId: string) => {
+    setActiveTaskId(taskId);
+    setSelectedTaskIds((prev) => {
+      if (prev.length === 1 && prev[0] === taskId) {
+        return prev;
+      }
+      return [taskId];
     });
   };
 
@@ -395,6 +441,7 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
                   onSelectTask={handleSelectTask}
                   onSelectAll={handleSelectAll}
                   onToggleCompletion={handleToggleCompletion}
+                  onOpenTask={handleOpenTask}
                   isToggling={isToggling}
                   isUpdating={isUpdatingTask}
                 />
@@ -405,6 +452,7 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
                   onSelectTask={handleSelectTask}
                   onToggleCompletion={handleToggleCompletion}
                   onMoveTask={handleMoveTask}
+                  onOpenTask={handleOpenTask}
                   isToggling={isToggling || isUpdatingTask}
                 />
               )}
@@ -421,7 +469,15 @@ export function TaskList({ initialSelectedTaskIds = [] }: { initialSelectedTaskI
           onClearRange={clearDueDateFilter}
         />
       </div>
-    </div>
+
+      <TaskDetailsDrawer
+        task={activeTask}
+        isOpen={Boolean(activeTask)}
+        onClose={() => setActiveTaskId(null)}
+        owners={uniqueOwners}
+        statusConfig={STATUS_CONFIG}
+      />
+  </div>
   );
 }
 
@@ -783,6 +839,7 @@ function TaskTableView({
   onSelectTask,
   onSelectAll,
   onToggleCompletion,
+  onOpenTask,
   isToggling,
   isUpdating,
 }: {
@@ -791,6 +848,7 @@ function TaskTableView({
   onSelectTask: (taskId: string, selected: boolean) => void;
   onSelectAll: (select: boolean, taskIds: string[]) => void;
   onToggleCompletion: (taskId: string, completed: boolean) => void;
+  onOpenTask: (taskId: string) => void;
   isToggling: boolean;
   isUpdating: boolean;
 }) {
@@ -835,7 +893,13 @@ function TaskTableView({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-1">
-                    <span className="font-medium text-slate-800 dark:text-slate-100">{task.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => onOpenTask(task.id)}
+                      className="text-left text-base font-medium text-slate-800 transition hover:text-sky-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-sky-500 dark:text-slate-100"
+                    >
+                      {task.title}
+                    </button>
                     <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                       {task.dealId && (
                         <Link href={`/deals/${task.dealId}`} className="text-sky-600 hover:underline">
@@ -895,6 +959,7 @@ function TaskKanbanBoard({
   onSelectTask,
   onToggleCompletion,
   onMoveTask,
+  onOpenTask,
   isToggling,
 }: {
   tasks: Task[];
@@ -902,6 +967,7 @@ function TaskKanbanBoard({
   onSelectTask: (taskId: string, selected: boolean) => void;
   onToggleCompletion: (taskId: string, completed: boolean) => void;
   onMoveTask: (taskId: string, status: TaskStatus) => void;
+  onOpenTask: (taskId: string) => void;
   isToggling: boolean;
 }) {
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
@@ -998,7 +1064,15 @@ function TaskKanbanBoard({
                     } ${selectedTaskIds.includes(task.id) ? "ring-2 ring-sky-400" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-semibold text-slate-800">{task.title}</h4>
+                      <h4 className="text-sm font-semibold text-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTask(task.id)}
+                          className="text-left text-sm font-semibold text-slate-800 transition hover:text-sky-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                          {task.title}
+                        </button>
+                      </h4>
                       <label className="flex items-center gap-1 text-[11px] text-slate-500">
                         <input
                           type="checkbox"
