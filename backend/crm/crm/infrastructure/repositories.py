@@ -387,6 +387,7 @@ class PaymentRepository:
         include_incomes: bool = False,
         include_expenses: bool = False,
     ) -> tuple[list[models.Payment], int]:
+        await self._ensure_policy(tenant_id, deal_id, policy_id)
         stmt = (
             select(models.Payment)
             .where(
@@ -428,6 +429,7 @@ class PaymentRepository:
         include_incomes: bool = False,
         include_expenses: bool = False,
     ) -> models.Payment | None:
+        await self._ensure_policy(tenant_id, deal_id, policy_id)
         stmt = select(models.Payment).where(
             models.Payment.tenant_id == tenant_id,
             models.Payment.deal_id == deal_id,
@@ -448,6 +450,7 @@ class PaymentRepository:
         policy_id: UUID,
         data: dict[str, object],
     ) -> models.Payment:
+        await self._ensure_policy(tenant_id, deal_id, policy_id)
         sequence = await self._next_sequence(tenant_id, policy_id)
         payment = models.Payment(
             tenant_id=tenant_id,
@@ -505,6 +508,23 @@ class PaymentRepository:
         if current is None:
             return 1
         return int(current) + 1
+
+    async def _ensure_policy(self, tenant_id: UUID, deal_id: UUID, policy_id: UUID) -> None:
+        stmt = (
+            select(models.Policy.id)
+            .join(models.Deal, models.Policy.deal_id == models.Deal.id)
+            .where(
+                models.Policy.id == policy_id,
+                models.Policy.tenant_id == tenant_id,
+                models.Policy.is_deleted.is_(False),
+                models.Policy.deal_id == deal_id,
+                models.Deal.tenant_id == tenant_id,
+                models.Deal.is_deleted.is_(False),
+            )
+        )
+        policy_exists = await self.session.scalar(stmt)
+        if policy_exists is None:
+            raise RepositoryError("policy_not_found")
 
 
 class PaymentIncomeRepository:
