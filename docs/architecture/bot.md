@@ -17,11 +17,10 @@ Telegram-бот обеспечивает мобильный доступ про�
 - Вебхук Telegram размещён за Gateway/BFF и передаёт события в сервис бота через защищённый канал.
 - Очередь сообщений реализуется на базе брокера RabbitMQ и используется совместно с Notifications.
 - Хранение состояния диалогов минимально и ограничено активными сценариями, чтобы не дублировать CRM.
-- Реализация располагается в [`backend/telegram-bot`](../backend/telegram-bot/README.md) и построена на Python 3.11 + aiogram 3.
-- FSM хранится в Redis, события публикуются через `aio-pika` в exchange `crm.domain`, `tasks.events` и `notifications.events` с
-  заголовками CloudEvents (`ce-specversion: 1.0`).
-- Команды `/new_deal`, `/confirm_task` и `/confirm_payment` вызывают CRM/Notifications и публикуют события `crm.deal.created`,
-  `tasks.task.status_changed`, `crm.deal.payment.updated` для согласованности с [docs/integration-events.md](integration-events.md).
-- Подписка на очередь `telegram.bot.notifications` позволяет обрабатывать события `notifications.notification.dispatched` и
-  доставлять сообщения пользователям через Bot API.
+- Реализация располагается в [`backend/telegram-bot`](../../backend/telegram-bot/README.md) и построена на Python 3.11 + aiogram 3.
+- FastAPI-приложение поднимает aiogram `Dispatcher`, общий `httpx.AsyncClient` и клиентов Auth/CRM/Notifications; состояние диалогов хранится в Redis через `RedisStorage`.
+- Вебхук, опубликованный за Gateway/BFF, проверяет подпись заголовка `X-Telegram-Signature` (HMAC SHA-256) перед передачей обновления в dispatcher.
+- События публикуются через `aio-pika` в exchange `crm.domain`, `tasks.events` и `notifications.events` с заголовками CloudEvents (`ce-specversion: 1.0`).
+- Команды `/new_deal`, `/confirm_task` и `/confirm_payment` вызывают REST API CRM/Notifications, а затем публикуют события `crm.deal.created`, `tasks.task.status_changed`, `crm.deal.payment.updated` для согласованности с [docs/integration-events.md](integration-events.md).
+- Подписка на очередь `telegram.bot.notifications` (exchange `notifications.events`) позволяет обрабатывать события `notifications.notification.dispatched`, уточнять Telegram-привязку пользователя в Auth и доставлять сообщения через Bot API; ошибки доставки логируются и не блокируют основное выполнение.
 
