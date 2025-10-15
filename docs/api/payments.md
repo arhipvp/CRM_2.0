@@ -174,7 +174,7 @@
 
 **Ответ 201** — объект операции поступления.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
+**Ошибки**: `400 validation_error`, `400 currency_mismatch`, `400 posted_at_in_future`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
 
 ### PATCH `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}`
 Изменяет сумму, категорию, дату и комментарий поступления.
@@ -183,7 +183,7 @@
 
 **Ответ 200** — обновлённый объект операции.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 income_not_found`.
+**Ошибки**: `400 validation_error`, `400 currency_mismatch`, `400 posted_at_in_future`, `401 invalid_token`, `403 forbidden`, `404 income_not_found`.
 
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}`
 Удаляет операцию поступления.
@@ -203,10 +203,14 @@
 
 **Ответ 201** — объект расхода.
 
+**Ошибки**: `400 validation_error`, `400 currency_mismatch`, `400 posted_at_in_future`, `401 invalid_token`, `403 forbidden`, `404 payment_not_found`.
+
 ### PATCH `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}`
 Обновляет параметры расхода (`amount`, `category`, `posted_at`, `note`).
 
 **Ответ 200** — обновлённый объект расхода.
+
+**Ошибки**: `400 validation_error`, `400 currency_mismatch`, `400 posted_at_in_future`, `401 invalid_token`, `403 forbidden`, `404 expense_not_found`.
 
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}`
 Удаляет расход.
