@@ -1,5 +1,9 @@
 import {
   activitiesMock,
+  adminAuditLogMock,
+  adminDictionariesMock,
+  adminRolesMock,
+  adminUsersMock,
   clientsMock,
   dealDetailsMock,
   dealDocumentsMock,
@@ -40,6 +44,22 @@ import type {
   NotificationFeedItem,
   NotificationFeedResponse,
 } from "@/types/notifications";
+  AdminAuditExportFormat,
+  AdminAuditExportResult,
+  AdminAuditFilters,
+  AdminAuditLogEntry,
+  AdminDictionaryEntry,
+  AdminDictionaryFilters,
+  AdminDictionaryKind,
+  AdminDictionaryBulkUpdatePayload,
+  AdminPermission,
+  AdminRole,
+  AdminUser,
+  AdminUserFilters,
+  CreateAdminUserPayload,
+  UpdateAdminUserPayload,
+  UpsertDictionaryPayload,
+} from "@/types/admin";
 import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
@@ -48,9 +68,16 @@ export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
   timeoutMs?: number;
+  adminPermissions?: AdminPermission[];
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_ADMIN_PERMISSIONS: AdminPermission[] = [
+  "manage:users",
+  "manage:dictionaries",
+  "view:audit",
+  "export:audit",
+];
 
 function parseTimeout(value: string | undefined): number | undefined {
   if (!value) {
@@ -318,6 +345,161 @@ export class ApiError extends Error {
   }
 }
 
+function normalizeSearch(value?: string) {
+  return value?.trim().toLowerCase();
+}
+
+function applyAdminUserFilters(users: AdminUser[], filters?: AdminUserFilters) {
+  if (!filters) {
+    return users;
+  }
+
+  const search = normalizeSearch(filters.search);
+  const roles = filters.roleIds?.filter(Boolean);
+  const statuses = filters.statuses?.filter(Boolean);
+
+  return users.filter((user) => {
+    if (roles && roles.length > 0 && !roles.includes(user.roleId)) {
+      return false;
+    }
+
+    if (statuses && statuses.length > 0 && !statuses.includes(user.status)) {
+      return false;
+    }
+
+    if (search) {
+      const haystack = `${user.fullName} ${user.email} ${user.roleName}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function applyAdminDictionaryFilters(entries: AdminDictionaryEntry[], filters?: AdminDictionaryFilters) {
+  if (!filters) {
+    return entries;
+  }
+
+  const search = normalizeSearch(filters.search);
+  const kind = filters.kind && filters.kind !== "all" ? filters.kind : undefined;
+
+  return entries.filter((entry) => {
+    if (kind && entry.kind !== kind) {
+      return false;
+    }
+
+    if (search) {
+      const haystack = `${entry.label} ${entry.code} ${entry.description ?? ""}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function applyAdminAuditFilters(entries: AdminAuditLogEntry[], filters?: AdminAuditFilters) {
+  if (!filters) {
+    return entries;
+  }
+
+  const search = normalizeSearch(filters.search);
+  const scope = filters.scope && filters.scope !== "all" ? filters.scope : undefined;
+  const severity = filters.severity && filters.severity !== "all" ? filters.severity : undefined;
+  const actorIds = filters.actorIds?.filter(Boolean);
+  const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : undefined;
+  const toDate = filters.dateTo ? new Date(filters.dateTo) : undefined;
+
+  return entries.filter((entry) => {
+    if (actorIds && actorIds.length > 0 && !actorIds.includes(entry.actorId)) {
+      return false;
+    }
+
+    if (scope && entry.scope !== scope) {
+      return false;
+    }
+
+    if (severity && entry.severity !== severity) {
+      return false;
+    }
+
+    if (fromDate || toDate) {
+      const createdAt = new Date(entry.createdAt);
+      if (Number.isNaN(createdAt.getTime())) {
+        return false;
+      }
+
+      if (fromDate && createdAt < fromDate) {
+        return false;
+      }
+
+      if (toDate && createdAt > toDate) {
+        return false;
+      }
+    }
+
+    if (search) {
+      const haystack = `${entry.actorName} ${entry.summary} ${entry.action} ${entry.actorRole}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function resolveRoleName(roleId: string): string {
+  return adminRolesMock.find((role) => role.id === roleId)?.name ?? "Неизвестная роль";
+}
+
+function escapeCsvValue(value: string | number | boolean | undefined | null): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  const stringValue = String(value);
+  if (stringValue.includes(";") || stringValue.includes(",") || stringValue.includes("\n") || stringValue.includes('"')) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+
+  return stringValue;
+}
+
+function serializeAuditToCsv(entries: AdminAuditLogEntry[]): string {
+  const header = [
+    "createdAt",
+    "actorName",
+    "actorRole",
+    "scope",
+    "action",
+    "summary",
+    "severity",
+    "entityType",
+    "entityId",
+  ];
+
+  const lines = entries.map((entry) =>
+    [
+      escapeCsvValue(entry.createdAt),
+      escapeCsvValue(entry.actorName),
+      escapeCsvValue(entry.actorRole),
+      escapeCsvValue(entry.scope),
+      escapeCsvValue(entry.action),
+      escapeCsvValue(entry.summary),
+      escapeCsvValue(entry.severity),
+      escapeCsvValue(entry.entityType ?? ""),
+      escapeCsvValue(entry.entityId ?? ""),
+    ].join(","),
+  );
+
+  return [header.join(","), ...lines].join("\n");
+}
+
 export interface DealTaskPayload {
   title: string;
   dueDate?: string;
@@ -424,7 +606,31 @@ export interface UpdateDealPayload {
 }
 
 export class ApiClient {
-  constructor(private readonly config: ApiClientConfig = {}) {}
+  private adminPermissions: Set<AdminPermission>;
+
+  constructor(private readonly config: ApiClientConfig = {}) {
+    this.adminPermissions = new Set(config.adminPermissions ?? DEFAULT_ADMIN_PERMISSIONS);
+  }
+
+  setAdminPermissions(permissions: AdminPermission[]) {
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      this.adminPermissions = new Set(DEFAULT_ADMIN_PERMISSIONS);
+      return;
+    }
+
+    const normalized = permissions.filter(Boolean) as AdminPermission[];
+    this.adminPermissions = new Set(normalized.length > 0 ? normalized : DEFAULT_ADMIN_PERMISSIONS);
+  }
+
+  getAdminPermissions(): AdminPermission[] {
+    return Array.from(this.adminPermissions);
+  }
+
+  private ensureAdminPermission(permission: AdminPermission) {
+    if (!this.adminPermissions.has(permission)) {
+      throw new ApiError("Недостаточно прав для выполнения операции", 403);
+    }
+  }
 
   private get baseUrl() {
     return this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -1770,19 +1976,457 @@ export class ApiClient {
       },
     );
   }
+  getAdminRoles(): Promise<AdminRole[]> {
+    this.ensureAdminPermission("manage:users");
+
+    return this.request("/admin/roles", undefined, async () =>
+      adminRolesMock.map((role) => ({ ...role, permissions: [...role.permissions] })),
+    );
+  }
+
+  getAdminUsers(filters?: AdminUserFilters): Promise<AdminUser[]> {
+    this.ensureAdminPermission("manage:users");
+
+    const params = new URLSearchParams();
+    if (filters?.search) {
+      params.set("search", filters.search.trim());
+    }
+    if (filters?.roleIds && filters.roleIds.length > 0) {
+      for (const roleId of filters.roleIds) {
+        if (roleId) {
+          params.append("roleId", roleId);
+        }
+      }
+    }
+    if (filters?.statuses && filters.statuses.length > 0) {
+      for (const status of filters.statuses) {
+        if (status) {
+          params.append("status", status);
+        }
+      }
+    }
+
+    const query = params.toString();
+
+    return this.request(`/admin/users${query ? `?${query}` : ""}`, undefined, async () => {
+      const filtered = applyAdminUserFilters(adminUsersMock, filters);
+      return filtered.map((user) => ({ ...user }));
+    });
+  }
+
+  createAdminUser(payload: CreateAdminUserPayload): Promise<AdminUser> {
+    this.ensureAdminPermission("manage:users");
+
+    return this.request(
+      "/admin/users",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const fullName = payload.fullName.trim();
+        if (!fullName) {
+          throw new ApiError("ФИО обязательно", 422);
+        }
+
+        const email = payload.email.trim().toLowerCase();
+        const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (!emailPattern.test(email)) {
+          throw new ApiError("Некорректный email", 422);
+        }
+        if (adminUsersMock.some((user) => user.email.toLowerCase() === email)) {
+          throw new ApiError("Пользователь с таким email уже существует", 409);
+        }
+
+        const now = new Date().toISOString();
+        const status = payload.status ?? "invited";
+        const roleName = resolveRoleName(payload.roleId);
+        const user: AdminUser = {
+          id: createRandomId(),
+          fullName,
+          email,
+          roleId: payload.roleId,
+          roleName,
+          status,
+          lastActiveAt: status === "active" ? now : undefined,
+          createdAt: now,
+          updatedAt: now,
+          mfaEnabled: payload.mfaEnabled ?? false,
+        };
+
+        adminUsersMock.unshift(user);
+        return { ...user };
+      },
+    );
+  }
+
+  updateAdminUser(userId: string, payload: UpdateAdminUserPayload): Promise<AdminUser> {
+    this.ensureAdminPermission("manage:users");
+
+    return this.request(
+      `/admin/users/${userId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const user = adminUsersMock.find((item) => item.id === userId);
+        if (!user) {
+          throw new ApiError("Пользователь не найден", 404);
+        }
+
+        if (payload.email !== undefined) {
+          const email = payload.email.trim().toLowerCase();
+          const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+          if (!emailPattern.test(email)) {
+            throw new ApiError("Некорректный email", 422);
+          }
+          if (adminUsersMock.some((item) => item.id !== userId && item.email.toLowerCase() === email)) {
+            throw new ApiError("Пользователь с таким email уже существует", 409);
+          }
+          user.email = email;
+        }
+
+        if (payload.fullName !== undefined) {
+          const fullName = payload.fullName.trim();
+          if (!fullName) {
+            throw new ApiError("ФИО обязательно", 422);
+          }
+          user.fullName = fullName;
+        }
+
+        if (payload.roleId !== undefined) {
+          user.roleId = payload.roleId;
+          user.roleName = resolveRoleName(payload.roleId);
+        }
+
+        if (payload.status !== undefined) {
+          user.status = payload.status;
+          if (payload.status === "active" && !user.lastActiveAt) {
+            user.lastActiveAt = new Date().toISOString();
+          }
+        }
+
+        if (payload.mfaEnabled !== undefined) {
+          user.mfaEnabled = payload.mfaEnabled;
+        }
+
+        user.updatedAt = new Date().toISOString();
+
+        return { ...user };
+      },
+    );
+  }
+
+  deleteAdminUser(userId: string): Promise<{ id: string }> {
+    this.ensureAdminPermission("manage:users");
+
+    return this.request(
+      `/admin/users/${userId}`,
+      {
+        method: "DELETE",
+      },
+      async () => {
+        const index = adminUsersMock.findIndex((item) => item.id === userId);
+        if (index === -1) {
+          throw new ApiError("Пользователь не найден", 404);
+        }
+
+        adminUsersMock.splice(index, 1);
+        return { id: userId };
+      },
+    );
+  }
+
+  getAdminDictionaries(filters?: AdminDictionaryFilters): Promise<AdminDictionaryEntry[]> {
+    this.ensureAdminPermission("manage:dictionaries");
+
+    const params = new URLSearchParams();
+    if (filters?.kind && filters.kind !== "all") {
+      params.set("kind", filters.kind);
+    }
+    if (filters?.search) {
+      params.set("search", filters.search.trim());
+    }
+
+    const query = params.toString();
+
+    return this.request(`/admin/dictionaries${query ? `?${query}` : ""}`, undefined, async () => {
+      const filtered = applyAdminDictionaryFilters(adminDictionariesMock, filters);
+      return filtered.map((entry) => ({ ...entry }));
+    });
+  }
+
+  createAdminDictionaryEntry(kind: AdminDictionaryKind, payload: UpsertDictionaryPayload): Promise<AdminDictionaryEntry> {
+    this.ensureAdminPermission("manage:dictionaries");
+
+    return this.request(
+      `/admin/dictionaries/${kind}`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const code = payload.code.trim();
+        if (!code) {
+          throw new ApiError("Код обязателен", 422);
+        }
+        const label = payload.label.trim();
+        if (!label) {
+          throw new ApiError("Название обязательно", 422);
+        }
+        if (
+          adminDictionariesMock.some(
+            (entry) => entry.kind === kind && entry.code.toLowerCase() === code.toLowerCase(),
+          )
+        ) {
+          throw new ApiError("Справочник с таким кодом уже существует", 409);
+        }
+
+        const now = new Date().toISOString();
+        const entry: AdminDictionaryEntry = {
+          id: createRandomId(),
+          kind,
+          code,
+          label,
+          description: payload.description?.trim(),
+          isActive: payload.isActive ?? true,
+          updatedAt: now,
+          updatedBy: "Вы",
+        };
+
+        adminDictionariesMock.unshift(entry);
+        return { ...entry };
+      },
+    );
+  }
+
+  updateAdminDictionaryEntry(
+    entryId: string,
+    payload: Partial<UpsertDictionaryPayload>,
+  ): Promise<AdminDictionaryEntry> {
+    this.ensureAdminPermission("manage:dictionaries");
+
+    return this.request(
+      `/admin/dictionaries/${entryId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const entry = adminDictionariesMock.find((item) => item.id === entryId);
+        if (!entry) {
+          throw new ApiError("Запись справочника не найдена", 404);
+        }
+
+        if (payload.code !== undefined) {
+          const code = payload.code.trim();
+          if (!code) {
+            throw new ApiError("Код обязателен", 422);
+          }
+          if (
+            adminDictionariesMock.some(
+              (item) => item.id !== entryId && item.kind === entry.kind && item.code.toLowerCase() === code.toLowerCase(),
+            )
+          ) {
+            throw new ApiError("Справочник с таким кодом уже существует", 409);
+          }
+          entry.code = code;
+        }
+
+        if (payload.label !== undefined) {
+          const label = payload.label.trim();
+          if (!label) {
+            throw new ApiError("Название обязательно", 422);
+          }
+          entry.label = label;
+        }
+
+        if (payload.description !== undefined) {
+          entry.description = payload.description?.trim();
+        }
+
+        if (payload.isActive !== undefined) {
+          entry.isActive = payload.isActive;
+        }
+
+        entry.updatedAt = new Date().toISOString();
+        entry.updatedBy = "Вы";
+
+        return { ...entry };
+      },
+    );
+  }
+
+  bulkUpdateAdminDictionaryEntries(payload: AdminDictionaryBulkUpdatePayload): Promise<AdminDictionaryEntry[]> {
+    this.ensureAdminPermission("manage:dictionaries");
+
+    return this.request(
+      "/admin/dictionaries/bulk",
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      async () => {
+        const updated: AdminDictionaryEntry[] = [];
+        for (const change of payload.entries) {
+          const entry = adminDictionariesMock.find((item) => item.id === change.id);
+          if (!entry) {
+            continue;
+          }
+
+          if (change.changes.label !== undefined) {
+            const label = change.changes.label.trim();
+            if (!label) {
+              throw new ApiError("Название обязательно", 422);
+            }
+            entry.label = label;
+          }
+
+          if (change.changes.description !== undefined) {
+            entry.description = change.changes.description?.trim();
+          }
+
+          if (change.changes.isActive !== undefined) {
+            entry.isActive = change.changes.isActive;
+          }
+
+          entry.updatedAt = new Date().toISOString();
+          entry.updatedBy = "Вы";
+          updated.push({ ...entry });
+        }
+
+        if (updated.length === 0) {
+          throw new ApiError("Нет записей для обновления", 404);
+        }
+
+        return updated;
+      },
+    );
+  }
+
+  deleteAdminDictionaryEntry(entryId: string): Promise<{ id: string }> {
+    this.ensureAdminPermission("manage:dictionaries");
+
+    return this.request(
+      `/admin/dictionaries/${entryId}`,
+      {
+        method: "DELETE",
+      },
+      async () => {
+        const index = adminDictionariesMock.findIndex((item) => item.id === entryId);
+        if (index === -1) {
+          throw new ApiError("Запись справочника не найдена", 404);
+        }
+
+        adminDictionariesMock.splice(index, 1);
+        return { id: entryId };
+      },
+    );
+  }
+
+  getAdminAuditLog(filters?: AdminAuditFilters): Promise<AdminAuditLogEntry[]> {
+    this.ensureAdminPermission("view:audit");
+
+    const params = new URLSearchParams();
+    if (filters?.search) {
+      params.set("search", filters.search.trim());
+    }
+    if (filters?.scope && filters.scope !== "all") {
+      params.set("scope", filters.scope);
+    }
+    if (filters?.severity && filters.severity !== "all") {
+      params.set("severity", filters.severity);
+    }
+    if (filters?.actorIds && filters.actorIds.length > 0) {
+      for (const actorId of filters.actorIds) {
+        if (actorId) {
+          params.append("actorId", actorId);
+        }
+      }
+    }
+    if (filters?.dateFrom) {
+      params.set("dateFrom", filters.dateFrom);
+    }
+    if (filters?.dateTo) {
+      params.set("dateTo", filters.dateTo);
+    }
+
+    const query = params.toString();
+
+    return this.request(`/admin/audit${query ? `?${query}` : ""}`, undefined, async () => {
+      const filtered = applyAdminAuditFilters(adminAuditLogMock, filters);
+      return filtered
+        .map((entry) => ({ ...entry, changes: entry.changes ? entry.changes.map((item) => ({ ...item })) : undefined }))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    });
+  }
+
+  exportAdminAuditLog(format: AdminAuditExportFormat, filters?: AdminAuditFilters): Promise<AdminAuditExportResult> {
+    this.ensureAdminPermission("export:audit");
+
+    const params = new URLSearchParams();
+    params.set("format", format);
+    if (filters?.search) {
+      params.set("search", filters.search.trim());
+    }
+    if (filters?.scope && filters.scope !== "all") {
+      params.set("scope", filters.scope);
+    }
+    if (filters?.severity && filters.severity !== "all") {
+      params.set("severity", filters.severity);
+    }
+    if (filters?.actorIds && filters.actorIds.length > 0) {
+      for (const actorId of filters.actorIds) {
+        if (actorId) {
+          params.append("actorId", actorId);
+        }
+      }
+    }
+    if (filters?.dateFrom) {
+      params.set("dateFrom", filters.dateFrom);
+    }
+    if (filters?.dateTo) {
+      params.set("dateTo", filters.dateTo);
+    }
+
+    const query = params.toString();
+
+    return this.request(`/admin/audit/export?${query}`, undefined, async () => {
+      const entries = applyAdminAuditFilters(adminAuditLogMock, filters).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+
+      if (format === "json") {
+        return {
+          fileName: `audit-log-${new Date().toISOString()}.json`,
+          mimeType: "application/json",
+          content: JSON.stringify(entries, null, 2),
+        } satisfies AdminAuditExportResult;
+      }
+
+      return {
+        fileName: `audit-log-${new Date().toISOString()}.csv`,
+        mimeType: "text/csv",
+        content: serializeAuditToCsv(entries),
+      } satisfies AdminAuditExportResult;
+    });
+  }
 }
 
 function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
   return {
     ...entry,
-    attachments: entry.attachments?.map((attachment) => ({ ...attachment })) ?? [],
-    history: entry.history?.map((record) => ({ ...record })) ?? [],
+    attachments: entry.attachments.map((attachment) => ({ ...attachment })),
+    history: entry.history.map((record) => ({ ...record })),
   };
 }
 
 function clonePayment(payment: Payment): Payment {
   return {
     ...payment,
+    incomes: payment.incomes.map((income) => clonePaymentEntry(income)),
+    expenses: payment.expenses.map((expense) => clonePaymentEntry(expense)),
     history: payment.history.map((change) => ({
       ...change,
       snapshot: { ...change.snapshot },
