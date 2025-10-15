@@ -89,6 +89,8 @@ poetry run pytest tests
 ```
 Тесты поднимают временные контейнеры PostgreSQL/RabbitMQ/Redis, применяют миграции и проверяют REST API, в том числе сценарии для платежей (создание, списания, возвраты) и публикацию доменных событий `payment.*` в `crm.events`. Для контейнера RabbitMQ используется клиентская библиотека `pika`, она включена в dev-зависимости (`poetry install --with dev`).
 
+> **Важно.** Интеграционный сценарий `test_policy_documents_flow` использует фикстуру `document_id`, которая создаёт тестовый документ в схеме `documents`. Для успешного выполнения убедитесь, что таблица `documents.documents` создана миграциями сервиса Documents и доступна в тестовой БД: фикстура добавляет запись перед тестом и удаляет её после завершения.
+
 ## Полезные ссылки
 - Архитектура и взаимодействия CRM: [`docs/architecture.md`](../../docs/architecture.md#2-взаимодействия-и-потоки-данных).【F:docs/architecture.md†L11-L66】
 - Технологический стек CRM/Deals: [`docs/tech-stack.md`](../../docs/tech-stack.md#crm--deals).【F:docs/tech-stack.md†L172-L204】
