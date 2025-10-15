@@ -219,7 +219,12 @@ class CalculationService:
         range_value = payload.validity_period
         data = payload.model_dump(exclude={"validity_period"})
         data["validity_period"] = self._date_range_to_pg(range_value)
-        calculation = await self.repository.create(tenant_id, deal_id, data)
+        try:
+            calculation = await self.repository.create(tenant_id, deal_id, data)
+        except repositories.RepositoryError as exc:
+            if str(exc) == "deal_not_found":
+                raise
+            raise
         calculation = await self.repository.get(tenant_id, deal_id, calculation.id) or calculation
         result = self._to_schema(calculation)
         await self._publish_event("deal.calculation.created", calculation)

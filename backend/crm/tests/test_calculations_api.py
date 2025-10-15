@@ -5,8 +5,10 @@ from uuid import uuid4
 
 import aio_pika
 import pytest
+from sqlalchemy import update
 
 from crm.domain import schemas
+from crm.infrastructure import models
 
 
 async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, dict[str, object]]]:
@@ -104,6 +106,82 @@ async def test_calculations_list_sorted_by_updated_at(api_client, configure_envi
     items = list_resp.json()
     ids_in_response = [item["id"] for item in items]
     assert ids_in_response == [str(calc1.id), str(calc3.id), str(calc2.id)]
+
+
+@pytest.mark.asyncio()
+async def test_calculation_creation_checks_deal_existence(api_client, db_session):
+    tenant_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Гамма",
+        "email": "gamma@example.com",
+        "phone": "+7-900-222-33-44",
+        "owner_id": str(uuid4()),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "КАСКО для топ-менеджера",
+        "description": "Подбор оптимальной программы",
+        "owner_id": str(uuid4()),
+        "value": 410000,
+        "next_review_at": date.today().isoformat(),
+    }
+    deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert deal_resp.status_code == 201
+    deal = schemas.DealRead.model_validate(deal_resp.json())
+
+    validity_start = date.today()
+    validity_end = validity_start + timedelta(days=365)
+
+    def build_payload(prefix: str) -> dict[str, object]:
+        return {
+            "insurance_company": "Ингосстрах",
+            "program_name": f"КАСКО {prefix}",
+            "premium_amount": "160000.00",
+            "coverage_sum": "6000000.00",
+            "calculation_date": validity_start.isoformat(),
+            "validity_period": {
+                "start": validity_start.isoformat(),
+                "end": validity_end.isoformat(),
+            },
+            "files": [f"calc-{prefix}.pdf"],
+            "comments": f"Расчёт {prefix}",
+            "owner_id": str(uuid4()),
+        }
+
+    success_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("успешный"),
+        headers=headers,
+    )
+    assert success_resp.status_code == 201
+
+    foreign_headers = {"X-Tenant-ID": str(uuid4())}
+    foreign_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("чужой"),
+        headers=foreign_headers,
+    )
+    assert foreign_resp.status_code == 404
+    assert foreign_resp.json()["detail"] == "deal_not_found"
+
+    await db_session.execute(
+        update(models.Deal).where(models.Deal.id == deal.id).values(is_deleted=True)
+    )
+    await db_session.commit()
+
+    deleted_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=build_payload("удалённый"),
+        headers=headers,
+    )
+    assert deleted_resp.status_code == 404
+    assert deleted_resp.json()["detail"] == "deal_not_found"
 
 
 @pytest.mark.asyncio()

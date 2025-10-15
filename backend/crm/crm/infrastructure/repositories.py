@@ -257,6 +257,15 @@ class CalculationRepository:
         deal_id: UUID,
         data: dict[str, object],
     ) -> models.Calculation:
+        deal_exists = await self.session.scalar(
+            select(models.Deal.id).where(
+                models.Deal.id == deal_id,
+                models.Deal.tenant_id == tenant_id,
+                models.Deal.is_deleted.is_(False),
+            )
+        )
+        if deal_exists is None:
+            raise RepositoryError("deal_not_found")
         calculation = models.Calculation(tenant_id=tenant_id, deal_id=deal_id, **data)
         self.session.add(calculation)
         try:
