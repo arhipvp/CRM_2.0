@@ -6,6 +6,7 @@ import { clientsQueryOptions, dealsQueryOptions, tasksQueryOptions } from "@/lib
 import { clientsMock, dealsMock, tasksMock } from "@/mocks/data";
 import { TaskList } from "@/components/tasks/TaskList";
 import { apiClient } from "@/lib/api/client";
+import type { UpdateTaskPayload } from "@/lib/api/client";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
 import type { TaskStatus } from "@/types/crm";
 
@@ -135,6 +136,75 @@ describe("TaskList", () => {
     );
 
     expect(screen.getByText(/Задача «Новая задача» создана/i)).toBeInTheDocument();
+  });
+
+  it("открывает панель деталей задачи из таблицы", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(tasksQueryOptions().queryKey, tasksMock);
+
+    renderWithQueryClient(<TaskList />, client);
+
+    await userEvent.click(await screen.findByRole("button", { name: tasksMock[0].title }));
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: new RegExp(`Детали задачи ${tasksMock[0].title}`),
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Чек-лист/i)).toBeInTheDocument();
+    expect(screen.getByText(/Согласовать с клиентом ключевые условия/i)).toBeInTheDocument();
+  });
+
+  it("отображает ошибку при неудачном обновлении чек-листа", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(tasksQueryOptions().queryKey, tasksMock);
+
+    vi.spyOn(apiClient, "updateTask").mockRejectedValue(new Error("failed"));
+
+    renderWithQueryClient(<TaskList />, client);
+
+    await userEvent.click(await screen.findByRole("button", { name: tasksMock[0].title }));
+    const checklistToggle = await screen.findByLabelText("Собрать актуальные тарифы");
+    await userEvent.click(checklistToggle);
+
+    expect(await screen.findByText(/Не удалось обновить чек-лист/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Ошибка при обновлении чек-листа/i)).toBeInTheDocument();
+  });
+
+  it("обновляет чек-лист и отправляет изменения", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(tasksQueryOptions().queryKey, tasksMock);
+
+    const updateSpy = vi
+      .spyOn(apiClient, "updateTask")
+      .mockImplementation(async (taskId: string, payload: UpdateTaskPayload) => {
+        const original = tasksMock.find((task) => task.id === taskId);
+        if (!original) {
+          throw new Error("Task not found");
+        }
+        return {
+          ...original,
+          ...payload,
+          checklist: payload.checklist ?? original.checklist,
+        };
+      });
+
+    renderWithQueryClient(<TaskList />, client);
+
+    await userEvent.click(await screen.findByRole("button", { name: tasksMock[0].title }));
+    const checklistToggle = await screen.findByLabelText("Собрать актуальные тарифы");
+    await userEvent.click(checklistToggle);
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+
+    const payload = updateSpy.mock.calls[0][1];
+    expect((payload as UpdateTaskPayload).checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "task-1-check-2", completed: true }),
+      ]),
+    );
+    expect(checklistToggle).toBeChecked();
+    expect(await screen.findByText(/Чек-лист обновлён/i)).toBeInTheDocument();
   });
 });
 
