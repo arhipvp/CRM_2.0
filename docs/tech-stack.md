@@ -264,7 +264,7 @@ API: REST (`/api/tasks`) и фоновые воркеры (`pnpm worker`, вкл
 
 PostgreSQL-схема tasks
 
-Очередь RabbitMQ `tasks.events` для публикации событий задач (подписка на дополнительные доменные события CRM запланирована отдельно)
+Topic-exchange RabbitMQ `tasks.events` для публикации CloudEvents задач (`task.created`, `task.status.changed`, `task.reminder`; `source = tasks.service`)
 
 Redis (sorted set `TASKS_DELAYED_QUEUE_KEY`) для хранения таймеров
 

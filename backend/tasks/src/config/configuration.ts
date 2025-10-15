@@ -11,9 +11,16 @@ type TasksConfiguration = {
   };
   rabbitmq: {
     url: string;
-    eventsQueue: string;
-    eventsRoutingKey: string;
     eventsExchange: string;
+    events: {
+      exchange: string;
+      source: string;
+      routingKeys: {
+        taskCreated: string;
+        taskStatusChanged: string;
+        taskReminder: string;
+      };
+    };
   };
   redis: {
     url: string;
@@ -41,9 +48,17 @@ export default registerAs('tasks', (): TasksConfiguration => ({
   },
   rabbitmq: {
     url: process.env.TASKS_RABBITMQ_URL ?? process.env.RABBITMQ_URL ?? '',
-    eventsQueue: process.env.TASKS_EVENTS_QUEUE ?? 'tasks.events',
-    eventsRoutingKey: process.env.TASKS_EVENTS_ROUTING_KEY ?? 'tasks.event',
-    eventsExchange: process.env.TASKS_EVENTS_EXCHANGE ?? 'tasks.events'
+    eventsExchange: process.env.TASKS_EVENTS_EXCHANGE ?? 'tasks.events',
+    events: {
+      exchange: process.env.TASKS_EVENTS_EXCHANGE ?? 'tasks.events',
+      source: process.env.TASKS_EVENTS_SOURCE ?? 'tasks.service',
+      routingKeys: {
+        taskCreated: process.env.TASKS_EVENTS_TASK_CREATED_KEY ?? 'task.created',
+        taskStatusChanged:
+          process.env.TASKS_EVENTS_STATUS_CHANGED_KEY ?? 'task.status.changed',
+        taskReminder: process.env.TASKS_EVENTS_REMINDER_KEY ?? 'task.reminder'
+      }
+    }
   },
   redis: {
     url: process.env.TASKS_REDIS_URL ?? process.env.REDIS_URL ?? 'redis://localhost:6379/6',

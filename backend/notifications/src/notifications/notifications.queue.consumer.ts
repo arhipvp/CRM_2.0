@@ -19,7 +19,7 @@ export class NotificationsQueueConsumer {
     queueOptions: config.rabbitmq.queueOptions
   })
   public async handleIncoming(message: IncomingNotificationDto) {
-    this.logger.debug(`Received event from queue: ${message.eventType}`);
+    this.logger.debug(`Received event ${message.id} from ${message.source}: ${message.type}`);
     await this.eventsService.handleIncoming(message);
   }
 }

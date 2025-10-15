@@ -22,14 +22,22 @@ export class NotificationEventsService {
   ) {}
 
   async handleIncoming(dto: IncomingNotificationDto): Promise<void> {
+    const existing = await this.repository.findOne({ where: { eventId: dto.id } });
+
+    if (existing) {
+      this.logger.debug(`Event ${dto.id} (${dto.type}) already processed; skipping.`);
+      return;
+    }
+
     const entity = this.repository.create({
-      eventType: dto.eventType,
-      payload: dto.payload
+      eventId: dto.id,
+      eventType: dto.type,
+      payload: dto.data
     });
 
     await this.repository.save(entity);
 
-    this.stream.publish(dto.eventType, dto.payload);
+    this.stream.publish(dto.type, dto.data);
 
     const sendResult = await this.telegram.send({
       chatId: dto.chatId,
@@ -77,8 +85,8 @@ export class NotificationEventsService {
   }
 
   private composeTelegramMessage(dto: IncomingNotificationDto): string {
-    const payloadPreview = JSON.stringify(dto.payload, null, 2);
-    return `${dto.eventType}\n\n${payloadPreview}`;
+    const payloadPreview = JSON.stringify(dto.data, null, 2);
+    return `${dto.type}\n${dto.time}\n\n${payloadPreview}`;
   }
 
   private async handleSendResult(

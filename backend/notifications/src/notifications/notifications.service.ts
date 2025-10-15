@@ -235,19 +235,24 @@ export class NotificationsService {
     attemptNumber: number
   ): Promise<void> {
     const chatId = dto.recipients.find((recipient) => recipient.telegramId)?.telegramId;
-    const payload: IncomingNotificationDto['payload'] = {
+    const payload: IncomingNotificationDto['data'] = {
       ...dto.payload,
       notificationId: notification.id,
       recipients: dto.recipients,
       channelOverrides: dto.channelOverrides ?? []
     };
 
+    const event: IncomingNotificationDto = {
+      id: randomUUID(),
+      source: 'notifications.service',
+      type: dto.eventKey,
+      time: new Date().toISOString(),
+      data: payload,
+      chatId
+    };
+
     try {
-      await this.notificationEventsService.handleIncoming({
-        eventType: dto.eventKey,
-        payload,
-        chatId
-      });
+      await this.notificationEventsService.handleIncoming(event);
       await this.recordAttempt(
         notification.id,
         attemptNumber,

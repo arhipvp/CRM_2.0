@@ -23,12 +23,14 @@ export class CompleteTaskHandler implements ICommandHandler<CompleteTaskCommand,
       throw new TaskNotFoundException(`Task ${command.taskId} not found`);
     }
 
+    const previousStatus = task.statusCode;
+
     task.statusCode = TaskStatusCode.COMPLETED;
     task.completedAt = command.completedAt ?? new Date();
 
     await this.delayedQueue.remove(task.id);
     const saved = await this.taskRepository.save(task);
-    await this.eventsPublisher.taskCompleted(saved);
+    await this.eventsPublisher.taskStatusChanged(saved, previousStatus);
     return (await this.taskRepository.findOne({ where: { id: saved.id }, relations: ['status'] }))!;
   }
 }

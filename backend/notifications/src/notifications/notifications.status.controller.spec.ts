@@ -147,6 +147,7 @@ describe('NotificationsStatusController (e2e)', () => {
 
     const deliveredAt = new Date('2024-03-01T13:00:00.000Z');
     const eventEntity = eventsRepository.create({
+      eventId: randomUUID(),
       eventType: 'notifications.telegram.delivery',
       payload: { notificationId: notification.id, status: 'delivered' },
       deliveredToTelegram: true,
