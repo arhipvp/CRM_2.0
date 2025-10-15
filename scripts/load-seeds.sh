@@ -70,8 +70,21 @@ fi
 
 log INFO "Чтение переменных из $ENV_FILE"
 set -a
+
+# При загрузке .env допускаем обращения к переменным, объявленным ниже в файле.
+was_nounset_enabled=false
+if [[ $- == *u* ]]; then
+  was_nounset_enabled=true
+  set +u
+fi
+
 # shellcheck disable=SC1090
 source "$ENV_FILE"
+
+if [[ $was_nounset_enabled == true ]]; then
+  set -u
+fi
+
 set +a
 
 required_vars=(POSTGRES_HOST POSTGRES_PORT POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB)
