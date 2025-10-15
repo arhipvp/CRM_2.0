@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
 import { DealFunnelHeader } from "@/components/deals/DealFunnelHeader";
 import { DealFunnelTable } from "@/components/deals/DealFunnelTable";

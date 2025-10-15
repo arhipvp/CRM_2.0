@@ -72,6 +72,10 @@ CRM-шлюз может отправлять идентификатор сдел
 - `src/components/admin` — панель главного админа: управление пользователями, справочниками и аудитом с правами доступа и экспортом отчётов.
 - `src/hooks/useEventStream.ts` и `src/components/providers/SSEBridge.tsx` — подключение к SSE с автореконнектом и записью в стор.
 
+### Административный раздел
+
+SSR-страницы административного раздела (`/admin`) и карточек используют серверный `QueryClient` из `@tanstack/react-query` для префетча данных. Экземпляр создаётся внутри страницы перед вызовами `prefetchQuery`, после чего клиентские компоненты получают гидрированные данные через общий `QueryClientProvider` из `src/app/providers.tsx`. Это обеспечивает единый набор настроек кэша (staleTime, refetch-поведение) между сервером и клиентом.
+
 ### typedRoutes и PageProps
 
 Начиная с Next.js 15.5 в проекте активирован [`typedRoutes`](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links). Для динамических страниц App Router используйте глобальный helper `PageProps` и ожидайте, что `params` передаётся как `Promise`. Пример корректной сигнатуры:

@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { PaymentsTable } from "@/components/payments/PaymentsTable";
 import { getServerApiClient } from "@/lib/api/client";
 import { paymentsQueryOptions } from "@/lib/api/queries";

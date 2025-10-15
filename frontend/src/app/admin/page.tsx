@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { AuditLog } from "@/components/admin/AuditLog";
 import { DictionaryEditor } from "@/components/admin/DictionaryEditor";
 import { UserManagement } from "@/components/admin/UserManagement";
