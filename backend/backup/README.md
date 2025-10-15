@@ -21,8 +21,10 @@
 | `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | креды доступа к бакету (оставьте пустыми или удалите, чтобы выключить `S3Storage`) |
 | `BACKUP_S3_BUCKET` | имя бакета для артефактов (пустое значение отключает `S3Storage`) |
 | `BACKUP_ARTIFACTS_DIR` | локальный каталог для временных артефактов и `DummyStorage` |
-| `BACKUP_RABBITMQ_URL` | AMQP URL для публикации уведомлений |
+| `BACKUP_RABBITMQ_URL` | AMQP URL для публикации уведомлений (например, при локальном запуске на хосте — `localhost`) |
+| `BACKUP_RABBITMQ_INTERNAL_URL` | AMQP URL для публикации внутри docker compose (использует сетевое имя контейнера `rabbitmq`) |
 | `BACKUP_RABBITMQ_MANAGEMENT_URL` | HTTP-URL RabbitMQ для экспорта через `rabbitmqadmin` |
+| `BACKUP_RABBITMQ_INTERNAL_MANAGEMENT_URL` | Внутренний HTTP-URL RabbitMQ для docker compose |
 | `BACKUP_RABBITMQ_ADMIN_USER` / `BACKUP_RABBITMQ_ADMIN_PASSWORD` | креды `rabbitmqadmin` |
 | `BACKUP_CONSUL_HTTP_ADDR` | адрес Consul API для `snapshot save` |
 | `BACKUP_REDIS_HOST` / `BACKUP_REDIS_PORT` / `BACKUP_REDIS_DATA_DIR` | параметры Redis для получения RDB и копирования AOF |
