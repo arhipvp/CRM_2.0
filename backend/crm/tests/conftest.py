@@ -34,6 +34,7 @@ os.environ.setdefault("CRM_PERMISSIONS_REDIS_URL", "https://example.com/redis")
 os.environ.setdefault("CRM_PERMISSIONS_QUEUE_NAME", "permissions:sync")
 os.environ.setdefault("CRM_PERMISSIONS_QUEUE_PREFIX", "bull")
 os.environ.setdefault("CRM_PERMISSIONS_JOB_NAME", "permissions.sync")
+os.environ.setdefault("CRM_DOCUMENTS_BASE_URL", "https://example.com/documents")
 
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:

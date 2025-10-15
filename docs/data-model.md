@@ -85,6 +85,13 @@ erDiagram
 
 * `status` (`crm.calculation_status`, NOT NULL, default `'draft'`) — состояние расчёта. Допустимые значения (`draft`, `ready`, `confirmed`, `archived`) и сценарии смены статусов описаны в разделе «Расчёты» доменной модели (см. [docs/domain-model.md](domain-model.md#расчёты)).
 
+#### Поля `crm.policy_documents`
+
+* `tenant_id` (`uuid`, NOT NULL) — контекст арендатора, используется для фильтрации и проверки прав.
+* `policy_id` (`uuid`, NOT NULL) — идентификатор полиса, к которому относится документ.
+* `document_id` (`uuid`, NOT NULL) — ссылка на запись в `documents.documents`.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`) — время привязки документа к полису.
+
 ### Ключи и ограничения
 
 * `crm.clients`: `PRIMARY KEY (id)`, индексы по `tenant_id`, `owner_id`, `status`; мягкое удаление реализовано полем `is_deleted`.
