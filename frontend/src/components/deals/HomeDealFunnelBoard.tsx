@@ -38,8 +38,8 @@ type HomeDealFunnelBoardProps = {
 };
 
 export function HomeDealFunnelBoard({ forceViewMode }: HomeDealFunnelBoardProps) {
-  const savedState = useRef<SavedUiState>();
-  const clearedState = useRef<SavedUiState>();
+  const savedState = useRef<SavedUiState | null>(null);
+  const clearedState = useRef<SavedUiState | null>(null);
   const [isReady, setIsReady] = useState(() => {
     const state = useUiStore.getState();
 
