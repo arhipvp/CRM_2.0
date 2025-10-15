@@ -214,6 +214,8 @@ Gateway предоставляет typed-роуты поверх CRM Payments AP
 | `PATCH /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}` | Изменение расхода. | 200 с обновлённым объектом. |
 | `DELETE /api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}` | Удаление расхода. | 204 при успехе. |
 
+> При попытке добавить или обновить операцию в валюте, отличной от валюты платежа, сервис вернёт `400 currency_mismatch`. Для дат в будущем возвращается `400 posted_at_in_future`.
+
 ### POST `/api/v1/telegram/webhook`
 Принимает события Telegram и маршрутизирует их к Notifications/CRM.
 

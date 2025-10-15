@@ -89,7 +89,10 @@ async def delete_payment(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> Response:
-    deleted = await service.delete_payment(tenant_id, deal_id, policy_id, payment_id)
+    try:
+        deleted = await service.delete_payment(tenant_id, deal_id, policy_id, payment_id)
+    except RepositoryError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
