@@ -609,6 +609,10 @@ class PaymentService:
         payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
         if payment is None:
             return False
+        incomes_total = Decimal(payment.incomes_total or 0)
+        expenses_total = Decimal(payment.expenses_total or 0)
+        if incomes_total > 0 or expenses_total > 0:
+            raise repositories.RepositoryError("payment_has_transactions")
         await self.payments.delete_payment(payment)
         await self._publish_payment_event(
             "deal.payment.deleted",
@@ -650,6 +654,11 @@ class PaymentService:
         if payment is None:
             return None, None
         data = payload.model_dump(exclude_unset=True)
+        self._validate_transaction_input(
+            payment,
+            currency=str(data.get("currency")) if data.get("currency") is not None else None,
+            posted_at=data.get("posted_at"),
+        )
         income = await self.incomes.create_income(payment, data)
         payment = await self._finalize_payment(payment)
         income_schema = schemas.PaymentIncomeRead.model_validate(income)
@@ -674,6 +683,11 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
         update_data = payload.model_dump(exclude_unset=True)
+        self._validate_transaction_input(
+            payment,
+            currency=str(income.currency) if income.currency is not None else None,
+            posted_at=update_data.get("posted_at"),
+        )
         income = await self.incomes.update_income(income, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentIncomeRead.model_validate(income)
@@ -726,6 +740,11 @@ class PaymentService:
         if payment is None:
             return None, None
         data = payload.model_dump(exclude_unset=True)
+        self._validate_transaction_input(
+            payment,
+            currency=str(data.get("currency")) if data.get("currency") is not None else None,
+            posted_at=data.get("posted_at"),
+        )
         expense = await self.expenses.create_expense(payment, data)
         payment = await self._finalize_payment(payment)
         expense_schema = schemas.PaymentExpenseRead.model_validate(expense)
@@ -750,6 +769,11 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
         update_data = payload.model_dump(exclude_unset=True)
+        self._validate_transaction_input(
+            payment,
+            currency=str(expense.currency) if expense.currency is not None else None,
+            posted_at=update_data.get("posted_at"),
+        )
         expense = await self.expenses.update_expense(expense, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentExpenseRead.model_validate(expense)
@@ -789,6 +813,20 @@ class PaymentService:
         )
         await self._publish_payment_event("deal.payment.updated", payment)
         return payment
+
+    def _validate_transaction_input(
+        self,
+        payment: models.Payment,
+        *,
+        currency: str | None,
+        posted_at: date | None,
+    ) -> None:
+        if currency is not None and currency != payment.currency:
+            raise repositories.RepositoryError("currency_mismatch")
+        if posted_at is not None:
+            today = datetime.now(timezone.utc).date()
+            if posted_at > today:
+                raise repositories.RepositoryError("posted_at_in_future")
 
     async def _finalize_payment(
         self,

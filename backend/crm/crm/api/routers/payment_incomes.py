@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from crm.app.dependencies import get_payment_service, get_tenant_id
 from crm.domain import schemas
 from crm.domain.services import PaymentService
+from crm.infrastructure.repositories import RepositoryError
 
 router = APIRouter(
     prefix="/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes",
@@ -23,7 +24,10 @@ async def create_income(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentIncomeRead:
-    payment, income = await service.create_income(tenant_id, deal_id, policy_id, payment_id, payload)
+    try:
+        payment, income = await service.create_income(tenant_id, deal_id, policy_id, payment_id, payload)
+    except RepositoryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if payment is None or income is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return income
@@ -39,9 +43,12 @@ async def update_income(
     service: PaymentService = Depends(get_payment_service),
     tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentIncomeRead:
-    payment, income = await service.update_income(
-        tenant_id, deal_id, policy_id, payment_id, income_id, payload
-    )
+    try:
+        payment, income = await service.update_income(
+            tenant_id, deal_id, policy_id, payment_id, income_id, payload
+        )
+    except RepositoryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if payment is None or income is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="income_not_found")
     return income

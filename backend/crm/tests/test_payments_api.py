@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import aio_pika
@@ -23,6 +23,66 @@ async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, 
         events.append((message.routing_key, payload))
         await message.ack()
     return events
+
+
+async def _prepare_payment(
+    api_client,
+    configure_environment,
+    *,
+    currency: str = "RUB",
+) -> tuple[dict[str, str], schemas.DealRead, schemas.PolicyRead, schemas.PaymentRead]:
+    _ = configure_environment
+    tenant_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Альфа",
+        "email": "alpha@example.com",
+        "phone": "+7-900-000-00-00",
+        "owner_id": str(uuid4()),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "КАСКО",
+        "description": "Оплата полиса",
+        "owner_id": str(uuid4()),
+        "value": 1000,
+        "next_review_at": date.today().isoformat(),
+    }
+    deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert deal_resp.status_code == 201
+    deal = schemas.DealRead.model_validate(deal_resp.json())
+
+    policy_payload = {
+        "client_id": str(client.id),
+        "deal_id": str(deal.id),
+        "policy_number": "POL-001",
+        "owner_id": str(uuid4()),
+        "premium": 1200,
+    }
+    policy_resp = await api_client.post("/api/v1/policies/", json=policy_payload, headers=headers)
+    assert policy_resp.status_code == 201
+    policy = schemas.PolicyRead.model_validate(policy_resp.json())
+
+    payment_payload = {
+        "planned_amount": "1000.00",
+        "currency": currency,
+        "comment": "Аванс",
+        "planned_date": date.today().isoformat(),
+    }
+    payment_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments",
+        json=payment_payload,
+        headers=headers,
+    )
+    assert payment_resp.status_code == 201
+    payment = schemas.PaymentRead.model_validate(payment_resp.json())
+
+    return headers, deal, policy, payment
 
 
 @pytest.mark.asyncio()
@@ -279,3 +339,69 @@ async def test_payments_policy_not_found_scenarios(api_client, configure_environ
     deleted_resp = await api_client.get(payments_base_url, headers=headers)
     assert deleted_resp.status_code == 404
     assert deleted_resp.json()["detail"] == "policy_not_found"
+async def test_income_currency_mismatch(api_client, configure_environment):
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    income_payload = {
+        "amount": "100.00",
+        "currency": "USD",
+        "category": "wire",
+        "posted_at": date.today().isoformat(),
+    }
+
+    response = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes",
+        json=income_payload,
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "currency_mismatch"
+
+
+@pytest.mark.asyncio()
+async def test_expense_posted_at_future(api_client, configure_environment):
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    future_date = (datetime.now(timezone.utc) + timedelta(days=1)).date().isoformat()
+    expense_payload = {
+        "amount": "50.00",
+        "currency": payment.currency,
+        "category": "agency_fee",
+        "posted_at": future_date,
+    }
+
+    response = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/expenses",
+        json=expense_payload,
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "posted_at_in_future"
+
+
+@pytest.mark.asyncio()
+async def test_delete_payment_with_transactions_returns_conflict(api_client, configure_environment):
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    income_payload = {
+        "amount": "200.00",
+        "currency": payment.currency,
+        "category": "wire",
+        "posted_at": date.today().isoformat(),
+    }
+    income_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes",
+        json=income_payload,
+        headers=headers,
+    )
+    assert income_resp.status_code == 201
+
+    delete_response = await api_client.delete(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        headers=headers,
+    )
+
+    assert delete_response.status_code == 409
+    assert delete_response.json()["detail"] == "payment_has_transactions"

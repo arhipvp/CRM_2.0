@@ -191,8 +191,16 @@ class Payment(CRMBase, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    deal_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    policy_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    deal_id: Mapped[UUID] = mapped_column(
+        ForeignKey("crm.deals.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    policy_id: Mapped[UUID] = mapped_column(
+        ForeignKey("crm.policies.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled")
     planned_date: Mapped[date | None] = mapped_column(Date, nullable=True)
