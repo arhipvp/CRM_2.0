@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { TaskList } from "@/components/tasks/TaskList";
 import { getServerApiClient } from "@/lib/api/client";
 import { tasksQueryOptions } from "@/lib/api/queries";

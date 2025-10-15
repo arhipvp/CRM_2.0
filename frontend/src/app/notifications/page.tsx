@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { NotificationFeed } from "@/components/notifications/NotificationFeed";
 import { NotificationsHeader } from "@/components/notifications/NotificationsHeader";
 import { DeliverySettingsPanel } from "@/components/notifications/DeliverySettingsPanel";
