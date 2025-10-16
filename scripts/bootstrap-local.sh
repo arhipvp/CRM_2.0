@@ -11,6 +11,22 @@ TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
 LOG_PREFIX="[bootstrap-local]"
 DEFAULT_LOG_DIR="${ROOT_DIR}/.local/logs/bootstrap"
 
+PYTHON_CMD=""
+PYTHON_CANDIDATES=(
+  "python3"
+  "python"
+  "python3.12"
+  "python3.11"
+  "python3.10"
+  "python3.9"
+  "python3.8"
+  "py -3"
+  "py -3.12"
+  "py -3.11"
+  "py -3.10"
+  "py -3.9"
+)
+
 if [[ -n "${BOOTSTRAP_LOG_DIR:-}" ]]; then
   if [[ "${BOOTSTRAP_LOG_DIR}" == /* ]]; then
     LOG_DIR="${BOOTSTRAP_LOG_DIR}"
@@ -93,6 +109,17 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+detect_python_cmd() {
+  local candidate
+  for candidate in "${PYTHON_CANDIDATES[@]}"; do
+    if eval "${candidate} --version" >/dev/null 2>&1; then
+      PYTHON_CMD="${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 set_log_dir() {
   local value="$1"
   if [[ -z "${value}" ]]; then
@@ -127,7 +154,7 @@ check_port_available() {
   fi
 
   local exit_code
-  python3 - "$port_num" <<'PY'
+  ${PYTHON_CMD} - "$port_num" <<'PY'
 import errno
 import socket
 import sys
@@ -377,11 +404,11 @@ write_summary_report() {
     printf '| %s | %s | %s | %s |\n' "${name_cell}" "${status}" "${message_cell}" "${log_cell}" >> "${md_file}"
   done
 
-  if command -v python3 >/dev/null 2>&1; then
+  if [[ -n "${PYTHON_CMD:-}" ]]; then
     BOOTSTRAP_SUMMARY_STARTED_AT="${BOOTSTRAP_STARTED_AT}" \
     BOOTSTRAP_SUMMARY_FINISHED_AT="${BOOTSTRAP_FINISHED_AT}" \
     BOOTSTRAP_SUMMARY_STATUS="${overall_status}" \
-      python3 - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
+      ${PYTHON_CMD} - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
 import json
 import os
 import sys
@@ -505,8 +532,8 @@ step_check_dependencies() {
   else
     status=1
   fi
-  if require_command python3 "python3 (Python 3)"; then
-    :
+  if [[ -n "${PYTHON_CMD:-}" ]]; then
+    log_info "Используем интерпретатор Python: ${PYTHON_CMD}"
   else
     log_error "Python 3 обязателен для bootstrap. Установите интерпретатор python3 из поставки вашей ОС (например, 'sudo apt install python3') и повторите попытку."
     status=1
@@ -823,6 +850,15 @@ step_start_local_backend() {
 
 main() {
   parse_args "$@"
+
+  if ! detect_python_cmd; then
+    local joined_candidates
+    joined_candidates=$(printf '%s, ' "${PYTHON_CANDIDATES[@]}")
+    joined_candidates=${joined_candidates%, }
+    log_error "Не удалось найти рабочий Python 3. Проверены команды: ${joined_candidates}."
+    log_error "Установите Python 3 (например, через пакетный менеджер ОС или Microsoft Store) и повторите запуск."
+    exit 1
+  fi
 
   initialize_log_storage
 
