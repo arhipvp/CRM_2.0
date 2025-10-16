@@ -52,6 +52,39 @@ Usage: $0 [--run-dir PATH] [--log-file PATH] [--service NAME[,NAME2] ...]
 USAGE
 }
 
+available_services_list() {
+  local names=()
+  for entry in "${SERVICES[@]}"; do
+    IFS='|' read -r name _ <<<"$entry"
+    names+=("$name")
+  done
+  printf '%s' "${names[*]}"
+}
+
+is_valid_service() {
+  local candidate="$1"
+  for entry in "${SERVICES[@]}"; do
+    IFS='|' read -r name _ <<<"$entry"
+    if [[ "$name" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+should_run_service() {
+  local candidate="$1"
+  if [[ ${#SELECTED_SERVICES[@]} -eq 0 ]]; then
+    return 0
+  fi
+  for selected in "${SELECTED_SERVICES[@]}"; do
+    if [[ "$selected" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 abspath() {
   local path="$1"
   if [[ "${path}" == /* ]]; then
@@ -325,6 +358,11 @@ main() {
   log_info "Журнал запуска: ${BACKEND_SCRIPT_LOG_FILE}"
   log_info "PID-файлы: ${PID_DIR}"
   log_info "Логи сервисов: ${LOG_DIR}"
+  if [[ ${#SELECTED_SERVICES[@]} -gt 0 ]]; then
+    log_info "Выбранные сервисы: ${SELECTED_SERVICES[*]}"
+  else
+    log_info "Выбраны все доступные сервисы"
+  fi
 
   require_command pnpm
   require_command poetry
@@ -349,6 +387,11 @@ main() {
   for entry in "${services_to_run[@]}"; do
     IFS='|' read -r name dir_rel command <<<"$entry"
     local service_dir="${ROOT_DIR}/${dir_rel}"
+
+    if ! should_run_service "$name"; then
+      log_info "${name}: пропускаем (не выбран через --service)"
+      continue
+    fi
 
     if [[ "$name" == "crm-api" || "$name" == "crm-worker" ]]; then
       ensure_poetry_env "${service_dir}" "$name"
