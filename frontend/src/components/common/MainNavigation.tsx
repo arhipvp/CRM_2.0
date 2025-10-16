@@ -8,6 +8,7 @@ const primaryLinks = [
   { href: "/deals", label: "Сделки" },
   { href: "/tasks", label: "Задачи" },
   { href: "/payments", label: "Платежи" },
+  { href: "/policies", label: "Полисы" },
   { href: "/notifications", label: "Уведомления" },
   { href: "/admin", label: "Администрирование" },
 ] as const;
