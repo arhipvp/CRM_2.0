@@ -33,3 +33,6 @@ backups/**/weekly/
 backups/**/monthly/
 
 jdk-25/
+
+*.log
+*.pid
