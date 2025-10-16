@@ -29,13 +29,26 @@ SERVICES=(
   "gateway|backend/gateway|pnpm start:dev"
 )
 
+declare -A SERVICE_ENTRY_BY_NAME=()
+ALL_SERVICE_NAMES=()
+for entry in "${SERVICES[@]}"; do
+  IFS='|' read -r service_name _ <<<"${entry}"
+  SERVICE_ENTRY_BY_NAME["${service_name}"]="${entry}"
+  ALL_SERVICE_NAMES+=("${service_name}")
+done
+
+SELECTED_SERVICE_NAMES=()
+declare -A SELECTED_SERVICE_SEEN=()
+
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH] [--log-file PATH]
+Usage: $0 [--run-dir PATH] [--log-file PATH] [--service NAME[,NAME2] ...]
 
 Запускает основные backend-процессы вне Docker Compose и сохраняет PID/логи в каталоге .local/run/backend.
   --run-dir PATH  переопределить каталог для PID и логов (по умолчанию ${BACKEND_RUN_DIR})
   --log-file PATH путь к файлу журнала запуска (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
+  --service NAME[,NAME2]
+                  запустить только указанные сервисы (можно повторять опцию несколько раз)
 USAGE
 }
 
@@ -46,6 +59,22 @@ abspath() {
   else
     printf '%s/%s' "$(pwd)" "${path}"
   fi
+}
+
+join_by() {
+  local sep="$1"
+  shift || true
+  local result=""
+  local first=true
+  for part in "$@"; do
+    if [[ "${first}" == true ]]; then
+      result="${part}"
+      first=false
+    else
+      result+="${sep}${part}"
+    fi
+  done
+  printf '%s' "${result}"
 }
 
 log_info() {
@@ -202,6 +231,42 @@ parse_args() {
         SCRIPT_LOG_FILE_OVERRIDE=true
         shift
         ;;
+      --service)
+        if (($# < 2)); then
+          PARSE_ERROR="Для --service требуется имя сервиса"
+          PARSE_EXIT_CODE=1
+          return
+        fi
+        local raw_names="$2"
+        if [[ -z "${raw_names//[[:space:]]/}" ]]; then
+          PARSE_ERROR="Опция --service не может быть пустой"
+          PARSE_EXIT_CODE=1
+          return
+        fi
+        IFS=',' read -ra requested_names <<<"${raw_names}"
+        for requested_name in "${requested_names[@]}"; do
+          local normalized_name
+          normalized_name="${requested_name//[[:space:]]/}"
+          if [[ -z "${normalized_name}" ]]; then
+            PARSE_ERROR="Обнаружено пустое имя сервиса в списке --service"
+            PARSE_EXIT_CODE=1
+            return
+          fi
+          if [[ -z "${SERVICE_ENTRY_BY_NAME["${normalized_name}"]+x}" ]]; then
+            PARSE_ERROR="Неизвестный сервис '${normalized_name}'. Доступны: $(join_by ', ' "${ALL_SERVICE_NAMES[@]}")"
+            PARSE_EXIT_CODE=1
+            return
+          fi
+          if [[ -n "${SELECTED_SERVICE_SEEN["${normalized_name}"]:-}" ]]; then
+            PARSE_ERROR="Сервис '${normalized_name}' указан несколько раз"
+            PARSE_EXIT_CODE=1
+            return
+          fi
+          SELECTED_SERVICE_SEEN["${normalized_name}"]=1
+          SELECTED_SERVICE_NAMES+=("${normalized_name}")
+        done
+        shift
+        ;;
       -h|--help)
         PARSE_SHOW_USAGE=true
         return
@@ -270,7 +335,18 @@ main() {
     chmod +x "${gradlew}"
   fi
 
-  for entry in "${SERVICES[@]}"; do
+  local services_to_run=()
+  if ((${#SELECTED_SERVICE_NAMES[@]} == 0)); then
+    services_to_run=("${SERVICES[@]}")
+    log_info "Запускаем все сервисы: $(join_by ', ' "${ALL_SERVICE_NAMES[@]}")"
+  else
+    for selected_name in "${SELECTED_SERVICE_NAMES[@]}"; do
+      services_to_run+=("${SERVICE_ENTRY_BY_NAME["${selected_name}"]}")
+    done
+    log_info "Запускаем выбранные сервисы: $(join_by ', ' "${SELECTED_SERVICE_NAMES[@]}")"
+  fi
+
+  for entry in "${services_to_run[@]}"; do
     IFS='|' read -r name dir_rel command <<<"$entry"
     local service_dir="${ROOT_DIR}/${dir_rel}"
 
