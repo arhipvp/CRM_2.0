@@ -26,15 +26,62 @@ SERVICES=(
   "auth"
 )
 
-SELECTED_SERVICES=()
+declare -A SERVICE_SET=()
+for service in "${SERVICES[@]}"; do
+  SERVICE_SET["$service"]=1
+done
+
+declare -a SELECTED_SERVICES=()
+declare -A SELECTED_SERVICE_SET=()
+
+trim_whitespace() {
+  local value="$1"
+  value="${value#${value%%[![:space:]]*}}"
+  value="${value%${value##*[![:space:]]}}"
+  printf '%s' "${value}"
+}
+
+list_available_services() {
+  local IFS=", "
+  printf '%s' "${SERVICES[*]}"
+}
+
+add_selected_service() {
+  local raw="$1"
+  local service
+  service="$(trim_whitespace "${raw}")"
+  if [[ -z "${service}" ]]; then
+    return
+  fi
+
+  if [[ -z "${SERVICE_SET["${service}"]:-}" ]]; then
+    log_error "Неизвестный сервис: '${service}'. Доступные значения: $(list_available_services)"
+    exit 1
+  fi
+
+  if [[ -z "${SELECTED_SERVICE_SET["${service}"]:-}" ]]; then
+    SELECTED_SERVICES+=("${service}")
+    SELECTED_SERVICE_SET["${service}"]=1
+  fi
+}
+
+parse_service_arg() {
+  local arg="$1"
+  local IFS=','
+  read -r -a parts <<<"${arg}"
+  for part in "${parts[@]}"; do
+    add_selected_service "${part}"
+  done
+}
 
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH] [--log-file PATH] [--clean-logs] [--service NAME...]
+Usage: $0 [--run-dir PATH] [--log-file PATH] [--service NAME[,NAME...]] [--clean-logs]
 
 Останавливает backend-процессы, запущенные scripts/start-backend.sh, по PID-файлам.
   --run-dir PATH  каталог с PID/логами (по умолчанию ${BACKEND_RUN_DIR})
   --log-file PATH путь к журналу запуска backend (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
+  --service NAME  остановить только перечисленные сервисы (можно указывать несколько флагов или CSV)
   --clean-logs    удалить журналы запуска и сервисов после остановки
   --service NAME  остановить только указанный сервис (можно повторять флаг)
 USAGE
@@ -113,6 +160,17 @@ parse_args() {
         SCRIPT_LOG_FILE_OVERRIDE=true
         shift
         ;;
+      --service)
+        if (($# < 2)); then
+          log_error "Для --service требуется имя сервиса"
+          exit 1
+        fi
+        parse_service_arg "$2"
+        shift
+        ;;
+      --service=*)
+        parse_service_arg "${1#--service=}"
+        ;;
       --clean-logs)
         STOP_CLEAN_LOGS=true
         ;;
@@ -159,21 +217,23 @@ stop_pid() {
   local service="$1"
   local pid_file="${PID_DIR}/${service}.pid"
 
+  log_info "${service}: PID-файл ${pid_file}"
+
   if [[ ! -f "${pid_file}" ]]; then
-    log_warn "${service}: PID-файл не найден."
+    log_warn "${service}: PID-файл ${pid_file} не найден."
     return
   fi
 
   local pid
   pid=$(<"${pid_file}")
   if [[ -z "${pid}" ]]; then
-    log_warn "${service}: PID-файл пуст, удаляем ${pid_file}."
+    log_warn "${service}: PID-файл ${pid_file} пуст, удаляем."
     rm -f "${pid_file}"
     return
   fi
 
   if ! kill -0 "$pid" >/dev/null 2>&1; then
-    log_warn "${service}: процесс ${pid} уже завершён, удаляем PID-файл."
+    log_warn "${service}: процесс ${pid} уже завершён, удаляем PID-файл ${pid_file}."
     rm -f "${pid_file}"
     return
   fi
@@ -204,21 +264,71 @@ stop_pid() {
   rm -f "${pid_file}"
 }
 
+all_services_selected() {
+  local -a selected=("$@")
+  if ((${#selected[@]} != ${#SERVICES[@]})); then
+    return 1
+  fi
+
+  declare -A seen=()
+  local item
+  for item in "${selected[@]}"; do
+    seen["$item"]=1
+  done
+
+  local service
+  for service in "${SERVICES[@]}"; do
+    if [[ -z "${seen["${service}"]:-}" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
 clean_logs() {
+  local -a services_to_clean=("$@")
   local removed_any=false
+  local remove_all=false
+
+  if all_services_selected "${services_to_clean[@]}"; then
+    remove_all=true
+  fi
 
   if [[ -d "${LOG_DIR}" ]]; then
-    rm -rf "${LOG_DIR}"
-    removed_any=true
-    log_info "Удалён каталог логов сервисов ${LOG_DIR}"
+    if [[ "${remove_all}" == true ]]; then
+      rm -rf "${LOG_DIR}"
+      removed_any=true
+      log_info "Удалён каталог логов сервисов ${LOG_DIR}"
+    else
+      local service
+      for service in "${services_to_clean[@]}"; do
+        local log_file="${LOG_DIR}/${service}.log"
+        if [[ -f "${log_file}" ]]; then
+          rm -f "${log_file}"
+          removed_any=true
+          log_info "${service}: удалён лог-файл ${log_file}"
+        fi
+      done
+      if [[ -d "${LOG_DIR}" && -z "$(ls -A "${LOG_DIR}")" ]]; then
+        rmdir "${LOG_DIR}" >/dev/null 2>&1 || true
+        if [[ ! -d "${LOG_DIR}" ]]; then
+          log_info "Каталог логов ${LOG_DIR} удалён (стал пустым)"
+        fi
+      fi
+    fi
   fi
 
   if [[ -n "${BACKEND_SCRIPT_LOG_FILE}" ]]; then
     if [[ "${BACKEND_SCRIPT_LOG_FILE}" == "${BACKEND_RUN_DIR}"/* ]]; then
       if [[ -f "${BACKEND_SCRIPT_LOG_FILE}" ]]; then
-        rm -f "${BACKEND_SCRIPT_LOG_FILE}"
-        removed_any=true
-        log_info "Удалён журнал запуска ${BACKEND_SCRIPT_LOG_FILE}"
+        if [[ "${remove_all}" == true ]]; then
+          rm -f "${BACKEND_SCRIPT_LOG_FILE}"
+          removed_any=true
+          log_info "Удалён журнал запуска ${BACKEND_SCRIPT_LOG_FILE}"
+        else
+          log_info "Журнал запуска ${BACKEND_SCRIPT_LOG_FILE} сохранён, так как остановлены не все сервисы"
+        fi
       fi
     else
       log_warn "Журнал запуска ${BACKEND_SCRIPT_LOG_FILE} расположен вне ${BACKEND_RUN_DIR}, пропускаем удаление"
@@ -258,16 +368,23 @@ main() {
     log_info "Останавливаем все сервисы"
   fi
 
-  for service in "${SERVICES[@]}"; do
-    if ! should_stop_service "$service"; then
-      log_info "${service}: пропускаем (не выбран через --service)"
-      continue
-    fi
+  local services_to_stop=("${SERVICES[@]}")
+  if ((${#SELECTED_SERVICES[@]} > 0)); then
+    services_to_stop=("${SELECTED_SERVICES[@]}")
+    local IFS=', '
+    log_info "Останавливаем выбранные сервисы: ${services_to_stop[*]}"
+  else
+    local IFS=', '
+    log_info "Останавливаем все сервисы: ${services_to_stop[*]}"
+  fi
+
+  local service
+  for service in "${services_to_stop[@]}"; do
     stop_pid "$service"
   done
 
   if [[ "${STOP_CLEAN_LOGS}" == true ]]; then
-    clean_logs
+    clean_logs "${services_to_stop[@]}"
   fi
 
   cleanup_run_dir
