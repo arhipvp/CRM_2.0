@@ -60,6 +60,24 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+ensure_poetry_env() {
+  local service_dir="$1"
+  local service_name="$2"
+
+  if [[ ! -d "${service_dir}" ]]; then
+    log_error "${service_name}: каталог ${service_dir} не найден для подготовки Poetry-окружения."
+    exit 1
+  fi
+
+  (
+    cd "${service_dir}" || exit 1
+    if ! poetry env info --path >/dev/null 2>&1; then
+      log_info "${service_name}: Poetry-окружение не найдено, выполняем 'poetry install --sync --no-root' для установки зависимостей."
+      poetry install --sync --no-root
+    fi
+  )
+}
+
 require_command() {
   local cmd="$1"
   local human_name="${2:-$1}"
@@ -254,6 +272,12 @@ main() {
 
   for entry in "${SERVICES[@]}"; do
     IFS='|' read -r name dir_rel command <<<"$entry"
+    local service_dir="${ROOT_DIR}/${dir_rel}"
+
+    if [[ "$name" == "crm-api" || "$name" == "crm-worker" ]]; then
+      ensure_poetry_env "${service_dir}" "$name"
+    fi
+
     start_service "$name" "$dir_rel" "$command"
   done
 }
