@@ -122,6 +122,55 @@ function check_postgres() {
   fi
 }
 
+function check_reports_schema() {
+  local name="Reports schema"
+  local schema="${REPORTS_SCHEMA:-reports}"
+
+  if [[ "$CHECK_MODE" == "docker" ]]; then
+    local user="${REPORTS_DB_USER:-}"
+    local pass="${REPORTS_DB_PASSWORD:-}"
+    local db="${POSTGRES_DB:-postgres}"
+
+    if [[ -z "$user" || -z "$pass" ]]; then
+      add_result "$name" "FAIL" "REPORTS_DB_USER/REPORTS_DB_PASSWORD не заданы"
+      return
+    fi
+
+    local output
+    if output=$(docker_exec postgres env PGPASSWORD="$pass" psql -U "$user" -d "$db" -tAc "SELECT current_schema" 2>&1); then
+      local trimmed
+      trimmed=$(tr -d '[:space:]' <<<"$output")
+      if [[ "$trimmed" == "$schema" ]]; then
+        add_result "$name" "OK" "current_schema=$trimmed (docker exec)"
+      else
+        add_result "$name" "FAIL" "ожидали $schema, получено: $output"
+      fi
+    else
+      add_result "$name" "FAIL" "$output"
+    fi
+    return
+  fi
+
+  local url="${REPORTS_DATABASE_URL:-}"
+  if [[ -z "$url" ]]; then
+    add_result "$name" "FAIL" "REPORTS_DATABASE_URL не задан"
+    return
+  fi
+
+  local output
+  if output=$(psql "$url" -tAc "SELECT current_schema" 2>&1); then
+    local trimmed
+    trimmed=$(tr -d '[:space:]' <<<"$output")
+    if [[ "$trimmed" == "$schema" ]]; then
+      add_result "$name" "OK" "current_schema=$trimmed"
+    else
+      add_result "$name" "FAIL" "ожидали $schema, получено: $output"
+    fi
+  else
+    add_result "$name" "FAIL" "$output"
+  fi
+}
+
 function check_redis() {
   local name="Redis"
   if [[ "$CHECK_MODE" == "docker" ]]; then
@@ -323,6 +372,7 @@ detect_docker_compose
 print_mode_message
 
 check_postgres
+check_reports_schema
 check_redis
 check_consul
 check_rabbitmq
