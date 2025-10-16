@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { HomeDealFunnelBoard } from "@/components/deals/HomeDealFunnelBoard";
 import { TaskList } from "@/components/tasks/TaskList";
-import { getServerApiClient } from "@/lib/api/client";
+import { ApiError, getServerApiClient } from "@/lib/api/client";
 import { dealsQueryOptions, tasksQueryOptions } from "@/lib/api/queries";
 import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
 import Link from "next/link";
@@ -13,10 +13,33 @@ export default async function HomePage() {
   const defaultFilters = createDefaultDealFilters();
   const serverApiClient = getServerApiClient();
 
-  await Promise.all([
-    queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient)),
-    queryClient.prefetchQuery(tasksQueryOptions(serverApiClient)),
-  ]);
+  const prefetchRequests = [
+    {
+      type: "deals",
+      run: () => queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient)),
+    },
+    {
+      type: "tasks",
+      run: () => queryClient.prefetchQuery(tasksQueryOptions(serverApiClient)),
+    },
+  ] as const;
+
+  const isApiError = (error: unknown): error is ApiError =>
+    error instanceof ApiError ||
+    (typeof error === "object" && error !== null && "name" in error && (error as { name?: string }).name === "ApiError");
+
+  await Promise.all(
+    prefetchRequests.map(({ type, run }) =>
+      run().catch((error) => {
+        if (isApiError(error)) {
+          console.error(`[SSR] Ошибка предзагрузки запроса ${type}`, error);
+          return undefined;
+        }
+
+        throw error;
+      }),
+    ),
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
