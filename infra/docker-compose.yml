@@ -228,7 +228,7 @@ services:
     restart: unless-stopped
     environment:
       AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
-      AUTH_DATABASE_URL: r2dbc:postgresql://${AUTH_DB_USER:-auth}:${AUTH_DB_PASSWORD:-auth}@postgres:5432/${POSTGRES_DB:-crm}?schema=auth
+      AUTH_DATABASE_URL: r2dbc:postgresql://${AUTH_DB_USER:-auth}:${AUTH_DB_PASSWORD:-auth}@postgres:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?schema=auth
       AUTH_REDIS_URL: redis://redis:6379/5
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_me}
       AUTH_JWT_ISSUER: http://auth:${AUTH_SERVICE_PORT:-8081}
@@ -263,7 +263,7 @@ services:
     environment:
       CRM_SERVICE_HOST: ${CRM_SERVICE_HOST:-0.0.0.0}
       CRM_SERVICE_PORT: ${CRM_SERVICE_PORT:-8082}
-      CRM_DATABASE_URL: postgresql+asyncpg://${CRM_DB_USER:-crm}:${CRM_DB_PASSWORD:-crm}@postgres:5432/${POSTGRES_DB:-crm}?search_path=crm
+      CRM_DATABASE_URL: postgresql+asyncpg://${CRM_DB_USER:-crm}:${CRM_DB_PASSWORD:-crm}@postgres:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=crm
       CRM_REDIS_URL: redis://redis:6379/2
       CRM_PERMISSIONS_REDIS_URL: redis://redis:6379/3
       CRM_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-crm}:${RABBITMQ_DEFAULT_PASS:-crm}@rabbitmq:5672/${RABBITMQ_DEFAULT_VHOST:-crm}
@@ -307,7 +307,7 @@ services:
     environment:
       NODE_ENV: production
       DOCUMENTS_SERVICE_PORT: ${DOCUMENTS_SERVICE_PORT:-8084}
-      DOCUMENTS_DATABASE_URL: postgresql://${DOCUMENTS_DB_USER:-documents}:${DOCUMENTS_DB_PASSWORD:-documents}@postgres:5432/${POSTGRES_DB:-crm}?search_path=documents
+      DOCUMENTS_DATABASE_URL: postgresql://${DOCUMENTS_DB_USER:-documents}:${DOCUMENTS_DB_PASSWORD:-documents}@postgres:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=documents
       DOCUMENTS_DATABASE_SCHEMA: ${DOCUMENTS_DATABASE_SCHEMA:-documents}
       DOCUMENTS_RUN_MIGRATIONS: "true"
       DOCUMENTS_REDIS_URL: redis://redis:6379/3
@@ -362,7 +362,7 @@ services:
       NOTIFICATIONS_HTTP_HOST: ${NOTIFICATIONS_HTTP_HOST:-0.0.0.0}
       NOTIFICATIONS_HTTP_PORT: ${NOTIFICATIONS_SERVICE_PORT:-8085}
       NOTIFICATIONS_BASE_URL: http://notifications:${NOTIFICATIONS_SERVICE_PORT:-8085}/api
-      NOTIFICATIONS_DATABASE_URL: postgresql://${NOTIFICATIONS_DB_USER:-notifications}:${NOTIFICATIONS_DB_PASSWORD:-notifications}@postgres:5432/${POSTGRES_DB:-crm}?search_path=notifications
+      NOTIFICATIONS_DATABASE_URL: postgresql://${NOTIFICATIONS_DB_USER:-notifications}:${NOTIFICATIONS_DB_PASSWORD:-notifications}@postgres:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=notifications
       NOTIFICATIONS_RABBITMQ_URL: amqp://notifications:notifications@rabbitmq:5672/notifications
       NOTIFICATIONS_RABBITMQ_URI: amqp://notifications:notifications@rabbitmq:5672/notifications
       NOTIFICATIONS_RABBITMQ_EXCHANGE: ${NOTIFICATIONS_RABBITMQ_EXCHANGE:-notifications.exchange}
@@ -418,7 +418,7 @@ services:
       TASKS_SERVICE_HOST: ${TASKS_SERVICE_HOST:-0.0.0.0}
       TASKS_SERVICE_PORT: ${TASKS_SERVICE_PORT:-8086}
       TASKS_BASE_URL: http://tasks:${TASKS_SERVICE_PORT:-8086}
-      TASKS_DATABASE_URL: postgresql://${TASKS_DB_USER:-tasks}:${TASKS_DB_PASSWORD:-tasks}@postgres:5432/${POSTGRES_DB:-crm}?search_path=tasks
+      TASKS_DATABASE_URL: postgresql://${TASKS_DB_USER:-tasks}:${TASKS_DB_PASSWORD:-tasks}@postgres:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=tasks
       TASKS_RABBITMQ_URL: amqp://tasks:tasks@rabbitmq:5672/tasks
       TASKS_EVENTS_EXCHANGE: ${TASKS_EVENTS_EXCHANGE:-tasks.events}
       TASKS_EVENTS_SOURCE: ${TASKS_EVENTS_SOURCE:-tasks.service}

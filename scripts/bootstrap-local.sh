@@ -166,6 +166,8 @@ try:
                 and exc.errno in {
                     getattr(errno, "EADDRNOTAVAIL", 99),
                     getattr(errno, "WSAEADDRNOTAVAIL", 10049),
+                    getattr(errno, "EINVAL", 22),
+                    getattr(errno, "WSAEINVAL", 10022),
                 }
             ):
                 continue
