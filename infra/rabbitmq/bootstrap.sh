@@ -79,6 +79,12 @@ if (( nounset_was_set )); then
 fi
 set +a
 
+strip_cr() {
+  # docker compose под Git Bash завершает строки символом \r; убираем его перед сравнением/ключами
+  local value="$1"
+  printf '%s' "${value//$'\r'/}"
+}
+
 if [[ -z "${RABBITMQ_DEFAULT_USER:-}" || -z "${RABBITMQ_DEFAULT_PASS:-}" || -z "${RABBITMQ_DEFAULT_VHOST:-}" ]]; then
   echo "[Ошибка] В '${ENV_FILE}' должны быть заданы RABBITMQ_DEFAULT_USER, RABBITMQ_DEFAULT_PASS и RABBITMQ_DEFAULT_VHOST." >&2
   exit 1
@@ -317,11 +323,8 @@ wait_for_rabbitmq_ready() {
     fi
 
     mapfile -t status_lines <<<"${status_output}"$'\n'
-    state="${status_lines[0]:-unknown}"
-    health="${status_lines[1]:-}"
-    # docker compose в Git Bash может добавлять символы \r в конце строк
-    state="${state//$'\r'/}"
-    health="${health//$'\r'/}"
+    state=$(strip_cr "${status_lines[0]:-unknown}")
+    health=$(strip_cr "${status_lines[1]:-}")
 
     if [[ "${state}" == "running" && ( -z "${health}" || "${health}" == "healthy" ) ]]; then
       echo "[Инфо] RabbitMQ готов (state='${state}', health='${health:-n/a}')."
@@ -354,7 +357,7 @@ ensure_rabbitmq_ready() {
 
   mapfile -t status_lines <<<"${status_output}"$'\n'
   local state="${status_lines[0]:-}"
-  state="${state//$'\r'/}"
+  state=$(strip_cr "${state}")
 
   if [[ "${state}" != "running" ]]; then
     echo "[Инфо] Контейнер RabbitMQ не запущен (state='${state:-unknown}'). Пытаемся стартовать..."
@@ -431,13 +434,9 @@ while IFS= read -r var_name; do
     continue
   fi
   mapfile -t parsed <<<"$(parse_amqp_url "${url_value}")"
-  local_user="${parsed[0]-}"
-  local_password="${parsed[1]-}"
-  local_vhost="${parsed[2]-}"
-  # Git Bash (Windows) добавляет \r, удаляем их перед проверками/ключами
-  local_user="${local_user//$'\r'/}"
-  local_password="${local_password//$'\r'/}"
-  local_vhost="${local_vhost//$'\r'/}"
+  local_user=$(strip_cr "${parsed[0]-}")
+  local_password=$(strip_cr "${parsed[1]-}")
+  local_vhost=$(strip_cr "${parsed[2]-}")
   if [[ -z "${local_user}" || -z "${local_vhost}" ]]; then
     echo "[Предупреждение] Пропускаем переменную ${var_name}: пользователь или vhost не определены в URL '${url_value}'." >&2
     continue
