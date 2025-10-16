@@ -8,7 +8,7 @@
 ./scripts/bootstrap-local.sh
 ```
 
-Сценарий последовательно выполняет ключевые шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и печатает агрегированную таблицу статусов. Перед каждым запуском Docker Compose скрипт импортирует переменные из актуального `.env`, поэтому вложенные ссылки вида `VAR=${OTHER_VAR}` раскрываются автоматически. После ручного изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы новые значения оказались в окружении контейнеров.
+Сценарий последовательно выполняет ключевые шаги локальной подготовки, управляя инфраструктурой через Docker Compose, и печатает агрегированную таблицу статусов. Перед каждым запуском Docker Compose скрипт импортирует переменные из актуального `.env`, поэтому вложенные ссылки вида `VAR=${OTHER_VAR}` раскрываются автоматически. После ручного изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы новые значения оказались в окружении контейнеров. Для запуска прикладных сервисов прямо на хосте добавьте флаг `--with-backend` (или переменную `BOOTSTRAP_WITH_BACKEND=true`) — после миграций будет вызван helper `scripts/start-backend.sh`.
 
 Сценарий включает следующие этапы:
 
@@ -20,12 +20,15 @@
 6. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck) и отдельное ожидание backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`);
 7. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
 8. миграции CRM/Auth через `scripts/migrate-local.sh`;
-9. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
+9. опциональный запуск локальных backend-процессов через `scripts/start-backend.sh` (активируется флагом `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`, PID/логи сохраняются в `.local/run/backend`);
+10. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
    или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
-10. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
-11. smoke-проверку окружения `scripts/check-local-infra.sh` (PostgreSQL, Redis, Consul, RabbitMQ UI, Reports) и REST/SSE эндпоинтов backend-профиля (Gateway, Auth, CRM, Documents, Notifications, Tasks).
+11. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
+12. smoke-проверку окружения `scripts/check-local-infra.sh` (PostgreSQL, Redis, Consul, RabbitMQ UI, Reports) и REST/SSE эндпоинтов backend-профиля (Gateway, Auth, CRM, Documents, Notifications, Tasks).
 
-Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`, `--skip-backend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда и прикладных API. При запуске `./scripts/dev-up.sh --skip-frontend` или `--skip-backend` соответствующий профиль автоматически пропускается в bootstrap, поэтому контейнеры не стартуют ни на одном этапе.
+Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`, `--skip-backend`, `--with-backend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда и прикладных API. При запуске `./scripts/dev-up.sh --skip-frontend` или `--skip-backend` соответствующий профиль автоматически пропускается в bootstrap, поэтому контейнеры не стартуют ни на одном этапе. Флаг `--with-backend` (или переменная `DEV_UP_WITH_BACKEND=true`) передаёт в bootstrap необходимость запуска `scripts/start-backend.sh` и выводит предупреждение, если параллельно остаётся активным compose-профиль backend.
+
+Для остановки вспомогательных процессов, поднятых `scripts/start-backend.sh`, предусмотрен зеркальный `scripts/stop-backend.sh`. Скрипт читает PID-файлы из `.local/run/backend`, отправляет `SIGTERM` (с fallback на `SIGKILL`) и удаляет служебные файлы. Логи остаются в `.local/run/backend/logs` для отладки; при следующем запуске helper перезапишет их.
 
 > ℹ️ Все вызовы Docker Compose в скриптах теперь включают `--env-file .env`. Поддерживайте корневой `.env` синхронизированным с `env.example` и актуальными секретами: обновляйте файл через `scripts/sync-env.sh` и вручную проверяйте значения чувствительных переменных.
 

@@ -45,19 +45,39 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--open-browser|--no-browser] [--skip-frontend] [--skip-backend]
+Использование: $0 [--open-browser|--no-browser] [--skip-frontend] [--skip-backend] [--with-backend]
 
   --open-browser   принудительно открыть браузер после запуска
   --no-browser     не открывать браузер (перекрывает переменную LOCAL_LAUNCH_OPEN_BROWSER)
   --skip-frontend  пропустить запуск контейнера фронтенда
   --skip-backend   не запускать профиль backend (gateway, auth, crm, documents, notifications, tasks)
+  --with-backend   запустить scripts/start-backend.sh после миграций bootstrap-скрипта
 USAGE
+}
+
+is_truthy() {
+  local value="${1:-}"
+  value="${value,,}"
+  case "$value" in
+    1|true|yes|y)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 open_browser_mode="auto"
 skip_frontend=false
 skip_backend=false
+with_backend=false
 bootstrap_args=()
+
+if is_truthy "${DEV_UP_WITH_BACKEND:-}"; then
+  with_backend=true
+  bootstrap_args+=(--with-backend)
+fi
 
 while (($# > 0)); do
   case "$1" in
@@ -75,6 +95,12 @@ while (($# > 0)); do
       skip_backend=true
       bootstrap_args+=(--skip-backend)
       ;;
+    --with-backend)
+      with_backend=true
+      if [[ ! " ${bootstrap_args[*]} " =~ " --with-backend " ]]; then
+        bootstrap_args+=(--with-backend)
+      fi
+      ;;
     -h|--help)
       usage
       exit 0
@@ -87,6 +113,10 @@ while (($# > 0)); do
   esac
   shift
 done
+
+if [[ "${with_backend}" == "true" && "${skip_backend}" == "false" ]]; then
+  log_warn "Флаг --with-backend не отключает docker compose профиль backend. Добавьте --skip-backend при необходимости."
+fi
 
 log_info "Запуск bootstrap-скрипта"
 "${ROOT_DIR}/scripts/bootstrap-local.sh" "${bootstrap_args[@]}"
