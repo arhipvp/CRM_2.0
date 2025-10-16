@@ -19,6 +19,11 @@ import consulConfig, { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from './consul.constants';
 import { ConsulService } from './consul.service';
 
+type ConsulConstructor = typeof import('consul');
+const RawConsulClient = require('consul') as ConsulConstructor;
+type ConsulOptions = ConstructorParameters<ConsulConstructor>[0];
+const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(options);
+
 @Global()
 @Module({
   imports: [ConfigModule.forFeature(consulConfig)],

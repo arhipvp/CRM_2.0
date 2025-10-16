@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
-import type Consul from 'consul';
+import type { Consul } from 'consul/lib/consul';
 
 import type { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from '../../integrations/consul/consul.constants';
