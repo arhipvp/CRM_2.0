@@ -228,7 +228,9 @@ run_step() {
   local name="$1"
   local func="$2"
   local index=${#STEP_RESULTS[@]}
-  local safe_name=${name// /_}
+  local safe_name
+  safe_name=$(printf '%s' "$name" | tr -cs '[:alnum:]_-' '_')
+  mkdir -p "${TMP_DIR}"
   local log_file="${TMP_DIR}/$(printf '%02d' "$index")_${safe_name}.log"
   log_info "→ ${name}"
   if "$func" > >(tee "$log_file") 2> >(tee -a "$log_file" >&2); then
