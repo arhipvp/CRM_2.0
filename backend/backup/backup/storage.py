@@ -34,13 +34,20 @@ class S3Storage:
         if boto3 is None:  # pragma: no cover - защитный код для сред без boto3
             raise RuntimeError("boto3 недоступен, S3Storage не может быть создан")
         session = boto3.session.Session()
-        self._client = session.client(
-            "s3",
-            endpoint_url=settings.s3_endpoint_url or None,
+
+        endpoint_url = settings.s3_endpoint_url
+        if isinstance(endpoint_url, str):
+            endpoint_url = endpoint_url.strip() or None
+
+        client_kwargs = dict(
             aws_access_key_id=settings.s3_access_key,
             aws_secret_access_key=settings.s3_secret_key,
             region_name=settings.s3_region_name,
         )
+        if endpoint_url is not None:
+            client_kwargs["endpoint_url"] = endpoint_url
+
+        self._client = session.client("s3", **client_kwargs)
         self._bucket = settings.s3_bucket
         self._prefix = settings.s3_prefix.rstrip("/")
 
