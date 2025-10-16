@@ -55,7 +55,8 @@ check_port_available() {
     return 1
   fi
 
-  if python3 - "$port_num" <<'PY'; then
+  local exit_code
+  python3 - "$port_num" <<'PY'
 import errno
 import socket
 import sys
@@ -105,13 +106,18 @@ except OSError:
 else:
     sys.exit(0)
 PY
+  exit_code=$?
+
+  if (( exit_code == 0 )); then
     return 0
   fi
 
-  local exit_code=$?
   case "$exit_code" in
     10)
       log_error "Порт ${port}, заданный переменной ${var_name} в ${ENV_FILE}, уже используется. Измените ${var_name} в ${ENV_FILE} и повторите запуск."
+      ;;
+    11)
+      log_error "Произошла внутренняя ошибка при проверке порта ${port} из переменной ${var_name}. Повторите попытку позже или проверьте настройки окружения."
       ;;
     *)
       log_error "Не удалось проверить порт ${port} из переменной ${var_name}. Проверьте настройки ${ENV_FILE}."
