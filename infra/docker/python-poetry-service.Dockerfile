@@ -37,4 +37,5 @@ FROM build AS runtime
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=build /app /app
+RUN poetry install --no-ansi --without dev
 CMD ["poetry", "run", "crm-api"]
