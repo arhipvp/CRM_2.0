@@ -105,6 +105,8 @@ docker run --rm crm-deals:local poetry run crm-api
 
 Команда `poetry run crm-api` подтягивает `uvicorn` из системного окружения образа; при отсутствии зависимостей она завершится ошибкой импорта.
 
+> **Совет.** Перед пересборкой образа выполняйте `poetry lock`, чтобы обновить `poetry.lock` и убедиться, что в продакшен-окружение попадёт `uvicorn[standard]`. Проверить наличие зависимости можно командой `poetry install --without dev && poetry show uvicorn`.
+
 ## Полезные ссылки
 - Архитектура и взаимодействия CRM: [`docs/architecture.md`](../../docs/architecture.md#2-взаимодействия-и-потоки-данных).【F:docs/architecture.md†L11-L66】
 - Технологический стек CRM/Deals: [`docs/tech-stack.md`](../../docs/tech-stack.md#crm--deals).【F:docs/tech-stack.md†L172-L204】
