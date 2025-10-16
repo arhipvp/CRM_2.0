@@ -11,6 +11,9 @@ test.describe("CRM фронтенд", () => {
     await page.goto("/payments");
     await expect(page.getByRole("heading", { name: "Платежи" })).toBeVisible();
 
+    await page.goto("/policies");
+    await expect(page.getByRole("heading", { name: "Полисы" })).toBeVisible();
+
     await page.goto("/tasks");
     await expect(page.getByRole("heading", { name: "Задачи" })).toBeVisible();
   });
