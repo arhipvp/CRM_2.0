@@ -67,6 +67,9 @@ class Settings(BaseSettings):
         "s3_access_key",
         "s3_secret_key",
         "s3_bucket",
+        "consul_token",
+        "redis_username",
+        "redis_password",
         mode="before",
     )
     @classmethod
@@ -82,6 +85,14 @@ class Settings(BaseSettings):
 
         if info.field_name == "s3_endpoint_url" and not value.startswith(("http://", "https://")):
             raise ValueError("S3 endpoint URL должен начинаться с http:// или https://")
+
+        return value
+
+    @field_validator("redis_data_dir", mode="before")
+    @classmethod
+    def _empty_path_to_none(cls, value: object) -> object:
+        if isinstance(value, str) and value.strip() == "":
+            return None
 
         return value
 

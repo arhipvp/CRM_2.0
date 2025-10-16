@@ -152,6 +152,49 @@ def test_settings_use_none_when_s3_fields_absent() -> None:
     assert settings.s3_bucket is None
 
 
+def test_build_storage_handles_docker_compose_defaults(monkeypatch) -> None:
+    def _fail_session() -> None:
+        pytest.fail("S3Session должен быть инициализирован только при наличии параметров")
+
+    monkeypatch.setattr(boto3.session, "Session", _fail_session)
+
+    env_values = {
+        "BACKUP_DATABASE_URL": "postgresql://backup:backup@postgres:5432/crm?search_path=backup",
+        "BACKUP_RABBITMQ_URL": "amqp://crm:crm@rabbitmq:5672/crm",
+        "BACKUP_POSTGRES_BACKUP_DSN": "postgresql://postgres:postgres@postgres:5432/crm",
+        "BACKUP_CONSUL_HTTP_ADDR": "http://consul:8500",
+        "BACKUP_RABBITMQ_MANAGEMENT_URL": "http://rabbitmq:15672",
+        "BACKUP_RABBITMQ_ADMIN_USER": "guest",
+        "BACKUP_RABBITMQ_ADMIN_PASSWORD": "guest",
+        "BACKUP_S3_ENDPOINT_URL": "",
+        "BACKUP_S3_BUCKET": "",
+        "BACKUP_S3_ACCESS_KEY": "",
+        "BACKUP_S3_SECRET_KEY": "",
+        "BACKUP_CONSUL_TOKEN": "",
+        "BACKUP_REDIS_USERNAME": "",
+        "BACKUP_REDIS_PASSWORD": "",
+        "BACKUP_REDIS_DATA_DIR": "",
+    }
+
+    for key, value in env_values.items():
+        monkeypatch.setenv(key, value)
+
+    settings = Settings()
+
+    assert settings.s3_bucket is None
+    assert settings.s3_access_key is None
+    assert settings.s3_secret_key is None
+    assert settings.s3_endpoint_url is None
+    assert settings.consul_token is None
+    assert settings.redis_username is None
+    assert settings.redis_password is None
+    assert settings.redis_data_dir is None
+
+    storage = build_storage(settings)
+
+    assert isinstance(storage, DummyStorage)
+
+
 @pytest.mark.parametrize(
     "overrides",
     [
