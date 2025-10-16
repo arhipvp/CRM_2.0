@@ -154,7 +154,7 @@ Bootstrap-скрипт выполняет полный цикл подготов
   docker compose --env-file ../.env exec backup sh -c 'env | grep "^BACKUP_"'
   ```
   Пустые значения сигнализируют о необходимости обновить `.env` по шаблону `env.example` и повторно синхронизировать переменные.
-  > ℹ️ В Docker Compose значения по умолчанию используют сервисные имена (`postgres`, `rabbitmq`, `consul`, `redis`). Если запускаете Backup Service напрямую на хосте, оставляйте `localhost` и соответствующие порты по инструкциям `.env`.
+  > ℹ️ В Docker Compose значения по умолчанию используют сервисные имена (`postgres`, `rabbitmq`, `consul`, `redis`). Для Backup Service добавлены переменные с суффиксом `_INTERNAL` (`BACKUP_INTERNAL_DATABASE_URL`, `BACKUP_INTERNAL_POSTGRES_BACKUP_DSN`, `BACKUP_INTERNAL_CONSUL_HTTP_ADDR`, `BACKUP_INTERNAL_REDIS_HOST`), которые docker compose подставляет для контейнера. Если запускаете Backup Service напрямую на хосте, оставляйте `localhost` в переменных без суффикса, а `_INTERNAL` обновляйте только при переименовании сервисов в сети Docker.
 - При необходимости имитируйте поведение CI с помощью `make`-таргетов или локального runners — добавьте их описание в README выбранного сервиса. Переменные из `env.example` по-прежнему обязательны для сборок и должны быть заполнены в локальном `.env`. Флаг `CI_CD_DISABLED=true` (см. шаблон `env.example`) можно использовать в локальных скриптах, чтобы пропускать этапы, завязанные на GitHub Actions.
 
 ## Kubernetes-манифесты и Argo CD

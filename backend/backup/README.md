@@ -16,7 +16,9 @@
 | Переменная | Назначение |
 |------------|------------|
 | `BACKUP_DATABASE_URL` | PostgreSQL DSN для хранения заданий и истории |
+| `BACKUP_INTERNAL_DATABASE_URL` | Внутренний DSN для docker compose; использует сетевое имя `postgres` |
 | `BACKUP_POSTGRES_BACKUP_DSN` | DSN целевого кластера PostgreSQL для `pg_dump`/`pg_basebackup` |
+| `BACKUP_INTERNAL_POSTGRES_BACKUP_DSN` | Внутренний DSN PostgreSQL для docker compose |
 | `BACKUP_S3_ENDPOINT_URL` | HTTP(S) endpoint S3 без ведущих/замыкающих пробелов (опционально; пустая строка или отсутствие значения отключают кастомный endpoint) |
 | `BACKUP_S3_REGION_NAME` | Регион S3; пустое значение автоматически заменяется на `us-east-1` |
 | `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | креды доступа к бакету (оставьте пустыми или удалите, чтобы выключить `S3Storage`) |
@@ -28,9 +30,17 @@
 | `BACKUP_RABBITMQ_INTERNAL_MANAGEMENT_URL` | Внутренний HTTP-URL RabbitMQ для docker compose |
 | `BACKUP_RABBITMQ_ADMIN_USER` / `BACKUP_RABBITMQ_ADMIN_PASSWORD` | креды `rabbitmqadmin` |
 | `BACKUP_CONSUL_HTTP_ADDR` | адрес Consul API для `snapshot save` |
+| `BACKUP_INTERNAL_CONSUL_HTTP_ADDR` | Внутренний адрес Consul для docker compose |
 | `BACKUP_REDIS_HOST` / `BACKUP_REDIS_PORT` / `BACKUP_REDIS_DATA_DIR` | параметры Redis для получения RDB и копирования AOF |
+| `BACKUP_INTERNAL_REDIS_HOST` | Внутреннее имя узла Redis для docker compose |
 
 Полный список параметров смотрите в `backup/config.py` и `env.example`.
+
+> ℹ️ Переменные без суффикса `_INTERNAL` ориентированы на запуск сервиса напрямую на хосте и используют `localhost`.
+> Для docker compose предусмотрены дубли с `_INTERNAL`, которые по умолчанию ссылаются на сетевые имена контейнеров
+> (`postgres`, `redis`, `consul`). В `infra/docker-compose.yml` приоритет отдаётся `_INTERNAL`-значениям; при их отсутствии
+> используются хостовые параметры и безопасный fallback на сервисные имена. Обновляйте оба набора значений в `.env`, если
+> инфраструктура разворачивается вне Docker.
 
 ## Локальный запуск
 ```bash
