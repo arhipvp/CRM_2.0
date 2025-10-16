@@ -20,10 +20,11 @@ class RoleService(
 
     @Transactional
     suspend fun createRole(request: RoleRequest): RoleResponse {
-        roleRepository.findByName(request.name)?.let { existing ->
+        val normalizedName = request.name.uppercase(Locale.ROOT)
+        roleRepository.findByName(normalizedName)?.let { existing ->
             return existing.toDto()
         }
-        val role = Role(name = request.name.uppercase(Locale.ROOT), description = request.description)
+        val role = Role(name = normalizedName, description = request.description)
         return roleRepository.save(role).toDto()
     }
 
