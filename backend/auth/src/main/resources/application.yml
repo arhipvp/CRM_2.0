@@ -28,6 +28,6 @@ auth:
     issuer: ${AUTH_JWT_ISSUER:http://localhost}
     audience: ${AUTH_JWT_AUDIENCE:crm-clients}
     secret: ${AUTH_JWT_SECRET:change-me}
-    access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:PT15M}
-    refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:PT7D}
+    access-token-ttl-raw: ${AUTH_ACCESS_TOKEN_TTL:}
+    refresh-token-ttl-raw: ${AUTH_REFRESH_TOKEN_TTL:}
 
