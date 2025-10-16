@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Mapping, Optional, Protocol, runtime_checkable
@@ -11,6 +12,18 @@ try:
     import boto3
 except ModuleNotFoundError:  # pragma: no cover - зависит от окружения
     boto3 = None
+
+try:
+    from botocore.exceptions import BotoCoreError, ClientError
+except ModuleNotFoundError:  # pragma: no cover - зависит от окружения
+    class BotoCoreError(Exception):
+        """Заглушка для окружений без botocore."""
+
+    class ClientError(BotoCoreError):
+        """Заглушка для окружений без botocore."""
+
+
+logger = logging.getLogger(__name__)
 
 from .config import Settings
 
@@ -108,7 +121,14 @@ def build_storage(settings: Settings) -> Storage:
     if missing:
         return DummyStorage(settings)
 
-    return S3Storage(settings)
+    try:
+        return S3Storage(settings)
+    except (ValueError, BotoCoreError, ClientError) as exc:
+        logger.warning(
+            "Не удалось инициализировать S3Storage, используется DummyStorage: %s",
+            exc,
+        )
+        return DummyStorage(settings)
 
 
 def _is_filled(value: Optional[str]) -> bool:

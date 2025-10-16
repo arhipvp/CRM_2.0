@@ -171,6 +171,24 @@ def test_build_storage_returns_dummy_when_s3_params_missing(overrides: dict[str,
     assert isinstance(storage, DummyStorage)
 
 
+def test_build_storage_returns_dummy_when_s3_creation_fails(monkeypatch, caplog) -> None:
+    class DummySession:
+        def client(self, service_name: str, **kwargs: object) -> object:  # noqa: ARG002
+            raise ValueError("broken config")
+
+    monkeypatch.setattr(boto3.session, "Session", lambda: DummySession())
+
+    settings = _build_settings(s3_endpoint_url="http://localhost:9000")
+
+    with caplog.at_level("WARNING"):
+        storage = build_storage(settings)
+
+    assert isinstance(storage, DummyStorage)
+    assert any(
+        "Не удалось инициализировать S3Storage" in message for message in caplog.messages
+    )
+
+
 @pytest.mark.asyncio
 async def test_dummy_storage_saves_files_locally(tmp_path) -> None:
     settings = _build_settings(
