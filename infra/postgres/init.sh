@@ -54,5 +54,6 @@ create_role TASKS_DB_USER TASKS_DB_PASSWORD tasks
 create_role NOTIFICATIONS_DB_USER NOTIFICATIONS_DB_PASSWORD notifications
 create_role AUDIT_DB_USER AUDIT_DB_PASSWORD audit
 create_role BACKUP_DB_USER BACKUP_DB_PASSWORD backup
+create_role REPORTS_DB_USER REPORTS_DB_PASSWORD reports
 
 log "Инициализация завершена"
