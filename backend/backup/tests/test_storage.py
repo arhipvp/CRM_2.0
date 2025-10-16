@@ -65,6 +65,21 @@ def test_s3_storage_uses_none_endpoint_when_not_provided(monkeypatch) -> None:
     assert captured_kwargs.get("endpoint_url") is None
     assert isinstance(storage._client, DummyClient)
 
+    payload = _settings_payload()
+    payload.pop("s3_endpoint_url", None)
+    monkeypatch.setenv("BACKUP_S3_ENDPOINT_URL", "   ")
+    try:
+        settings_from_env = Settings(**payload)
+    finally:
+        monkeypatch.delenv("BACKUP_S3_ENDPOINT_URL", raising=False)
+
+    assert settings_from_env.s3_endpoint_url is None
+
+    storage = S3Storage(settings_from_env)
+
+    assert captured_kwargs.get("endpoint_url") is None
+    assert isinstance(storage._client, DummyClient)
+
 
 def test_build_storage_returns_s3_when_all_params_present(monkeypatch) -> None:
     created_clients: list[object] = []
