@@ -5,17 +5,22 @@ import { Observable } from 'rxjs';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, MessageEvent, VersioningType } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import * as request from 'supertest';
 import RedisMock from 'ioredis-mock';
 
 import { AppModule } from '../src/app.module';
 import { REDIS_CLIENT } from '../src/integrations/redis/redis.constants';
 import { UpstreamSseService } from '../src/sse/upstream-sse.service';
+import { ConsulModule } from '../src/integrations/consul/consul.module';
+import { CONSUL_CLIENT } from '../src/integrations/consul/consul.constants';
+import consulConfig from '../src/config/consul.config';
 import type { Redis } from 'ioredis';
 import type { HttpService } from '@nestjs/axios';
 import type { ConfigService } from '@nestjs/config';
 import type { RedisConfig } from '../src/config/redis.config';
 import type { UpstreamsConfig } from '../src/config/upstreams.config';
+import type Consul from 'consul';
 
 async function readRequestBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -347,5 +352,47 @@ describe('UpstreamSseService', () => {
     expect(events.some((event) => event.type === 'notification.created')).toBe(true);
     expect(await redis.get('gateway:sse:notifications')).toBeTruthy();
     expect(await redis.get('gateway:sse:notifications:last-event-id')).toBe('2');
+  });
+});
+
+describe('ConsulModule', () => {
+  let moduleRef: TestingModule;
+  let originalEnabled: string | undefined;
+  let originalAddr: string | undefined;
+
+  beforeAll(async () => {
+    originalEnabled = process.env.CONSUL_ENABLED;
+    originalAddr = process.env.CONSUL_HTTP_ADDR;
+
+    process.env.CONSUL_ENABLED = 'true';
+    process.env.CONSUL_HTTP_ADDR = 'http://127.0.0.1:8500';
+
+    moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({ ignoreEnvFile: true, isGlobal: true, load: [consulConfig] }),
+        ConsulModule
+      ]
+    }).compile();
+  });
+
+  afterAll(async () => {
+    await moduleRef.close();
+
+    if (typeof originalEnabled === 'string') {
+      process.env.CONSUL_ENABLED = originalEnabled;
+    } else {
+      delete process.env.CONSUL_ENABLED;
+    }
+
+    if (typeof originalAddr === 'string') {
+      process.env.CONSUL_HTTP_ADDR = originalAddr;
+    } else {
+      delete process.env.CONSUL_HTTP_ADDR;
+    }
+  });
+
+  it('initializes Consul client using factory', () => {
+    const client = moduleRef.get<Consul | null>(CONSUL_CLIENT);
+    expect(client).not.toBeNull();
   });
 });
