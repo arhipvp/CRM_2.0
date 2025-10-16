@@ -344,18 +344,64 @@ function check_backup_env_vars() {
     return
   fi
 
-  local missing=()
+  local -A optional_vars=(
+    [BACKUP_S3_ENDPOINT_URL]=1
+    [BACKUP_S3_BUCKET]=1
+    [BACKUP_S3_ACCESS_KEY]=1
+    [BACKUP_S3_SECRET_KEY]=1
+    [BACKUP_CONSUL_TOKEN]=1
+    [BACKUP_REDIS_PASSWORD]=1
+  )
+  local -A env_values=()
+  local missing_required=()
+  local optional_empty=()
+
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     local var_name="${line%%=*}"
     local var_value="${line#*=}"
+    env_values["$var_name"]="$var_value"
+
     if [[ -z "$var_value" ]]; then
-      missing+=("$var_name")
+      if [[ -n "${optional_vars[$var_name]:-}" ]]; then
+        optional_empty+=("$var_name")
+      else
+        missing_required+=("$var_name")
+      fi
     fi
   done <<<"$output"
 
-  if (( ${#missing[@]} > 0 )); then
-    add_result "$name" "FAIL" "Пустые значения: ${missing[*]}"
+  if (( ${#missing_required[@]} > 0 )); then
+    add_result "$name" "FAIL" "Пустые значения: ${missing_required[*]}"
+    return
+  fi
+
+  local s3_creds=(BACKUP_S3_ENDPOINT_URL BACKUP_S3_BUCKET BACKUP_S3_ACCESS_KEY BACKUP_S3_SECRET_KEY)
+  local all_s3_empty=true
+  for var in "${s3_creds[@]}"; do
+    if [[ -n "${env_values[$var]:-}" ]]; then
+      all_s3_empty=false
+      break
+    fi
+  done
+
+  if $all_s3_empty; then
+    local message="S3-креды не заданы, используется DummyStorage"
+    local non_s3_optionals=()
+    for var in "${optional_empty[@]}"; do
+      if [[ "$var" != "BACKUP_S3_ENDPOINT_URL" && "$var" != "BACKUP_S3_BUCKET" && "$var" != "BACKUP_S3_ACCESS_KEY" && "$var" != "BACKUP_S3_SECRET_KEY" ]]; then
+        non_s3_optionals+=("$var")
+      fi
+    done
+    if (( ${#non_s3_optionals[@]} > 0 )); then
+      message+="; опциональные переменные пусты: ${non_s3_optionals[*]}"
+    fi
+    add_result "$name" "WARN" "$message"
+    return
+  fi
+
+  if (( ${#optional_empty[@]} > 0 )); then
+    add_result "$name" "WARN" "Опциональные переменные пусты: ${optional_empty[*]}"
   else
     add_result "$name" "OK" "Все BACKUP_* заданы"
   fi
