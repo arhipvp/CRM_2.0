@@ -8,13 +8,9 @@ import { Repository } from 'typeorm';
 import { DocumentsConfiguration } from '../config/configuration';
 import { FoldersService } from '../folders/folders.service';
 import { SyncPermissionsDto } from './dto/sync-permissions.dto';
+import { SyncPermissionsResponse } from './dto/sync-permissions-response.dto';
 import { PermissionsSyncTaskEntity } from './permissions-sync-task.entity';
 import { PERMISSIONS_SYNC_JOB, PERMISSIONS_SYNC_QUEUE } from './permissions.constants';
-
-interface SyncPermissionsResponse {
-  job_id: string;
-  task_id: string;
-}
 
 @Injectable()
 export class PermissionsService {

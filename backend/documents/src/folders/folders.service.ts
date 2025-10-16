@@ -6,13 +6,8 @@ import { Repository } from 'typeorm';
 import { DocumentsConfiguration } from '../config/configuration';
 import { StorageService } from '../storage/storage.service';
 import { CreateFolderDto } from './dto/create-folder.dto';
+import { FolderResponse } from './dto/folder-response.dto';
 import { FolderEntity, FolderOwnerType } from './folder.entity';
-
-interface FolderResponse {
-  folder_path: string;
-  full_path: string;
-  public_url: string | null;
-}
 
 @Injectable()
 export class FoldersService {
