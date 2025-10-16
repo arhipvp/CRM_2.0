@@ -1,6 +1,19 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import type { Consul } from 'consul/lib/consul';
+import type Consul from 'consul';
+import ConsulFactory = require('consul');
+
+type ConsulFactoryFn = (options: {
+  host?: string;
+  port?: number;
+  secure?: boolean;
+  defaults?: {
+    token?: string;
+    dc?: string;
+  };
+}) => Consul;
+
+type ConsulConstructor = new (options: Parameters<ConsulFactoryFn>[0]) => Consul;
 
 import consulConfig, { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from './consul.constants';
@@ -25,7 +38,9 @@ const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(opt
           return null;
         }
 
-        return ConsulClient({
+        const createConsulClient = ConsulFactory as unknown as ConsulFactoryFn;
+        const consulCtor = ConsulFactory as unknown as ConsulConstructor;
+        const consulOptions: Parameters<ConsulFactoryFn>[0] = {
           host: config.host,
           port: config.port,
           secure: config.scheme === 'https',
@@ -33,7 +48,17 @@ const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(opt
             token: config.token,
             dc: config.dc
           }
-        });
+        };
+
+        try {
+          return createConsulClient(consulOptions);
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes("without 'new'")) {
+            return Reflect.construct(consulCtor, [consulOptions]);
+          }
+
+          throw error;
+        }
       }
     },
     ConsulService
