@@ -16,7 +16,7 @@ data class JwtProperties(
 
     companion object {
         private const val DEFAULT_ACCESS_TOKEN_TTL = "PT15M"
-        private const val DEFAULT_REFRESH_TOKEN_TTL = "PT7D"
+        private const val DEFAULT_REFRESH_TOKEN_TTL = "P7D"
         private val DAY_TOKEN_PATTERN = Regex("^PT(?=\\d+D$)")
 
         private fun parseDuration(rawValue: String?, defaultValue: String): Duration {
