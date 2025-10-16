@@ -48,14 +48,18 @@ class S3Storage:
             raise RuntimeError("boto3 недоступен, S3Storage не может быть создан")
         session = boto3.session.Session()
 
-        endpoint_url = (settings.s3_endpoint_url or "").strip() or None
+        endpoint_url = settings.s3_endpoint_url
+        if isinstance(endpoint_url, str):
+            endpoint_url = endpoint_url.strip()
+            if not endpoint_url:
+                endpoint_url = None
 
         client_kwargs = dict(
             aws_access_key_id=settings.s3_access_key,
             aws_secret_access_key=settings.s3_secret_key,
             region_name=settings.s3_region_name,
         )
-        if endpoint_url:
+        if endpoint_url is not None:
             client_kwargs["endpoint_url"] = endpoint_url
 
         self._client = session.client("s3", **client_kwargs)
