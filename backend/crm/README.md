@@ -92,6 +92,19 @@ poetry run pytest tests
 
 > **Важно.** Интеграционный сценарий `test_policy_documents_flow` использует фикстуру `document_id`, которая создаёт тестовый документ в схеме `documents`. Для успешного выполнения убедитесь, что таблица `documents.documents` создана миграциями сервиса Documents и доступна в тестовой БД: фикстура добавляет запись перед тестом и удаляет её после завершения.
 
+## Контейнеризация
+
+CRM/Deals собирается через общий Dockerfile `infra/docker/python-poetry-service.Dockerfile` с аргументом `SERVICE_PATH=backend/crm`.
+Базовый слой фиксирует переменные окружения `POETRY_VIRTUALENVS_CREATE=0` и `POETRY_VIRTUALENVS_IN_PROJECT=0`, поэтому при сборке и запуске
+`poetry run` использует системные пакеты образа без создания вложенного `.venv`. Проверка после сборки:
+
+```bash
+docker build --build-arg SERVICE_PATH=backend/crm -f infra/docker/python-poetry-service.Dockerfile -t crm-deals:local .
+docker run --rm crm-deals:local poetry run crm-api
+```
+
+Команда `poetry run crm-api` подтягивает `uvicorn` из системного окружения образа; при отсутствии зависимостей она завершится ошибкой импорта.
+
 ## Полезные ссылки
 - Архитектура и взаимодействия CRM: [`docs/architecture.md`](../../docs/architecture.md#2-взаимодействия-и-потоки-данных).【F:docs/architecture.md†L11-L66】
 - Технологический стек CRM/Deals: [`docs/tech-stack.md`](../../docs/tech-stack.md#crm--deals).【F:docs/tech-stack.md†L172-L204】

@@ -6,6 +6,8 @@ ENV POETRY_VERSION=1.8.4 \
     POETRY_HOME=/opt/poetry \
     POETRY_NO_INTERACTION=1 \
     PIP_NO_CACHE_DIR=1
+ENV POETRY_VIRTUALENVS_CREATE=0 \
+    POETRY_VIRTUALENVS_IN_PROJECT=0
 ENV PATH="${POETRY_HOME}/bin:${PATH}"
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl \
