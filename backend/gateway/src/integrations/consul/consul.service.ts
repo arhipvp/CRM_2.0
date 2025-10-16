@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type Consul from 'consul';
+import type { Consul } from 'consul/lib/consul';
 
 import type { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from './consul.constants';

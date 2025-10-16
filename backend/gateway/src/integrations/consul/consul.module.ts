@@ -1,11 +1,15 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import type Consul from 'consul';
-import ConsulClient from 'consul';
+import type { Consul } from 'consul/lib/consul';
 
 import consulConfig, { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from './consul.constants';
 import { ConsulService } from './consul.service';
+
+type ConsulConstructor = typeof import('consul');
+const RawConsulClient = require('consul') as ConsulConstructor;
+type ConsulOptions = ConstructorParameters<ConsulConstructor>[0];
+const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(options);
 
 @Global()
 @Module({
@@ -21,7 +25,7 @@ import { ConsulService } from './consul.service';
           return null;
         }
 
-        return new ConsulClient({
+        return ConsulClient({
           host: config.host,
           port: config.port,
           secure: config.scheme === 'https',
