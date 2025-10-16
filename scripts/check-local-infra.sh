@@ -81,6 +81,18 @@ function detect_docker_compose() {
   echo "[Инфо] Проверки выполняются в режиме Docker Compose (${DOCKER_COMPOSE_CMD[*]} exec)." >&2
 }
 
+function is_service_running() {
+  local service="$1"
+  if [[ "$CHECK_MODE" != "docker" ]]; then
+    return 0
+  fi
+  local container_id
+  if ! container_id=$("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps -q "$service" 2>/dev/null); then
+    return 1
+  fi
+  [[ -n "$container_id" ]]
+}
+
 function docker_exec() {
   local service="$1"
   shift
@@ -312,11 +324,128 @@ function check_backup_env_vars() {
   fi
 }
 
+function check_gateway_api() {
+  local port="${GATEWAY_SERVICE_PORT:-8080}"
+  http_health_check "Gateway REST" "http://localhost:${port}/api/v1/health" "gateway"
+}
+
+function check_gateway_sse() {
+  local port="${GATEWAY_SERVICE_PORT:-8080}"
+  sse_health_check "Gateway SSE" "http://localhost:${port}/api/v1/streams/heartbeat" "gateway"
+}
+
+function check_auth_api() {
+  local port="${AUTH_SERVICE_PORT:-8081}"
+  http_health_check "Auth API" "http://localhost:${port}/actuator/health" "auth"
+}
+
+function check_crm_api() {
+  local port="${CRM_SERVICE_PORT:-8082}"
+  http_health_check "CRM API" "http://localhost:${port}/healthz" "crm"
+}
+
+function check_documents_api() {
+  local port="${DOCUMENTS_SERVICE_PORT:-8084}"
+  http_health_check "Documents API" "http://localhost:${port}/health" "documents"
+}
+
+function check_notifications_api() {
+  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
+  http_health_check "Notifications REST" "http://localhost:${port}/api/notifications/health" "notifications"
+}
+
+function check_notifications_sse() {
+  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
+  sse_health_check "Notifications SSE" "http://localhost:${port}/api/notifications/stream" "notifications"
+}
+
+function check_tasks_api() {
+  local port="${TASKS_SERVICE_PORT:-8086}"
+  http_health_check "Tasks API" "http://localhost:${port}/api/health" "tasks"
+}
+
 function print_mode_message() {
   if [[ "$CHECK_MODE" == "docker" ]]; then
     return
   fi
   echo "[Инфо] Проверки выполняются локальными CLI-инструментами." >&2
+}
+
+function http_health_check() {
+  local name="$1"
+  local url="$2"
+  local service="$3"
+  local expect_status="${4:-200}"
+
+  if ! command -v curl >/dev/null 2>&1; then
+    add_result "$name" "WARN" "curl недоступен"
+    return
+  fi
+
+  if [[ -n "$service" ]] && ! is_service_running "$service"; then
+    add_result "$name" "WARN" "Сервис $service не запущен (профиль backend отключён?)"
+    return
+  fi
+
+  local response
+  if ! response=$(curl -fsS -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 5 "$url" 2>&1); then
+    add_result "$name" "FAIL" "$response"
+    return
+  fi
+
+  if [[ "$response" == "$expect_status" ]]; then
+    add_result "$name" "OK" "$url → HTTP $response"
+  else
+    add_result "$name" "WARN" "$url → HTTP $response"
+  fi
+}
+
+function sse_health_check() {
+  local name="$1"
+  local url="$2"
+  local service="$3"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    add_result "$name" "WARN" "python3 недоступен"
+    return
+  fi
+
+  if [[ -n "$service" ]] && ! is_service_running "$service"; then
+    add_result "$name" "WARN" "Сервис $service не запущен (профиль backend отключён?)"
+    return
+  fi
+
+  local output
+  if output=$(python3 - "$url" <<'PY'
+import sys
+import urllib.request
+
+url = sys.argv[1]
+req = urllib.request.Request(url, headers={"Accept": "text/event-stream"})
+try:
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        status = resp.status
+        content_type = resp.headers.get("Content-Type", "")
+        first_line = resp.readline().decode("utf-8", "replace").strip()
+        if status == 200 and first_line:
+            print(f"HTTP {status}, {content_type}, первое событие: {first_line}")
+            sys.exit(0)
+        print(f"HTTP {status}, {content_type}, пустой поток")
+        sys.exit(2)
+except Exception as exc:  # noqa: BLE001
+    print(str(exc))
+    sys.exit(1)
+PY
+  ); then
+    add_result "$name" "OK" "$output"
+  else
+    local exit_code=$?
+    if (( exit_code == 2 )); then
+      add_result "$name" "WARN" "$output"
+    else
+      add_result "$name" "FAIL" "$output"
+    fi
+  fi
 }
 
 detect_docker_compose
@@ -326,6 +455,14 @@ check_postgres
 check_redis
 check_consul
 check_rabbitmq
+check_gateway_api
+check_gateway_sse
+check_auth_api
+check_crm_api
+check_documents_api
+check_notifications_api
+check_notifications_sse
+check_tasks_api
 check_reports_api
 check_backup_api
 check_backup_env_vars

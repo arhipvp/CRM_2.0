@@ -10,7 +10,10 @@ COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
 LOG_PREFIX="[bootstrap-local]"
 
+BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
+
 BOOTSTRAP_SKIP_FRONTEND_FLAG="${BOOTSTRAP_SKIP_FRONTEND:-false}"
+BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 
 cleanup() {
   if [[ -d "${TMP_DIR}" ]]; then
@@ -150,9 +153,10 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-frontend]
+Использование: $0 [--skip-frontend] [--skip-backend]
 
   --skip-frontend  пропустить запуск контейнера фронтенда
+  --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
 USAGE
 }
 
@@ -174,6 +178,9 @@ parse_args() {
     case "$1" in
       --skip-frontend)
         BOOTSTRAP_SKIP_FRONTEND_FLAG="true"
+        ;;
+      --skip-backend)
+        BOOTSTRAP_SKIP_BACKEND_FLAG="true"
         ;;
       -h|--help)
         usage
@@ -323,6 +330,14 @@ step_compose_up() {
   )
 }
 
+step_compose_backend_up() {
+  load_env || return 1
+  (
+    cd "${INFRA_DIR}" || return 1
+    "${COMPOSE_CMD[@]}" --profile backend up -d "${BACKEND_PROFILE_SERVICES[@]}"
+  )
+}
+
 step_wait_infra() {
   load_env || return 1
   (
@@ -370,6 +385,79 @@ step_wait_infra() {
 
     echo "Истёк таймаут ожидания готовности контейнеров" >&2
     "${COMPOSE_CMD[@]}" ps
+    return 1
+  )
+}
+
+step_wait_backend() {
+  load_env || return 1
+  (
+    cd "${INFRA_DIR}" || return 1
+    local services=("${BACKEND_PROFILE_SERVICES[@]}")
+    if "${COMPOSE_CMD[@]}" --profile backend wait "${services[@]}" >/dev/null 2>&1; then
+      echo "docker compose --profile backend wait завершён успешно"
+      return 0
+    fi
+
+    echo "Команда 'docker compose --profile backend wait' недоступна, включён ручной мониторинг статусов"
+    local attempt=0
+    local max_attempts=60
+    local sleep_seconds=3
+    local ps_output=""
+
+    while (( attempt < max_attempts )); do
+      if ! ps_output=$("${COMPOSE_CMD[@]}" --profile backend ps); then
+        sleep "$sleep_seconds"
+        attempt=$((attempt + 1))
+        continue
+      fi
+
+      if grep -qE '\\b(Exit|Down|Stopped)\\b' <<<"$ps_output"; then
+        echo "$ps_output"
+        echo "Обнаружены контейнеры backend-профиля в состоянии Exit/Down/Stopped" >&2
+        return 1
+      fi
+
+      local unhealthy=false
+      local starting=false
+
+      for service in "${services[@]}"; do
+        local line
+        line=$(printf '%s\n' "$ps_output" | grep -E "^[[:space:]]*${service}[[:space:]]" || true)
+        if [[ -z "$line" ]]; then
+          starting=true
+          break
+        fi
+
+        if grep -q '(unhealthy)' <<<"$line"; then
+          unhealthy=true
+          break
+        fi
+
+        if grep -q '(health: starting)' <<<"$line" || ! grep -q '(healthy)' <<<"$line"; then
+          starting=true
+        fi
+      done
+
+      if [[ "$unhealthy" == true ]]; then
+        echo "$ps_output"
+        echo "Контейнеры backend-профиля имеют статус unhealthy" >&2
+        return 1
+      fi
+
+      if [[ "$starting" == true ]]; then
+        sleep "$sleep_seconds"
+        attempt=$((attempt + 1))
+        continue
+      fi
+
+      echo "$ps_output"
+      echo "Backend-сервисы готовы."
+      return 0
+    done
+
+    echo "Истёк таймаут ожидания готовности backend-сервисов" >&2
+    "${COMPOSE_CMD[@]}" --profile backend ps
     return 1
   )
 }
@@ -512,9 +600,19 @@ main() {
 
   run_step "Проверка портов .env" step_check_ports
   run_step "docker compose up -d" step_compose_up
+  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
+    run_step_skip "Запуск backend-профиля" "передан флаг пропуска backend-профиля"
+  else
+    run_step "Запуск backend-профиля" step_compose_backend_up
+  fi
   run_step "Smoke-проверка BACKUP_*" step_check_backup_env
   run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
   run_step "Ожидание готовности docker compose" step_wait_infra
+  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
+    run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
+  else
+    run_step "Ожидание готовности backend-сервисов" step_wait_backend
+  fi
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
   if is_truthy "${BOOTSTRAP_SKIP_FRONTEND_FLAG}"; then

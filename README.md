@@ -14,17 +14,18 @@
 
 1. синхронизацию `.env` через `scripts/sync-env.sh --non-interactive` (создаёт файл или обновляет значения из `env.example`, пропуская уже существующие локальные `.env` без пауз);
 2. запуск инфраструктуры `docker compose --env-file .env up -d` в каталоге `infra/`;
-3. smoke-проверку `BACKUP_*`: при пустых `BACKUP_S3_*` скрипт сообщает о переходе на `DummyStorage` (штатный режим локальной разработки) и продолжает выполнение, а при частично заполненной конфигурации S3 — останавливается с подсказкой;
-4. дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты;
-5. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
-6. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
-7. миграции CRM/Auth через `scripts/migrate-local.sh`;
-8. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
+3. старт профильных API `docker compose --env-file .env --profile backend up -d gateway auth crm documents notifications tasks` (поддерживается флаг `--skip-backend` или переменная `BOOTSTRAP_SKIP_BACKEND=true` для ограничения только инфраструктурой);
+4. smoke-проверку `BACKUP_*`: при пустых `BACKUP_S3_*` скрипт сообщает о переходе на `DummyStorage` (штатный режим локальной разработки) и продолжает выполнение, а при частично заполненной конфигурации S3 — останавливается с подсказкой;
+5. дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты;
+6. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck) и отдельное ожидание backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`);
+7. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
+8. миграции CRM/Auth через `scripts/migrate-local.sh`;
+9. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
    или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
-9. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
-10. smoke-проверку окружения `scripts/check-local-infra.sh`.
+10. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
+11. smoke-проверку окружения `scripts/check-local-infra.sh` (PostgreSQL, Redis, Consul, RabbitMQ UI, Reports) и REST/SSE эндпоинтов backend-профиля (Gateway, Auth, CRM, Documents, Notifications, Tasks).
 
-Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда. При запуске `./scripts/dev-up.sh --skip-frontend` флаг автоматически пробрасывается в bootstrap, поэтому фронтенд не стартует ни на одном этапе.
+Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`, `--skip-backend`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда и прикладных API. При запуске `./scripts/dev-up.sh --skip-frontend` или `--skip-backend` соответствующий профиль автоматически пропускается в bootstrap, поэтому контейнеры не стартуют ни на одном этапе.
 
 > ℹ️ Все вызовы Docker Compose в скриптах теперь включают `--env-file .env`. Поддерживайте корневой `.env` синхронизированным с `env.example` и актуальными секретами: обновляйте файл через `scripts/sync-env.sh` и вручную проверяйте значения чувствительных переменных.
 

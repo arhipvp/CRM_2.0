@@ -45,16 +45,18 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--open-browser|--no-browser] [--skip-frontend]
+Использование: $0 [--open-browser|--no-browser] [--skip-frontend] [--skip-backend]
 
   --open-browser   принудительно открыть браузер после запуска
   --no-browser     не открывать браузер (перекрывает переменную LOCAL_LAUNCH_OPEN_BROWSER)
   --skip-frontend  пропустить запуск контейнера фронтенда
+  --skip-backend   не запускать профиль backend (gateway, auth, crm, documents, notifications, tasks)
 USAGE
 }
 
 open_browser_mode="auto"
 skip_frontend=false
+skip_backend=false
 bootstrap_args=()
 
 while (($# > 0)); do
@@ -68,6 +70,10 @@ while (($# > 0)); do
     --skip-frontend)
       skip_frontend=true
       bootstrap_args+=(--skip-frontend)
+      ;;
+    --skip-backend)
+      skip_backend=true
+      bootstrap_args+=(--skip-backend)
       ;;
     -h|--help)
       usage
