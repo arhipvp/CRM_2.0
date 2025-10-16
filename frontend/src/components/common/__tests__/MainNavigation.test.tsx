@@ -33,6 +33,7 @@ describe("MainNavigation", () => {
     expect(screen.getByRole("link", { name: "Сделки" })).toHaveAttribute("href", "/deals");
     expect(screen.getByRole("link", { name: "Задачи" })).toHaveAttribute("href", "/tasks");
     expect(screen.getByRole("link", { name: "Платежи" })).toHaveAttribute("href", "/payments");
+    expect(screen.getByRole("link", { name: "Полисы" })).toHaveAttribute("href", "/policies");
     expect(screen.getByRole("link", { name: "Уведомления" })).toHaveAttribute("href", "/notifications");
     expect(screen.getByRole("link", { name: "Администрирование" })).toHaveAttribute("href", "/admin");
   });
@@ -44,5 +45,6 @@ describe("MainNavigation", () => {
 
     expect(screen.getByRole("link", { name: "Сделки" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Главная" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Полисы" })).not.toHaveAttribute("aria-current");
   });
 });
