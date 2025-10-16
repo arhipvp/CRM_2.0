@@ -28,7 +28,8 @@ COPY ${SERVICE_PATH}/pyproject.toml ./pyproject.toml
 COPY ${SERVICE_PATH}/poetry.lock ./poetry.lock
 COPY --from=deps /app /app
 COPY ${SERVICE_PATH}/ ./
-RUN poetry install --no-ansi --without dev
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-ansi --without dev
 
 FROM base AS runtime
 ENV PYTHONUNBUFFERED=1
