@@ -82,7 +82,12 @@ try:
             sock.bind(address)
         except OSError as exc:
             sock.close()
-            if exc.errno in {getattr(errno, "EADDRINUSE", 98), getattr(errno, "WSAEADDRINUSE", 10048)}:
+            if exc.errno in {
+                getattr(errno, "EADDRINUSE", 98),
+                getattr(errno, "WSAEADDRINUSE", 10048),
+                getattr(errno, "EACCES", 13),
+                getattr(errno, "WSAEACCES", 10013),
+            }:
                 sys.exit(10)
             if (
                 family == socket.AF_INET6
