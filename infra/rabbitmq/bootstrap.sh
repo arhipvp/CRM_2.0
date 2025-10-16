@@ -319,6 +319,9 @@ wait_for_rabbitmq_ready() {
     mapfile -t status_lines <<<"${status_output}"$'\n'
     state="${status_lines[0]:-unknown}"
     health="${status_lines[1]:-}"
+    # docker compose в Git Bash может добавлять символы \r в конце строк
+    state="${state//$'\r'/}"
+    health="${health//$'\r'/}"
 
     if [[ "${state}" == "running" && ( -z "${health}" || "${health}" == "healthy" ) ]]; then
       echo "[Инфо] RabbitMQ готов (state='${state}', health='${health:-n/a}')."
@@ -351,6 +354,7 @@ ensure_rabbitmq_ready() {
 
   mapfile -t status_lines <<<"${status_output}"$'\n'
   local state="${status_lines[0]:-}"
+  state="${state//$'\r'/}"
 
   if [[ "${state}" != "running" ]]; then
     echo "[Инфо] Контейнер RabbitMQ не запущен (state='${state:-unknown}'). Пытаемся стартовать..."
@@ -430,6 +434,10 @@ while IFS= read -r var_name; do
   local_user="${parsed[0]-}"
   local_password="${parsed[1]-}"
   local_vhost="${parsed[2]-}"
+  # Git Bash (Windows) добавляет \r, удаляем их перед проверками/ключами
+  local_user="${local_user//$'\r'/}"
+  local_password="${local_password//$'\r'/}"
+  local_vhost="${local_vhost//$'\r'/}"
   if [[ -z "${local_user}" || -z "${local_vhost}" ]]; then
     echo "[Предупреждение] Пропускаем переменную ${var_name}: пользователь или vhost не определены в URL '${url_value}'." >&2
     continue
