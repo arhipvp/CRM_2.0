@@ -107,10 +107,10 @@ services:
     container_name: crm-backup
     restart: unless-stopped
     environment:
-      BACKUP_DATABASE_URL: ${BACKUP_DATABASE_URL:-postgresql://${BACKUP_DB_USER:-backup}:${BACKUP_DB_PASSWORD:-backup}@${POSTGRES_HOST:-postgres}:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=backup}
+      BACKUP_DATABASE_URL: ${BACKUP_DATABASE_URL:-postgresql://${BACKUP_DB_USER:-backup}:${BACKUP_DB_PASSWORD:-backup}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-crm}?search_path=backup}
       BACKUP_SERVICE_PORT: ${BACKUP_SERVICE_PORT:-8094}
       BACKUP_TIMEZONE: ${TIMEZONE:-Europe/Moscow}
-      BACKUP_POSTGRES_BACKUP_DSN: ${BACKUP_POSTGRES_BACKUP_DSN:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_HOST:-postgres}:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}}
+      BACKUP_POSTGRES_BACKUP_DSN: ${BACKUP_POSTGRES_BACKUP_DSN:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-crm}}
       BACKUP_S3_ENDPOINT_URL: ${BACKUP_S3_ENDPOINT_URL:-}
       BACKUP_S3_REGION_NAME: ${BACKUP_S3_REGION_NAME:-us-east-1}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET}
