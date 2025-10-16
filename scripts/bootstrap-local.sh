@@ -9,6 +9,26 @@ ENV_FILE="${ROOT_DIR}/.env"
 COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
 LOG_PREFIX="[bootstrap-local]"
+DEFAULT_LOG_DIR="${ROOT_DIR}/.local/logs/bootstrap"
+
+if [[ -n "${BOOTSTRAP_LOG_DIR:-}" ]]; then
+  if [[ "${BOOTSTRAP_LOG_DIR}" == /* ]]; then
+    LOG_DIR="${BOOTSTRAP_LOG_DIR}"
+  else
+    LOG_DIR="${ROOT_DIR}/${BOOTSTRAP_LOG_DIR}"
+  fi
+else
+  LOG_DIR="${DEFAULT_LOG_DIR}"
+fi
+
+SAVE_LOGS_FLAG="${BOOTSTRAP_SAVE_LOGS:-true}"
+SESSION_LOG_DIR=""
+SESSION_LOG_INITIALIZED=false
+STEP_LOG_DIR=""
+SUMMARY_JSON_FILE=""
+SUMMARY_MARKDOWN_FILE=""
+BOOTSTRAP_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+BOOTSTRAP_FINISHED_AT=""
 
 BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
 
@@ -17,12 +37,45 @@ BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
 
 cleanup() {
-  if [[ -d "${TMP_DIR}" ]]; then
-    if (( FAIL_COUNT == 0 )); then
+  if ! is_truthy "${SAVE_LOGS_FLAG}"; then
+    if [[ -d "${TMP_DIR}" ]]; then
       rm -rf "${TMP_DIR}"
-    else
-      log_info "Подробные логи шагов сохранены в ${TMP_DIR}"
     fi
+    if [[ -n "${SESSION_LOG_DIR:-}" && -d "${SESSION_LOG_DIR}" ]]; then
+      rm -rf "${SESSION_LOG_DIR}"
+    fi
+    return
+  fi
+
+  if [[ "${SESSION_LOG_INITIALIZED}" != true ]]; then
+    if [[ -d "${TMP_DIR}" ]]; then
+      log_info "Временные файлы сохранены в ${TMP_DIR}"
+    fi
+    return
+  fi
+
+  if [[ -d "${TMP_DIR}" ]]; then
+    local tmp_target="${SESSION_LOG_DIR}/tmp"
+    if [[ -e "${tmp_target}" ]]; then
+      tmp_target="${tmp_target}-$(date +%H%M%S)"
+    fi
+    if mv "${TMP_DIR}" "${tmp_target}" 2>/dev/null; then
+      TMP_DIR="${tmp_target}"
+    else
+      log_warn "Не удалось переместить временные файлы в ${SESSION_LOG_DIR}; оставлены в ${TMP_DIR}"
+    fi
+  fi
+
+  if [[ -n "${SUMMARY_MARKDOWN_FILE:-}" && -f "${SUMMARY_MARKDOWN_FILE}" ]]; then
+    log_info "Сводка шагов: ${SUMMARY_MARKDOWN_FILE}"
+  fi
+
+  if [[ -n "${SUMMARY_JSON_FILE:-}" && -f "${SUMMARY_JSON_FILE}" ]]; then
+    log_info "JSON-отчёт: ${SUMMARY_JSON_FILE}"
+  fi
+
+  if [[ -n "${SESSION_LOG_DIR:-}" && -d "${SESSION_LOG_DIR}" ]]; then
+    log_info "Подробные логи сохранены в ${SESSION_LOG_DIR}"
   fi
 }
 
@@ -38,6 +91,20 @@ log_warn() {
 
 log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
+}
+
+set_log_dir() {
+  local value="$1"
+  if [[ -z "${value}" ]]; then
+    log_error "Аргумент --log-dir не может быть пустым"
+    usage
+    exit 1
+  fi
+  if [[ "${value}" == /* ]]; then
+    LOG_DIR="${value}"
+  else
+    LOG_DIR="${ROOT_DIR}/${value}"
+  fi
 }
 
 check_port_available() {
@@ -154,11 +221,13 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-frontend] [--skip-backend] [--with-backend]
+Использование: $0 [--skip-frontend] [--skip-backend] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
   --skip-frontend  пропустить запуск контейнера фронтенда
   --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
   --with-backend   запустить scripts/start-backend.sh после миграций
+  --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
+  --discard-logs   удалить каталоги логов и отчётов после завершения работы
 USAGE
 }
 
@@ -187,6 +256,21 @@ parse_args() {
       --with-backend)
         BOOTSTRAP_WITH_BACKEND_FLAG="true"
         ;;
+      --log-dir)
+        if (($# < 2)); then
+          log_error "Для --log-dir требуется значение"
+          usage
+          exit 1
+        fi
+        shift
+        set_log_dir "$1"
+        ;;
+      --log-dir=*)
+        set_log_dir "${1#*=}"
+        ;;
+      --discard-logs)
+        SAVE_LOGS_FLAG="false"
+        ;;
       -h|--help)
         usage
         exit 0
@@ -199,6 +283,138 @@ parse_args() {
     esac
     shift
   done
+}
+
+initialize_log_storage() {
+  local base_dir="${LOG_DIR:-${DEFAULT_LOG_DIR}}"
+  if [[ "${base_dir}" != /* ]]; then
+    base_dir="${ROOT_DIR}/${base_dir}"
+  fi
+
+  if ! mkdir -p "${base_dir}"; then
+    log_error "Не удалось создать каталог логов ${base_dir}"
+    exit 1
+  fi
+
+  local timestamp suffix candidate
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  suffix=0
+  while :; do
+    candidate="${base_dir}/run-${timestamp}"
+    if (( suffix > 0 )); then
+      candidate="${candidate}-${suffix}"
+    fi
+    if [[ ! -e "${candidate}" ]]; then
+      break
+    fi
+    suffix=$((suffix + 1))
+  done
+
+  if ! mkdir -p "${candidate}/steps"; then
+    log_error "Не удалось создать каталог шагов ${candidate}/steps"
+    exit 1
+  fi
+
+  SESSION_LOG_DIR="${candidate}"
+  STEP_LOG_DIR="${candidate}/steps"
+  SUMMARY_JSON_FILE="${candidate}/summary.json"
+  SUMMARY_MARKDOWN_FILE="${candidate}/summary.md"
+  SESSION_LOG_INITIALIZED=true
+}
+
+write_summary_report() {
+  if [[ "${SESSION_LOG_INITIALIZED}" != true ]]; then
+    return
+  fi
+
+  mkdir -p "${SESSION_LOG_DIR}" "${STEP_LOG_DIR}"
+
+  local overall_status="OK"
+  if (( FAIL_COUNT > 0 )); then
+    overall_status="FAIL"
+  fi
+
+  local steps_count=${#STEP_RESULTS[@]}
+  local md_file="${SUMMARY_MARKDOWN_FILE}"
+  {
+    printf '# Сводка bootstrap\n\n'
+    printf '* Старт: %s\n' "${BOOTSTRAP_STARTED_AT}"
+    if [[ -n "${BOOTSTRAP_FINISHED_AT}" ]]; then
+      printf '* Завершение: %s\n' "${BOOTSTRAP_FINISHED_AT}"
+    fi
+    printf '* Шагов: %d\n' "${steps_count}"
+    printf '* Итоговый статус: %s\n\n' "${overall_status}"
+    printf '| Шаг | Статус | Комментарий | Лог |\n'
+    printf '| --- | --- | --- | --- |\n'
+  } > "${md_file}"
+
+  local data_file="${TMP_DIR}/step-results.tsv"
+  : > "${data_file}"
+
+  for entry in "${STEP_RESULTS[@]}"; do
+    IFS='|' read -r name status message log_path <<<"$entry"
+    local display_log="${log_path}"
+    if [[ -n "${display_log}" && "${display_log}" == "${ROOT_DIR}/"* ]]; then
+      display_log="./${display_log#"${ROOT_DIR}/"}"
+    fi
+
+    local name_cell="${name//|/\\|}"
+    local message_cell
+    message_cell="${message//|/\\|}"
+    local log_cell
+    if [[ -n "${display_log}" ]]; then
+      log_cell="${display_log//|/\\|}"
+    else
+      log_cell='—'
+    fi
+    if [[ -z "${message_cell}" ]]; then
+      message_cell='—'
+    fi
+
+    printf '%s|%s|%s|%s\n' "$name" "$status" "$message" "$log_path" >> "${data_file}"
+    printf '| %s | %s | %s | %s |\n' "${name_cell}" "${status}" "${message_cell}" "${log_cell}" >> "${md_file}"
+  done
+
+  if command -v python3 >/dev/null 2>&1; then
+    BOOTSTRAP_SUMMARY_STARTED_AT="${BOOTSTRAP_STARTED_AT}" \
+    BOOTSTRAP_SUMMARY_FINISHED_AT="${BOOTSTRAP_FINISHED_AT}" \
+    BOOTSTRAP_SUMMARY_STATUS="${overall_status}" \
+      python3 - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
+import json
+import os
+import sys
+
+data_path, json_path = sys.argv[1:3]
+steps = []
+with open(data_path, encoding="utf-8") as source:
+    for raw_line in source:
+        line = raw_line.rstrip("\n")
+        if not line:
+            continue
+        parts = line.split("|", 3)
+        while len(parts) < 4:
+            parts.append("")
+        name, status, message, log_path = parts
+        steps.append(
+            {
+                "name": name,
+                "status": status,
+                "message": message,
+                "log_path": log_path or None,
+            }
+        )
+
+summary = {
+    "started_at": os.environ.get("BOOTSTRAP_SUMMARY_STARTED_AT", ""),
+    "finished_at": os.environ.get("BOOTSTRAP_SUMMARY_FINISHED_AT", ""),
+    "overall_status": os.environ.get("BOOTSTRAP_SUMMARY_STATUS", ""),
+    "steps": steps,
+}
+
+with open(json_path, "w", encoding="utf-8") as target:
+    json.dump(summary, target, ensure_ascii=False, indent=2)
+PY
+  fi
 }
 
 require_command() {
@@ -229,8 +445,8 @@ STEP_RESULTS=()
 FAIL_COUNT=0
 
 add_result() {
-  local name="$1" status="$2" message="$3"
-  STEP_RESULTS+=("$name|$status|$message")
+  local name="$1" status="$2" message="$3" log_path="${4:-}"
+  STEP_RESULTS+=("$name|$status|$message|$log_path")
   if [[ "$status" == "FAIL" ]]; then
     FAIL_COUNT=$((FAIL_COUNT + 1))
   fi
@@ -242,17 +458,26 @@ run_step() {
   local index=${#STEP_RESULTS[@]}
   local safe_name
   safe_name=$(printf '%s' "$name" | tr -cs '[:alnum:]_-' '_')
-  mkdir -p "${TMP_DIR}"
-  local log_file="${TMP_DIR}/$(printf '%02d' "$index")_${safe_name}.log"
+  local log_root="${TMP_DIR}"
+  if [[ "${SESSION_LOG_INITIALIZED}" == true && -n "${STEP_LOG_DIR}" ]]; then
+    log_root="${STEP_LOG_DIR}"
+  else
+    mkdir -p "${TMP_DIR}"
+  fi
+  mkdir -p "${log_root}"
+  local log_file="${log_root}/$(printf '%02d' "$index")_${safe_name}.log"
+  local display_log="${log_file}"
+  if [[ -n "${display_log}" && "${display_log}" == "${ROOT_DIR}/"* ]]; then
+    display_log="./${display_log#"${ROOT_DIR}/"}"
+  fi
   log_info "→ ${name}"
   if "$func" > >(tee "$log_file") 2> >(tee -a "$log_file" >&2); then
-    add_result "$name" "OK" ""
-    rm -f "$log_file"
+    add_result "$name" "OK" "Лог: ${display_log}" "$log_file"
     return 0
   else
     local exit_code=$?
-    add_result "$name" "FAIL" "Код ${exit_code}. Лог: ${log_file}"
-    log_error "Шаг '${name}' завершился с кодом ${exit_code}. См. лог: ${log_file}"
+    add_result "$name" "FAIL" "Код ${exit_code}. Лог: ${display_log}" "$log_file"
+    log_error "Шаг '${name}' завершился с кодом ${exit_code}. См. лог: ${display_log}"
     return $exit_code
   fi
 }
@@ -260,7 +485,7 @@ run_step() {
 run_step_skip() {
   local name="$1" reason="$2"
   log_warn "Пропускаем шаг '${name}': ${reason}"
-  add_result "$name" "SKIP" "$reason"
+  add_result "$name" "SKIP" "$reason" ""
 }
 
 step_check_dependencies() {
@@ -597,14 +822,20 @@ step_start_local_backend() {
 main() {
   parse_args "$@"
 
+  initialize_log_storage
+
+  if ! is_truthy "${SAVE_LOGS_FLAG}"; then
+    log_warn "Сохранение логов отключено (--discard-logs). Каталог будет удалён при завершении."
+  fi
+
   run_step "Проверка зависимостей" step_check_dependencies
   run_step "Синхронизация .env" step_sync_env
 
   if [[ -f "${ENV_FILE}" ]]; then
-    add_result "Проверка .env" "OK" "Файл найден"
+    add_result "Проверка .env" "OK" "Файл найден" ""
   else
     log_error "Файл .env не найден после синхронизации."
-    add_result "Проверка .env" "FAIL" "Файл .env отсутствует после sync-env"
+    add_result "Проверка .env" "FAIL" "Файл .env отсутствует после sync-env" ""
   fi
 
   run_step "Проверка портов .env" step_check_ports
@@ -659,9 +890,12 @@ main() {
   printf '\n%-38s | %-4s | %s\n' "Шаг" "Статус" "Комментарий"
   printf '%s\n' "--------------------------------------+-------+-------------------------------------------"
   for entry in "${STEP_RESULTS[@]}"; do
-    IFS='|' read -r name status message <<<"$entry"
+    IFS='|' read -r name status message log_path <<<"$entry"
     printf "%-38s | %-4s | %s\n" "$name" "$status" "$message"
   done
+
+  BOOTSTRAP_FINISHED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  write_summary_report
 
   if (( FAIL_COUNT > 0 )); then
     log_error "Bootstrap завершился с ошибками (${FAIL_COUNT}). См. таблицу выше."
