@@ -85,6 +85,20 @@ class Settings(BaseSettings):
 
         return value
 
+    @field_validator("s3_region_name", mode="before")
+    @classmethod
+    def _normalize_region_name(cls, value: object) -> object:
+        if value is None:
+            return "us-east-1"
+
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized == "":
+                return "us-east-1"
+            return normalized
+
+        return value
+
 
 @lru_cache
 def get_settings() -> Settings:

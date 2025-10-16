@@ -102,6 +102,33 @@ def test_build_storage_returns_s3_when_all_params_present(monkeypatch) -> None:
     assert created_clients, "Ожидали создание клиента S3"
 
 
+def test_build_storage_uses_default_region_when_env_empty(monkeypatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    class DummyClient:
+        pass
+
+    class DummySession:
+        def client(self, service_name: str, **kwargs: object) -> DummyClient:
+            captured_kwargs.clear()
+            captured_kwargs.update(kwargs)
+            assert service_name == "s3"
+            return DummyClient()
+
+    monkeypatch.setattr(boto3.session, "Session", lambda: DummySession())
+
+    payload = _settings_payload(s3_endpoint_url="http://localhost:9000")
+    monkeypatch.setenv("BACKUP_S3_REGION_NAME", "   ")
+
+    settings = Settings(**payload)
+
+    storage = build_storage(settings)
+
+    assert isinstance(storage, S3Storage)
+    assert captured_kwargs.get("region_name") == "us-east-1"
+    assert settings.s3_region_name == "us-east-1"
+
+
 def test_settings_normalize_empty_s3_values_to_none() -> None:
     settings = Settings(
         **_settings_payload(s3_access_key="", s3_secret_key="  ", s3_bucket=""),
