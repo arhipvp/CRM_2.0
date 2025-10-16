@@ -20,7 +20,7 @@
 6. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck) и отдельное ожидание backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`);
 7. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
 8. миграции CRM/Auth через `scripts/migrate-local.sh`;
-9. опциональный запуск локальных backend-процессов через `scripts/start-backend.sh` (активируется флагом `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`, PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`; путь можно переопределить опцией `--log-file` или переменной `START_BACKEND_LOG_FILE`; при необходимости ограничьте набор сервисов флагом `--service <имя>`).
+9. опциональный запуск локальных backend-процессов через `scripts/start-backend.sh` (активируется флагом `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`, PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`; путь можно переопределить опцией `--log-file` или переменной `START_BACKEND_LOG_FILE`). Для запуска только части сервисов используйте `--service NAME` (можно перечислять через запятую и повторять флаг, например `--service gateway` или `--service auth,crm-api --service gateway`).
 10. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
    или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
 11. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
