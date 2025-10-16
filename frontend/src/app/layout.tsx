@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { SSEBridge } from "@/components/providers/SSEBridge";
 import { NotificationCenter } from "@/components/common/NotificationCenter";
+import { MainNavigation } from "@/components/common/MainNavigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,14 @@ export default function RootLayout({
         <Providers>
           <SSEBridge />
           <NotificationCenter />
-          {children}
+          <div className="app-shell flex min-h-screen flex-col">
+            <header className="app-header">
+              <div className="app-header__inner">
+                <MainNavigation />
+              </div>
+            </header>
+            <main className="app-main">{children}</main>
+          </div>
         </Providers>
       </body>
     </html>
