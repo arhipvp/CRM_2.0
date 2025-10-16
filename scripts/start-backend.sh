@@ -29,14 +29,50 @@ SERVICES=(
   "gateway|backend/gateway|pnpm start:dev"
 )
 
+SELECTED_SERVICES=()
+
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH] [--log-file PATH]
+Usage: $0 [--run-dir PATH] [--log-file PATH] [--service NAME...]
 
 Запускает основные backend-процессы вне Docker Compose и сохраняет PID/логи в каталоге .local/run/backend.
   --run-dir PATH  переопределить каталог для PID и логов (по умолчанию ${BACKEND_RUN_DIR})
   --log-file PATH путь к файлу журнала запуска (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
+  --service NAME  запустить только указанный сервис (можно повторять флаг)
 USAGE
+}
+
+available_services_list() {
+  local names=()
+  for entry in "${SERVICES[@]}"; do
+    IFS='|' read -r name _ <<<"$entry"
+    names+=("$name")
+  done
+  printf '%s' "${names[*]}"
+}
+
+is_valid_service() {
+  local candidate="$1"
+  for entry in "${SERVICES[@]}"; do
+    IFS='|' read -r name _ <<<"$entry"
+    if [[ "$name" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+should_run_service() {
+  local candidate="$1"
+  if [[ ${#SELECTED_SERVICES[@]} -eq 0 ]]; then
+    return 0
+  fi
+  for selected in "${SELECTED_SERVICES[@]}"; do
+    if [[ "$selected" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 abspath() {
@@ -202,6 +238,21 @@ parse_args() {
         SCRIPT_LOG_FILE_OVERRIDE=true
         shift
         ;;
+      --service)
+        if (($# < 2)); then
+          PARSE_ERROR="Для --service требуется имя сервиса"
+          PARSE_EXIT_CODE=1
+          return
+        fi
+        local service_name="$2"
+        if ! is_valid_service "$service_name"; then
+          PARSE_ERROR="Неизвестный сервис '${service_name}'. Доступные: $(available_services_list)"
+          PARSE_EXIT_CODE=1
+          return
+        fi
+        SELECTED_SERVICES+=("$service_name")
+        shift
+        ;;
       -h|--help)
         PARSE_SHOW_USAGE=true
         return
@@ -260,6 +311,11 @@ main() {
   log_info "Журнал запуска: ${BACKEND_SCRIPT_LOG_FILE}"
   log_info "PID-файлы: ${PID_DIR}"
   log_info "Логи сервисов: ${LOG_DIR}"
+  if [[ ${#SELECTED_SERVICES[@]} -gt 0 ]]; then
+    log_info "Выбранные сервисы: ${SELECTED_SERVICES[*]}"
+  else
+    log_info "Выбраны все доступные сервисы"
+  fi
 
   require_command pnpm
   require_command poetry
@@ -273,6 +329,11 @@ main() {
   for entry in "${SERVICES[@]}"; do
     IFS='|' read -r name dir_rel command <<<"$entry"
     local service_dir="${ROOT_DIR}/${dir_rel}"
+
+    if ! should_run_service "$name"; then
+      log_info "${name}: пропускаем (не выбран через --service)"
+      continue
+    fi
 
     if [[ "$name" == "crm-api" || "$name" == "crm-worker" ]]; then
       ensure_poetry_env "${service_dir}" "$name"

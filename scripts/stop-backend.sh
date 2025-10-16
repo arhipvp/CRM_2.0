@@ -26,15 +26,45 @@ SERVICES=(
   "auth"
 )
 
+SELECTED_SERVICES=()
+
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH] [--log-file PATH] [--clean-logs]
+Usage: $0 [--run-dir PATH] [--log-file PATH] [--clean-logs] [--service NAME...]
 
 Останавливает backend-процессы, запущенные scripts/start-backend.sh, по PID-файлам.
   --run-dir PATH  каталог с PID/логами (по умолчанию ${BACKEND_RUN_DIR})
   --log-file PATH путь к журналу запуска backend (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
   --clean-logs    удалить журналы запуска и сервисов после остановки
+  --service NAME  остановить только указанный сервис (можно повторять флаг)
 USAGE
+}
+
+available_services_list() {
+  printf '%s' "${SERVICES[*]}"
+}
+
+is_valid_service() {
+  local candidate="$1"
+  for service in "${SERVICES[@]}"; do
+    if [[ "$service" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+should_stop_service() {
+  local candidate="$1"
+  if [[ ${#SELECTED_SERVICES[@]} -eq 0 ]]; then
+    return 0
+  fi
+  for selected in "${SELECTED_SERVICES[@]}"; do
+    if [[ "$selected" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 abspath() {
@@ -85,6 +115,19 @@ parse_args() {
         ;;
       --clean-logs)
         STOP_CLEAN_LOGS=true
+        ;;
+      --service)
+        if (($# < 2)); then
+          log_error "Для --service требуется имя сервиса"
+          exit 1
+        fi
+        local service_name="$2"
+        if ! is_valid_service "$service_name"; then
+          log_error "Неизвестный сервис '${service_name}'. Доступные: $(available_services_list)"
+          exit 1
+        fi
+        SELECTED_SERVICES+=("$service_name")
+        shift
         ;;
       -h|--help)
         usage
@@ -209,8 +252,17 @@ main() {
 
   log_info "Используем каталог ${BACKEND_RUN_DIR}"
   log_info "Журнал запуска backend: ${BACKEND_SCRIPT_LOG_FILE}"
+  if [[ ${#SELECTED_SERVICES[@]} -gt 0 ]]; then
+    log_info "Останавливаем сервисы: ${SELECTED_SERVICES[*]}"
+  else
+    log_info "Останавливаем все сервисы"
+  fi
 
   for service in "${SERVICES[@]}"; do
+    if ! should_stop_service "$service"; then
+      log_info "${service}: пропускаем (не выбран через --service)"
+      continue
+    fi
     stop_pid "$service"
   done
 
