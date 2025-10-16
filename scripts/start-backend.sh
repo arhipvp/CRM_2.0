@@ -74,10 +74,10 @@ is_valid_service() {
 
 should_run_service() {
   local candidate="$1"
-  if [[ ${#SELECTED_SERVICES[@]} -eq 0 ]]; then
+  if [[ ${#SELECTED_SERVICE_NAMES[@]} -eq 0 ]]; then
     return 0
   fi
-  for selected in "${SELECTED_SERVICES[@]}"; do
+  for selected in "${SELECTED_SERVICE_NAMES[@]}"; do
     if [[ "$selected" == "$candidate" ]]; then
       return 0
     fi
@@ -358,8 +358,8 @@ main() {
   log_info "Журнал запуска: ${BACKEND_SCRIPT_LOG_FILE}"
   log_info "PID-файлы: ${PID_DIR}"
   log_info "Логи сервисов: ${LOG_DIR}"
-  if [[ ${#SELECTED_SERVICES[@]} -gt 0 ]]; then
-    log_info "Выбранные сервисы: ${SELECTED_SERVICES[*]}"
+  if [[ ${#SELECTED_SERVICE_NAMES[@]} -gt 0 ]]; then
+    log_info "Выбранные сервисы: ${SELECTED_SERVICE_NAMES[*]}"
   else
     log_info "Выбраны все доступные сервисы"
   fi
