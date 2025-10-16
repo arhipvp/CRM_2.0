@@ -14,6 +14,7 @@ BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
 
 BOOTSTRAP_SKIP_FRONTEND_FLAG="${BOOTSTRAP_SKIP_FRONTEND:-false}"
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
+BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
 
 cleanup() {
   if [[ -d "${TMP_DIR}" ]]; then
@@ -153,10 +154,11 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-frontend] [--skip-backend]
+Использование: $0 [--skip-frontend] [--skip-backend] [--with-backend]
 
   --skip-frontend  пропустить запуск контейнера фронтенда
   --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
+  --with-backend   запустить scripts/start-backend.sh после миграций
 USAGE
 }
 
@@ -181,6 +183,9 @@ parse_args() {
         ;;
       --skip-backend)
         BOOTSTRAP_SKIP_BACKEND_FLAG="true"
+        ;;
+      --with-backend)
+        BOOTSTRAP_WITH_BACKEND_FLAG="true"
         ;;
       -h|--help)
         usage
@@ -585,6 +590,10 @@ step_check_infra() {
   (cd "${ROOT_DIR}" && ./scripts/check-local-infra.sh)
 }
 
+step_start_local_backend() {
+  (cd "${ROOT_DIR}" && ./scripts/start-backend.sh)
+}
+
 main() {
   parse_args "$@"
 
@@ -615,6 +624,18 @@ main() {
   fi
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
+  if is_truthy "${BOOTSTRAP_WITH_BACKEND_FLAG}"; then
+    if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
+      log_warn "Флаг --with-backend не отключает docker compose профиль backend. При необходимости добавьте --skip-backend."
+    fi
+    if [[ -x "${ROOT_DIR}/scripts/start-backend.sh" ]]; then
+      run_step "Запуск локальных backend-процессов" step_start_local_backend
+    else
+      run_step_skip "Запуск локальных backend-процессов" "скрипт start-backend.sh отсутствует или не исполняем"
+    fi
+  else
+    run_step_skip "Запуск локальных backend-процессов" "флаг --with-backend не передан"
+  fi
   if is_truthy "${BOOTSTRAP_SKIP_FRONTEND_FLAG}"; then
     run_step_skip "Запуск фронтенда" "передан флаг пропуска фронтенда"
   else
