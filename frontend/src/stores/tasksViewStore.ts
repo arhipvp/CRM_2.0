@@ -37,7 +37,7 @@ const defaultFilters: TaskFiltersState = {
 };
 
 export const useTasksViewStore = create(
-  persist<TasksViewState>(
+  persist<TasksViewState, [], [], Pick<TasksViewState, "viewMode">>(
     (set) => ({
       viewMode: "table",
       filters: { ...defaultFilters },
