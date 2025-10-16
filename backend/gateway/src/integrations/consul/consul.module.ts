@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import type Consul from 'consul';
 import ConsulFactory = require('consul');
 
-type ConsulFactoryFn = (options: {
+type ConsulOptions = {
   host?: string;
   port?: number;
   secure?: boolean;
@@ -11,18 +11,29 @@ type ConsulFactoryFn = (options: {
     token?: string;
     dc?: string;
   };
-}) => Consul;
+};
 
-type ConsulConstructor = new (options: Parameters<ConsulFactoryFn>[0]) => Consul;
+type ConsulConstructor = new (options: ConsulOptions) => Consul;
 
 import consulConfig, { ConsulConfig } from '../../config/consul.config';
 import { CONSUL_CLIENT } from './consul.constants';
 import { ConsulService } from './consul.service';
 
-type ConsulConstructor = typeof import('consul');
-const RawConsulClient = require('consul') as ConsulConstructor;
-type ConsulOptions = ConstructorParameters<ConsulConstructor>[0];
-const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(options);
+const resolveConsulConstructor = (moduleExport: unknown): ConsulConstructor => {
+  const directExport = typeof moduleExport === 'function' ? moduleExport : undefined;
+  const defaultExport =
+    typeof (moduleExport as { default?: unknown })?.default === 'function'
+      ? (moduleExport as { default: unknown }).default
+      : undefined;
+
+  const constructor = (directExport ?? defaultExport) as unknown;
+
+  if (typeof constructor !== 'function') {
+    throw new Error('Unable to resolve Consul constructor from "consul" module export');
+  }
+
+  return constructor as ConsulConstructor;
+};
 
 @Global()
 @Module({
@@ -38,9 +49,7 @@ const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(opt
           return null;
         }
 
-        const createConsulClient = ConsulFactory as unknown as ConsulFactoryFn;
-        const consulCtor = ConsulFactory as unknown as ConsulConstructor;
-        const consulOptions: Parameters<ConsulFactoryFn>[0] = {
+        const consulOptions: ConsulOptions = {
           host: config.host,
           port: config.port,
           secure: config.scheme === 'https',
@@ -50,15 +59,9 @@ const ConsulClient = (options: ConsulOptions): Consul => new RawConsulClient(opt
           }
         };
 
-        try {
-          return createConsulClient(consulOptions);
-        } catch (error) {
-          if (error instanceof TypeError && error.message.includes("without 'new'")) {
-            return Reflect.construct(consulCtor, [consulOptions]);
-          }
+        const ConsulClient = resolveConsulConstructor(ConsulFactory);
 
-          throw error;
-        }
+        return new ConsulClient(consulOptions);
       }
     },
     ConsulService
