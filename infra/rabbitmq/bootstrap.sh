@@ -6,6 +6,22 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INFRA_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 COMPOSE_FILE="${INFRA_DIR}/docker-compose.yml"
 
+PYTHON_CMD=""
+PYTHON_CANDIDATES=(
+  "python3"
+  "python"
+  "python3.12"
+  "python3.11"
+  "python3.10"
+  "python3.9"
+  "python3.8"
+  "py -3"
+  "py -3.12"
+  "py -3.11"
+  "py -3.10"
+  "py -3.9"
+)
+
 usage() {
   cat <<'USAGE'
 Использование: infra/rabbitmq/bootstrap.sh [путь_к_env]
@@ -13,6 +29,17 @@ usage() {
 Скрипт читает переменные из указанного `.env` (по умолчанию корневой `.env`) и
 создаёт vhost-ы и пользователей RabbitMQ через `docker compose exec rabbitmq rabbitmqctl`.
 USAGE
+}
+
+detect_python_cmd() {
+  local candidate
+  for candidate in "${PYTHON_CANDIDATES[@]}"; do
+    if eval "${candidate} --version" >/dev/null 2>&1; then
+      PYTHON_CMD="${candidate}"
+      return 0
+    fi
+  done
+  return 1
 }
 
 ENV_FILE=${1:-${ENV_FILE:-.env}}
@@ -29,6 +56,14 @@ DOCKER_COMPOSE_DISPLAY="${DOCKER_COMPOSE_CMD[*]}"
 
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
   echo "[Ошибка] Не найден docker-compose файл: ${COMPOSE_FILE}" >&2
+  exit 1
+fi
+
+if ! detect_python_cmd; then
+  joined_candidates=$(printf '%s, ' "${PYTHON_CANDIDATES[@]}")
+  joined_candidates=${joined_candidates%, }
+  echo "[Ошибка] Не удалось найти рабочий Python 3. Проверены команды: ${joined_candidates}." >&2
+  echo "[Ошибка] Установите Python 3 (например, через пакетный менеджер ОС, Microsoft Store или py launcher) и повторите запуск." >&2
   exit 1
 fi
 
@@ -57,7 +92,7 @@ rabbitmq_status() {
   local ps_output="" ps_status=0
 
   if ps_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1); then
-    printf '%s\n' "${ps_output}" | python3 - <<'PY'
+    printf '%s\n' "${ps_output}" | ${PYTHON_CMD} - <<'PY'
 import json
 import sys
 
@@ -124,7 +159,7 @@ PY
   if [[ "${ps_output_lower}" == *"unknown flag: --format"* || "${ps_output_lower}" == *"no such option: --format"* || "${ps_output_lower}" == *"no such option --format"* ]]; then
     local fallback_output="" fallback_status=0
     if fallback_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps rabbitmq 2>&1); then
-      printf '%s\n' "${fallback_output}" | python3 - <<'PY'
+      printf '%s\n' "${fallback_output}" | ${PYTHON_CMD} - <<'PY'
 import re
 import sys
 
@@ -362,7 +397,7 @@ ensure_permissions() {
 
 parse_amqp_url() {
   local url="$1"
-  python3 - "$url" <<'PY'
+  ${PYTHON_CMD} - "$url" <<'PY'
 import sys
 from urllib.parse import urlparse, unquote
 
