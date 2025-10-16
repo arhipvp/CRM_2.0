@@ -11,6 +11,17 @@ PID_DIR="${BACKEND_RUN_DIR}/pids"
 LOG_DIR="${BACKEND_RUN_DIR}/logs"
 LOG_PREFIX="[start-backend]"
 
+START_BACKEND_LOG_FILE_DEFAULT="${BACKEND_RUN_DIR}/start-backend.log"
+START_BACKEND_LOG_FILE_ENV="${START_BACKEND_LOG_FILE:-}"
+BACKEND_SCRIPT_LOG_FILE="${START_BACKEND_LOG_FILE_ENV:-${START_BACKEND_LOG_FILE_DEFAULT}}"
+SCRIPT_LOG_FILE_OVERRIDE=false
+if [[ -n "${START_BACKEND_LOG_FILE_ENV}" ]]; then
+  SCRIPT_LOG_FILE_OVERRIDE=true
+fi
+PARSE_ERROR=""
+PARSE_EXIT_CODE=0
+PARSE_SHOW_USAGE=false
+
 SERVICES=(
   "auth|backend/auth|./gradlew bootRun"
   "crm-api|backend/crm|poetry run crm-api"
@@ -20,10 +31,11 @@ SERVICES=(
 
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH]
+Usage: $0 [--run-dir PATH] [--log-file PATH]
 
 Запускает основные backend-процессы вне Docker Compose и сохраняет PID/логи в каталоге .local/run/backend.
   --run-dir PATH  переопределить каталог для PID и логов (по умолчанию ${BACKEND_RUN_DIR})
+  --log-file PATH путь к файлу журнала запуска (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
 USAGE
 }
 
@@ -150,41 +162,86 @@ parse_args() {
     case "$1" in
       --run-dir)
         if (($# < 2)); then
-          log_error "Для --run-dir требуется путь"
-          exit 1
+          PARSE_ERROR="Для --run-dir требуется путь"
+          PARSE_EXIT_CODE=1
+          return
         fi
         BACKEND_RUN_DIR="$(abspath "$2")"
         PID_DIR="${BACKEND_RUN_DIR}/pids"
         LOG_DIR="${BACKEND_RUN_DIR}/logs"
+        if [[ "${SCRIPT_LOG_FILE_OVERRIDE}" != true ]]; then
+          BACKEND_SCRIPT_LOG_FILE="${BACKEND_RUN_DIR}/start-backend.log"
+        fi
+        shift
+        ;;
+      --log-file)
+        if (($# < 2)); then
+          PARSE_ERROR="Для --log-file требуется путь"
+          PARSE_EXIT_CODE=1
+          return
+        fi
+        BACKEND_SCRIPT_LOG_FILE="$(abspath "$2")"
+        SCRIPT_LOG_FILE_OVERRIDE=true
         shift
         ;;
       -h|--help)
-        usage
-        exit 0
+        PARSE_SHOW_USAGE=true
+        return
         ;;
       *)
-        log_error "Неизвестный аргумент: $1"
-        usage
-        exit 1
+        PARSE_ERROR="Неизвестный аргумент: $1"
+        PARSE_EXIT_CODE=1
+        return
         ;;
     esac
     shift
   done
 
-  if [[ ! -d "${BACKEND_RUN_DIR}" ]]; then
-    mkdir -p "${BACKEND_RUN_DIR}"
+  if [[ "${SCRIPT_LOG_FILE_OVERRIDE}" != true ]]; then
+    if [[ "${BACKEND_SCRIPT_LOG_FILE}" != /* ]]; then
+      BACKEND_SCRIPT_LOG_FILE="$(abspath "${BACKEND_SCRIPT_LOG_FILE}")"
+    fi
   fi
-  PID_DIR="${BACKEND_RUN_DIR}/pids"
-  LOG_DIR="${BACKEND_RUN_DIR}/logs"
+}
+
+setup_logging() {
+  local target="$1"
+  if [[ -z "${target}" ]]; then
+    target="${BACKEND_RUN_DIR}/start-backend.log"
+  fi
+
+  local dir
+  dir="$(dirname "${target}")"
+  mkdir -p "${dir}"
+  BACKEND_SCRIPT_LOG_FILE="${target}"
+
+  # shellcheck disable=SC2094
+  exec > >(tee -a "${BACKEND_SCRIPT_LOG_FILE}") 2>&1
 }
 
 main() {
   parse_args "$@"
+
+  if [[ "${PARSE_SHOW_USAGE}" == true ]]; then
+    setup_logging "${BACKEND_SCRIPT_LOG_FILE}"
+    usage
+    exit 0
+  fi
+
+  setup_logging "${BACKEND_SCRIPT_LOG_FILE}"
+
+  if [[ -n "${PARSE_ERROR}" ]]; then
+    log_error "${PARSE_ERROR}"
+    usage
+    exit "${PARSE_EXIT_CODE}"
+  fi
+
   load_env
   ensure_directories
 
+  log_info "Журнал запуска: ${BACKEND_SCRIPT_LOG_FILE}"
   log_info "PID-файлы: ${PID_DIR}"
-  log_info "Логи: ${LOG_DIR}"
+  log_info "Логи сервисов: ${LOG_DIR}"
 
   require_command pnpm
   require_command poetry

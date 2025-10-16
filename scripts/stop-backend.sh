@@ -10,6 +10,15 @@ PID_DIR="${BACKEND_RUN_DIR}/pids"
 LOG_DIR="${BACKEND_RUN_DIR}/logs"
 LOG_PREFIX="[stop-backend]"
 
+START_BACKEND_LOG_FILE_DEFAULT="${BACKEND_RUN_DIR}/start-backend.log"
+START_BACKEND_LOG_FILE_ENV="${START_BACKEND_LOG_FILE:-}"
+BACKEND_SCRIPT_LOG_FILE="${START_BACKEND_LOG_FILE_ENV:-${START_BACKEND_LOG_FILE_DEFAULT}}"
+SCRIPT_LOG_FILE_OVERRIDE=false
+if [[ -n "${START_BACKEND_LOG_FILE_ENV}" ]]; then
+  SCRIPT_LOG_FILE_OVERRIDE=true
+fi
+STOP_CLEAN_LOGS=false
+
 SERVICES=(
   "gateway"
   "crm-worker"
@@ -19,10 +28,12 @@ SERVICES=(
 
 usage() {
   cat <<USAGE
-Usage: $0 [--run-dir PATH]
+Usage: $0 [--run-dir PATH] [--log-file PATH] [--clean-logs]
 
 Останавливает backend-процессы, запущенные scripts/start-backend.sh, по PID-файлам.
   --run-dir PATH  каталог с PID/логами (по умолчанию ${BACKEND_RUN_DIR})
+  --log-file PATH путь к журналу запуска backend (по умолчанию ${BACKEND_SCRIPT_LOG_FILE})
+  --clean-logs    удалить журналы запуска и сервисов после остановки
 USAGE
 }
 
@@ -58,7 +69,22 @@ parse_args() {
         BACKEND_RUN_DIR="$(abspath "$2")"
         PID_DIR="${BACKEND_RUN_DIR}/pids"
         LOG_DIR="${BACKEND_RUN_DIR}/logs"
+        if [[ "${SCRIPT_LOG_FILE_OVERRIDE}" != true ]]; then
+          BACKEND_SCRIPT_LOG_FILE="${BACKEND_RUN_DIR}/start-backend.log"
+        fi
         shift
+        ;;
+      --log-file)
+        if (($# < 2)); then
+          log_error "Для --log-file требуется путь"
+          exit 1
+        fi
+        BACKEND_SCRIPT_LOG_FILE="$(abspath "$2")"
+        SCRIPT_LOG_FILE_OVERRIDE=true
+        shift
+        ;;
+      --clean-logs)
+        STOP_CLEAN_LOGS=true
         ;;
       -h|--help)
         usage
@@ -80,6 +106,10 @@ parse_args() {
 
   PID_DIR="${BACKEND_RUN_DIR}/pids"
   LOG_DIR="${BACKEND_RUN_DIR}/logs"
+
+  if [[ "${SCRIPT_LOG_FILE_OVERRIDE}" != true && "${BACKEND_SCRIPT_LOG_FILE}" != /* ]]; then
+    BACKEND_SCRIPT_LOG_FILE="$(abspath "${BACKEND_SCRIPT_LOG_FILE}")"
+  fi
 }
 
 stop_pid() {
@@ -131,6 +161,32 @@ stop_pid() {
   rm -f "${pid_file}"
 }
 
+clean_logs() {
+  local removed_any=false
+
+  if [[ -d "${LOG_DIR}" ]]; then
+    rm -rf "${LOG_DIR}"
+    removed_any=true
+    log_info "Удалён каталог логов сервисов ${LOG_DIR}"
+  fi
+
+  if [[ -n "${BACKEND_SCRIPT_LOG_FILE}" ]]; then
+    if [[ "${BACKEND_SCRIPT_LOG_FILE}" == "${BACKEND_RUN_DIR}"/* ]]; then
+      if [[ -f "${BACKEND_SCRIPT_LOG_FILE}" ]]; then
+        rm -f "${BACKEND_SCRIPT_LOG_FILE}"
+        removed_any=true
+        log_info "Удалён журнал запуска ${BACKEND_SCRIPT_LOG_FILE}"
+      fi
+    else
+      log_warn "Журнал запуска ${BACKEND_SCRIPT_LOG_FILE} расположен вне ${BACKEND_RUN_DIR}, пропускаем удаление"
+    fi
+  fi
+
+  if [[ "${removed_any}" == true ]]; then
+    log_info "Лог-файлы очищены"
+  fi
+}
+
 cleanup_run_dir() {
   if [[ -d "${PID_DIR}" ]]; then
     rmdir "${PID_DIR}" >/dev/null 2>&1 || true
@@ -152,10 +208,15 @@ main() {
   fi
 
   log_info "Используем каталог ${BACKEND_RUN_DIR}"
+  log_info "Журнал запуска backend: ${BACKEND_SCRIPT_LOG_FILE}"
 
   for service in "${SERVICES[@]}"; do
     stop_pid "$service"
   done
+
+  if [[ "${STOP_CLEAN_LOGS}" == true ]]; then
+    clean_logs
+  fi
 
   cleanup_run_dir
 }

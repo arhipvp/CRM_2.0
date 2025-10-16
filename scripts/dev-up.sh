@@ -9,6 +9,9 @@ ENV_FILE="${ROOT_DIR}/.env"
 COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 LOG_PREFIX="[dev-up]"
 
+DEFAULT_LOG_FILE="${ROOT_DIR}/.local/logs/dev-up.log"
+DEV_UP_LOG_FILE="${DEV_UP_LOG_FILE:-${DEFAULT_LOG_FILE}}"
+
 log_info() {
   printf '%s %s\n' "${LOG_PREFIX}" "$1"
 }
@@ -45,13 +48,14 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--open-browser|--no-browser] [--skip-frontend] [--skip-backend] [--with-backend]
+Использование: $0 [--open-browser|--no-browser] [--skip-frontend] [--skip-backend] [--with-backend] [--log-file PATH]
 
   --open-browser   принудительно открыть браузер после запуска
   --no-browser     не открывать браузер (перекрывает переменную LOCAL_LAUNCH_OPEN_BROWSER)
   --skip-frontend  пропустить запуск контейнера фронтенда
   --skip-backend   не запускать профиль backend (gateway, auth, crm, documents, notifications, tasks)
   --with-backend   запустить scripts/start-backend.sh после миграций bootstrap-скрипта
+  --log-file PATH  путь к файлу журнала (по умолчанию ${DEV_UP_LOG_FILE})
 USAGE
 }
 
@@ -101,6 +105,14 @@ while (($# > 0)); do
         bootstrap_args+=(--with-backend)
       fi
       ;;
+    --log-file)
+      if (($# < 2)); then
+        log_error "Для --log-file требуется путь"
+        exit 1
+      fi
+      DEV_UP_LOG_FILE="$2"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -113,6 +125,28 @@ while (($# > 0)); do
   esac
   shift
 done
+
+setup_logging() {
+  local target="$1"
+  if [[ -z "${target}" ]]; then
+    target="${DEFAULT_LOG_FILE}"
+  fi
+
+  if [[ "${target}" != /* ]]; then
+    target="${ROOT_DIR}/${target}"
+  fi
+
+  local dir
+  dir="$(dirname "${target}")"
+  mkdir -p "${dir}"
+  DEV_UP_LOG_FILE="${target}"
+
+  # shellcheck disable=SC2094
+  exec > >(tee -a "${DEV_UP_LOG_FILE}") 2>&1
+}
+
+setup_logging "${DEV_UP_LOG_FILE}"
+log_info "Логи сохраняются в ${DEV_UP_LOG_FILE}"
 
 if [[ "${with_backend}" == "true" && "${skip_backend}" == "false" ]]; then
   log_warn "Флаг --with-backend не отключает docker compose профиль backend. Добавьте --skip-backend при необходимости."
