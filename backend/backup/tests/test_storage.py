@@ -57,6 +57,14 @@ def test_s3_storage_uses_none_endpoint_when_not_provided(monkeypatch) -> None:
     assert captured_kwargs.get("endpoint_url") is None
     assert isinstance(storage._client, DummyClient)
 
+    settings_with_whitespace_endpoint = _build_settings(s3_endpoint_url="   ")
+    assert settings_with_whitespace_endpoint.s3_endpoint_url is None
+
+    storage = S3Storage(settings_with_whitespace_endpoint)
+
+    assert captured_kwargs.get("endpoint_url") is None
+    assert isinstance(storage._client, DummyClient)
+
 
 def test_build_storage_returns_s3_when_all_params_present(monkeypatch) -> None:
     created_clients: list[object] = []
