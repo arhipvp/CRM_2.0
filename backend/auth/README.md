@@ -75,9 +75,11 @@ cd backend/auth
 ```
 Далее:
 ```bash
-docker run --rm -p ${AUTH_SERVICE_PORT:-8081}:8081 --env-file ../../env.example crm-auth:local
+docker run --rm -p ${AUTH_SERVICE_PORT:-8081}:8081 \
+  -e AUTH_DATABASE_URL="r2dbc:postgresql://auth:auth@postgres:5432/crm?schema=auth" \
+  crm-auth:local
 ```
-Настоятельно рекомендуется использовать собственный `.env` вместо шаблона для локальной разработки.
+Если контейнер Auth должен подключаться к PostgreSQL, запущенному на хостовой машине, замените `postgres` на `host.docker.internal` (Linux поддерживается через `extra_hosts` в `infra/docker-compose.yml`). Настоятельно рекомендуется создавать собственный `.env` и передавать только нужные значения через `-e` или `--env-file` при запуске контейнера.
 
 ## Дополнительные ссылки
 - [Архитектурный обзор](../../docs/architecture.md)
