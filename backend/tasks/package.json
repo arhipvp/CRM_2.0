@@ -4,7 +4,7 @@
   "description": "Tasks microservice for CRM 2.0",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && nest build",
+    "build": "rimraf dist tsconfig.build.tsbuildinfo && nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",

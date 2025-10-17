@@ -20,6 +20,15 @@ pnpm start:dev
 
 API будет доступно на `http://localhost:${TASKS_SERVICE_PORT}/api`. Эндпоинт `GET /api/health` возвращает статус сервиса. Создание, перенос, обновление и завершение задач выполняются через REST-команды `/api/tasks`.
 
+### Сборка и запуск в production-профиле
+
+```bash
+pnpm run build
+pnpm start:prod
+```
+
+Команда `pnpm run build` выполняет `nest build` и складывает артефакты в `dist/`. За счёт `rootDir=./src` результирующий entrypoint всегда попадает в `dist/main.js`, поэтому `pnpm start`/`pnpm start:prod` используют единый путь запуска. Файл [`typeorm.config.ts`](typeorm.config.ts) и миграции оставлены вне `src` и исключены из компиляции — CLI TypeORM продолжает работать через `ts-node -r tsconfig-paths/register`, используя исходники напрямую.
+
 > При попытке обратиться к отсутствующей задаче API возвращает `404 task_not_found` с телом
 > `{ "statusCode": 404, "code": "task_not_found", "message": "Task {task_id} not found" }`.
 

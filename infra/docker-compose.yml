@@ -420,7 +420,7 @@ services:
       args:
         SERVICE_PATH: backend/tasks
         BUILD_COMMAND: pnpm run build
-        START_COMMAND: node dist/src/main.js
+        START_COMMAND: node dist/main.js
     container_name: crm-tasks
     restart: unless-stopped
     environment:
