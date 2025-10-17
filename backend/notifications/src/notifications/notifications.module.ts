@@ -13,9 +13,11 @@ import { NotificationsStatusController } from './notifications.status.controller
 import { NotificationsService } from './notifications.service';
 import { NotificationEntity } from './notification.entity';
 import { NotificationDeliveryAttemptEntity } from './notification-delivery-attempt.entity';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
+    MessagingModule,
     TypeOrmModule.forFeature([
       NotificationEventEntity,
       NotificationEntity,
