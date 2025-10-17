@@ -37,4 +37,4 @@ jdk-25/
 *.log
 *.pid
 
-.local/
+#.local/

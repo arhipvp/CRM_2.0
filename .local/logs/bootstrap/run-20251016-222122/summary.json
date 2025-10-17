@@ -1,0 +1,103 @@
+{
+  "started_at": "2025-10-16T19:21:22Z",
+  "finished_at": "2025-10-16T19:26:57Z",
+  "overall_status": "FAIL",
+  "steps": [
+    {
+      "name": "Проверка зависимостей",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/00__.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/00__.log"
+    },
+    {
+      "name": "Синхронизация .env",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/01__env.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/01__env.log"
+    },
+    {
+      "name": "Проверка .env",
+      "status": "OK",
+      "message": "Файл найден",
+      "log_path": null
+    },
+    {
+      "name": "Проверка портов .env",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/03__env.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/03__env.log"
+    },
+    {
+      "name": "docker compose up -d",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/04_docker_compose_up_-d.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/04_docker_compose_up_-d.log"
+    },
+    {
+      "name": "Запуск backend-профиля",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/05__backend-_.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/05__backend-_.log"
+    },
+    {
+      "name": "Smoke-проверка BACKUP_*",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/06_Smoke-_BACKUP_.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/06_Smoke-_BACKUP_.log"
+    },
+    {
+      "name": "Smoke-проверка backup без S3",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/07_Smoke-_backup_S3.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/07_Smoke-_backup_S3.log"
+    },
+    {
+      "name": "Ожидание готовности docker compose",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/08__docker_compose.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/08__docker_compose.log"
+    },
+    {
+      "name": "Ожидание готовности backend-сервисов",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/09__backend-_.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/09__backend-_.log"
+    },
+    {
+      "name": "Bootstrap RabbitMQ",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/10_Bootstrap_RabbitMQ.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/10_Bootstrap_RabbitMQ.log"
+    },
+    {
+      "name": "Миграции CRM/Auth",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/11__CRM_Auth.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/11__CRM_Auth.log"
+    },
+    {
+      "name": "Запуск локальных backend-процессов",
+      "status": "SKIP",
+      "message": "флаг --with-backend не передан",
+      "log_path": null
+    },
+    {
+      "name": "Запуск фронтенда",
+      "status": "OK",
+      "message": "Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/13__.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/13__.log"
+    },
+    {
+      "name": "Загрузка seed-данных",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/14__seed-_.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/14__seed-_.log"
+    },
+    {
+      "name": "Проверка локальной инфраструктуры",
+      "status": "FAIL",
+      "message": "Код 1. Лог: ./.local/logs/bootstrap/run-20251016-222122/steps/15__.log",
+      "log_path": "/c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251016-222122/steps/15__.log"
+    }
+  ]
+}
