@@ -1,0 +1,14 @@
+Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов
+NAME                IMAGE                      COMMAND                  SERVICE         CREATED              STATUS                          PORTS
+crm-auth            infra-auth                 "java -jar app.jar"      auth            14 minutes ago       Up 14 minutes (healthy)         0.0.0.0:8081->8081/tcp, [::]:8081->8081/tcp
+crm-backup          infra-backup               "uvicorn backup.main…"   backup          About a minute ago   Up 28 seconds                   0.0.0.0:8094->8094/tcp, [::]:8094->8094/tcp
+crm-consul          hashicorp/consul:1.16      "docker-entrypoint.s…"   consul          59 minutes ago       Up 59 minutes (healthy)         0.0.0.0:8500->8500/tcp, [::]:8500->8500/tcp, 0.0.0.0:8502->8502/tcp, [::]:8502->8502/tcp, 0.0.0.0:8600->8600/udp, [::]:8600->8600/udp
+crm-crm             infra-crm                  "poetry run crm-api"     crm             11 minutes ago       Up 11 minutes (healthy)         0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp
+crm-documents       infra-documents            "docker-entrypoint.s…"   documents       14 minutes ago       Restarting (0) 24 seconds ago   
+crm-gateway         infra-gateway              "docker-entrypoint.s…"   gateway         14 minutes ago       Up About a minute (unhealthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+crm-notifications   infra-notifications        "docker-entrypoint.s…"   notifications   14 minutes ago       Restarting (1) 8 seconds ago    
+crm-pgadmin         dpage/pgadmin4:8           "/entrypoint.sh"         pgadmin         59 minutes ago       Up 58 minutes                   0.0.0.0:5050->80/tcp, [::]:5050->80/tcp
+crm-postgres        postgres:15-alpine         "docker-entrypoint.s…"   postgres        59 minutes ago       Up 59 minutes (healthy)         0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+crm-rabbitmq        rabbitmq:3.12-management   "docker-entrypoint.s…"   rabbitmq        59 minutes ago       Up 59 minutes (healthy)         0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+crm-redis           redis:7-alpine             "docker-entrypoint.s…"   redis           59 minutes ago       Up 59 minutes (healthy)         0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+crm-tasks           infra-tasks                "docker-entrypoint.s…"   tasks           14 minutes ago       Up 12 minutes (healthy)         0.0.0.0:8086->8086/tcp, [::]:8086->8086/tcp
