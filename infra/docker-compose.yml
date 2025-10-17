@@ -366,7 +366,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      START_COMMAND: node dist/src/main.js
+      START_COMMAND: node dist/main.js
       NOTIFICATIONS_HTTP_HOST: ${NOTIFICATIONS_HTTP_HOST:-0.0.0.0}
       NOTIFICATIONS_HTTP_PORT: ${NOTIFICATIONS_SERVICE_PORT:-8085}
       NOTIFICATIONS_BASE_URL: http://notifications:${NOTIFICATIONS_SERVICE_PORT:-8085}/api
