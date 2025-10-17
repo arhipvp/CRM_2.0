@@ -1,9 +1,9 @@
-import 'dotenv/config';
-import dataSource from '../../typeorm.config';
+import { createTaskDataSource } from '../database/task.datasource';
 import { TaskStatusEntity } from '../tasks/entities/task-status.entity';
 import { DEFAULT_TASK_STATUSES } from '../tasks/constants/task-status.constants';
 
 async function run() {
+  const dataSource = createTaskDataSource();
   await dataSource.initialize();
   const repository = dataSource.getRepository(TaskStatusEntity);
 
