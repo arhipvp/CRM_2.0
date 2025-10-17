@@ -16,23 +16,22 @@ class Settings(BaseSettings):
     app_name: str = Field(default="CRM Deals Service")
     api_prefix: str = Field(default="/api/v1")
 
-    service_host: str = Field(default="0.0.0.0", alias="service_host")
-    service_port: int = Field(default=8082, alias="service_port")
+    service_host: str = Field(default="0.0.0.0")
+    service_port: int = Field(default=8082)
 
     database_url: AnyUrl = Field(
         default="postgresql+asyncpg://user:pass@localhost:5432/crm",
-        alias="database_url",
     )
-    redis_url: AnyUrl = Field(default="redis://localhost:6379/0", alias="redis_url")
-    rabbitmq_url: AnyUrl = Field(default="amqp://guest:guest@localhost:5672/", alias="rabbitmq_url")
+    redis_url: AnyUrl = Field(default="redis://localhost:6379/0")
+    rabbitmq_url: AnyUrl = Field(default="amqp://guest:guest@localhost:5672/")
 
     permissions_queue_name: str = Field(default="permissions:sync")
     permissions_queue_prefix: str = Field(default="bull")
     permissions_job_name: str = Field(default="permissions.sync")
-    permissions_redis_url: Optional[AnyUrl] = Field(default=None, alias="permissions_redis_url")
+    permissions_redis_url: Optional[AnyUrl] = Field(default=None)
 
-    celery_broker_url: Optional[AnyUrl] = Field(default=None, alias="celery_broker_url")
-    celery_result_backend: Optional[AnyUrl] = Field(default=None, alias="celery_result_backend")
+    celery_broker_url: Optional[AnyUrl] = Field(default=None)
+    celery_result_backend: Optional[AnyUrl] = Field(default=None)
 
     celery_default_queue: str = Field(default="crm.default")
     celery_task_routes: dict[str, dict[str, str]] = Field(
@@ -47,7 +46,7 @@ class Settings(BaseSettings):
 
     default_tenant_id: Optional[str] = None
 
-    documents_base_url: Optional[AnyUrl] = Field(default=None, alias="documents_base_url")
+    documents_base_url: Optional[AnyUrl] = Field(default=None)
 
     @property
     def resolved_celery_broker(self) -> str:

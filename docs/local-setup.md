@@ -95,8 +95,8 @@ Bootstrap-скрипт выполняет полный цикл подготов
 ### CRM / Deals: быстрый старт
 
 - Перейдите в `backend/crm` и, если запускаете сервис вручную, установите зависимости `poetry install --sync --no-root`. При запуске через `./scripts/bootstrap-local.sh --with-backend` helper `start-backend.sh` подтянет зависимости автоматически.
-
 - Выполните `../../scripts/sync-env.sh backend/crm` (при необходимости добавьте `--non-interactive`), чтобы скопировать шаблон `.env`. После синхронизации пересмотрите блок переменных `CRM_*` (PostgreSQL, Redis, RabbitMQ, очереди событий) и замените секреты на локальные значения.
+  > ℹ️ Сервис CRM больше не считывает административный `DATABASE_URL` автоматически — для подключения приложения используйте только `CRM_DATABASE_URL` (значение без префикса пригодится для ручных миграций и других админских сценариев).
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
