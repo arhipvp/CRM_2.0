@@ -23,7 +23,7 @@
 ## Процедура загрузки
 
 1. Подготовьте окружение согласно [docs/local-setup.md](local-setup.md): создайте `.env`, поднимите инфраструктурные контейнеры, выполните миграции (`poetry run alembic upgrade head`, `./gradlew update` и т.д.).
-2. Убедитесь, что `.env` синхронизирован с [env.example](../env.example) — он остаётся источником правды для параметров `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+2. Убедитесь, что `.env` синхронизирован с [env.example](../env.example) — он остаётся источником правды для параметров `POSTGRES_HOST`/`POSTGRES_HOST_INTERNAL`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
 3. Запустите автоматизированный скрипт загрузки:
    ```bash
    ./scripts/load-seeds.sh

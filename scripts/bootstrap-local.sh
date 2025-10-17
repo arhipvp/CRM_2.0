@@ -878,21 +878,18 @@ main() {
 
   run_step "Проверка портов .env" step_check_ports
   run_step "docker compose up -d" step_compose_up
-  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
-    run_step_skip "Запуск backend-профиля" "передан флаг пропуска backend-профиля"
-  else
-    run_step "Запуск backend-профиля" step_compose_backend_up
-  fi
-  run_step "Smoke-проверка BACKUP_*" step_check_backup_env
-  run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
   run_step "Ожидание готовности docker compose" step_wait_infra
-  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
-    run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
-  else
-    run_step "Ожидание готовности backend-сервисов" step_wait_backend
-  fi
   run_step "Bootstrap RabbitMQ" step_rabbitmq_bootstrap
   run_step "Миграции CRM/Auth" step_migrate
+  run_step "Smoke-проверка BACKUP_*" step_check_backup_env
+  run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
+  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
+    run_step_skip "Запуск backend-профиля" "передан флаг пропуска backend-профиля"
+    run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
+  else
+    run_step "Запуск backend-профиля" step_compose_backend_up
+    run_step "Ожидание готовности backend-сервисов" step_wait_backend
+  fi
   if is_truthy "${BOOTSTRAP_WITH_BACKEND_FLAG}"; then
     if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
       log_warn "Флаг --with-backend не отключает docker compose профиль backend. При необходимости добавьте --skip-backend."

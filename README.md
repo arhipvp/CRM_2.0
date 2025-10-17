@@ -14,17 +14,18 @@
 
 1. синхронизацию `.env` через `scripts/sync-env.sh --non-interactive` (создаёт файл или обновляет значения из `env.example`, пропуская уже существующие локальные `.env` без пауз);
 2. запуск инфраструктуры `docker compose --env-file .env up -d` в каталоге `infra/`;
-3. старт профильных API `docker compose --env-file .env --profile backend up -d gateway auth crm documents notifications tasks` (поддерживается флаг `--skip-backend` или переменная `BOOTSTRAP_SKIP_BACKEND=true` для ограничения только инфраструктурой);
-4. smoke-проверку `BACKUP_*`: при пустых `BACKUP_S3_*` скрипт сообщает о переходе на `DummyStorage` (штатный режим локальной разработки) и продолжает выполнение, а при частично заполненной конфигурации S3 — останавливается с подсказкой;
-5. дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты;
-6. ожидание готовности контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck) и отдельное ожидание backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`);
-7. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`);
-8. миграции CRM/Auth через `scripts/migrate-local.sh`;
-9. опциональный запуск локальных backend-процессов через `scripts/start-backend.sh` (активируется флагом `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`, PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`; путь можно переопределить опцией `--log-file` или переменной `START_BACKEND_LOG_FILE`). Для запуска только части сервисов используйте `--service NAME` (можно перечислять через запятую и повторять флаг, например `--service gateway` или `--service auth,crm-api --service gateway`).
-10. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
+3. ожидание готовности инфраструктурных контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
+4. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`) — обмены и очереди появляются до старта прикладных сервисов;
+5. миграции CRM/Auth через `scripts/migrate-local.sh`, пока инфраструктура готова, а backend-профиль ещё не поднят;
+6. smoke-проверку `BACKUP_*`: при пустых `BACKUP_S3_*` скрипт сообщает о переходе на `DummyStorage` (штатный режим локальной разработки) и продолжает выполнение, а при частично заполненной конфигурации S3 — останавливается с подсказкой;
+7. дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты;
+8. старт профильных API `docker compose --env-file .env --profile backend up -d gateway auth crm documents notifications tasks` (поддерживается флаг `--skip-backend` или переменная `BOOTSTRAP_SKIP_BACKEND=true` для ограничения только инфраструктурой);
+9. ожидание готовности backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`);
+10. опциональный запуск локальных backend-процессов через `scripts/start-backend.sh` (активируется флагом `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`, PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`; путь можно переопределить опцией `--log-file` или переменной `START_BACKEND_LOG_FILE`). Для запуска только части сервисов используйте `--service NAME` (можно перечислять через запятую и повторять флаг, например `--service gateway` или `--service auth,crm-api --service gateway`).
+11. запуск фронтенда `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` (можно пропустить флагом `--skip-frontend`
    или переменной `BOOTSTRAP_SKIP_FRONTEND=true`);
-11. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
-12. smoke-проверку окружения `scripts/check-local-infra.sh` (PostgreSQL, Redis, Consul, RabbitMQ UI, Reports) и REST/SSE эндпоинтов backend-профиля (Gateway, Auth, CRM, Documents, Notifications, Tasks).
+12. загрузку seed-данных, если существует `scripts/load-seeds.sh`;
+13. smoke-проверку окружения `scripts/check-local-infra.sh` (PostgreSQL, Redis, Consul, RabbitMQ UI, Reports) и REST/SSE эндпоинтов backend-профиля (Gateway, Auth, CRM, Documents, Notifications, Tasks).
 
 Если требуется один сценарий с дополнительными опциями (`--open-browser`, `--no-browser`, `--skip-frontend`, `--skip-backend`, `--with-backend`, `--log-file PATH`), используйте `./scripts/dev-up.sh` — он остаётся обёрткой вокруг bootstrap-скрипта и переиспользует шаги, добавляя автоматическое открытие браузера и тонкую настройку запуска фронтенда и прикладных API. При запуске `./scripts/dev-up.sh --skip-frontend` или `--skip-backend` соответствующий профиль автоматически пропускается в bootstrap, поэтому контейнеры не стартуют ни на одном этапе. Флаг `--with-backend` (или переменная `DEV_UP_WITH_BACKEND=true`) передаёт в bootstrap необходимость запуска `scripts/start-backend.sh` и выводит предупреждение, если параллельно остаётся активным compose-профиль backend. Журнал работы `dev-up` пишется через `tee` в `.local/logs/dev-up.log` (переменная `DEV_UP_LOG_FILE` либо опция `--log-file` позволяют задать другой путь; при повторных запусках запись продолжается в конец файла, относительные пути интерпретируются относительно корня репозитория). Ручные вызовы `scripts/start-backend.sh` (включая `--service`) и `scripts/stop-backend.sh` остаются совместимыми с автоматическими сценариями — bootstrap и `dev-up` используют те же helpers и корректно обрабатывают уже запущенные процессы.
 
