@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { RedisModule, RedisModuleOptions } from '@liaoliaots/nestjs-redis';
 import configuration, { NotificationsConfiguration } from './config/configuration';
 import { validationSchema } from './config/validation';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TemplatesModule } from './templates/templates.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -30,26 +30,7 @@ import { TemplatesModule } from './templates/templates.module';
         migrationsRun: false
       })
     }),
-    RabbitMQModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: async (
-        configService: ConfigService<NotificationsConfiguration>
-      ) => {
-        const uri = configService.getOrThrow<string>('rabbitmq.uri', { infer: true });
-        const exchange = configService.getOrThrow<string>('rabbitmq.exchange', { infer: true });
-        return {
-          uri,
-          exchanges: [
-            {
-              name: exchange,
-              type: 'topic'
-            }
-          ],
-          connectionInitOptions: { wait: true },
-          enableControllerDiscovery: true
-        };
-      }
-    }),
+    MessagingModule,
     RedisModule.forRootAsync({
       inject: [ConfigService],
       useFactory: async (
