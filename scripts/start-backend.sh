@@ -133,10 +133,8 @@ ensure_poetry_env() {
 
   (
     cd "${service_dir}" || exit 1
-    if ! poetry env info --path >/dev/null 2>&1; then
-      log_info "${service_name}: Poetry-окружение не найдено, выполняем 'poetry install --sync --no-root' для установки зависимостей."
-      poetry install --sync --no-root
-    fi
+    log_info "${service_name}: выполняем 'poetry install --sync --no-root' для синхронизации зависимостей."
+    poetry install --sync --no-root
   )
 }
 
