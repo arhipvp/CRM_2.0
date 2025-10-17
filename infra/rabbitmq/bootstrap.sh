@@ -425,10 +425,14 @@ PY
 }
 
 declare -A USER_COMBOS=()
+declare -A USER_SOURCES=()
 
 USER_COMBOS["${RABBITMQ_DEFAULT_USER}@${RABBITMQ_DEFAULT_VHOST}"]="${RABBITMQ_DEFAULT_PASS}"
+USER_SOURCES["${RABBITMQ_DEFAULT_USER}@${RABBITMQ_DEFAULT_VHOST}"]="RABBITMQ_DEFAULT_USER"
 
-while IFS= read -r var_name; do
+mapfile -t rabbitmq_url_vars < <(compgen -v | grep -E '_RABBITMQ_(URL|URI)$' | sort -u)
+
+for var_name in "${rabbitmq_url_vars[@]}"; do
   url_value="${!var_name}"
   if [[ -z "${url_value}" ]]; then
     continue
@@ -441,13 +445,34 @@ while IFS= read -r var_name; do
     echo "[Предупреждение] Пропускаем переменную ${var_name}: пользователь или vhost не определены в URL '${url_value}'." >&2
     continue
   fi
-  USER_COMBOS["${local_user}@${local_vhost}"]="${local_password}"
-done < <(compgen -v | grep -E '_RABBITMQ_URL$')
+  combo_key="${local_user}@${local_vhost}"
+  if [[ -v USER_COMBOS["${combo_key}"] ]]; then
+    existing_source="${USER_SOURCES["${combo_key}"]}"
+    if [[ "${USER_COMBOS["${combo_key}"]}" != "${local_password}" ]]; then
+      echo "[Предупреждение] Пропускаем переменную ${var_name}: комбинация ${combo_key} уже получена из ${existing_source} с другим паролем." >&2
+    else
+      echo "[Инфо] Пропускаем переменную ${var_name}: комбинация ${combo_key} уже получена из ${existing_source}." >&2
+    fi
+    continue
+  fi
+  USER_COMBOS["${combo_key}"]="${local_password}"
+  USER_SOURCES["${combo_key}"]="${var_name}"
+done
 
 if [[ ${#USER_COMBOS[@]} -eq 0 ]]; then
-  echo "[Инфо] Не найдено ни одной переменной *_RABBITMQ_URL. Нечего делать." >&2
+  echo "[Инфо] Не найдено ни одной переменной *_RABBITMQ_URL или *_RABBITMQ_URI. Нечего делать." >&2
   exit 0
 fi
+
+echo "[Инфо] Найдены комбинации пользователей RabbitMQ и vhost:" >&2
+for combo_key in "${!USER_COMBOS[@]}"; do
+  if [[ -v USER_SOURCES["${combo_key}"] ]]; then
+    source_var="${USER_SOURCES["${combo_key}"]}"
+  else
+    source_var="RABBITMQ_DEFAULT_USER"
+  fi
+  echo "  ${source_var} -> ${combo_key}" >&2
+done
 
 ensure_rabbitmq_ready
 
