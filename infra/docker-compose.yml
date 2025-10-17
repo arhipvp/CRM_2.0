@@ -46,6 +46,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-crm}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-crm}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-crm}
+    command: ["sh", "-c", "chown -R rabbitmq:rabbitmq /var/lib/rabbitmq && rabbitmq-server"]
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
@@ -246,7 +247,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "pgrep java >/dev/null || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -288,7 +289,11 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/healthz || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8082/healthz').status == 200 else sys.exit(1)\"",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -303,7 +308,7 @@ services:
       args:
         SERVICE_PATH: backend/documents
         BUILD_COMMAND: pnpm run build
-        START_COMMAND: node dist/main.js
+        START_COMMAND: node dist/src/main.js
     container_name: crm-documents
     restart: unless-stopped
     environment:
@@ -341,7 +346,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -361,6 +366,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      START_COMMAND: node dist/src/main.js
       NOTIFICATIONS_HTTP_HOST: ${NOTIFICATIONS_HTTP_HOST:-0.0.0.0}
       NOTIFICATIONS_HTTP_PORT: ${NOTIFICATIONS_SERVICE_PORT:-8085}
       NOTIFICATIONS_BASE_URL: http://notifications:${NOTIFICATIONS_SERVICE_PORT:-8085}/api
@@ -405,7 +411,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/api/notifications/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/api/notifications/health || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -425,6 +431,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      START_COMMAND: node dist/main.js
       TASKS_SERVICE_HOST: ${TASKS_SERVICE_HOST:-0.0.0.0}
       TASKS_SERVICE_PORT: ${TASKS_SERVICE_PORT:-8086}
       TASKS_BASE_URL: http://tasks:${TASKS_SERVICE_PORT:-8086}
@@ -452,7 +459,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/api/health || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -474,6 +481,7 @@ services:
         FRONTEND_SERVER_TIMEOUT_MS: ${FRONTEND_SERVER_TIMEOUT_MS:-7500}
     environment:
       NODE_ENV: production
+      START_COMMAND: node dist/src/main.js
       PORT: 3000
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api}
       NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-http://gateway:8080/api/v1/streams/deals}
