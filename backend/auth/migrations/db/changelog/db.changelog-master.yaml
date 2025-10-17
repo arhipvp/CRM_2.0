@@ -1,4 +1,4 @@
 databaseChangeLog:
   - include:
-      file: db/changelog/changesets/0001-init-auth-tables.yaml
+      file: changesets/0001-init-auth-tables.yaml
       relativeToChangelogFile: true

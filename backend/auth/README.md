@@ -52,6 +52,8 @@ cd backend/auth
 ```
 Первый набор (`0001-init-auth-tables`) создаёт таблицы `users`, `roles`, `user_roles` и заполняет базовые роли.
 
+> ℹ️ Главный changelog [`db.changelog-master.yaml`](migrations/db/changelog/db.changelog-master.yaml) использует `relativeToChangelogFile: true`, поэтому include должен выглядеть как `file: changesets/0001-init-auth-tables.yaml` без префикса `db/changelog`. После изменения структуры changelog'ов запустите `./gradlew update`, чтобы проверить, что Liquibase видит новый changeSet.
+
 ### Быстрый запуск миграций CRM и Auth
 
 Чтобы применить миграции CRM (Alembic) и Auth (Liquibase) одной командой, переходите в корень репозитория и выполните:
