@@ -25,8 +25,12 @@ const resolveConsulConstructor = (moduleExport: unknown): ConsulConstructor => {
     typeof (moduleExport as { default?: unknown })?.default === 'function'
       ? (moduleExport as { default: unknown }).default
       : undefined;
+  const namedExport =
+    typeof (moduleExport as { Consul?: unknown })?.Consul === 'function'
+      ? (moduleExport as { Consul: unknown }).Consul
+      : undefined;
 
-  const constructor = (directExport ?? defaultExport) as unknown;
+  const constructor = (directExport ?? defaultExport ?? namedExport) as unknown;
 
   if (typeof constructor !== 'function') {
     throw new Error('Unable to resolve Consul constructor from "consul" module export');
@@ -61,7 +65,17 @@ const resolveConsulConstructor = (moduleExport: unknown): ConsulConstructor => {
 
         const ConsulClient = resolveConsulConstructor(ConsulFactory);
 
-        return new ConsulClient(consulOptions);
+        try {
+          return new ConsulClient(consulOptions);
+        } catch (error) {
+          if (error instanceof TypeError) {
+            return (ConsulClient as unknown as (options: ConsulOptions) => Consul)(
+              consulOptions,
+            );
+          }
+
+          throw error;
+        }
       }
     },
     ConsulService
