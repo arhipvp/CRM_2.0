@@ -1,0 +1,3 @@
+[bootstrap-local] Используем интерпретатор Python: python
+[bootstrap-local][предупреждение] Команда 'psql' не найдена. Отсутствует локальный CLI PostgreSQL — скрипты будут пытаться использовать docker compose exec.
+[bootstrap-local][предупреждение] Команда 'redis-cli' не найдена. Для локальных проверок Redis используйте docker compose exec redis redis-cli.

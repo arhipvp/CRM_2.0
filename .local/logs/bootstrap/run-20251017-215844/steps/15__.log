@@ -1,0 +1,19 @@
+
+Проверка   | Статус | Комментарий
+------------------+--------+--------------------------------
+PostgreSQL         | OK     | SELECT 1 выполнен (docker exec)
+Reports schema     | OK     | current_schema=reports (docker exec)
+Redis              | OK     | PING → PONG (docker exec)
+Consul             | OK     | Лидер: true (docker exec)
+RabbitMQ UI        | OK     | Нода запущена (rabbitmq-diagnostics)
+Gateway REST       | WARN   | Сервис gateway не запущен (профиль backend отключён?)
+Gateway SSE        | WARN   | Сервис gateway не запущен (профиль backend отключён?)
+Auth API           | FAIL   | 000curl: (52) Empty reply from server
+CRM API            | FAIL   | 000curl: (28) Failed to connect to localhost port 8082 after 2005 ms: Timeout was reached
+Documents API      | FAIL   | 000curl: (28) Failed to connect to localhost port 8084 after 2002 ms: Timeout was reached
+Notifications REST | FAIL   | 000curl: (28) Failed to connect to localhost port 8085 after 2003 ms: Timeout was reached
+Notifications SSE  | FAIL   | 
+Tasks API          | FAIL   | 000curl: (28) Failed to connect to localhost port 8086 after 2002 ms: Timeout was reached
+Reports API        | WARN   | Недоступен: 000curl: (7) Failed to connect to localhost port 8087 after 2238 ms: Couldn't connect to server
+Backup API         | WARN   | Недоступен: 000curl: (52) Empty reply from server
+Backup env         | WARN   | S3-креды не заданы, используется DummyStorage; опциональные переменные пусты: BACKUP_CONSUL_TOKEN BACKUP_REDIS_PASSWORD

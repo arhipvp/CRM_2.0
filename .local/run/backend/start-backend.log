@@ -1,0 +1,25 @@
+[start-backend][ошибка] Неизвестный аргумент: --gateway
+Usage: scripts/start-backend.sh [--run-dir PATH] [--log-file PATH] [--service NAME[,NAME2] ...]
+
+Запускает основные backend-процессы вне Docker Compose и сохраняет PID/логи в каталоге .local/run/backend.
+  --run-dir PATH  переопределить каталог для PID и логов (по умолчанию /c/Dev/CRM_2.0/.local/run/backend)
+  --log-file PATH путь к файлу журнала запуска (по умолчанию /c/Dev/CRM_2.0/.local/run/backend/start-backend.log)
+  --service NAME[,NAME2]
+                  запустить только указанные сервисы (можно повторять опцию несколько раз)
+[start-backend] Журнал запуска: /c/Dev/CRM_2.0/.local/run/backend/start-backend.log
+[start-backend] PID-файлы: /c/Dev/CRM_2.0/.local/run/backend/pids
+[start-backend] Логи сервисов: /c/Dev/CRM_2.0/.local/run/backend/logs
+[start-backend] Выбраны все доступные сервисы
+[start-backend] Запускаем все сервисы: auth, crm-api, crm-worker, gateway
+[start-backend][предупреждение] Процесс с PID 9863 из auth.pid не найден. Удаляем устаревший PID-файл.
+[start-backend] auth: запускаем команду './gradlew bootRun'. Логи: /c/Dev/CRM_2.0/.local/run/backend/logs/auth.log
+[start-backend] auth: процесс запущен (PID 1003)
+[start-backend][предупреждение] Процесс с PID 9868 из crm-api.pid не найден. Удаляем устаревший PID-файл.
+[start-backend] crm-api: запускаем команду 'poetry run crm-api'. Логи: /c/Dev/CRM_2.0/.local/run/backend/logs/crm-api.log
+[start-backend] crm-api: процесс запущен (PID 1038)
+[start-backend][предупреждение] Процесс с PID 9876 из crm-worker.pid не найден. Удаляем устаревший PID-файл.
+[start-backend] crm-worker: запускаем команду 'poetry run crm-worker worker -l info'. Логи: /c/Dev/CRM_2.0/.local/run/backend/logs/crm-worker.log
+[start-backend] crm-worker: процесс запущен (PID 1060)
+[start-backend][предупреждение] Процесс с PID 9890 из gateway.pid не найден. Удаляем устаревший PID-файл.
+[start-backend] gateway: запускаем команду 'pnpm start:dev'. Логи: /c/Dev/CRM_2.0/.local/run/backend/logs/gateway.log
+[start-backend] gateway: процесс запущен (PID 1065)

@@ -1,0 +1,1 @@
+[bootstrap-local] BACKUP_S3_* переменные отсутствуют или пусты — будет использован DummyStorage.

@@ -1,0 +1,10 @@
+ Container crm-consul  Running
+ Container crm-rabbitmq  Running
+ Container crm-redis  Running
+ Container crm-postgres  Recreate
+ Container crm-postgres  Recreated
+ Container crm-pgadmin  Running
+ Container crm-backup  Recreate
+ Container crm-backup  Recreated
+ Container crm-postgres  Starting
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint crm-postgres (c7ab0fa03c3d7386757e72382507b47d2a49db9777600bdf2dcb23e1bddf6cbd): Bind for 0.0.0.0:5432 failed: port is already allocated

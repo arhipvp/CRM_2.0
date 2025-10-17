@@ -1,0 +1,2 @@
+[bootstrap-local] BACKUP_S3_* пусты — проверяем, что контейнер backup работает в режиме DummyStorage.
+[bootstrap-local][ошибка] Контейнер backup не запущен (docker compose ps -q вернул пустой результат).

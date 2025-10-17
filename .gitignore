@@ -25,16 +25,9 @@ infra/*.local.yml
 # Patch artifacts
 *.rej
 
-# Backups
-backups/**/*.gz
-backups/**/*.log
-backups/**/snap-*/
-backups/**/weekly/
-backups/**/monthly/
 
 jdk-25/
 
-*.log
 *.pid
 
 #.local/

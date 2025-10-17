@@ -1,0 +1,14 @@
+Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов
+NAME                IMAGE                      COMMAND                  SERVICE         CREATED              STATUS                                  PORTS
+crm-auth            infra-auth                 "java -jar app.jar"      auth            About a minute ago   Restarting (1) 1 second ago             
+crm-backup          infra-backup               "uvicorn backup.main…"   backup          About a minute ago   Restarting (1) 3 seconds ago            
+crm-consul          hashicorp/consul:1.16      "docker-entrypoint.s…"   consul          About a minute ago   Up About a minute (healthy)             0.0.0.0:8500->8500/tcp, [::]:8500->8500/tcp, 0.0.0.0:8502->8502/tcp, [::]:8502->8502/tcp, 0.0.0.0:8600->8600/udp, [::]:8600->8600/udp
+crm-crm             infra-crm                  "poetry run crm-api"     crm             About a minute ago   Restarting (1) 12 seconds ago           
+crm-documents       infra-documents            "docker-entrypoint.s…"   documents       About a minute ago   Restarting (0) 2 seconds ago            
+crm-notifications   infra-notifications        "docker-entrypoint.s…"   notifications   About a minute ago   Restarting (0) Less than a second ago   
+crm-pgadmin         dpage/pgadmin4:8           "/entrypoint.sh"         pgadmin         About a minute ago   Up About a minute                       0.0.0.0:5050->80/tcp, [::]:5050->80/tcp
+crm-postgres        postgres:15-alpine         "docker-entrypoint.s…"   postgres        About a minute ago   Up About a minute (healthy)             0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+crm-rabbitmq        rabbitmq:3.12-management   "docker-entrypoint.s…"   rabbitmq        About a minute ago   Up About a minute (healthy)             0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+crm-redis           redis:7-alpine             "docker-entrypoint.s…"   redis           About a minute ago   Up About a minute (healthy)             0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+crm-tasks           infra-tasks                "docker-entrypoint.s…"   tasks           About a minute ago   Restarting (0) 1 second ago             
+Контейнеры готовы.

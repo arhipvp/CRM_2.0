@@ -1,0 +1,2 @@
+[bootstrap-local] BACKUP_S3_* пусты — проверяем, что контейнер backup работает в режиме DummyStorage.
+[bootstrap-local][ошибка] Контейнер backup имеет статус 'restarting', ожидался 'running'.

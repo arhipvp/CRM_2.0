@@ -1,0 +1,6 @@
+Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов
+NAME           IMAGE                      COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+crm-consul     hashicorp/consul:1.16      "docker-entrypoint.s…"   consul     35 seconds ago   Up 32 seconds (healthy)   0.0.0.0:8500->8500/tcp, [::]:8500->8500/tcp, 0.0.0.0:8502->8502/tcp, [::]:8502->8502/tcp, 0.0.0.0:8600->8600/udp, [::]:8600->8600/udp
+crm-rabbitmq   rabbitmq:3.12-management   "docker-entrypoint.s…"   rabbitmq   35 seconds ago   Up 31 seconds (healthy)   0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+crm-redis      redis:7-alpine             "docker-entrypoint.s…"   redis      35 seconds ago   Up 31 seconds (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+Контейнеры готовы.

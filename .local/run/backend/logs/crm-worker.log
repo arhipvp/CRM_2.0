@@ -1,0 +1,36 @@
+Warning: 'crm-worker' is an entry point defined in pyproject.toml, but it's not installed as a script. You may get improper `sys.argv[0]`.
+
+The support to run uninstalled scripts will be removed in a future release.
+
+Run `poetry install` to resolve and get rid of this message.
+
+Traceback (most recent call last):
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click_didyoumean\__init__.py", line 35, in resolve_command
+    return super(DYMMixin, self).resolve_command(ctx, args)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click\core.py", line 1908, in resolve_command
+    ctx.fail(_("No such command {name!r}.").format(name=original_cmd_name))
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click\core.py", line 724, in fail
+    raise UsageError(message, self)
+click.exceptions.UsageError: No such command 'crm-worker'.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "C:\Dev\CRM_2.0\backend\crm\crm\app\workers.py", line 7, in main
+    celery_app.start()
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\celery\app\base.py", line 450, in start
+    celery.main(args=argv, standalone_mode=False)
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click\core.py", line 1383, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click\core.py", line 1844, in invoke
+    cmd_name, cmd, args = self.resolve_command(ctx, args)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\CRM_2.0\.venv\Lib\site-packages\click_didyoumean\__init__.py", line 50, in resolve_command
+    raise click.exceptions.UsageError(error_msg, error.ctx)
+click.exceptions.UsageError: No such command 'crm-worker'.
+
+Did you mean one of these?
+    worker

@@ -1,0 +1,10 @@
+[Инфо] Контейнер RabbitMQ не запущен (state='absent'). Пытаемся стартовать...
+[Инфо] Ожидаем готовность RabbitMQ (healthcheck)...
+[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за 60 секунд (state='absent', health='n/a'). Проверьте логи: docker
+compose
+--env-file
+/c/Dev/CRM_2.0/.env -f '/c/Dev/CRM_2.0/infra/docker-compose.yml' logs -f rabbitmq
+[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: docker
+compose
+--env-file
+/c/Dev/CRM_2.0/.env -f '/c/Dev/CRM_2.0/infra/docker-compose.yml' logs -f rabbitmq

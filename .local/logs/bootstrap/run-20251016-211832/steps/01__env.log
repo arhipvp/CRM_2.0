@@ -1,0 +1,12 @@
+Источник: /c/Dev/CRM_2.0/env.example
+[Пропуск] .env уже существует (режим skip-existing)
+[Пропуск] backend/gateway/.env уже существует (режим skip-existing)
+[Пропуск] backend/auth/.env уже существует (режим skip-existing)
+[Пропуск] backend/crm/.env уже существует (режим skip-existing)
+[Пропуск] backend/documents/.env уже существует (режим skip-existing)
+[Пропуск] backend/notifications/.env уже существует (режим skip-existing)
+[Пропуск] backend/tasks/.env уже существует (режим skip-existing)
+[Пропуск] backend/reports/.env уже существует (режим skip-existing)
+[Пропуск] backend/audit/.env уже существует (режим skip-existing)
+[Пропуск] frontend/.env уже существует (режим skip-existing)
+Готово. Не забудьте обновить чувствительные данные (пароли, токены) в скопированных файлах.
