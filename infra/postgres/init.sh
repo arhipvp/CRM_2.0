@@ -27,7 +27,7 @@ create_role() {
   log "Обработка роли ${role} и схемы ${schema}"
 
   psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<SQL
-DO $$
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${role}') THEN
     EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${role}', '${password}');
@@ -43,7 +43,7 @@ BEGIN
   EXECUTE format('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA %I TO %I', '${schema}', '${role}');
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO %I', '${schema}', '${role}');
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON SEQUENCES TO %I', '${schema}', '${role}');
-END$$;
+END\$\$;
 SQL
 }
 

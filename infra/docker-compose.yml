@@ -23,6 +23,8 @@ services:
       AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:-audit}
       BACKUP_DB_USER: ${BACKUP_DB_USER:-backup}
       BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:-backup}
+      REPORTS_DB_USER: ${REPORTS_DB_USER:-reports}
+      REPORTS_DB_PASSWORD: ${REPORTS_DB_PASSWORD:-reports}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
