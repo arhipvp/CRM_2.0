@@ -258,36 +258,6 @@ services:
       - infra
     profiles: ["backend"]
 
-  payments:
-    build:
-      context: ..
-      dockerfile: infra/docker/spring-boot-service.Dockerfile
-      args:
-        SERVICE_PATH: backend/payments
-    container_name: crm-payments
-    restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      PAYMENTS_SERVICE_PORT: ${PAYMENTS_SERVICE_PORT:-8083}
-      PAYMENTS_R2DBC_URL: ${PAYMENTS_R2DBC_URL_INTERNAL:-r2dbc:postgresql://${PAYMENTS_DB_USER:-payments}:${PAYMENTS_DB_PASSWORD:-payments}@${POSTGRES_HOST_INTERNAL:-postgres}:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?schema=payments}
-      PAYMENTS_DATABASE_URL: ${PAYMENTS_DATABASE_URL_INTERNAL:-jdbc:postgresql://${POSTGRES_HOST_INTERNAL:-postgres}:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?currentSchema=payments}
-      PAYMENTS_RABBITMQ_URL: ${PAYMENTS_RABBITMQ_INTERNAL_URL:-amqp://${RABBITMQ_DEFAULT_USER:-crm}:${RABBITMQ_DEFAULT_PASS:-crm}@${RABBITMQ_HOST_INTERNAL:-rabbitmq}:5672/${RABBITMQ_DEFAULT_VHOST:-crm}}
-    ports:
-      - "${PAYMENTS_SERVICE_PORT:-8083}:8083"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep java >/dev/null || exit 1"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-    networks:
-      - infra
-    profiles: ["backend"]
-
   crm:
     build:
       context: ..

@@ -220,7 +220,7 @@ Alembic миграции, прогрев кеша
 Платёжный модуль
 -----------------
 
-Платёжная логика выделена в отдельный Spring Boot-сервис `backend/payments`. Он использует общий кластер PostgreSQL (схема `payments`), читает основные данные сделок из CRM через REST/RabbitMQ и публикует события `payments.events`. На каждый полис можно завести несколько платежей, каждый из которых хранит плановые параметры и агрегированные суммы по таблице `payments.payments`. Детализированные движения фиксируются отдельными строками `payments.payment_incomes` и `payments.payment_expenses`; при изменениях публикуются события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*`.
+Платёжная логика теперь встроена в сервис CRM/Deals: отдельный Spring Boot-сервис не используется. Все операции записываются в таблицы `crm.payments`, `crm.payment_incomes` и `crm.payment_expenses` внутри общей схемы `crm`. CRUD по платежам доступен через REST API CRM, а события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` публикуются напрямую из CRM в exchange `crm.events`.
 
 Documents
 
