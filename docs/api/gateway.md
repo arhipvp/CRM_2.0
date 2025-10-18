@@ -176,11 +176,11 @@
 
 ## Прокси к внутренним сервисам
 
-Gateway обрабатывает валидацию и транзакции, затем вызывает соответствующие REST API. Для базовых операций доступны универсальные маршруты, которые проксируют все HTTP-методы и пути, сохраняя заголовки и тело запроса. При отсутствии статического `GATEWAY_UPSTREAM_*_BASE_URL` адрес сервиса резолвится через Consul (`GATEWAY_UPSTREAM_*_SERVICE_NAME`).【F:backend/gateway/src/http/proxy/rest-proxy.service.ts†L1-L143】
+Gateway обрабатывает валидацию и транзакции, затем вызывает соответствующие REST API. Для базовых операций доступны универсальные маршруты, которые проксируют все HTTP-методы и пути, сохраняя заголовки и тело запроса. При отсутствии статического `GATEWAY_UPSTREAM_*_BASE_URL` адрес сервиса резолвится через Consul (`GATEWAY_UPSTREAM_*_SERVICE_NAME`).【F:backend/gateway/src/http/proxy/rest-proxy.service.ts†L1-L212】
 
 | Маршрут | Upstream | Назначение | Примечания |
 | --- | --- | --- | --- |
-| `/{version}/crm/*` | `GATEWAY_UPSTREAM_CRM_BASE_URL` | Общий REST-прокси CRM/Deals/Clients | Поддерживает все HTTP-методы и query-параметры; fallback по Consul при пустом URL.【F:backend/gateway/src/http/crm/crm.controller.ts†L1-L22】 |
+| `/{version}/crm/*` | `GATEWAY_UPSTREAM_CRM_BASE_URL` | Общий REST-прокси CRM/Deals/Clients | Поддерживает все HTTP-методы и query-параметры; fallback по Consul при пустом URL. JSON-ответы преобразуются в `camelCase`, чтобы соответствовать контрактам BFF.【F:backend/gateway/src/http/crm/crm.controller.ts†L1-L22】【F:backend/gateway/src/http/proxy/response-transformers.ts†L1-L113】 |
 | `/{version}/auth/*` | `GATEWAY_UPSTREAM_AUTH_BASE_URL` | Авторизация и токены | Проксируется в Auth API для login/refresh/logout и проверки сессий.【F:backend/gateway/src/http/auth/auth.controller.ts†L1-L22】 |
 
 ### POST `/api/v1/deals`

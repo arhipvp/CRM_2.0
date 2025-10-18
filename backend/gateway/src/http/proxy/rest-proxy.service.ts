@@ -6,6 +6,8 @@ import type { AxiosResponseHeaders } from 'axios';
 
 import type { UpstreamServiceConfig, UpstreamTarget, UpstreamsConfig } from '../../config/upstreams.config';
 import { ConsulService } from '../../integrations/consul/consul.service';
+import type { ResponseTransformer } from './response-transformers';
+import { shouldTransformJson } from './response-transformers';
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -28,7 +30,13 @@ export class RestProxyService {
     private readonly consulService: ConsulService
   ) {}
 
-  async forward(target: UpstreamTarget, path: string, req: Request, res: Response): Promise<void> {
+  async forward(
+    target: UpstreamTarget,
+    path: string,
+    req: Request,
+    res: Response,
+    options?: { transformResponse?: ResponseTransformer }
+  ): Promise<void> {
     const upstreams = this.configService.get<UpstreamsConfig>('upstreams', { infer: true });
     const upstream = upstreams?.services[target];
 
@@ -59,7 +67,7 @@ export class RestProxyService {
         timeout: upstream.timeout ?? upstreams?.defaultTimeout
       });
 
-      this.forwardResponse(res, response.status, response.headers, response.data);
+      this.forwardResponse(res, response.status, response.headers, response.data, options);
     } catch (error) {
       const axiosError = error as { response?: { status: number; headers: Record<string, string>; data: unknown } };
 
@@ -68,7 +76,8 @@ export class RestProxyService {
           res,
           axiosError.response.status,
           axiosError.response.headers,
-          axiosError.response.data
+          axiosError.response.data,
+          options
         );
         return;
       }
@@ -105,7 +114,8 @@ export class RestProxyService {
     res: Response,
     status: number,
     headers: AxiosResponseHeaders | Record<string, unknown>,
-    data: unknown
+    data: unknown,
+    options?: { transformResponse?: ResponseTransformer }
   ): void {
     const normalizedHeaders: Record<string, unknown> =
       typeof (headers as AxiosResponseHeaders)?.toJSON === 'function'
@@ -134,12 +144,40 @@ export class RestProxyService {
       return;
     }
 
-    if (Buffer.isBuffer(data) || typeof data === 'string') {
-      res.send(data);
+    const transformed = this.applyTransform(data, normalizedHeaders, status, options?.transformResponse);
+
+    if (Buffer.isBuffer(transformed) || typeof transformed === 'string') {
+      res.send(transformed);
       return;
     }
 
-    res.json(data);
+    res.json(transformed);
+  }
+
+  private applyTransform(
+    data: unknown,
+    headers: Record<string, unknown>,
+    status: number,
+    transformer?: ResponseTransformer
+  ): unknown {
+    if (!transformer) {
+      return data;
+    }
+
+    if (Buffer.isBuffer(data)) {
+      return data;
+    }
+
+    if (!shouldTransformJson(headers, data)) {
+      return data;
+    }
+
+    try {
+      return transformer(data, { status, headers });
+    } catch (error) {
+      this.logger.warn(`Response transform failed: ${(error as Error).message}`);
+      return data;
+    }
   }
 
   private buildUrl(baseUrl: string, path: string): string {
