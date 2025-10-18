@@ -24,6 +24,8 @@ class Settings(BaseSettings):
         description="Относительный путь FastAPI-эндпоинта для приема обновлений",
     )
 
+    service_port: int = Field(default=8089, description="Порт HTTP-сервера")
+
     redis_url: AnyUrl = Field(..., description="Подключение к Redis для FSM и rate limiting")
 
     rabbitmq_url: AnyUrl = Field(..., description="AMQP-подключение к RabbitMQ")
