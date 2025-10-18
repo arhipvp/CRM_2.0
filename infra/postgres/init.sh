@@ -37,6 +37,7 @@ BEGIN
     EXECUTE format('CREATE SCHEMA %I AUTHORIZATION %I', '${schema}', '${role}');
   END IF;
 
+  EXECUTE format('ALTER ROLE %I WITH PASSWORD %L', '${role}', '${password}');
   EXECUTE format('ALTER ROLE %I IN DATABASE %I SET search_path TO %I, public', '${role}', '${POSTGRES_DB}', '${schema}');
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I', '${schema}', '${role}');
   EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO %I', '${schema}', '${role}');
