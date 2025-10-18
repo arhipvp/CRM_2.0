@@ -65,6 +65,32 @@ import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
+type CrmDeal = {
+  id: string;
+  client_id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  stage?: DealStage;
+  owner_id?: string | null;
+  next_review_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CrmDealStageMetric = {
+  stage: DealStage;
+  count: number;
+  total_value: number;
+  conversion_rate: number;
+  avg_cycle_duration_days: number | null;
+};
+
+type CrmClientSummary = {
+  id: string;
+  name?: string | null;
+};
+
 export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
@@ -313,6 +339,23 @@ function matchesEventFilters(entry: NotificationEventEntry, filters?: Notificati
   return true;
 }
 
+function mapStatusToStage(status: string | undefined): DealStage {
+  switch ((status ?? "").toLowerCase()) {
+    case "in_progress":
+    case "negotiation":
+      return "negotiation";
+    case "proposal":
+      return "proposal";
+    case "won":
+    case "closed_won":
+      return "closedWon";
+    case "lost":
+    case "closed_lost":
+      return "closedLost";
+    default:
+      return "qualification";
+  }
+}
 function sortEvents(items: NotificationEventEntry[]): NotificationEventEntry[] {
   return [...items].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
@@ -660,6 +703,7 @@ export interface UpdateDealPayload {
 
 export class ApiClient {
   private adminPermissions: Set<AdminPermission>;
+  private clientNameCache: Map<string, string> | null = null;
 
   constructor(private readonly config: ApiClientConfig = {}) {
     this.adminPermissions = new Set(config.adminPermissions ?? DEFAULT_ADMIN_PERMISSIONS);
@@ -714,44 +758,19 @@ export class ApiClient {
     const baseUrl = this.baseUrl?.trim();
     const useMocks = !baseUrl || baseUrl === "mock";
 
-    const resolveWithFallback = async (
-      error?: unknown,
-      missingFallbackMessage?: string,
-    ): Promise<T> => {
+    if (useMocks) {
       if (fallback) {
         return await fallback();
       }
-
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
-      if (missingFallbackMessage) {
-        throw new ApiError(missingFallbackMessage);
-      }
-
-      if (error instanceof Error) {
-        throw new ApiError(error.message);
-      }
-
-      throw new ApiError("Request failed");
-    };
-
-    if (useMocks) {
-      return await resolveWithFallback(
-        undefined,
-        "API base URL is not configured or mock mode is enabled without a fallback",
-      );
+      throw new ApiError("API base URL is not configured or mock mode is enabled without a fallback");
     }
 
     let url: string;
     try {
       url = new URL(path, baseUrl).toString();
     } catch (error) {
-      return await resolveWithFallback(
-        error,
-        "Failed to construct API URL and no fallback is available",
-      );
+      const message = error instanceof Error ? error.message : "Failed to construct API URL";
+      throw new ApiError(message);
     }
 
     const timeoutMs = this.timeoutMs;
@@ -786,15 +805,18 @@ export class ApiClient {
       return (await response.json()) as T;
     } catch (error) {
       if (timeoutController && timeoutController.signal.aborted) {
-        const timeoutError = new ApiError(`Request timed out after ${timeoutMs} ms`);
-        return await resolveWithFallback(timeoutError, "Request timed out and no fallback is available");
+        throw new ApiError(`Request timed out after ${timeoutMs} ms`);
       }
 
       if (error instanceof ApiError) {
         throw error;
       }
 
-      return await resolveWithFallback(error, "Request failed and no fallback is available");
+      if (error instanceof Error) {
+        throw new ApiError(error.message);
+      }
+
+      throw new ApiError("Request failed");
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -885,17 +907,128 @@ export class ApiClient {
     return query ? `?${query}` : "";
   }
 
-  async getDeals(filters?: DealFilters): Promise<Deal[]> {
-    const query = this.buildQueryString(filters);
-    const deals = await this.request(`/crm/deals${query}`, undefined);
-    return sortDealsByNextReview(deals);
+  private normalizeDateToIso(value: string | null | undefined): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const candidate = value.includes("T") ? value : `${value}T00:00:00Z`;
+    const parsed = new Date(candidate);
+
+    if (!Number.isFinite(parsed.getTime())) {
+      return undefined;
+    }
+
+    return parsed.toISOString();
   }
 
-  getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
+  private async ensureClientNameCache(): Promise<void> {
+    if (this.clientNameCache !== null) {
+      return;
+    }
+
+    try {
+      const response = await this.request<CrmClientSummary[] | Client[]>(
+        "/crm/clients",
+        undefined,
+        async () => clientsMock,
+      );
+
+      const map = new Map<string, string>();
+      for (const item of response as Array<{ id?: string; name?: string | null }>) {
+        if (!item || typeof item.id !== "string") {
+          continue;
+        }
+        const label = item.name && item.name.trim().length > 0 ? item.name.trim() : item.id;
+        map.set(item.id, label);
+      }
+      this.clientNameCache = map;
+    } catch {
+      this.clientNameCache = new Map();
+    }
+  }
+
+  private getClientName(clientId: string): string {
+    if (!this.clientNameCache) {
+      return clientId;
+    }
+    return this.clientNameCache.get(clientId) ?? clientId;
+  }
+
+  private isCrmDealArray(value: unknown): value is CrmDeal[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null && "client_id" in item);
+  }
+
+  private isCrmDeal(value: unknown): value is CrmDeal {
+    return typeof value === "object" && value !== null && "client_id" in value;
+  }
+
+  private mapDealFromApi(deal: CrmDeal): Deal {
+    const stage = deal.stage ?? mapStatusToStage(deal.status);
+    const nextReviewAt = this.normalizeDateToIso(deal.next_review_at) ?? deal.next_review_at;
+    const updatedAt = this.normalizeDateToIso(deal.updated_at) ?? deal.updated_at;
+    const owner = deal.owner_id && deal.owner_id.trim().length > 0 ? deal.owner_id : NO_MANAGER_VALUE;
+
+    return {
+      id: deal.id,
+      name: deal.title,
+      clientId: deal.client_id,
+      clientName: this.getClientName(deal.client_id),
+      probability: 0,
+      stage,
+      owner,
+      updatedAt,
+      nextReviewAt,
+      expectedCloseDate: undefined,
+      tasks: [],
+      notes: [],
+      documents: [],
+      payments: [],
+      activity: [],
+    } satisfies Deal;
+  }
+
+  private mapStageMetric(metric: CrmDealStageMetric | DealStageMetrics): DealStageMetrics {
+    if (typeof (metric as CrmDealStageMetric).total_value === "number") {
+      const apiMetric = metric as CrmDealStageMetric;
+      return {
+        stage: apiMetric.stage,
+        count: apiMetric.count,
+        totalValue: apiMetric.total_value,
+        conversionRate: apiMetric.conversion_rate,
+        avgCycleDurationDays: apiMetric.avg_cycle_duration_days,
+      } satisfies DealStageMetrics;
+    }
+
+    return metric as DealStageMetrics;
+  }
+
+  async getDeals(filters?: DealFilters): Promise<Deal[]> {
     const query = this.buildQueryString(filters);
-    return this.request(
+    const response = await this.request<CrmDeal[] | Deal[]>(
+      `/crm/deals${query}`,
+      undefined,
+      async () => filterDealsMock(dealsMock, filters),
+    );
+
+    if (this.isCrmDealArray(response)) {
+      await this.ensureClientNameCache();
+      const mapped = response.map((deal) => this.mapDealFromApi(deal));
+      return sortDealsByNextReview(mapped);
+    }
+
+    return sortDealsByNextReview(response as Deal[]);
+  }
+
+  async getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
+    const query = this.buildQueryString(filters);
+    const response = await this.request<Array<CrmDealStageMetric | DealStageMetrics>>(
       `/crm/deals/stage-metrics${query}`,
-      undefined);
+      undefined,
+      async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
+    );
+
+    return response.map((metric) => this.mapStageMetric(metric));
   }
 
   getDealDetails(id: string): Promise<DealDetailsData> {
@@ -958,13 +1091,22 @@ export class ApiClient {
       });
   }
 
-  updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
-    return this.request(
+  async updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
+    const response = await this.request<CrmDeal | Deal>(
       `/crm/deals/${dealId}/stage`,
       {
         method: "PATCH",
         body: JSON.stringify({ stage }),
-      });
+      },
+      async () => updateDealStageMock(dealId, stage),
+    );
+
+    if (this.isCrmDeal(response)) {
+      await this.ensureClientNameCache();
+      return this.mapDealFromApi(response);
+    }
+
+    return response as Deal;
   }
 
   getClients(): Promise<Client[]> {

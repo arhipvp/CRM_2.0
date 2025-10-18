@@ -58,8 +58,10 @@ class DealService:
     def __init__(self, repository: repositories.DealRepository):
         self.repository = repository
 
-    async def list_deals(self, tenant_id: UUID) -> Iterable[schemas.DealRead]:
-        deals = await self.repository.list(tenant_id)
+    async def list_deals(
+        self, tenant_id: UUID, filters: schemas.DealFilters | None = None
+    ) -> Iterable[schemas.DealRead]:
+        deals = await self.repository.list(tenant_id, filters)
         return [schemas.DealRead.model_validate(deal) for deal in deals]
 
     async def create_deal(self, tenant_id: UUID, payload: schemas.DealCreate) -> schemas.DealRead:
@@ -85,6 +87,21 @@ class DealService:
         if entity is None:
             return None
         return schemas.DealRead.model_validate(entity)
+
+    async def update_stage(
+        self, tenant_id: UUID, deal_id: UUID, stage: schemas.DealStage
+    ) -> schemas.DealRead | None:
+        status = schemas.map_stage_to_deal_status(stage)
+        entity = await self.repository.update(tenant_id, deal_id, {"status": status})
+        if entity is None:
+            return None
+        return schemas.DealRead.model_validate(entity)
+
+    async def get_stage_metrics(
+        self, tenant_id: UUID, filters: schemas.DealFilters | None = None
+    ) -> Iterable[schemas.DealStageMetric]:
+        metrics = await self.repository.stage_metrics(tenant_id, filters)
+        return [schemas.DealStageMetric(**item) for item in metrics]
 
 
 class DealJournalService:

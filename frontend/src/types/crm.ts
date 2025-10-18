@@ -73,6 +73,7 @@ export interface Deal {
 export interface DealStageMetrics {
   stage: DealStage;
   count: number;
+  totalValue: number;
   conversionRate: number;
   avgCycleDurationDays: number | null;
 }

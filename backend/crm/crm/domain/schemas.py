@@ -5,7 +5,14 @@ from decimal import Decimal
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, field_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    computed_field,
+    field_validator,
+    field_serializer,
+    model_validator,
+)
 from pydantic_core import PydanticUndefined
 
 
@@ -67,6 +74,41 @@ class DealUpdate(BaseModel):
         return value
 
 
+DealStage = Literal["qualification", "negotiation", "proposal", "closedWon", "closedLost"]
+
+DealPeriod = Literal["7d", "30d", "90d", "all"]
+
+_STATUS_TO_STAGE: dict[str, DealStage] = {
+    "draft": "qualification",
+    "qualification": "qualification",
+    "in_progress": "negotiation",
+    "negotiation": "negotiation",
+    "proposal": "proposal",
+    "won": "closedWon",
+    "closed_won": "closedWon",
+    "lost": "closedLost",
+    "closed_lost": "closedLost",
+}
+
+_STAGE_TO_STATUS: dict[DealStage, str] = {
+    "qualification": "draft",
+    "negotiation": "in_progress",
+    "proposal": "proposal",
+    "closedWon": "won",
+    "closedLost": "lost",
+}
+
+
+def map_deal_status_to_stage(status: str | None) -> DealStage:
+    if not status:
+        return "qualification"
+    return _STATUS_TO_STAGE.get(status.lower(), "qualification")
+
+
+def map_stage_to_deal_status(stage: DealStage) -> str:
+    return _STAGE_TO_STATUS[stage]
+
+
 class DealRead(ORMModel, DealBase):
     id: UUID
     tenant_id: UUID
@@ -74,6 +116,35 @@ class DealRead(ORMModel, DealBase):
     owner_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def stage(self) -> DealStage:
+        return map_deal_status_to_stage(self.status)
+
+
+class DealStageUpdate(BaseModel):
+    stage: DealStage
+
+
+class DealFilters(BaseModel):
+    stage: DealStage | None = None
+    managers: list[UUID] = Field(default_factory=list)
+    include_unassigned: bool = False
+    period: DealPeriod | None = None
+    search: Optional[str] = None
+
+
+class DealStageMetric(BaseModel):
+    stage: DealStage
+    count: int
+    total_value: Decimal = Field(default=Decimal("0"))
+    conversion_rate: float
+    avg_cycle_duration_days: float | None
+
+    @field_serializer("total_value")
+    def _serialize_total_value(self, value: Decimal) -> float:
+        return float(value)
 
 
 class DealJournalEntryBase(BaseModel):
