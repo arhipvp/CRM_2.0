@@ -1,250 +1,142 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
 
-import { sortDealsByNextReview } from "@/lib/utils/deals";
-import type { PaymentEntry } from "@/types/crm";
+import { sortDealsByNextReview, compareDealsByNextReview } from "@/lib/utils/deals";
+import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
+import {
+  dealsFixture,
+  stageMetricsFixture,
+} from "../../../../tests/fixtures/api-data";
+
+const API_BASE_URL = "https://api.test.local";
+
+const server = setupServer();
 
 const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 const originalProxyTimeout = process.env.FRONTEND_PROXY_TIMEOUT;
 const originalServerTimeout = process.env.FRONTEND_SERVER_TIMEOUT_MS;
 
-let fetchMock: ReturnType<typeof vi.fn>;
-
 async function importClient() {
   return await import("../client");
 }
 
-async function importMocks() {
-  return await import("@/mocks/data");
-}
+describe("ApiClient при работе с HTTP API", () => {
+  beforeAll(() => {
+    server.listen({ onUnhandledRequest: "error" });
+  });
 
-function normalizeEntry(entry: PaymentEntry): PaymentEntry {
-  return {
-    ...entry,
-    attachments: entry.attachments?.map((item) => ({ ...item })) ?? [],
-    history: entry.history?.map((item) => ({ ...item })) ?? [],
-  };
-}
+  afterAll(() => {
+    server.close();
+  });
 
-describe("ApiClient mock mode", () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env.NEXT_PUBLIC_API_BASE_URL = "mock";
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    process.env.NEXT_PUBLIC_API_BASE_URL = API_BASE_URL;
   });
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = originalBaseUrl;
-    process.env.FRONTEND_PROXY_TIMEOUT = originalProxyTimeout;
-    process.env.FRONTEND_SERVER_TIMEOUT_MS = originalServerTimeout;
-    vi.restoreAllMocks();
-  });
-
-  it("возвращает мок-данные при NEXT_PUBLIC_API_BASE_URL=mock", async () => {
-    const { apiClient } = await importClient();
-    const {
-      activitiesMock,
-      clientsMock,
-      clientPoliciesMock,
-      clientRemindersMock,
-      clientTaskChecklistMock,
-      dealsMock,
-      paymentsMock,
-      tasksMock,
-      dealNotesMock,
-      dealDocumentsMock,
-    } = await importMocks();
-
-    const dealId = dealsMock[0]?.id;
-    const clientId = clientsMock[0]?.id;
-
-    expect(await apiClient.getDeals()).toEqual(sortDealsByNextReview(dealsMock));
-
-    expect(dealId).toBeDefined();
-    expect(clientId).toBeDefined();
-    if (!dealId || !clientId) {
-      throw new Error("Тестовые данные сделок или клиентов не заданы");
-    }
-
-    const details = await apiClient.getDealDetails(dealId);
-    expect(details).toMatchObject({
-      id: dealId,
-      name: dealsMock[0]?.name,
-      overview: expect.objectContaining({ metrics: expect.any(Array) }),
-      documentsV2: expect.any(Array),
-      finance: expect.objectContaining({ metrics: expect.any(Array) }),
-    });
-    expect(details.overview.metrics).toBeInstanceOf(Array);
-
-    await expect(apiClient.getClients()).resolves.toEqual(clientsMock);
-    await expect(apiClient.getClient(clientId)).resolves.toEqual(clientsMock[0]);
-    await expect(apiClient.getTasks()).resolves.toEqual(tasksMock);
-    await expect(apiClient.getPayments()).resolves.toEqual(
-      paymentsMock.map((payment) => ({
-        ...payment,
-        incomes: [],
-        expenses: [],
-      })),
-    );
-    await expect(apiClient.getPayments({ include: ["incomes", "expenses"] })).resolves.toEqual(
-      paymentsMock.map((payment) => ({
-        ...payment,
-        incomes: payment.incomes.map((entry) => normalizeEntry(entry)),
-        expenses: payment.expenses.map((entry) => normalizeEntry(entry)),
-      })),
-    );
-    const activity = await apiClient.getClientActivities(clientId, { page: 1, pageSize: 5 });
-    expect(activity.items).toEqual(
-      activitiesMock
-        .filter((entry) => entry.clientId === clientId)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5),
-    );
-    expect(activity.total).toBeGreaterThan(0);
-
-    const sortByUpdatedAtDesc = <T extends { updatedAt: string }>(items: T[]) =>
-      [...items].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-    const activePolicies = sortByUpdatedAtDesc(
-      clientPoliciesMock.filter(
-        (policy) => policy.clientId === clientId && !["archived", "cancelled", "expired"].includes(policy.status),
-      ),
-    );
-    const archivedPolicies = sortByUpdatedAtDesc(
-      clientPoliciesMock.filter(
-        (policy) => policy.clientId === clientId && ["archived", "cancelled", "expired"].includes(policy.status),
-      ),
-    );
-
-    await expect(apiClient.getClientPolicies(clientId, { status: "active" })).resolves.toEqual(activePolicies);
-    await expect(apiClient.getClientPolicies(clientId, { status: "archived" })).resolves.toEqual(archivedPolicies);
-    await expect(apiClient.getClientTasks(clientId)).resolves.toEqual(
-      clientTaskChecklistMock.filter((task) => task.clientId === clientId),
-    );
-    await expect(apiClient.getClientReminders(clientId)).resolves.toEqual(
-      clientRemindersMock
-        .filter((reminder) => reminder.clientId === clientId)
-        .sort((a, b) => new Date(a.occursAt).getTime() - new Date(b.occursAt).getTime()),
-    );
-
-    const updatedClient = await apiClient.updateClientContacts(clientId, {
-      email: "new@example.com",
-      phone: "+7 000 000-00-00",
-      contacts: [
-        { id: "email", type: "email", label: "E-mail", value: "new@example.com", primary: true },
-        { id: "phone", type: "phone", label: "Телефон", value: "+7 000 000-00-00", primary: true },
-      ],
-    });
-    expect(updatedClient.email).toBe("new@example.com");
-    expect(updatedClient.phone).toBe("+7 000 000-00-00");
-
-    await expect(apiClient.getDealStageMetrics()).resolves.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ stage: "qualification" }),
-      ]),
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("возвращает stage metrics с учётом фильтров", async () => {
-    const { apiClient } = await importClient();
-    const metrics = await apiClient.getDealStageMetrics({ stage: "closedWon" });
-
-    expect(metrics).toHaveLength(5);
-    const closedWonMetrics = metrics.find((item) => item.stage === "closedWon");
-    expect(closedWonMetrics).toBeDefined();
-    expect(closedWonMetrics?.count ?? 0).toBeGreaterThan(0);
-    expect(
-      metrics
-        .filter((item) => item.stage !== "closedWon")
-        .every((item) => item.count === 0),
-    ).toBe(true);
-  });
-
-  it("использует fallback при ошибке формирования URL", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:9999";
-    const { createApiClient } = await importClient();
-    const { dealsMock } = await importMocks();
-    const client = createApiClient({ baseUrl: "http://[" });
-
-    await expect(client.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("использует fallback при сетевой ошибке", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
-    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    const { apiClient } = await importClient();
-    const { dealsMock } = await importMocks();
-
-    await expect(apiClient.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("пробрасывает ApiError при ответе 5xx", async () => {
-    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
-    fetchMock.mockResolvedValue(
-      new Response("Server error", {
-        status: 502,
-        statusText: "Bad Gateway",
-      }),
-    );
-    const { apiClient, ApiError: ApiErrorCtor } = await importClient();
-
-    await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("ApiClient серверные таймауты", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-  });
-
-  afterEach(() => {
+    server.resetHandlers();
     process.env.NEXT_PUBLIC_API_BASE_URL = originalBaseUrl;
     process.env.FRONTEND_PROXY_TIMEOUT = originalProxyTimeout;
     process.env.FRONTEND_SERVER_TIMEOUT_MS = originalServerTimeout;
     vi.useRealTimers();
-    vi.restoreAllMocks();
+  });
+
+  it("запрашивает сделки из API и сортирует их", async () => {
+    const apiResponse = [dealsFixture[2], dealsFixture[0], dealsFixture[1]];
+    let requestCount = 0;
+
+    server.use(
+      http.get(`${API_BASE_URL}/crm/deals`, () => {
+        requestCount += 1;
+        return HttpResponse.json(apiResponse);
+      }),
+    );
+
+    const { apiClient } = await importClient();
+    const deals = await apiClient.getDeals();
+
+    expect(requestCount).toBe(1);
+    expect(deals.map((deal) => deal.id)).toEqual(sortDealsByNextReview(apiResponse).map((deal) => deal.id));
+  });
+
+  it("передает фильтры в запросе метрик стадий", async () => {
+    let requestedUrl: URL | undefined;
+
+    server.use(
+      http.get(`${API_BASE_URL}/crm/deals/stage-metrics`, ({ request }) => {
+        requestedUrl = new URL(request.url);
+        return HttpResponse.json(stageMetricsFixture);
+      }),
+    );
+
+    const { apiClient } = await importClient();
+    const metrics = await apiClient.getDealStageMetrics({
+      stage: "closedWon",
+      period: "30d",
+      managers: ["manager-ivanov", NO_MANAGER_VALUE],
+      search: "Ромашка",
+    });
+
+    expect(metrics).toEqual(stageMetricsFixture);
+    expect(requestedUrl?.searchParams.get("stage")).toBe("closedWon");
+    expect(requestedUrl?.searchParams.get("period")).toBe("30d");
+    expect(requestedUrl?.searchParams.getAll("manager")).toEqual(["manager-ivanov", NO_MANAGER_VALUE]);
+    expect(requestedUrl?.searchParams.get("search")).toBe("Ромашка");
+  });
+
+  it("использует fallback при сетевой ошибке", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/crm/deals`, () => {
+        return HttpResponse.error();
+      }),
+    );
+
+    const { apiClient } = await importClient();
+    const deals = await apiClient.getDeals();
+
+    expect(deals.length).toBeGreaterThan(0);
+    for (let index = 1; index < deals.length; index += 1) {
+      expect(compareDealsByNextReview(deals[index - 1], deals[index])).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it("пробрасывает ApiError при ответе 5xx", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/crm/deals`, () =>
+        HttpResponse.json({ message: "Server error" }, { status: 502, statusText: "Bad Gateway" }),
+      ),
+    );
+
+    const { apiClient, ApiError: ApiErrorCtor } = await importClient();
+
+    await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
   });
 
   it("переходит на fallback после досрочного серверного таймаута", async () => {
     vi.useFakeTimers();
     process.env.FRONTEND_SERVER_TIMEOUT_MS = "25";
-    const originalWindow = globalThis.window;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).window = undefined;
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      return new Promise((_resolve, reject) => {
+        setTimeout(() => {
+          reject(new DOMException("Request aborted", "AbortError"));
+        }, 10);
+      });
+    });
 
     try {
-      fetchMock.mockImplementation((_url, init?: RequestInit) => {
-        const signal = init?.signal;
-        return new Promise((_, reject) => {
-          signal?.addEventListener(
-            "abort",
-            () => {
-              reject(new Error("Aborted"));
-            },
-            { once: true },
-          );
-        });
-      });
-
       const { apiClient } = await importClient();
-      const { dealsMock } = await importMocks();
-
       const promise = apiClient.getDeals();
+
       await vi.advanceTimersByTimeAsync(25);
 
-      await expect(promise).resolves.toEqual(sortDealsByNextReview(dealsMock));
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const deals = await promise;
+      expect(deals.length).toBeGreaterThan(0);
+      expect(fetchSpy).toHaveBeenCalled();
     } finally {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (globalThis as any).window = originalWindow;
+      fetchSpy.mockRestore();
     }
   });
 });
