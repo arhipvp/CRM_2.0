@@ -261,6 +261,51 @@ describe("DealFunnelTable", () => {
     vi.clearAllMocks();
   });
 
+  it("подсвечивает строку и очищает подсветку после markDealUpdated", async () => {
+    vi.useFakeTimers();
+
+    renderTable();
+
+    const targetDeal = dealsMock[0];
+
+    const dealCell = screen.getByText(targetDeal.id);
+
+    act(() => {
+      mockedUseUiStore.getState().markDealUpdated(targetDeal.id);
+    });
+
+    const row = dealCell.closest("tr");
+    expect(row).not.toBeNull();
+    const rowElement = row as HTMLElement;
+
+    expect(rowElement).toHaveClass("deal-update-highlight");
+    expect(rowElement).toHaveClass("ring-amber-400");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(rowElement).not.toHaveClass("deal-update-highlight");
+    expect(rowElement).not.toHaveClass("ring-amber-400");
+
+    vi.useRealTimers();
+
+    const clearDealUpdateMock = mockedUseUiStore.getState().clearDealUpdate as ReturnType<typeof vi.fn>;
+    expect(clearDealUpdateMock).toHaveBeenCalledWith(targetDeal.id);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    resetUiStore();
+    vi.clearAllMocks();
+  });
+
   it("отображает колонки для ответственного и ожидаемого закрытия", () => {
     render(<DealFunnelTable />);
 

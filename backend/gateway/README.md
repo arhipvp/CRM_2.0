@@ -26,7 +26,7 @@ Gateway — единая точка входа для веб-клиента и T
 
 ## Интеграции Redis и Consul
 
-- Redis используется как кэш (`CacheModule`) и для служебных ключей SSE. Провайдер поддерживает `mock://` URL для локальных тестов и graceful shutdown.【F:backend/gateway/src/app.module.ts†L1-L53】【F:backend/gateway/src/integrations/redis/redis.module.ts†L1-L64】
+- Redis используется как кэш (`CacheModule`) и для служебных ключей SSE. Провайдер поддерживает `mock://` URL для локальных тестов и graceful shutdown; не оставляйте `REDIS_URL` пустым — используйте `mock://gateway` либо удалите переменную, чтобы применился дефолт `redis://localhost:6379/0`.【F:backend/gateway/src/app.module.ts†L1-L53】【F:backend/gateway/src/integrations/redis/redis.module.ts†L1-L64】
 - Consul клиент вынесен в отдельный модуль, health-check проверяет `status.leader`, а REST-прокси может запрашивать адреса по `serviceName` при отсутствии статического URL.【F:backend/gateway/src/integrations/consul/consul.module.ts†L1-L39】【F:backend/gateway/src/integrations/consul/consul.service.ts†L1-L43】【F:backend/gateway/src/http/health/consul.health-indicator.ts†L1-L33】
 
 ## Миграции и скрипты

@@ -120,6 +120,11 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
   const dealUpdates = useUiStore((state) => state.dealUpdates);
   const clearDealUpdate = useUiStore((state) => state.clearDealUpdate);
 
+  const recentlyUpdatedDealIds = useMemo(
+    () => new Set(Object.keys(dealUpdates)),
+    [dealUpdates],
+  );
+
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
   const updateStageMutation = useUpdateDealStage();
@@ -344,7 +349,7 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
                     stageFilter={stageFilter}
                     isFetching={isFetching}
                     highlightedDealId={highlightedDealId}
-                    dealUpdates={dealUpdates}
+                    recentlyUpdatedDealIds={recentlyUpdatedDealIds}
                     selectedDealIds={selectedDealIds}
                     onToggleStage={() =>
                       setSelectedStage(stageFilter === stage ? "all" : stage)
@@ -393,7 +398,7 @@ function StageColumn({
   stageFilter,
   isFetching,
   highlightedDealId,
-  dealUpdates,
+  recentlyUpdatedDealIds,
   selectedDealIds,
   onToggleStage,
   onToggleSelect,
@@ -404,7 +409,7 @@ function StageColumn({
   stageFilter: PipelineStageKey | "all";
   isFetching: boolean;
   highlightedDealId?: string;
-  dealUpdates: Record<string, string>;
+  recentlyUpdatedDealIds: Set<string>;
   selectedDealIds: string[];
   onToggleStage: () => void;
   onToggleSelect: (dealId: string) => void;
@@ -452,14 +457,15 @@ function StageColumn({
           <p className="text-sm text-slate-500 dark:text-slate-400">Нет сделок на этой стадии</p>
         ) : (
           deals.map((deal) => {
-            const isDealUpdated = Boolean(dealUpdates[deal.id]);
-            const isHighlighted = highlightedDealId === deal.id || isDealUpdated;
+            const recentlyUpdated = recentlyUpdatedDealIds.has(deal.id);
+            const isHighlighted = highlightedDealId === deal.id;
 
             return (
               <DraggableDealCard
                 key={deal.id}
                 deal={deal}
                 highlighted={isHighlighted}
+                recentlyUpdated={recentlyUpdated}
                 selected={selectedDealIds.includes(deal.id)}
                 onToggleSelect={() => onToggleSelect(deal.id)}
                 onPreview={() => onPreview(deal.id)}
@@ -475,12 +481,14 @@ function StageColumn({
 function DraggableDealCard({
   deal,
   highlighted,
+  recentlyUpdated,
   selected,
   onToggleSelect,
   onPreview,
 }: {
   deal: Deal;
   highlighted?: boolean;
+  recentlyUpdated?: boolean;
   selected?: boolean;
   onToggleSelect: () => void;
   onPreview: () => void;
@@ -507,6 +515,7 @@ function DraggableDealCard({
       <DealCard
         deal={deal}
         highlighted={highlighted}
+        recentlyUpdated={recentlyUpdated}
         selected={selected}
         onToggleSelect={onToggleSelect}
         onOpenPreview={onPreview}

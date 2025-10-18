@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
+import type { KeyboardEvent } from "react";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
 import { DealBulkActions } from "@/components/deals/DealBulkActions";
 import { getDealStageTitle, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
-import { getManagerLabel } from "@/lib/utils/managers";
+import { getManagerLabel, NO_MANAGER_VALUE, normalizeManagerValue } from "@/lib/utils/managers";
 import { useUiStore } from "@/stores/uiStore";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -97,6 +98,43 @@ export function DealFunnelTable() {
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
   const dealsForRender = useMemo(() => sortDealsByNextReview(deals), [deals]);
+  const recentlyUpdatedDealIds = useMemo(
+    () => new Set(Object.keys(dealUpdates)),
+    [dealUpdates],
+  );
+
+  const buildRowState = (dealId: string) => {
+    const isSelected = selectedDealIds.includes(dealId);
+    const isRecentlyUpdated = recentlyUpdatedDealIds.has(dealId);
+    const isHighlighted = highlightedDealId === dealId;
+    const rowClassName = classNames(
+      "cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-900/40",
+      isSelected && "bg-sky-50/80 dark:bg-sky-500/10",
+      isHighlighted && "ring-2 ring-amber-300",
+      isRecentlyUpdated && "deal-update-highlight ring-2 ring-amber-400",
+    );
+
+    const handleActivate = () => {
+      openDealPreview(dealId);
+      if (isRecentlyUpdated) {
+        clearDealUpdate(dealId);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleActivate();
+      }
+    };
+
+    return {
+      isSelected,
+      rowClassName,
+      handleActivate,
+      handleKeyDown,
+    };
+  };
 
   useEffect(() => {
     if (viewMode !== "table") {
@@ -233,26 +271,15 @@ export function DealFunnelTable() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {dealsForRender.map((deal) => {
-                  const isSelected = selectedDealIds.includes(deal.id);
-                  const isDealUpdated = Boolean(dealUpdates[deal.id]);
-                  const isHighlighted = highlightedDealId === deal.id || isDealUpdated;
+                  const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
                   const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
 
                   return (
                     <tr
                       key={deal.id}
-                      className={classNames(
-                        "cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-900/40",
-                        isSelected && "bg-sky-50/80 dark:bg-sky-500/10",
-                        isHighlighted && "deal-update-highlight ring-1 ring-amber-400",
-                      )}
-                      onClick={() => openDealPreview(deal.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openDealPreview(deal.id);
-                        }
-                      }}
+                      className={rowClassName}
+                      onClick={handleActivate}
+                      onKeyDown={handleKeyDown}
                       tabIndex={0}
                       role="button"
                       aria-pressed={isSelected}
@@ -366,29 +393,19 @@ export function DealFunnelTable() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {dealsForRender.map((deal) => {
-                      const isSelected = selectedDealIds.includes(deal.id);
-                      const isHighlighted = highlightedDealId === deal.id;
+                      const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
                       const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
                       const expectedCloseDateRaw = deal.expectedCloseDate;
                       const expectedCloseDate = expectedCloseDateRaw ? new Date(expectedCloseDateRaw) : undefined;
                       const isExpectedCloseOverdue = expectedCloseDate ? expectedCloseDate.getTime() < Date.now() : false;
-                      const ownerLabel = deal.owner ? getManagerLabel(deal.owner) : "—";
+                      const ownerLabel = getManagerLabel(normalizeManagerValue(deal.owner) ?? NO_MANAGER_VALUE);
 
                       return (
                         <tr
                           key={deal.id}
-                          className={classNames(
-                            "cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-900/40",
-                            isSelected && "bg-sky-50/80 dark:bg-sky-500/10",
-                            isHighlighted && "ring-1 ring-amber-400",
-                          )}
-                          onClick={() => openDealPreview(deal.id)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              openDealPreview(deal.id);
-                            }
-                          }}
+                          className={rowClassName}
+                          onClick={handleActivate}
+                          onKeyDown={handleKeyDown}
                           tabIndex={0}
                           role="button"
                           aria-pressed={isSelected}
