@@ -383,3 +383,112 @@ async def test_calculations_flow(api_client, configure_environment):
     assert "deal.calculation.status.confirmed" in routing_keys
     assert "deal.calculation.status.archived" in routing_keys
     assert "deal.calculation.deleted" in routing_keys
+
+
+@pytest.mark.asyncio()
+async def test_confirming_calculation_reassigns_previous_policy(api_client, db_session):
+    tenant_id = uuid4()
+    owner_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Тест", 
+        "email": "test@example.com",
+        "phone": "+7-900-555-66-77",
+        "owner_id": str(owner_id),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    deal_payload = {
+        "client_id": str(client.id),
+        "title": "Страхование авто",
+        "description": "Расчёт с переназначением полиса",
+        "owner_id": str(owner_id),
+        "next_review_at": date.today().isoformat(),
+    }
+    deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
+    assert deal_resp.status_code == 201
+    deal = schemas.DealRead.model_validate(deal_resp.json())
+
+    validity_start = date.today()
+    validity_end = validity_start + timedelta(days=365)
+    calc_payload = {
+        "insurance_company": "ТестСтрах",
+        "program_name": "КАСКО Стандарт",
+        "premium_amount": "150000.00",
+        "coverage_sum": "5000000.00",
+        "calculation_date": validity_start.isoformat(),
+        "validity_period": {
+            "start": validity_start.isoformat(),
+            "end": validity_end.isoformat(),
+        },
+        "files": ["calc-transfer.pdf"],
+        "comments": "Исходный расчёт",
+        "owner_id": str(owner_id),
+    }
+    calc_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations",
+        json=calc_payload,
+        headers=headers,
+    )
+    assert calc_resp.status_code == 201
+    calculation = schemas.CalculationRead.model_validate(calc_resp.json())
+
+    ready_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}/status",
+        json={"status": "ready"},
+        headers=headers,
+    )
+    assert ready_resp.status_code == 200
+
+    policy_a_payload = {
+        "client_id": str(client.id),
+        "deal_id": str(deal.id),
+        "policy_number": "PL-A-001",
+        "owner_id": str(owner_id),
+        "premium": 150000,
+    }
+    policy_b_payload = {
+        "client_id": str(client.id),
+        "deal_id": str(deal.id),
+        "policy_number": "PL-B-001",
+        "owner_id": str(owner_id),
+        "premium": 150000,
+    }
+
+    policy_a_resp = await api_client.post("/api/v1/policies/", json=policy_a_payload, headers=headers)
+    assert policy_a_resp.status_code == 201
+    policy_a = schemas.PolicyRead.model_validate(policy_a_resp.json())
+
+    policy_b_resp = await api_client.post("/api/v1/policies/", json=policy_b_payload, headers=headers)
+    assert policy_b_resp.status_code == 201
+    policy_b = schemas.PolicyRead.model_validate(policy_b_resp.json())
+
+    await db_session.execute(
+        update(models.Policy)
+        .where(models.Policy.id == policy_a.id)
+        .values(calculation_id=calculation.id)
+    )
+    await db_session.commit()
+
+    confirm_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/calculations/{calculation.id}/status",
+        json={"status": "confirmed", "policy_id": str(policy_b.id)},
+        headers=headers,
+    )
+    assert confirm_resp.status_code == 200
+    confirmed_calc = schemas.CalculationRead.model_validate(confirm_resp.json())
+    assert confirmed_calc.status == "confirmed"
+    assert confirmed_calc.linked_policy_id == policy_b.id
+
+    policy_a_after_resp = await api_client.get(f"/api/v1/policies/{policy_a.id}", headers=headers)
+    assert policy_a_after_resp.status_code == 200
+    policy_a_after = schemas.PolicyRead.model_validate(policy_a_after_resp.json())
+    assert policy_a_after.calculation_id is None
+
+    policy_b_after_resp = await api_client.get(f"/api/v1/policies/{policy_b.id}", headers=headers)
+    assert policy_b_after_resp.status_code == 200
+    policy_b_after = schemas.PolicyRead.model_validate(policy_b_after_resp.json())
+    assert policy_b_after.calculation_id == calculation.id
