@@ -16,7 +16,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { compareDealsByNextReview } from "@/lib/utils/deals";
+import { compareDealsByNextReview, DEAL_STAGE_TITLES } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { Deal } from "@/types/crm";
 import { useDeals, useUpdateDealStage } from "@/lib/api/hooks";
@@ -27,23 +27,23 @@ import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
 const stageConfig: Record<PipelineStageKey, { title: string; description: string }> = {
   qualification: {
-    title: "Квалификация",
+    title: DEAL_STAGE_TITLES.qualification,
     description: "Лиды, с которыми подтверждаем потребность",
   },
   negotiation: {
-    title: "Переговоры",
+    title: DEAL_STAGE_TITLES.negotiation,
     description: "Обсуждаем условия и готовим предложения",
   },
   proposal: {
-    title: "Коммерческое предложение",
+    title: DEAL_STAGE_TITLES.proposal,
     description: "Клиент изучает финальное КП",
   },
   closedWon: {
-    title: "Успешно",
+    title: DEAL_STAGE_TITLES.closedWon,
     description: "Сделки закрыты и оплачены",
   },
   closedLost: {
-    title: "Потеряно",
+    title: DEAL_STAGE_TITLES.closedLost,
     description: "Сделки, требующие ретроспективы",
   },
 };

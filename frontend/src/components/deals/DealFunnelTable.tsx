@@ -6,7 +6,7 @@ import { useEffect, useMemo } from "react";
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
 import { DealBulkActions } from "@/components/deals/DealBulkActions";
-import { sortDealsByNextReview } from "@/lib/utils/deals";
+import { getDealStageTitle, sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { getManagerLabel } from "@/lib/utils/managers";
 import { useUiStore } from "@/stores/uiStore";
@@ -277,7 +277,7 @@ export function DealFunnelTable() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getDealStageTitle(deal.stage)}</td>
                       <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
                       <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
                       <td className="px-4 py-4">
@@ -300,7 +300,29 @@ export function DealFunnelTable() {
                           href={`/deals/${deal.id}`}
                           className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
                           onClick={(event) => event.stopPropagation()}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+                        >
+                          Открыть
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+                </tbody>
+              </table>
+          ) : (
+          <div className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
+            <p>Сделки не найдены для выбранных фильтров.</p>
+            <button
+              type="button"
+              className="mt-3 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-800 dark:border-slate-600 dark:text-slate-200"
+              onClick={() => clearFilters()}
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
               <span>Список сделок</span>
               {isFetching && <span className="text-xs font-normal text-slate-400">Обновление…</span>}
@@ -391,7 +413,7 @@ export function DealFunnelTable() {
                             </div>
                           </td>
                           <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
+                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getDealStageTitle(deal.stage)}</td>
                           <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
                           <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
                           <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
