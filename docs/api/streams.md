@@ -12,6 +12,8 @@ Gateway публикует события через Server-Sent Events (SSE) д
 - **Маршрут:** `GET /api/v1/streams/deals` — публичный поток изменений сделок и связанных объектов.
 - **Назначение:** ретрансляция событий CRM (сделки, клиенты, документы) из внутреннего SSE-канала `GATEWAY_UPSTREAM_CRM_SSE_URL`.
 - **Особенности:**
+  - CRM API предоставляет upstream `GET ${GATEWAY_UPSTREAM_CRM_SSE_URL}` (по умолчанию `http://localhost:8082/streams`), который отдаёт ответы `text/event-stream`.
+  - Upstream использует временную очередь RabbitMQ, подписанную на topic-exchange `${CRM_EVENTS_EXCHANGE}` (маршрут `#`). Exchange должен существовать до старта CRM; его создаёт `infra/rabbitmq/bootstrap.sh` или `EventsPublisher` при первой публикации события.
   - Gateway автоматически переподключается к upstream при обрывах с задержкой `GATEWAY_UPSTREAM_SSE_RECONNECT_DELAY`.
   - При восстановлении соединения используется значение `Last-Event-ID`, сохранённое в Redis (`${REDIS_HEARTBEAT_PREFIX}:crm:last-event-id`).
   - Payload передаётся без изменений; тип события (`event`) задаёт CRM.
@@ -36,7 +38,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 **Ошибки канала:**
 - `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
-- `event: heartbeat` каждые 30 секунд для проверки соединения (payload пустой).
+- `event: heartbeat` каждые 30 секунд для проверки соединения (payload пустой). Сообщение формируется upstream CRM через `sse-starlette`.
 
 ## Запланированные каналы (после первой поставки)
 

@@ -20,6 +20,7 @@ redis = "^5.0.1"
 asyncpg = "^0.29.0"
 python-dotenv = "^1.0.1"
 httpx = { version = "^0.26.0", optional = true }
+sse-starlette = "^3.0.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"

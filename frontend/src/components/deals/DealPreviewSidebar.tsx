@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { DealDetails } from "@/components/deals/DealDetails";
 import { useDeals } from "@/lib/api/hooks";
@@ -12,6 +12,28 @@ export function DealPreviewSidebar() {
   const openDealPreview = useUiStore((state) => state.openDealPreview);
   const filters = useUiStore((state) => state.filters);
   const dealsQuery = useDeals(filters);
+
+  useEffect(() => {
+    if (!previewDealId) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        openDealPreview(undefined);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewDealId, openDealPreview]);
 
   const managers = useMemo(() => {
     return collectManagerValues((dealsQuery.data ?? []).map((deal) => deal.owner)).map(getManagerLabel);
