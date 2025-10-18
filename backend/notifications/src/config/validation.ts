@@ -11,7 +11,9 @@ export const validationSchema = Joi.object({
   NOTIFICATIONS_DB_NAME: Joi.string().default('notifications'),
   NOTIFICATIONS_DB_SSL: Joi.boolean().default(false),
 
-  NOTIFICATIONS_RABBITMQ_URI: Joi.string().uri({ scheme: [/amqp/] }).default('amqp://guest:guest@localhost:5672'),
+  NOTIFICATIONS_RABBITMQ_URI: Joi.string()
+    .uri({ scheme: [/amqp/] })
+    .default('amqp://notifications:notifications@localhost:5672/notifications'),
   NOTIFICATIONS_RABBITMQ_URL: Joi.string().uri({ scheme: [/amqp/] }).optional(),
   NOTIFICATIONS_RABBITMQ_EXCHANGE: Joi.string().default('notifications.exchange'),
   NOTIFICATIONS_RABBITMQ_QUEUE: Joi.string().default('notifications.events'),
