@@ -298,6 +298,7 @@ describe("DealFunnelBoard — deal updates", () => {
     });
 
     expect(card).toHaveClass("deal-update-highlight");
+    expect(card).toHaveClass("ring-amber-400");
 
     await act(async () => {
       await Promise.resolve();
@@ -310,6 +311,7 @@ describe("DealFunnelBoard — deal updates", () => {
     });
 
     expect(card).not.toHaveClass("deal-update-highlight");
+    expect(card).not.toHaveClass("ring-amber-400");
 
     vi.useRealTimers();
 

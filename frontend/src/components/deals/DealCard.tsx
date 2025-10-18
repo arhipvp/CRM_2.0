@@ -65,6 +65,7 @@ function getNextReviewStyles(date: string) {
 export interface DealCardProps {
   deal: Deal;
   highlighted?: boolean;
+  recentlyUpdated?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
   onOpenPreview?: () => void;
@@ -75,6 +76,7 @@ export interface DealCardProps {
 export function DealCard({
   deal,
   highlighted,
+  recentlyUpdated,
   selected = false,
   onToggleSelect,
   onOpenPreview,
@@ -121,8 +123,9 @@ export function DealCard({
       onKeyDown={handleKeyDown}
       className={classNames(
         "group flex flex-col gap-3 rounded-lg border border-slate-200 bg-white/80 p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-slate-700 dark:bg-slate-900/70",
-        highlighted && "deal-update-highlight ring-2 ring-amber-400",
         selected && "ring-2 ring-sky-400",
+        highlighted && "ring-2 ring-amber-300",
+        recentlyUpdated && "deal-update-highlight ring-2 ring-amber-400",
         isOverdue && "border-amber-400 bg-amber-50/80 dark:border-amber-500/70 dark:bg-amber-900/20",
         isDragging && "opacity-80",
       )}

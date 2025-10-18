@@ -233,6 +233,7 @@ describe("DealFunnelTable", () => {
     const rowElement = row as HTMLElement;
 
     expect(rowElement).toHaveClass("deal-update-highlight");
+    expect(rowElement).toHaveClass("ring-amber-400");
 
     await act(async () => {
       await Promise.resolve();
@@ -245,6 +246,7 @@ describe("DealFunnelTable", () => {
     });
 
     expect(rowElement).not.toHaveClass("deal-update-highlight");
+    expect(rowElement).not.toHaveClass("ring-amber-400");
 
     vi.useRealTimers();
 
