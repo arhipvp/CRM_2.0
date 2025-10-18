@@ -151,7 +151,7 @@
 
 **Ответ 200** — обновлённый объект платежа.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden` (попытка установить статус без прав главного админа), `404 payment_not_found`, `409 payment_has_transactions` (для изменений, требующих пустого списка операций).
+**Ошибки**: `400 validation_error`, `400 actual_date_before_planned_date`, `400 actual_date_in_future`, `401 invalid_token`, `403 forbidden` (попытка установить статус без прав главного админа), `404 payment_not_found`, `409 payment_has_transactions` (для изменений, требующих пустого списка операций).
 
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}`
 Удаляет платёж и связанные операции. Доступно только, если у записи ещё нет поступлений и расходов.

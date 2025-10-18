@@ -619,6 +619,14 @@ class PaymentService:
         if "currency" in update_data and (payment.incomes_total or payment.expenses_total):
             raise repositories.RepositoryError("payment_has_transactions")
 
+        if "actual_date" in update_data and update_data["actual_date"] is not None:
+            actual_date = update_data["actual_date"]
+            planned_date = update_data.get("planned_date", payment.planned_date)
+            if planned_date is not None and actual_date < planned_date:
+                raise repositories.RepositoryError("actual_date_before_planned_date")
+            if actual_date > date.today():
+                raise repositories.RepositoryError("actual_date_in_future")
+
         await self.payments.update_payment(payment, update_data)
         payment = await self._finalize_payment(payment, forced_status=forced_status)
         await self._publish_payment_event("deal.payment.updated", payment)
