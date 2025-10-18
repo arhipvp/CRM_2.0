@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, AsyncIterator
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request
