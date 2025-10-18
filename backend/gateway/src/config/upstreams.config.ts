@@ -44,15 +44,15 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
 
   const crmBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_CRM_BASE_URL ?? '',
-    'http://localhost:3001/api'
+    'http://localhost:8082/api'
   );
   const authBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL ?? '',
-    'http://localhost:3005/api'
+    'http://localhost:8081/api'
   );
   const notificationsBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL ?? '',
-    'http://localhost:3011/api'
+    'http://localhost:8085/api'
   );
 
   return {
@@ -67,7 +67,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
         serviceName: process.env.GATEWAY_UPSTREAM_CRM_SERVICE_NAME ?? 'crm-service',
         sse: {
           url:
-            process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? normalizeUrl(`${crmBase}/streams`, 'http://localhost:3001/streams')
+            process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? normalizeUrl(`${crmBase}/streams`, 'http://localhost:8082/streams')
         }
       },
       auth: {
@@ -82,7 +82,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
         sse: {
           url:
             process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL ??
-            normalizeUrl(`${notificationsBase}/streams`, 'http://localhost:3011/streams')
+            normalizeUrl(`${notificationsBase}/streams`, 'http://localhost:8085/streams')
         }
       }
     }
