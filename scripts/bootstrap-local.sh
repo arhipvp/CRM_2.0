@@ -128,6 +128,74 @@ docker_service_status() {
   docker inspect -f '{{.State.Status}}{{printf "\n"}}{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${container_id}"
 }
 
+check_backend_services() {
+  local json_output=""
+  if ! json_output=$("${COMPOSE_CMD[@]}" --profile backend ps --format json 2>/dev/null); then
+    echo "ERROR compose ps failed"
+    return 2
+  fi
+
+  local result=""
+  result=$(printf '%s\n' "${json_output}" | ${PYTHON_CMD} "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
+import json
+import sys
+
+services = sys.argv[1:]
+raw = sys.stdin.read().strip()
+if not raw:
+    print("PENDING no-data")
+    sys.exit(0)
+
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError as exc:
+    print(f"ERROR invalid-json {exc}")
+    sys.exit(1)
+
+if isinstance(data, dict):
+    data = [data]
+
+state_map = {}
+for entry in data:
+    service_name = entry.get("Service") or ""
+    if service_name:
+        state_map[service_name] = entry
+
+missing = [svc for svc in services if svc not in state_map]
+if missing:
+    print("PENDING missing:" + ",".join(missing))
+    sys.exit(0)
+
+for svc in services:
+    entry = state_map[svc]
+    state = (entry.get("State") or entry.get("Status") or "").lower()
+    health = (entry.get("Health") or "").lower()
+    if state not in ("running", "up"):
+        print(f"PENDING state:{svc}:{state}")
+        sys.exit(0)
+    if health and health != "healthy":
+        print(f"UNHEALTHY health:{svc}:{health}")
+        sys.exit(0)
+
+print("READY")
+PY
+) || return 2
+
+  case "${result}" in
+    READY)
+      return 0
+      ;;
+    UNHEALTHY*)
+      echo "${result}"
+      return 2
+      ;;
+    *)
+      echo "${result}"
+      return 1
+      ;;
+  esac
+}
+
 cleanup() {
   if ! is_truthy "${SAVE_LOGS_FLAG}"; then
     if [[ -d "${TMP_DIR}" ]]; then
@@ -743,54 +811,24 @@ step_wait_backend() {
 
     while (( attempt < max_attempts )); do
       ((attempt++))
-      local unhealthy=false
-      local pending=false
-
-      for service in "${services[@]}"; do
-        if ! status_output=$(docker_service_status backend "${service}"); then
-          pending=true
-          break
-        fi
-
-        mapfile -t status_lines <<<"${status_output}"$'\n'
-        state=$(strip_cr "${status_lines[0]:-unknown}")
-        health=$(strip_cr "${status_lines[1]:-}")
-
-        case "${state}" in
-          running)
-            if [[ -n "${health}" && "${health}" != "healthy" ]]; then
-              pending=true
-            fi
-            ;;
-          exited|dead)
-            unhealthy=true
-            break
-            ;;
-          *)
-            pending=true
-            ;;
-        esac
-
-        if [[ "${unhealthy}" == true ]]; then
-          break
-        fi
-      done
-
-      if [[ "${unhealthy}" == true ]]; then
+      local status_msg=""
+      if status_msg=$(check_backend_services); then
         "${COMPOSE_CMD[@]}" --profile backend ps
-        echo "Backend services have unhealthy containers" >&2
+        echo "Backend services are ready."
+        return 0
+      fi
+
+      local check_rc=$?
+      if [[ "${check_rc}" -eq 2 ]]; then
+        "${COMPOSE_CMD[@]}" --profile backend ps
+        echo "Backend services reported unhealthy state: ${status_msg}" >&2
         return 1
       fi
 
-      if [[ "${pending}" == true ]]; then
-        sleep "${sleep_seconds}"
-        attempt=$((attempt + 1))
-        continue
+      if [[ -n "${status_msg}" ]]; then
+        echo "${status_msg}"
       fi
-
-      "${COMPOSE_CMD[@]}" --profile backend ps
-      echo "Backend services are ready."
-      return 0
+      sleep "${sleep_seconds}"
     done
 
     echo "Timed out while waiting for backend services" >&2
