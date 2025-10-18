@@ -82,7 +82,10 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
         sse: {
           url:
             process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL ??
-            normalizeUrl(`${notificationsBase}/streams`, 'http://localhost:3011/streams')
+            normalizeUrl(
+              `${notificationsBase}/notifications/stream`,
+              'http://localhost:3011/api/notifications/stream'
+            )
         }
       }
     }
