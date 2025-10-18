@@ -70,7 +70,6 @@ describe("ApiClient mock mode", () => {
     expect(details).toMatchObject({
       id: dealId,
       name: dealsMock[0]?.name,
-      value: dealsMock[0]?.value,
       overview: expect.objectContaining({ metrics: expect.any(Array) }),
       documentsV2: expect.any(Array),
       finance: expect.objectContaining({ metrics: expect.any(Array) }),
@@ -159,7 +158,7 @@ describe("ApiClient mock mode", () => {
     expect(
       metrics
         .filter((item) => item.stage !== "closedWon")
-        .every((item) => item.count === 0 && item.totalValue === 0),
+        .every((item) => item.count === 0),
     ).toBe(true);
   });
 

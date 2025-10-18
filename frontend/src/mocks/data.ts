@@ -247,7 +247,6 @@ export const dealsMock: Deal[] = [
     name: "Корпоративная страховка",
     clientId: "client-1",
     clientName: "ООО «Альфа Логистик»",
-    value: 1200000,
     probability: 0.65,
     stage: "qualification",
     owner: "Анна Савельева",
@@ -274,7 +273,6 @@ export const dealsMock: Deal[] = [
     name: "Обновление полиса КАСКО",
     clientId: "client-2",
     clientName: "ИП Петров",
-    value: 210000,
     probability: 0.3,
     stage: "negotiation",
     owner: "Иван Плахов",
@@ -300,7 +298,6 @@ export const dealsMock: Deal[] = [
     name: "Продление ДМС",
     clientId: "client-3",
     clientName: "АО «Тех Инновации»",
-    value: 980000,
     probability: 0.8,
     stage: "proposal",
     owner: "Мария Орлова",
@@ -327,7 +324,6 @@ export const dealsMock: Deal[] = [
     name: "Страхование склада",
     clientId: "client-1",
     clientName: "ООО «Альфа Логистик»",
-    value: 450000,
     probability: 0.9,
     stage: "closedWon",
     owner: "Анна Савельева",
@@ -357,7 +353,6 @@ export const dealDetailsMock: Record<string, DealDetailsData> = {
     clientId: "client-1",
     clientName: "ООО «Альфа Логистик»",
     stage: "qualification",
-    value: 1200000,
     probability: 0.65,
     expectedCloseDate: new Date(now + dayInMs * 14).toISOString(),
     nextReviewAt: new Date(now + dayInMs * 2).toISOString(),
@@ -376,7 +371,6 @@ export const dealDetailsMock: Record<string, DealDetailsData> = {
     ],
     overview: {
       metrics: [
-        { id: "amount", label: "Сумма сделки", value: "1 200 000 ₽" },
         { id: "probability", label: "Вероятность закрытия", value: "65%" },
         {
           id: "next-review",
@@ -472,13 +466,6 @@ export const dealDetailsMock: Record<string, DealDetailsData> = {
         title: "Финансовые параметры",
         collapsedByDefault: true,
         fields: [
-          {
-            id: "value",
-            label: "Сумма",
-            type: "currency",
-            value: "1200000",
-            required: true,
-          },
           {
             id: "probability",
             label: "Вероятность",

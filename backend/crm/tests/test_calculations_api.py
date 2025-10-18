@@ -44,7 +44,6 @@ async def test_calculations_list_sorted_by_updated_at(api_client, configure_envi
         "title": "КАСКО для руководства",
         "description": "Подбор программы",
         "owner_id": str(uuid4()),
-        "value": 250000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -128,7 +127,6 @@ async def test_calculation_creation_checks_deal_existence(api_client, db_session
         "title": "КАСКО для топ-менеджера",
         "description": "Подбор оптимальной программы",
         "owner_id": str(uuid4()),
-        "value": 410000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -211,7 +209,6 @@ async def test_calculations_flow(api_client, configure_environment):
         "title": "КАСКО для директора",
         "description": "Подбор программы",
         "owner_id": str(uuid4()),
-        "value": 350000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)

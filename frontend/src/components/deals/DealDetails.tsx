@@ -176,7 +176,6 @@ export function DealDetails({ dealId }: { dealId: string }) {
       expectedCloseDate: changes.expectedCloseDate
         ? new Date(changes.expectedCloseDate).toISOString()
         : deal.expectedCloseDate ?? null,
-      value: parseNumber(changes.value) ?? deal.value,
       probability: (() => {
         const raw = parseNumber(changes.probability);
         if (raw === undefined) {

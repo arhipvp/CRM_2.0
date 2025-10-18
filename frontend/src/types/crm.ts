@@ -53,7 +53,6 @@ export interface Deal {
   name: string;
   clientId: string;
   clientName: string;
-  value: number;
   probability: number;
   stage: DealStage;
   owner: string;
@@ -74,7 +73,6 @@ export interface Deal {
 export interface DealStageMetrics {
   stage: DealStage;
   count: number;
-  totalValue: number;
   conversionRate: number;
   avgCycleDurationDays: number | null;
 }
@@ -611,7 +609,6 @@ export interface DealDetailsData {
   clientId: string;
   clientName: string;
   stage: DealStage;
-  value: number;
   probability: number;
   expectedCloseDate?: string;
   nextReviewAt: string;

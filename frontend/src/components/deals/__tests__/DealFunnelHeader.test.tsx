@@ -38,14 +38,12 @@ describe("DealFunnelHeader", () => {
       {
         stage: "qualification",
         count: 2,
-        totalValue: 1_500_000,
         conversionRate: 1,
         avgCycleDurationDays: 2.5,
       },
       {
         stage: "negotiation",
         count: 1,
-        totalValue: 210_000,
         conversionRate: 0.5,
         avgCycleDurationDays: 3,
       },
@@ -56,7 +54,7 @@ describe("DealFunnelHeader", () => {
     const qualificationCard = await screen.findByRole("button", { name: /Квалификация/ });
     expect(within(qualificationCard).getByText("2")).toBeInTheDocument();
     expect(within(qualificationCard).getByTitle("Конверсия")).toHaveTextContent("100%");
-    expect(within(qualificationCard).getByText(/1[\s\u00a0\u202f]?500[\s\u00a0\u202f]?000/)).toBeInTheDocument();
+    expect(within(qualificationCard).getByText(/Конверсия: 100%/)).toBeInTheDocument();
     expect(within(qualificationCard).getByText(/Средний цикл: 2\.5 дн\./)).toBeInTheDocument();
 
     const negotiationCard = screen.getByRole("button", { name: /Переговоры/ });

@@ -10,14 +10,6 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function formatProbability(probability: number) {
   return `${Math.round(probability * 100)}%`;
 }
@@ -132,7 +124,7 @@ export function DealCard({
         isDragging && "opacity-80",
       )}
       aria-pressed={selected}
-      aria-label={`Сделка ${deal.name} для клиента ${deal.clientName} на сумму ${formatCurrency(deal.value)}`}
+      aria-label={`Сделка ${deal.name} для клиента ${deal.clientName}`}
     >
       <div className="flex items-start gap-3">
         {checkbox}
@@ -149,8 +141,7 @@ export function DealCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-300">
-        <span>{formatCurrency(deal.value)}</span>
+      <div className="flex items-center justify-end text-sm text-slate-500 dark:text-slate-300">
         {deal.expectedCloseDate && (
           <span
             className={classNames(

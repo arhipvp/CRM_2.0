@@ -120,13 +120,7 @@ export function DealDetailsHeader({ deal }: DealDetailsHeaderProps) {
           </span>
         </div>
       </div>
-      <dl className="grid gap-4 sm:grid-cols-4">
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Сумма сделки</dt>
-          <dd className="text-lg font-semibold text-slate-900 dark:text-white">
-            {new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 }).format(deal.value)}
-          </dd>
-        </div>
+      <dl className="grid gap-4 sm:grid-cols-3">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Вероятность</dt>
           <dd className="text-lg font-semibold text-slate-900 dark:text-white">{Math.round(deal.probability * 100)}%</dd>

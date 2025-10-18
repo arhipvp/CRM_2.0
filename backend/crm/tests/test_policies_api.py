@@ -27,7 +27,6 @@ async def test_policy_get_and_patch(api_client):
         "title": "Полис страхования",
         "description": "Первичный полис",
         "owner_id": str(owner_id),
-        "value": 100000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)

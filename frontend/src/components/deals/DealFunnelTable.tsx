@@ -555,38 +555,51 @@ export function DealFunnelTable() {
                           <td className="px-4 py-4">
                             {expectedCloseDate ? (
                               <span
-                                className={classNames(
-                                  "text-xs",
-                                  isExpectedCloseOverdue
-                                    ? "font-semibold text-amber-600 dark:text-amber-300"
-                                    : "text-slate-400 dark:text-slate-500",
-                                )}
-                                title="Ожидаемая дата закрытия"
-                              >
-                                {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
-                          <td className="px-4 py-4 text-right">
-                            <Link
-                              href={`/deals/${deal.id}`}
-                              className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
-                              onClick={(event) => event.stopPropagation()}
+                                className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
+                                aria-hidden="true"
+                              />
+                              Следующий просмотр
+                            </span>
+                            <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
+                              {formatShortDate(deal.nextReviewAt)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          {expectedCloseDate ? (
+                            <span
+                              className={classNames(
+                                "text-xs",
+                                isExpectedCloseOverdue
+                                  ? "font-semibold text-amber-600 dark:text-amber-300"
+                                  : "text-slate-400 dark:text-slate-500",
+                              )}
+                              title="Ожидаемая дата закрытия"
                             >
-                              Открыть
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
+                              {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            Открыть
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
                 <p>Сделки не найдены для выбранных фильтров.</p>
                 <button
                   type="button"

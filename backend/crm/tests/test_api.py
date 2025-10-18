@@ -35,7 +35,6 @@ async def test_crud_flow(api_client):
         "title": "Каско 2024",
         "description": "Полис каско",
         "owner_id": str(owner_id),
-        "value": 120000,
         "next_review_at": date.today().isoformat(),
     }
     response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -103,7 +102,6 @@ async def test_multiple_crud_requests_do_not_close_session(api_client):
             "title": f"Каско 2024-{index}",
             "description": "Полис каско",
             "owner_id": str(owner_id),
-            "value": 120000 + index,
             "next_review_at": (date.today() + timedelta(days=index)).isoformat(),
         }
         response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -169,7 +167,6 @@ async def test_deal_patch_next_review_at_validation(api_client):
         "title": "Каско 2024",
         "description": "Полис каско",
         "owner_id": str(owner_id),
-        "value": 120000,
         "next_review_at": date.today().isoformat(),
     }
     response = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
