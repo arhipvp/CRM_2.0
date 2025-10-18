@@ -14,9 +14,12 @@ router = APIRouter(prefix="/deals/{deal_id}/policies/{policy_id}/payments", tags
 
 
 def _handle_repository_error(exc: RepositoryError) -> None:
-    if str(exc) == "policy_not_found":
+    detail = str(exc)
+    if detail == "policy_not_found":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found") from exc
-    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if detail in {"actual_date_before_planned_date", "actual_date_in_future"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
 
 
 @router.get("/", response_model=schemas.PaymentList)

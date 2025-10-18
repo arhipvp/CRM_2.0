@@ -418,3 +418,37 @@ async def test_delete_payment_with_transactions_returns_conflict(api_client, con
 
     assert delete_response.status_code == 409
     assert delete_response.json()["detail"] == "payment_has_transactions"
+
+
+@pytest.mark.asyncio()
+async def test_update_payment_rejects_actual_date_before_planned_date(
+    api_client, configure_environment
+):
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    earlier_date = (payment.planned_date - timedelta(days=1)).isoformat()
+
+    response = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        json={"actual_date": earlier_date},
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "actual_date_before_planned_date"
+
+
+@pytest.mark.asyncio()
+async def test_update_payment_rejects_actual_date_in_future(api_client, configure_environment):
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    future_date = (date.today() + timedelta(days=1)).isoformat()
+
+    response = await api_client.patch(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        json={"actual_date": future_date},
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "actual_date_in_future"
