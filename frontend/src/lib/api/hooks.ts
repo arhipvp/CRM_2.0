@@ -17,7 +17,6 @@ import {
   isArchivedClientPolicyStatus,
 } from "@/lib/api/client";
 import {
-  dealStageMetricsQueryKey,
   dealActivityQueryOptions,
   clientActivityQueryOptions,
   clientPoliciesQueryOptions,
@@ -30,7 +29,6 @@ import {
   dealNotesQueryOptions,
   dealPaymentsQueryOptions,
   dealsQueryOptions,
-  dealStageMetricsQueryOptions,
   clientRemindersQueryOptions,
   clientTasksChecklistQueryOptions,
   paymentsQueryOptions,
@@ -52,10 +50,6 @@ import { useNotificationsStore } from "@/stores/notificationsStore";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
-}
-
-export function useDealStageMetrics(filters?: DealFilters) {
-  return useQuery(dealStageMetricsQueryOptions(filters));
 }
 
 export function useDealDetails(dealId: string) {
@@ -186,7 +180,6 @@ function createTaskInvalidations(queryClient: ReturnType<typeof useQueryClient>,
   const invalidations = [
     queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
     queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-    queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
   ];
 
   if (task.dealId) {
@@ -215,7 +208,6 @@ export function useToggleTask() {
       const invalidations = [
         queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
         queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ];
 
       if (task.dealId) {
@@ -472,7 +464,6 @@ function invalidatePaymentQueries(queryClient: ReturnType<typeof useQueryClient>
     queryClient.invalidateQueries({ queryKey: paymentsQueryOptions().queryKey }),
     queryClient.invalidateQueries({ queryKey: paymentsWithDetailsKey }),
     queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-    queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
   ];
 
   if (dealId) {
@@ -785,7 +776,6 @@ export function useUpdateDealStage() {
           queryKey: dealDetailsQueryOptions(variables.dealId).queryKey,
           exact: true,
         }),
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ]);
     },
   });

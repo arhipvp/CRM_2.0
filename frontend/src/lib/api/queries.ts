@@ -15,7 +15,6 @@ import type {
 const emptyObject = {} as const;
 
 export const dealsQueryKey = ["deals"] as const;
-export const dealStageMetricsQueryKey = ["deal-stage-metrics"] as const;
 export const notificationsFeedQueryKey = ["notifications", "feed"] as const;
 export const notificationsJournalQueryKey = ["notifications", "journal"] as const;
 
@@ -61,15 +60,6 @@ export const dealsQueryOptions = (filters?: DealFilters, client: ApiClient = api
   return queryOptions({
     queryKey: [...dealsQueryKey, sanitizedFilters ?? emptyObject] as const,
     queryFn: () => client.getDeals(sanitizedFilters),
-  });
-};
-
-export const dealStageMetricsQueryOptions = (filters?: DealFilters, client: ApiClient = apiClient) => {
-  const sanitizedFilters = sanitizeDealFilters(filters);
-
-  return queryOptions({
-    queryKey: [...dealStageMetricsQueryKey, sanitizedFilters ?? emptyObject] as const,
-    queryFn: () => client.getDealStageMetrics(sanitizedFilters),
   });
 };
 

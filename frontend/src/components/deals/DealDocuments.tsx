@@ -3,12 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  dealDocumentsQueryOptions,
-  dealDetailsQueryOptions,
-  dealStageMetricsQueryKey,
-  dealsQueryKey,
-} from "@/lib/api/queries";
+import { dealDocumentsQueryOptions, dealDetailsQueryOptions, dealsQueryKey } from "@/lib/api/queries";
 import { useDealDocuments, useUploadDealDocument } from "@/lib/api/hooks";
 import type { DealDocument } from "@/types/crm";
 
@@ -94,7 +89,6 @@ export function DealDocuments({ dealId, createRequestKey, onCreateHandled }: Dea
       queryClient.invalidateQueries({ queryKey: documentsKey }),
       queryClient.invalidateQueries({ queryKey: dealDetailsKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
     ]);
 
     setIsFormOpen(false);

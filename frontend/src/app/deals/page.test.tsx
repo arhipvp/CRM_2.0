@@ -10,14 +10,11 @@ afterEach(() => {
 
 describe("DealsPage SSR", () => {
   it("не выполняет серверный префетч и рендерит только макет", async () => {
-    vi.mock("@/components/deals/DealFunnelHeader", () => ({
-      DealFunnelHeader: () => null,
+    vi.mock("@/components/deals/DealsHeader", () => ({
+      DealsHeader: () => null,
     }));
-    vi.mock("@/components/deals/DealFunnelBoard", () => ({
-      DealFunnelBoard: () => null,
-    }));
-    vi.mock("@/components/deals/DealFunnelTable", () => ({
-      DealFunnelTable: () => null,
+    vi.mock("@/components/deals/DealsTable", () => ({
+      DealsTable: () => null,
     }));
 
     vi.mock("@tanstack/react-query", () => {

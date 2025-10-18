@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { HomeOverview } from "@/components/home/HomeOverview";
 import { ApiError, getServerApiClient } from "@/lib/api/client";
-import { dealStageMetricsQueryOptions } from "@/lib/api/queries";
+import { dealsQueryOptions } from "@/lib/api/queries";
 import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
 
 export const revalidate = 0;
@@ -13,8 +13,8 @@ export default async function HomePage() {
 
   const prefetchRequests = [
     {
-      type: "deal-stage-metrics",
-      run: () => queryClient.prefetchQuery(dealStageMetricsQueryOptions(defaultFilters, serverApiClient)),
+      type: "deals",
+      run: () => queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient)),
     },
   ] as const;
 
@@ -40,7 +40,7 @@ export default async function HomePage() {
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Главная</h1>
         <p className="text-slate-500 dark:text-slate-300">
-          Отслеживайте ключевые показатели воронки и настраивайте фильтры для анализа без перехода на другие страницы.
+          Быстро оценивайте состояние сделок и переходите к тем, что требуют внимания, не покидая главную страницу.
         </p>
       </header>
 

@@ -3,13 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventStream } from "@/hooks/useEventStream";
-import {
-  dealDetailsQueryOptions,
-  dealStageMetricsQueryKey,
-  dealsQueryKey,
-  paymentsQueryOptions,
-  notificationsFeedQueryKey,
-} from "@/lib/api/queries";
+import { dealDetailsQueryOptions, dealsQueryKey, paymentsQueryOptions, notificationsFeedQueryKey } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
 import { useNotificationsStore } from "@/stores/notificationsStore";
@@ -233,7 +227,6 @@ export function SSEBridge({
           queryKey: dealDetailsQueryOptions(dealId).queryKey,
           exact: true,
         }),
-        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       ]),
     [queryClient],
   );
@@ -259,10 +252,7 @@ export function SSEBridge({
 
       if (shouldInvalidatePayments) {
         if (!dealId) {
-          void Promise.all([
-            queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-            queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
-          ]);
+          void queryClient.invalidateQueries({ queryKey: dealsQueryKey });
         }
 
         queryClient.invalidateQueries({ queryKey: paymentsQueryKey });

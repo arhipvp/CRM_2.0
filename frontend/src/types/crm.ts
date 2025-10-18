@@ -71,14 +71,6 @@ export interface Deal {
   quickTags?: DealQuickTag[];
 }
 
-export interface DealStageMetrics {
-  stage: DealStage;
-  count: number;
-  totalValue: number;
-  conversionRate: number;
-  avgCycleDurationDays: number | null;
-}
-
 export type ClientKycStatus = "pending" | "in_review" | "verified" | "rejected";
 
 export interface ClientContact {
