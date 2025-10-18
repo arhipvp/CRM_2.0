@@ -55,8 +55,9 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 5
+      start_period: 30s
     networks:
       - infra
 
@@ -110,10 +111,10 @@ services:
     container_name: crm-backup
     restart: unless-stopped
     environment:
-      BACKUP_DATABASE_URL: ${BACKUP_INTERNAL_DATABASE_URL:-${BACKUP_DATABASE_URL:-postgresql://${BACKUP_DB_USER:-backup}:${BACKUP_DB_PASSWORD:-backup}@${POSTGRES_HOST_INTERNAL:-postgres}:5432/${POSTGRES_DB:-crm}?search_path=backup}}
+      BACKUP_DATABASE_URL: ${BACKUP_INTERNAL_DATABASE_URL:-${BACKUP_DATABASE_URL:-postgresql://${BACKUP_DB_USER:-backup}:${BACKUP_DB_PASSWORD:-backup}@${POSTGRES_HOST_INTERNAL:-postgres}:5432/${POSTGRES_DB:-crm}?options=-csearch_path%3Dbackup}}
       BACKUP_SERVICE_PORT: ${BACKUP_SERVICE_PORT:-8094}
       BACKUP_TIMEZONE: ${TIMEZONE:-Europe/Moscow}
-      BACKUP_POSTGRES_BACKUP_DSN: ${BACKUP_INTERNAL_POSTGRES_BACKUP_DSN:-${BACKUP_POSTGRES_BACKUP_DSN:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_HOST_INTERNAL:-postgres}:5432/${POSTGRES_DB:-crm}}}
+      BACKUP_POSTGRES_BACKUP_DSN: ${BACKUP_INTERNAL_POSTGRES_BACKUP_DSN:-${BACKUP_POSTGRES_BACKUP_DSN:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${POSTGRES_HOST_INTERNAL:-postgres}:5432/${POSTGRES_DB:-crm}?options=-csearch_path%3Dbackup}}
       BACKUP_S3_ENDPOINT_URL: ${BACKUP_S3_ENDPOINT_URL:-}
       BACKUP_S3_REGION_NAME: ${BACKUP_S3_REGION_NAME:-us-east-1}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET}
@@ -213,7 +214,7 @@ services:
       notifications:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -313,6 +314,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      START_COMMAND: node dist/src/main.js
       DOCUMENTS_SERVICE_PORT: ${DOCUMENTS_SERVICE_PORT:-8084}
       DOCUMENTS_DATABASE_URL: ${DOCUMENTS_DATABASE_URL_INTERNAL:-postgresql://${DOCUMENTS_DB_USER:-documents}:${DOCUMENTS_DB_PASSWORD:-documents}@${POSTGRES_HOST_INTERNAL:-postgres}:${POSTGRES_CONTAINER_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=documents}
       DOCUMENTS_DATABASE_SCHEMA: ${DOCUMENTS_DATABASE_SCHEMA:-documents}
