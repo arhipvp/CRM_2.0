@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, MessageEvent, VersioningType } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import * as request from 'supertest';
+import request from 'supertest';
 import RedisMock from 'ioredis-mock';
 
 import { AppModule } from '../src/app.module';
@@ -214,6 +214,37 @@ describe('Gateway bootstrap', () => {
           }
         });
     });
+  });
+
+  it('bootstraps when REDIS_URL resolves to an empty string', async () => {
+    const originalRedisUrl = process.env.REDIS_URL;
+    process.env.REDIS_URL = '  ';
+
+    const nestedRedis = new RedisMock();
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule]
+    })
+      .overrideProvider(REDIS_CLIENT)
+      .useValue(nestedRedis)
+      .overrideProvider(UpstreamSseService)
+      .useValue(upstreamSseServiceMock)
+      .compile();
+
+    const nestedApp = moduleFixture.createNestApplication();
+
+    try {
+      await nestedApp.init();
+    } finally {
+      await nestedApp.close();
+      await nestedRedis.quit();
+
+      if (typeof originalRedisUrl === 'string') {
+        process.env.REDIS_URL = originalRedisUrl;
+      } else {
+        delete process.env.REDIS_URL;
+      }
+    }
   });
 });
 
