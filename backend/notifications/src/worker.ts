@@ -1,13 +1,14 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+import { INestApplication, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrapWorker() {
-  const app = await NestFactory.createApplicationContext(AppModule, {
+  const appContext = await NestFactory.createApplicationContext(AppModule, {
     bufferLogs: true
   });
   const logger = new Logger('NotificationsWorker');
+  const app = appContext as unknown as INestApplication;
   app.enableShutdownHooks();
   logger.log('Notifications worker started. Listening for message broker events.');
 }
