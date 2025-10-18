@@ -1,14 +1,22 @@
-# Payments Service (архив)
+# Payments Service
 
-> ⚠️ Каталог `backend/payments` сохранён только для истории. Отдельный сервис платежей больше не входит в целевую архитектуру и не разворачивается в окружениях.
+Spring Boot 3 (Reactive) сервис, который управляет графиком платежей и связанными движениями средств. Сервис синхронизируется с CRM/Deals через REST и события RabbitMQ, хранит данные в схеме `payments` общего кластера PostgreSQL и публикует события `payments.events`.
 
 ## Статус
 - исходный Spring Boot-проект не поддерживается и не обновляется;
 - шаблон окружения снова содержит только `PAYMENTS_RABBITMQ_URL` и `PAYMENTS_RABBITMQ_INTERNAL_URL`, чтобы легаси-приложение могло подписываться на очереди; остальные `PAYMENTS_*` по-прежнему считаются устаревшими и не синхронизируются автоматически;
 - миграции Flyway и конфигурация очередей описывают прежнюю схему `payments` и нужны только для анализа наследия.
 
-## Где искать актуальную реализацию платежей
-Модуль платежей перенесён в CRM/Deals и работает поверх таблиц `crm.payments`, `crm.payment_incomes`, `crm.payment_expenses`. Используйте документацию и REST API, описанные в [`backend/crm/README.md`](../crm/README.md) и [`docs/api/crm-deals.md`](../../docs/api/crm-deals.md).
+1. Скопируйте `env.example` в корень и в `backend/payments`:
+   ```bash
+   ./scripts/sync-env.sh backend/payments
+   ```
+2. Убедитесь, что PostgreSQL и RabbitMQ подняты (`docker compose --env-file .env up -d postgres rabbitmq`).
+3. Запустите сервис в локальном профиле:
+   ```bash
+   cd backend/payments
+   SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+   ```
 
 ## Что можно найти в архиве
 - историческую документацию по API (`docs/api/payments.md`),
