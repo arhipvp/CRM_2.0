@@ -55,6 +55,11 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
     'http://localhost:3011/api'
   );
 
+  const crmSseUrl = normalizeUrl(
+    process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? '',
+    'http://localhost:8082/streams'
+  );
+
   return {
     defaultTimeout,
     reconnectDelay,
@@ -66,8 +71,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
         timeout: parseNumber(process.env.GATEWAY_UPSTREAM_CRM_TIMEOUT, defaultTimeout),
         serviceName: process.env.GATEWAY_UPSTREAM_CRM_SERVICE_NAME ?? 'crm-service',
         sse: {
-          url:
-            process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? normalizeUrl(`${crmBase}/streams`, 'http://localhost:3001/streams')
+          url: crmSseUrl
         }
       },
       auth: {
