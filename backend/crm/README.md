@@ -53,7 +53,11 @@ crm/
    ```bash
    poetry run crm-worker worker -l info
    ```
-6. Платёжный модуль доступен через REST-ресурсы `/api/v1/payments`, `/api/v1/payments/{paymentId}`, `/api/v1/payment-incomes`, `/api/v1/payment-expenses` и использует те же зависимости, что и основной сервис CRM. Дополнительных брокеров сообщений или внешних воркеров не требуется: фоновые задачи сохраняют движения средств напрямую в БД и публикуют события `payment.*` в `crm.events` через общий слой доменных уведомлений.
+6. Платёжный модуль предоставляет вложенные REST-ресурсы:
+   - `/api/v1/deals/{dealId}/policies/{policyId}/payments` и `/api/v1/deals/{dealId}/policies/{policyId}/payments/{paymentId}` для операций с платежами;
+   - `/api/v1/deals/{dealId}/policies/{policyId}/payments/{paymentId}/incomes` для поступлений;
+   - `/api/v1/deals/{dealId}/policies/{policyId}/payments/{paymentId}/expenses` для расходов.
+   Он использует те же зависимости, что и основной сервис CRM. Дополнительных брокеров сообщений или внешних воркеров не требуется: фоновые задачи сохраняют движения средств напрямую в БД и публикуют события `payment.*` в `crm.events` через общий слой доменных уведомлений.
 
 ## REST API
 - `GET /api/v1/clients` — список клиентов.
