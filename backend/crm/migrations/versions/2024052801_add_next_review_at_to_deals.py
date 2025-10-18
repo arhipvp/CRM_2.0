@@ -6,9 +6,9 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "2024052801"
+revision = "2024052801_add_next_review_at_to_deals"
 down_revision = "2024031501"
-branch_labels = ("crm",)
+branch_labels = None
 depends_on = None
 
 
