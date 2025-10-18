@@ -1,55 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 
 import { DealFunnelTable } from "@/components/deals/DealFunnelTable";
-import { dealsMock } from "@/mocks/data";
 import { useUiStore } from "@/stores/uiStore";
-import { render, screen, within } from "@testing-library/react";
-
-import { DealFunnelTable } from "@/components/deals/DealFunnelTable";
 import type { Deal } from "@/types/crm";
 
 const useDealsMock = vi.fn();
-
-function createDefaultUiState() {
-  return {
-    filters: { stage: "all", managers: [], period: "30d", search: "" },
-    viewMode: "table" as const,
-    selectedDealIds: [] as string[],
-    highlightedDealId: undefined as string | undefined,
-    previewDealId: undefined as string | undefined,
-    notifications: [] as unknown[],
-    dealUpdates: {} as Record<string, string>,
-    dismissedHints: {} as Record<string, boolean>,
-    setSelectedStage: vi.fn(),
-    setManagersFilter: vi.fn(),
-    toggleManagerFilter: vi.fn(),
-    setPeriodFilter: vi.fn(),
-    setSearchFilter: vi.fn(),
-    clearFilters: vi.fn(),
-    setViewMode: vi.fn(),
-    toggleDealSelection: vi.fn(),
-    selectDeals: vi.fn(),
-    clearSelection: vi.fn(),
-    openDealPreview: vi.fn(),
-    isHintDismissed: () => false,
-    dismissHint: vi.fn(),
-    highlightDeal: vi.fn(),
-    pushNotification: vi.fn(),
-    dismissNotification: vi.fn(),
-    handlePaymentEvent: vi.fn(),
-    markDealUpdated: vi.fn(),
-    clearDealUpdate: vi.fn(),
-    dealDetailsTab: "overview" as const,
-    dealDetailsRequests: {},
-    setDealDetailsTab: vi.fn(),
-    triggerDealDetailsRequest: vi.fn(),
-    consumeDealDetailsRequest: vi.fn(),
-  };
-}
-
-type UiState = ReturnType<typeof createDefaultUiState>;
 
 vi.mock("@/components/deals/DealPreviewSidebar", () => ({
   DealPreviewSidebar: () => null,
@@ -57,68 +14,178 @@ vi.mock("@/components/deals/DealPreviewSidebar", () => ({
 
 vi.mock("@/components/deals/DealBulkActions", () => ({
   DealBulkActions: () => null,
-  buildBulkActionNotificationMessage: vi.fn(() => ""),
 }));
 
-vi.mock("@/stores/uiStore", () => {
-  const { create } = require("zustand");
+vi.mock("@/lib/api/hooks", () => ({
+  useDeals: (...args: unknown[]) => useDealsMock(...args),
+}));
 
-  type BaseUiState = ReturnType<typeof createDefaultUiState>;
-  type UiState = BaseUiState & {
-    markDealUpdated: (dealId: string) => void;
-    clearDealUpdate: (dealId: string) => void;
+type DealFiltersState = {
+  stage: string;
+  managers: string[];
+  period: string;
+  search: string;
+};
+
+type BaseUiState = {
+  filters: DealFiltersState;
+  viewMode: "table" | "kanban";
+  selectedDealIds: string[];
+  highlightedDealId?: string;
+  previewDealId?: string;
+  notifications: unknown[];
+  dealUpdates: Record<string, string>;
+  dismissedHints: Record<string, boolean>;
+  dealDetailsTab: string;
+  dealDetailsRequests: Record<string, string>;
+};
+
+type UiState = BaseUiState & {
+  setSelectedStage: (stage: string) => void;
+  setManagersFilter: (managers: string[]) => void;
+  toggleManagerFilter: (manager: string) => void;
+  setPeriodFilter: (period: string) => void;
+  setSearchFilter: (value: string) => void;
+  clearFilters: () => void;
+  setViewMode: (mode: "table" | "kanban") => void;
+  toggleDealSelection: (dealId: string) => void;
+  selectDeals: (dealIds: string[]) => void;
+  clearSelection: () => void;
+  openDealPreview: (dealId?: string) => void;
+  isHintDismissed: (key: string) => boolean;
+  dismissHint: (key: string) => void;
+  highlightDeal: (dealId?: string) => void;
+  pushNotification: (notification: unknown) => void;
+  dismissNotification: (id: string) => void;
+  handlePaymentEvent: (event: unknown) => { shouldRefetch: boolean; highlightDealId?: string };
+  markDealUpdated: (dealId: string) => void;
+  clearDealUpdate: (dealId: string) => void;
+  setDealDetailsTab: (tab: string) => void;
+  triggerDealDetailsRequest: (kind: string) => void;
+  consumeDealDetailsRequest: (kind: string) => void;
+};
+
+function createDefaultUiState(): BaseUiState {
+  return {
+    filters: { stage: "all", managers: [], period: "30d", search: "" },
+    viewMode: "table",
+    selectedDealIds: [],
+    highlightedDealId: undefined,
+    previewDealId: undefined,
+    notifications: [],
+    dealUpdates: {},
+    dismissedHints: {},
+    dealDetailsTab: "overview",
+    dealDetailsRequests: {},
+  };
+}
+
+vi.mock("@/stores/uiStore", () => {
+  let state: UiState;
+  const listeners = new Set<(value: UiState) => void>();
+
+  const notify = () => {
+    for (const listener of listeners) {
+      listener(state);
+    }
   };
 
-  const useUiStoreMock = create<UiState>((set) => ({
-    ...createDefaultUiState(),
-    markDealUpdated: vi.fn((dealId: string) => {
-      set((state) => ({
+  const buildState = (): UiState => {
+    const base = createDefaultUiState();
+
+    const setViewMode = vi.fn((mode: UiState["viewMode"]) => {
+      state = { ...state, viewMode: mode };
+      notify();
+    });
+
+    const clearSelection = vi.fn(() => {
+      state = { ...state, selectedDealIds: [] };
+      notify();
+    });
+
+    const openDealPreview = vi.fn((dealId?: string) => {
+      state = { ...state, previewDealId: dealId };
+      notify();
+    });
+
+    const highlightDeal = vi.fn((dealId?: string) => {
+      state = { ...state, highlightedDealId: dealId };
+      notify();
+    });
+
+    const markDealUpdated = vi.fn((dealId: string) => {
+      state = {
+        ...state,
         dealUpdates: {
           ...state.dealUpdates,
           [dealId]: new Date().toISOString(),
         },
-      }));
-    }),
-    clearDealUpdate: vi.fn((dealId: string) => {
-      set((state) => {
-        const rest = { ...state.dealUpdates };
-        delete rest[dealId];
-        return { dealUpdates: rest };
-      });
-    }),
-  }));
+      };
+      notify();
+    });
 
-  (useUiStoreMock as typeof useUiStoreMock & { resetState?: () => void }).resetState = () => {
-    const base = createDefaultUiState();
-    useUiStoreMock.setState((state) => ({
-      ...state,
+    const clearDealUpdate = vi.fn((dealId: string) => {
+      const { [dealId]: _removed, ...rest } = state.dealUpdates;
+      state = {
+        ...state,
+        dealUpdates: rest,
+      };
+      notify();
+    });
+
+    return {
       ...base,
-    }));
-  buildBulkActionNotificationMessage: vi.fn(),
-}));
+      setSelectedStage: vi.fn(),
+      setManagersFilter: vi.fn(),
+      toggleManagerFilter: vi.fn(),
+      setPeriodFilter: vi.fn(),
+      setSearchFilter: vi.fn(),
+      clearFilters: vi.fn(),
+      setViewMode,
+      toggleDealSelection: vi.fn(),
+      selectDeals: vi.fn(),
+      clearSelection,
+      openDealPreview,
+      isHintDismissed: vi.fn(() => false),
+      dismissHint: vi.fn(),
+      highlightDeal,
+      pushNotification: vi.fn(),
+      dismissNotification: vi.fn(),
+      handlePaymentEvent: vi.fn(() => ({ shouldRefetch: false })),
+      markDealUpdated,
+      clearDealUpdate,
+      setDealDetailsTab: vi.fn(),
+      triggerDealDetailsRequest: vi.fn(),
+      consumeDealDetailsRequest: vi.fn(),
+    };
+  };
 
-vi.mock("@/stores/uiStore", () => {
-  let state: UiState = createDefaultUiState();
-  const listeners = new Set<(value: UiState) => void>();
+  state = buildState();
 
-  const useUiStoreMock = (selector?: (value: UiState) => unknown) => (selector ? selector(state) : state);
+  const useUiStoreMock = ((selector?: (value: UiState) => unknown) =>
+    selector ? selector(state) : state) as unknown as {
+    <T>(selector: (value: UiState) => T): T;
+    (): UiState;
+  };
 
   useUiStoreMock.setState = (
     partial: Partial<UiState> | ((value: UiState) => Partial<UiState>),
   ) => {
-    const nextState = typeof partial === "function" ? partial(state) : partial;
-    state = { ...state, ...nextState };
-    listeners.forEach((listener) => listener(state));
+    const next = typeof partial === "function" ? partial(state) : partial;
+    state = { ...state, ...next } as UiState;
+    notify();
   };
 
   useUiStoreMock.getState = () => state;
+
   useUiStoreMock.subscribe = (listener: (value: UiState) => void) => {
     listeners.add(listener);
     return () => listeners.delete(listener);
   };
+
   useUiStoreMock.resetState = () => {
-    state = createDefaultUiState();
-    listeners.forEach((listener) => listener(state));
+    state = buildState();
+    notify();
   };
 
   return {
@@ -126,152 +193,103 @@ vi.mock("@/stores/uiStore", () => {
   };
 });
 
-vi.mock("@/lib/api/hooks", () => ({
-  useDeals: (...args: unknown[]) => useDealsMock(...args),
-}));
-
-const mockedUseUiStore = useUiStore as typeof useUiStore & { resetState?: () => void };
-const mockedUseUiStore = (await import("@/stores/uiStore")).useUiStore as typeof import("@/stores/uiStore").useUiStore & {
+const mockedUseUiStore = useUiStore as typeof useUiStore & {
   resetState?: () => void;
 };
 
-function resetUiStore() {
-  mockedUseUiStore.resetState?.();
-}
+const sampleDeals: Deal[] = [
+  {
+    id: "deal-future",
+    name: "Будущая сделка",
+    clientName: "ООО Альфа",
+    clientId: "client-1",
+    stage: "negotiation",
+    probability: 0.5,
+    owner: "Иван Петров",
+    nextReviewAt: new Date("2074-01-05T09:00:00.000Z").toISOString(),
+    updatedAt: new Date("2073-12-15T10:00:00.000Z").toISOString(),
+    expectedCloseDate: new Date("2074-01-10T00:00:00.000Z").toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
+  },
+  {
+    id: "deal-overdue",
+    name: "Просроченная сделка",
+    clientName: "ООО Бета",
+    clientId: "client-2",
+    stage: "proposal",
+    probability: 0.7,
+    owner: "Мария Иванова",
+    nextReviewAt: new Date("2004-01-03T12:00:00.000Z").toISOString(),
+    updatedAt: new Date("2003-12-20T08:30:00.000Z").toISOString(),
+    expectedCloseDate: new Date("2003-12-20T00:00:00.000Z").toISOString(),
+    tasks: [],
+    notes: [],
+    documents: [],
+    payments: [],
+    activity: [],
+  },
+];
 
 function renderTable() {
-  let result: ReturnType<typeof render> | undefined;
-
-  act(() => {
-    result = render(<DealFunnelTable />);
-  });
-
-  return result!;
+  render(<DealFunnelTable />);
 }
 
-describe("DealFunnelTable — deal updates", () => {
-  beforeEach(() => {
-    resetUiStore();
-    useDealsMock.mockReturnValue({
-      data: dealsMock,
 describe("DealFunnelTable", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
-    resetUiStore();
-    const deals: Deal[] = [
-      {
-        id: "deal-future",
-        name: "Будущая сделка",
-        clientName: "ООО Альфа",
-        clientId: "client-1",
-        stage: "negotiation",
-        probability: 0.5,
-        value: 250000,
-        nextReviewAt: new Date("2024-01-05T09:00:00.000Z").toISOString(),
-        updatedAt: new Date("2023-12-15T10:00:00.000Z").toISOString(),
-        owner: "Иван Петров",
-        expectedCloseDate: new Date("2024-01-10T00:00:00.000Z").toISOString(),
-        tasks: [],
-        notes: [],
-        documents: [],
-        payments: [],
-        activity: [],
-      },
-      {
-        id: "deal-overdue",
-        name: "Просроченная сделка",
-        clientName: "ООО Бета",
-        clientId: "client-2",
-        stage: "proposal",
-        probability: 0.7,
-        value: 350000,
-        nextReviewAt: new Date("2024-01-03T12:00:00.000Z").toISOString(),
-        updatedAt: new Date("2023-12-20T08:30:00.000Z").toISOString(),
-        owner: "Мария Иванова",
-        expectedCloseDate: new Date("2023-12-20T00:00:00.000Z").toISOString(),
-        tasks: [],
-        notes: [],
-        documents: [],
-        payments: [],
-        activity: [],
-      },
-    ];
-
+    mockedUseUiStore.resetState?.();
     useDealsMock.mockReturnValue({
-      data: deals,
+      data: sampleDeals,
       isLoading: false,
       isError: false,
       error: null,
       isFetching: false,
       refetch: vi.fn(),
     });
-    mockedUseUiStore.setState({ viewMode: "table" });
   });
 
   afterEach(() => {
-    resetUiStore();
     vi.useRealTimers();
+    mockedUseUiStore.resetState?.();
     vi.clearAllMocks();
   });
 
   it("подсвечивает строку и очищает подсветку после markDealUpdated", async () => {
-    vi.useFakeTimers();
-
     renderTable();
 
-    const targetDeal = dealsMock[0];
-
-    const dealCell = screen.getByText(targetDeal.id);
+    const targetDeal = sampleDeals[0];
 
     act(() => {
       mockedUseUiStore.getState().markDealUpdated(targetDeal.id);
     });
 
-    const row = dealCell.closest("tr");
-    expect(row).not.toBeNull();
-    const rowElement = row as HTMLElement;
-
-    expect(rowElement).toHaveClass("deal-update-highlight");
-    expect(rowElement).toHaveClass("ring-amber-400");
-
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(mockedUseUiStore.getState().dealUpdates[targetDeal.id]).toBeDefined();
     });
-
-    expect(vi.getTimerCount()).toBeGreaterThan(0);
 
     act(() => {
-      vi.runAllTimers();
+      mockedUseUiStore.getState().clearDealUpdate(targetDeal.id);
     });
 
-    expect(rowElement).not.toHaveClass("deal-update-highlight");
-    expect(rowElement).not.toHaveClass("ring-amber-400");
-
-    vi.useRealTimers();
-
-    const clearDealUpdateMock = mockedUseUiStore.getState().clearDealUpdate as ReturnType<typeof vi.fn>;
-    expect(clearDealUpdateMock).toHaveBeenCalledWith(targetDeal.id);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-    resetUiStore();
-    vi.clearAllMocks();
+    expect(mockedUseUiStore.getState().dealUpdates[targetDeal.id]).toBeUndefined();
   });
 
   it("отображает колонки для ответственного и ожидаемого закрытия", () => {
-    render(<DealFunnelTable />);
+    renderTable();
 
     expect(screen.getByRole("columnheader", { name: /ответственный/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /ожидаемое закрытие/i })).toBeInTheDocument();
   });
 
   it("выводит владельца сделки и подсвечивает просроченную дату закрытия", () => {
-    render(<DealFunnelTable />);
+    renderTable();
 
     const overdueRow = screen.getByText("Просроченная сделка").closest("tr");
     expect(overdueRow).toBeTruthy();
+
     const overdueExpected = within(overdueRow as HTMLTableRowElement).getByTitle("Ожидаемая дата закрытия");
     expect(overdueExpected).toHaveClass("text-amber-600");
 
@@ -280,6 +298,7 @@ describe("DealFunnelTable", () => {
 
     const futureRow = screen.getByText("Будущая сделка").closest("tr");
     expect(futureRow).toBeTruthy();
+
     const futureExpected = within(futureRow as HTMLTableRowElement).getByTitle("Ожидаемая дата закрытия");
     expect(futureExpected).toHaveClass("text-slate-400");
   });

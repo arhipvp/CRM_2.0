@@ -18,14 +18,6 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 
 const DEAL_UPDATE_HIGHLIGHT_TIMEOUT = 4_000;
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function formatProbability(probability: number) {
   return `${Math.round(probability * 100)}%`;
 }
@@ -234,233 +226,136 @@ export function DealFunnelTable() {
     <>
       <div className={containerClassName}>
         <div className="flex-1 space-y-4">
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
             <span>Список сделок</span>
             {isFetching && <span className="text-xs font-normal text-slate-400">Обновление…</span>}
           </div>
           {hasDeals ? (
-            <table className="min-w-full divide-y divide-slate-100 text-sm dark:divide-slate-800">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/60 dark:text-slate-300">
-                <tr>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    Сделка
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    Клиент
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    Стадия
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Вероятность
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Сумма
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    Следующий просмотр
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    Обновлено
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Действия
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {dealsForRender.map((deal) => {
-                  const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
-                  const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100 text-sm dark:divide-slate-800">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/60 dark:text-slate-300">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Сделка
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Клиент
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Стадия
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Ответственный
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right">
+                      Вероятность
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Следующий просмотр
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Ожидаемое закрытие
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left">
+                      Обновлено
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right">
+                      Действия
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {dealsForRender.map((deal) => {
+                    const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
+                    const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
+                    const expectedCloseDateRaw = deal.expectedCloseDate;
+                    const expectedCloseDate = expectedCloseDateRaw ? new Date(expectedCloseDateRaw) : undefined;
+                    const isExpectedCloseOverdue = expectedCloseDate ? expectedCloseDate.getTime() < Date.now() : false;
+                    const ownerLabel = getManagerLabel(normalizeManagerValue(deal.owner) ?? NO_MANAGER_VALUE);
 
-                  return (
-                    <tr
-                      key={deal.id}
-                      className={rowClassName}
-                      onClick={handleActivate}
-                      onKeyDown={handleKeyDown}
-                      tabIndex={0}
-                      role="button"
-                      aria-pressed={isSelected}
-                    >
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 flex-shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                            checked={isSelected}
-                            onChange={(event) => {
-                              event.stopPropagation();
-                              toggleDealSelection(deal.id);
-                            }}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label="Выбрать сделку"
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 dark:text-slate-100">{deal.name}</span>
-                            <span className="text-xs text-slate-400 dark:text-slate-500">{deal.id}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
-                      <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
-                      <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
-                            <span
-                              className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
-                              aria-hidden="true"
-                            />
-                            Следующий просмотр
-                          </span>
-                          <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
-                            {formatShortDate(deal.nextReviewAt)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
-                      <td className="px-4 py-4 text-right">
-                        <Link
-                          href={`/deals/${deal.id}`}
-                          className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
-                          onClick={(event) => event.stopPropagation()}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
-              <span>Список сделок</span>
-              {isFetching && <span className="text-xs font-normal text-slate-400">Обновление…</span>}
-            </div>
-            {hasDeals ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] divide-y divide-slate-100 text-sm dark:divide-slate-800">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/60 dark:text-slate-300">
-                    <tr>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Сделка
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Клиент
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Стадия
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Ответственный
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-right">
-                        Вероятность
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-right">
-                        Сумма
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Следующий просмотр
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Ожидаемое закрытие
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left">
-                        Обновлено
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-right">
-                        Действия
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {dealsForRender.map((deal) => {
-                      const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
-                      const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
-                      const expectedCloseDateRaw = deal.expectedCloseDate;
-                      const expectedCloseDate = expectedCloseDateRaw ? new Date(expectedCloseDateRaw) : undefined;
-                      const isExpectedCloseOverdue = expectedCloseDate ? expectedCloseDate.getTime() < Date.now() : false;
-                      const ownerLabel = getManagerLabel(normalizeManagerValue(deal.owner) ?? NO_MANAGER_VALUE);
-
-                      return (
-                        <tr
-                          key={deal.id}
-                          className={rowClassName}
-                          onClick={handleActivate}
-                          onKeyDown={handleKeyDown}
-                          tabIndex={0}
-                          role="button"
-                          aria-pressed={isSelected}
-                        >
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 flex-shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                                checked={isSelected}
-                                onChange={(event) => {
-                                  event.stopPropagation();
-                                  toggleDealSelection(deal.id);
-                                }}
-                                onClick={(event) => event.stopPropagation()}
-                                aria-label="Выбрать сделку"
-                              />
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-slate-800 dark:text-slate-100">{deal.name}</span>
-                                <span className="text-xs text-slate-400 dark:text-slate-500">{deal.id}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
-                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
-                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
-                                <span
-                                  className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
-                                  aria-hidden="true"
-                                />
-                                Следующий просмотр
-                              </span>
-                              <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
-                                {formatShortDate(deal.nextReviewAt)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            {expectedCloseDate ? (
-                              <span
-                                className={classNames(
-                                  "text-xs",
-                                  isExpectedCloseOverdue
-                                    ? "font-semibold text-amber-600 dark:text-amber-300"
-                                    : "text-slate-400 dark:text-slate-500",
-                                )}
-                                title="Ожидаемая дата закрытия"
-                              >
-                                {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
-                          <td className="px-4 py-4 text-right">
-                            <Link
-                              href={`/deals/${deal.id}`}
-                              className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
+                    return (
+                      <tr
+                        key={deal.id}
+                        className={rowClassName}
+                        onClick={handleActivate}
+                        onKeyDown={handleKeyDown}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 flex-shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                              checked={isSelected}
+                              onChange={(event) => {
+                                event.stopPropagation();
+                                toggleDealSelection(deal.id);
+                              }}
                               onClick={(event) => event.stopPropagation()}
+                              aria-label="Выбрать сделку"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800 dark:text-slate-100">{deal.name}</span>
+                              <span className="text-xs text-slate-400 dark:text-slate-500">{deal.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
+                        <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
+                        <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
+                        <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
+                              <span
+                                className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
+                                aria-hidden="true"
+                              />
+                              Следующий просмотр
+                            </span>
+                            <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
+                              {formatShortDate(deal.nextReviewAt)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          {expectedCloseDate ? (
+                            <span
+                              className={classNames(
+                                "text-xs",
+                                isExpectedCloseOverdue
+                                  ? "font-semibold text-amber-600 dark:text-amber-300"
+                                  : "text-slate-400 dark:text-slate-500",
+                              )}
+                              title="Ожидаемая дата закрытия"
                             >
-                              Открыть
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
+                              {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            Открыть
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
                 <p>Сделки не найдены для выбранных фильтров.</p>
                 <button
                   type="button"

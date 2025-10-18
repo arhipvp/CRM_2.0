@@ -69,7 +69,6 @@ class Deal(CRMBase, TimestampMixin, OwnershipMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")
-    value: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     next_review_at: Mapped[date] = mapped_column(
         Date, nullable=False, server_default=func.current_date()
     )

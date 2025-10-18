@@ -49,14 +49,6 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function formatConversionRate(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -241,7 +233,6 @@ export function DealFunnelHeader() {
           {stageOrder.map((stage) => {
             const metric = metricsMap.get(stage);
             const count = metric?.count ?? 0;
-            const totalValue = metric?.totalValue ?? 0;
             const conversion = metric ? formatConversionRate(metric.conversionRate) : "—";
             const duration = metric?.avgCycleDurationDays ?? null;
             const isActive = activeStage === stage;
@@ -276,9 +267,8 @@ export function DealFunnelHeader() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{stageDescriptions[stage]}</p>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-300">
-                  <span>{formatCurrency(totalValue)}</span>
-                  <span title="Конверсия">{conversion}</span>
+                <div className="mt-2 text-xs text-slate-500 dark:text-slate-300" title="Конверсия">
+                  Конверсия: {conversion}
                 </div>
                 {duration !== null && (
                   <p className="text-xs text-slate-400 dark:text-slate-500">Средний цикл: {duration.toFixed(1)} дн.</p>

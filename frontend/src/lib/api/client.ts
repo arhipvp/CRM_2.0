@@ -663,7 +663,6 @@ export interface ClientActivityQueryParams {
 export interface UpdateDealPayload {
   name?: string;
   stage?: Deal["stage"];
-  value?: number;
   probability?: number;
   expectedCloseDate?: string | null;
   owner?: string;
@@ -922,7 +921,6 @@ export class ApiClient {
       const details = JSON.parse(JSON.stringify(deal)) as DealDetailsData;
       const base = dealsMock.find((item) => item.id === id);
       if (base) {
-        details.value = base.value;
         details.probability = base.probability;
         details.stage = base.stage;
         details.owner = base.owner;
@@ -1073,9 +1071,6 @@ export class ApiClient {
         if (payload.stage !== undefined) {
           deal.stage = payload.stage;
         }
-        if (payload.value !== undefined) {
-          deal.value = payload.value;
-        }
         if (payload.probability !== undefined) {
           deal.probability = payload.probability;
         }
@@ -1095,7 +1090,6 @@ export class ApiClient {
         if (details) {
           details.name = deal.name;
           details.stage = deal.stage;
-          details.value = deal.value;
           details.probability = deal.probability;
           details.owner = deal.owner;
           details.nextReviewAt = deal.nextReviewAt;
@@ -2974,7 +2968,6 @@ function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
   return DEAL_STAGE_ORDER.map((stage, index) => {
     const stageDeals = deals.filter((deal) => deal.stage === stage);
     const count = stageDeals.length;
-    const totalValue = stageDeals.reduce((acc, deal) => acc + deal.value, 0);
     const conversionRate =
       index === 0
         ? 1
@@ -2995,7 +2988,6 @@ function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
     return {
       stage,
       count,
-      totalValue,
       conversionRate,
       avgCycleDurationDays,
     } satisfies DealStageMetrics;

@@ -53,7 +53,6 @@ async def test_deal_journal_flow(api_client, configure_environment):
         "title": "КАСКО 2025",
         "description": "Обсуждение условий",
         "owner_id": str(owner_id),
-        "value": 150000,
         "next_review_at": "2025-01-10",
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
