@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService<NotificationsConfiguration>);
   const host = configService.get<string>('http.host', { infer: true }) ?? '0.0.0.0';
-  const port = configService.get<number>('http.port', { infer: true }) ?? 3050;
+  const port = configService.get<number>('http.port', { infer: true }) ?? 8085;
 
   await app.listen(port, host);
 

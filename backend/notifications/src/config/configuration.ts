@@ -95,7 +95,7 @@ export interface NotificationsConfiguration {
 
 export default (): NotificationsConfiguration => {
   const host = process.env.NOTIFICATIONS_HTTP_HOST ?? '0.0.0.0';
-  const port = toNumber(process.env.NOTIFICATIONS_HTTP_PORT, 3050);
+  const port = toNumber(process.env.NOTIFICATIONS_HTTP_PORT, 8085);
 
   return {
     http: {
