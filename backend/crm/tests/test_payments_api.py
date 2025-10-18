@@ -25,6 +25,21 @@ async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, 
     return events
 
 
+async def _setup_events_listener(
+    settings,
+    *,
+    routing_key: str = "deal.payment.#",
+) -> tuple[aio_pika.RobustConnection, aio_pika.abc.AbstractChannel, aio_pika.abc.AbstractQueue]:
+    connection = await aio_pika.connect_robust(str(settings.rabbitmq_url))
+    channel = await connection.channel()
+    exchange = await channel.declare_exchange(
+        settings.events_exchange, aio_pika.ExchangeType.TOPIC, durable=True
+    )
+    queue = await channel.declare_queue(exclusive=True)
+    await queue.bind(exchange, routing_key=routing_key)
+    return connection, channel, queue
+
+
 async def _prepare_payment(
     api_client,
     configure_environment,
@@ -90,11 +105,7 @@ async def test_payments_flow(api_client, configure_environment):
     tenant_id = uuid4()
     headers = {"X-Tenant-ID": str(tenant_id)}
 
-    connection = await aio_pika.connect_robust(str(settings.rabbitmq_url))
-    channel = await connection.channel()
-    exchange = await channel.declare_exchange(settings.events_exchange, aio_pika.ExchangeType.TOPIC, durable=True)
-    events_queue = await channel.declare_queue(exclusive=True)
-    await events_queue.bind(exchange, routing_key="deal.payment.#")
+    connection, channel, events_queue = await _setup_events_listener(settings)
 
     client_payload = {
         "name": "ООО Альфа",
@@ -272,6 +283,49 @@ async def test_payments_flow(api_client, configure_environment):
     assert "deleted_at" in deleted_event
 
     await connection.close()
+
+
+@pytest.mark.asyncio()
+async def test_income_deleted_event_contains_deleted_by(api_client, configure_environment):
+    settings = configure_environment
+    headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+
+    connection, channel, events_queue = await _setup_events_listener(settings)
+
+    income_payload = {
+        "amount": "150.00",
+        "currency": payment.currency,
+        "category": "wire",
+        "posted_at": date.today().isoformat(),
+    }
+
+    income_resp = await api_client.post(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes",
+        json=income_payload,
+        headers=headers,
+    )
+    assert income_resp.status_code == 201
+    income = schemas.PaymentIncomeRead.model_validate(income_resp.json())
+
+    deleted_by_id = uuid4()
+    delete_resp = await api_client.delete(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}/incomes/{income.id}",
+        headers=headers,
+        params={"deleted_by_id": str(deleted_by_id)},
+    )
+    assert delete_resp.status_code == 204
+
+    events = await _collect_events(events_queue)
+    await channel.close()
+    await connection.close()
+
+    deleted_events = [payload for routing, payload in events if routing == "deal.payment.income.deleted"]
+    assert deleted_events, events
+
+    deleted_event = deleted_events[0]
+    deleted_income_payload = deleted_event["income"]
+    assert deleted_income_payload["income_id"] == str(income.id)
+    assert deleted_income_payload["deleted_by_id"] == str(deleted_by_id)
 
 
 @pytest.mark.asyncio()
