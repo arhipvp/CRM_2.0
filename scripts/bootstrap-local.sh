@@ -689,6 +689,7 @@ step_wait_infra() {
     local ps_output=""
 
     while (( attempt < max_attempts )); do
+      ((attempt++))
       if ! ps_output=$("${COMPOSE_CMD[@]}" ps); then
         sleep "$sleep_seconds"
         attempt=$((attempt + 1))
@@ -741,6 +742,7 @@ step_wait_backend() {
     local status_output="" state="" health=""
 
     while (( attempt < max_attempts )); do
+      ((attempt++))
       local unhealthy=false
       local pending=false
 
