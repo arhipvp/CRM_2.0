@@ -2,7 +2,7 @@ import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
   TASKS_SERVICE_PORT: Joi.number().port().default(8086),
-  TASKS_SERVICE_HOST: Joi.string().hostname().default('0.0.0.0'),
+  TASKS_SERVICE_HOST: Joi.string().ip({ version: ['ipv4', 'ipv6'], cidr: 'forbidden' }).default('0.0.0.0'),
   TASKS_DATABASE_URL: Joi.string().uri({ scheme: ['postgres', 'postgresql'] }).required(),
   TASKS_TYPEORM_LOGGING: Joi.boolean().default(false),
   TASKS_RABBITMQ_URL: Joi.string().uri({ scheme: ['amqp', 'amqps'] }).required(),
