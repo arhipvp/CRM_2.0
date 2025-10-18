@@ -187,6 +187,87 @@ async def test_deal_patch_next_review_at_validation(api_client):
 
 
 @pytest.mark.asyncio
+async def test_deal_list_filters_include_unassigned(api_client):
+    tenant_id = uuid4()
+    owner_id = uuid4()
+    headers = {"X-Tenant-ID": str(tenant_id)}
+
+    client_payload = {
+        "name": "ООО Вектор",
+        "email": "vector@example.com",
+        "phone": "+7-900-111-22-33",
+        "owner_id": str(owner_id),
+    }
+    client_resp = await api_client.post("/api/v1/clients/", json=client_payload, headers=headers)
+    assert client_resp.status_code == 201
+    client = schemas.ClientRead.model_validate(client_resp.json())
+
+    assigned_owner = uuid4()
+    assigned_deal_payload = {
+        "client_id": str(client.id),
+        "title": "Сделка с менеджером",
+        "description": "Назначена",
+        "owner_id": str(assigned_owner),
+        "next_review_at": date.today().isoformat(),
+    }
+    assigned_resp = await api_client.post(
+        "/api/v1/deals/",
+        json=assigned_deal_payload,
+        headers=headers,
+    )
+    assert assigned_resp.status_code == 201
+    assigned_deal = schemas.DealRead.model_validate(assigned_resp.json())
+    assert assigned_deal.owner_id == assigned_owner
+
+    unassigned_payload = {
+        "client_id": str(client.id),
+        "title": "Сделка без менеджера",
+        "description": "Без назначения",
+        "next_review_at": date.today().isoformat(),
+    }
+    unassigned_resp = await api_client.post(
+        "/api/v1/deals/",
+        json=unassigned_payload,
+        headers=headers,
+    )
+    assert unassigned_resp.status_code == 201
+    unassigned_deal = schemas.DealRead.model_validate(unassigned_resp.json())
+    assert unassigned_deal.owner_id is None
+
+    list_resp = await api_client.get("/api/v1/deals/", headers=headers)
+    assert list_resp.status_code == 200
+    list_payload = [schemas.DealRead.model_validate(item) for item in list_resp.json()]
+    assert {deal.id for deal in list_payload} == {assigned_deal.id, unassigned_deal.id}
+
+    assigned_only_resp = await api_client.get(
+        "/api/v1/deals/",
+        params=[("manager", str(assigned_owner))],
+        headers=headers,
+    )
+    assert assigned_only_resp.status_code == 200
+    assigned_only = [schemas.DealRead.model_validate(item) for item in assigned_only_resp.json()]
+    assert [deal.owner_id for deal in assigned_only] == [assigned_owner]
+
+    unassigned_only_resp = await api_client.get(
+        "/api/v1/deals/",
+        params=[("manager", "__NO_MANAGER__")],
+        headers=headers,
+    )
+    assert unassigned_only_resp.status_code == 200
+    unassigned_only = [schemas.DealRead.model_validate(item) for item in unassigned_only_resp.json()]
+    assert [deal.owner_id for deal in unassigned_only] == [None]
+
+    combined_resp = await api_client.get(
+        "/api/v1/deals/",
+        params=[("manager", str(assigned_owner)), ("manager", "__NO_MANAGER__")],
+        headers=headers,
+    )
+    assert combined_resp.status_code == 200
+    combined = [schemas.DealRead.model_validate(item) for item in combined_resp.json()]
+    assert {deal.owner_id for deal in combined} == {assigned_owner, None}
+
+
+@pytest.mark.asyncio
 async def test_permissions_sync_endpoint(api_client, db_session):
     tenant_id = uuid4()
     headers = {"X-Tenant-ID": str(tenant_id)}
