@@ -2,13 +2,18 @@
 
 ## Порядок миграций
 
-1. `20240116080000_create_clients.sql` — таблицы `clients` и `client_contacts`, индексы по статусу и типу.
-2. `20240116083000_create_deals.sql` — создаёт `deals` и `deal_journal`, настраивает внешние ключи на `auth.users`.
-3. `20240116090000_create_calculations.sql` — таблица `calculations` с привязкой к сделкам.
-4. `20240116093000_create_policies.sql` — таблица `policies`, уникальный индекс по `policy_number`.
-5. `20240116100000_create_policy_documents.sql` — таблица `policy_documents` с внешними ключами на схему `documents`.
-6. `20240116103000_seed_crm_dictionaries.sql` — статусы сделок и полисов, типы клиентов.
-7. `2024052801_add_next_review_at_to_deals.py` — Alembic-ревизия с колонкой `next_review_at` и индексом `ix_deals_next_review_at` в `crm.deals`.
+1. `2024031501` (`2024031501_baseline.py`) — базовая схема CRM со схемой `crm`, таблицами клиентов, контактов, сделок, полисов и вспомогательных справочников.
+2. `2024052801` (`2024052801_add_next_review_at_to_deals.py`) — колонка `next_review_at` и индекс `ix_deals_next_review_at` в `crm.deals`.
+3. `2024060101` (`2024060101_add_permission_sync_jobs.py`) — таблица `permission_sync_jobs` и индексы для поиска синхронизаций прав.
+4. `2024061501_add_payments_module` (`2024061501_add_payments_module.py`) — модуль платежей (`payments`, `payment_incomes`, `payment_expenses`) и удаление `payment_sync_log`.
+5. `2024062001_add_calculations` (`2024062001_add_calculations.py`) — таблица `calculations`, связь `policies.calculation_id` и индексы для расчётов.
+6. `2024062001_add_deal_journal` (`2024062001_add_deal_journal.py`) — таблица `deal_journal` с индексами по сделке и времени создания.
+7. `2024062401_add_policy_documents` (`2024062401_add_policy_documents.py`) — таблица `policy_documents`, уникальное ограничение и внешние ключи на полисы и документы.
+8. `2024070101_add_payments_foreign_keys` (`2024070101_add_payments_foreign_keys.py`) — внешние ключи `payments` к `deals` и `policies`.
+9. `2024071801` (`2024071801_remove_deal_value.py`) — удаление колонки `value` из `crm.deals`.
+10. `2024072201` (`2024072201_allow_null_owner_in_deals.py`) — разрешение `NULL` в колонке `owner_id` таблицы `crm.deals`.
+
+Исторические SQL-скрипты миграций удалены; baseline-ревизия покрывает создание всех основных таблиц схемы `crm`.
 
 ## Правила версионирования
 
@@ -19,4 +24,4 @@
 
 ## Актуальная ревизия
 
-* Head Alembic: `2024052801_add_next_review_at_to_deals.py`. Черновик `2024052701` удалён, изменения объединены в итоговую ревизию.
+* Head Alembic: `2024072201_allow_null_owner_in_deals.py`.
