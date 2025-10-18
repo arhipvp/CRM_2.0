@@ -4,6 +4,7 @@ import Link from "next/link";
 import { KeyboardEvent } from "react";
 
 import { Deal } from "@/types/crm";
+import { getManagerLabel, NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -83,6 +84,7 @@ export function DealCard({
 }: DealCardProps) {
   const isOverdue = deal.expectedCloseDate ? new Date(deal.expectedCloseDate).getTime() < Date.now() : false;
   const nextReviewStyles = getNextReviewStyles(deal.nextReviewAt);
+  const ownerLabel = getManagerLabel(deal.owner ?? NO_MANAGER_VALUE);
 
   const handleClick = () => {
     if (isDragging) {
@@ -170,7 +172,7 @@ export function DealCard({
       </div>
 
       <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-        <span>Ответственный: {deal.owner}</span>
+        <span>Ответственный: {ownerLabel}</span>
         <Link
           href={`/deals/${deal.id}`}
           className="text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"

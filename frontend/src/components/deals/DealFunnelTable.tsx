@@ -8,7 +8,7 @@ import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
 import { DealBulkActions } from "@/components/deals/DealBulkActions";
 import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
-import { getManagerLabel } from "@/lib/utils/managers";
+import { getManagerLabel, NO_MANAGER_VALUE, normalizeManagerValue } from "@/lib/utils/managers";
 import { useUiStore } from "@/stores/uiStore";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -350,7 +350,7 @@ export function DealFunnelTable() {
                       const expectedCloseDateRaw = deal.expectedCloseDate;
                       const expectedCloseDate = expectedCloseDateRaw ? new Date(expectedCloseDateRaw) : undefined;
                       const isExpectedCloseOverdue = expectedCloseDate ? expectedCloseDate.getTime() < Date.now() : false;
-                      const ownerLabel = deal.owner ? getManagerLabel(deal.owner) : "—";
+                      const ownerLabel = getManagerLabel(normalizeManagerValue(deal.owner) ?? NO_MANAGER_VALUE);
 
                       return (
                         <tr
