@@ -4,7 +4,7 @@ import shlex
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.engine import URL, make_url
 
 from crm.app.config import settings
@@ -68,18 +68,50 @@ def _build_async_url(raw_url: str) -> tuple[URL, dict[str, Any]]:
     return async_url, connect_args
 
 
-database_url, engine_connect_args = _build_async_url(str(settings.database_url))
-engine = create_async_engine(
-    database_url,
-    echo=False,
-    future=True,
-    pool_pre_ping=True,
-    connect_args=engine_connect_args,
-)
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
 
-AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+
+def _ensure_session_factory() -> async_sessionmaker[AsyncSession]:
+    global _engine, _session_factory
+
+    if _session_factory is None:
+        database_url, engine_connect_args = _build_async_url(str(settings.database_url))
+        _engine = create_async_engine(
+            database_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,
+            connect_args=engine_connect_args,
+        )
+        _session_factory = async_sessionmaker(_engine, expire_on_commit=False, autoflush=False)
+
+    return _session_factory
+
+
+def AsyncSessionFactory() -> AsyncSession:
+    """Return a new asynchronous session instance.
+
+    Сессия создаётся лениво, чтобы модуль можно было импортировать без валидного
+    соединения с базой данных. Настоящее подключение формируется только при первом
+    обращении после инициализации окружения (например, в тестах).
+    """
+
+    session_factory = _ensure_session_factory()
+    return session_factory()
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionFactory() as session:
         yield session
+
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    return _ensure_session_factory()
+
+
+try:  # pragma: no cover - best effort eager initialisation
+    _ensure_session_factory()
+except ValueError:
+    # Некорректный DSN. Инициализация произойдёт позже, когда окружение настроено.
+    pass
