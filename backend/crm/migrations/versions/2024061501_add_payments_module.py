@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "2024061501_add_payments_module"
-down_revision = "2024060101_add_permission_sync_jobs"
+down_revision = "2024060101"
 branch_labels = None
 depends_on = None
 

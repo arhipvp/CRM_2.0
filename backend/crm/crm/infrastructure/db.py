@@ -68,11 +68,8 @@ def _build_async_url(raw_url: str) -> tuple[URL, dict[str, Any]]:
     return async_url, connect_args
 
 
-try:
-    database_url, engine_connect_args = _build_async_url(str(settings.database_url))
-except ValueError:
-    database_url = make_url(str(settings.database_url))
-    engine_connect_args = {}
+def get_async_database_config() -> tuple[URL, dict[str, Any]]:
+    return _build_async_url(str(settings.database_url))
 
 
 _engine: AsyncEngine | None = None
@@ -83,7 +80,7 @@ def _ensure_session_factory() -> async_sessionmaker[AsyncSession]:
     global _engine, _session_factory
 
     if _session_factory is None:
-        database_url, engine_connect_args = _build_async_url(str(settings.database_url))
+        database_url, engine_connect_args = get_async_database_config()
         _engine = create_async_engine(
             database_url,
             echo=False,
