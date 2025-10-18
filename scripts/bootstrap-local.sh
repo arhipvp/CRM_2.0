@@ -1004,7 +1004,7 @@ main() {
     run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
   else
     run_step "Запуск backend-профиля" step_compose_backend_up
-    run_step "Ожидание готовности backend-сервисов" step_wait_backend
+    run_step_skip "Запуск ожидания backend-сервисов" "Ожидание отключено пользователем"
   fi
   if is_truthy "${BOOTSTRAP_WITH_BACKEND_FLAG}"; then
     if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then

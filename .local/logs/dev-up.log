@@ -2701,3 +2701,81 @@ Smoke-проверка backup без S3 | FAIL | Код 1. Лог: ./.local/logs
 [bootstrap-local] Сводка шагов: /c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251017-225102/summary.md
 [bootstrap-local] JSON-отчёт: /c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251017-225102/summary.json
 [bootstrap-local] Подробные логи сохранены в /c/Dev/CRM_2.0/.local/logs/bootstrap/run-20251017-225102
+[dev-up] Логи сохраняются в /c/Dev/CRM_2.0/.local/logs/dev-up.log
+[dev-up] Запуск bootstrap-скрипта
+[bootstrap-local] → Проверка зависимостей
+[bootstrap-local] Используем интерпретатор Python: python
+[bootstrap-local][предупреждение] Команда 'psql' не найдена. Отсутствует локальный CLI PostgreSQL — скрипты будут пытаться использовать docker compose exec.
+[bootstrap-local][предупреждение] Команда 'redis-cli' не найдена. Для локальных проверок Redis используйте docker compose exec redis redis-cli.
+[bootstrap-local] → Синхронизация .env
+Источник: /c/Dev/CRM_2.0/env.example
+[Пропуск] .env уже существует (режим skip-existing)
+[Пропуск] backend/gateway/.env уже существует (режим skip-existing)
+[Пропуск] backend/auth/.env уже существует (режим skip-existing)
+[Пропуск] backend/crm/.env уже существует (режим skip-existing)
+[Пропуск] backend/documents/.env уже существует (режим skip-existing)
+[Пропуск] backend/notifications/.env уже существует (режим skip-existing)
+[Пропуск] backend/tasks/.env уже существует (режим skip-existing)
+[Пропуск] backend/reports/.env уже существует (режим skip-existing)
+[Пропуск] backend/audit/.env уже существует (режим skip-existing)
+[Пропуск] frontend/.env уже существует (режим skip-existing)
+Готово. Не забудьте обновить чувствительные данные (пароли, токены) в скопированных файлах.
+[bootstrap-local] → Проверка портов .env
+[bootstrap-local] → docker compose up -d
+ Container crm-rabbitmq  Running
+ Container crm-redis  Running
+ Container crm-consul  Running
+ Container crm-postgres  Running
+ Container crm-pgadmin  Running
+ Container crm-backup  Running
+ Container crm-postgres  Waiting
+ Container crm-rabbitmq  Waiting
+ Container crm-postgres  Waiting
+ Container crm-postgres  Healthy
+ Container crm-rabbitmq  Healthy
+ Container crm-postgres  Healthy
+[bootstrap-local] → Ожидание готовности docker compose
+Команда 'docker compose wait' недоступна, включён ручной мониторинг статусов
+NAME                IMAGE                      COMMAND                  SERVICE         CREATED          STATUS                    PORTS
+crm-auth            infra-auth                 "java -jar app.jar"      auth            25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8081->8081/tcp, [::]:8081->8081/tcp
+crm-backup          infra-backup               "uvicorn backup.main…"   backup          27 minutes ago   Up 26 minutes             0.0.0.0:8094->8094/tcp, [::]:8094->8094/tcp
+crm-consul          hashicorp/consul:1.16      "docker-entrypoint.s…"   consul          27 minutes ago   Up 27 minutes (healthy)   0.0.0.0:8500->8500/tcp, [::]:8500->8500/tcp, 0.0.0.0:8502->8502/tcp, [::]:8502->8502/tcp, 0.0.0.0:8600->8600/udp, [::]:8600->8600/udp
+crm-crm             infra-crm                  "poetry run crm-api"     crm             25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp
+crm-documents       infra-documents            "docker-entrypoint.s…"   documents       25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8084->8084/tcp, [::]:8084->8084/tcp
+crm-gateway         infra-gateway              "docker-entrypoint.s…"   gateway         25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+crm-notifications   infra-notifications        "docker-entrypoint.s…"   notifications   25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8085->8085/tcp, [::]:8085->8085/tcp
+crm-pgadmin         dpage/pgadmin4:8           "/entrypoint.sh"         pgadmin         27 minutes ago   Up 26 minutes             0.0.0.0:5050->80/tcp, [::]:5050->80/tcp
+crm-postgres        postgres:15-alpine         "docker-entrypoint.s…"   postgres        27 minutes ago   Up 27 minutes (healthy)   0.0.0.0:5542->5432/tcp, [::]:5542->5432/tcp
+crm-rabbitmq        rabbitmq:3.12-management   "docker-entrypoint.s…"   rabbitmq        27 minutes ago   Up 27 minutes (healthy)   0.0.0.0:5672->5672/tcp, [::]:5672->5672/tcp, 0.0.0.0:15672->15672/tcp, [::]:15672->15672/tcp
+crm-redis           redis:7-alpine             "docker-entrypoint.s…"   redis           27 minutes ago   Up 27 minutes (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+crm-tasks           infra-tasks                "docker-entrypoint.s…"   tasks           25 minutes ago   Up 25 minutes (healthy)   0.0.0.0:8086->8086/tcp, [::]:8086->8086/tcp
+Контейнеры готовы.
+[bootstrap-local] → Bootstrap RabbitMQ
+[Инфо] Пропускаем переменную BACKUP_RABBITMQ_URL: комбинация crm@crm уже получена из RABBITMQ_DEFAULT_USER.
+[Инфо] Пропускаем переменную CRM_RABBITMQ_URL: комбинация crm@crm уже получена из RABBITMQ_DEFAULT_USER.
+[Инфо] Пропускаем переменную NOTIFICATIONS_RABBITMQ_URL: комбинация notifications@notifications уже получена из NOTIFICATIONS_RABBITMQ_URI.
+[Инфо] Найдены комбинации пользователей RabbitMQ и vhost:
+  RABBITMQ_DEFAULT_USER -> crm@crm
+  TASKS_RABBITMQ_URL -> tasks@tasks
+  TELEGRAM_BOT_RABBITMQ_URL -> telegram@telegram
+  NOTIFICATIONS_RABBITMQ_URI -> notifications@notifications
+  AUDIT_RABBITMQ_URL -> audit@audit
+[Инфо] Контейнер RabbitMQ уже запущен.
+[Инфо] Ожидаем готовность RabbitMQ (healthcheck)...
+[Инфо] RabbitMQ готов (state='running', health='healthy').
+==> Обработка пользователя 'crm' и vhost 'crm'
+  • vhost 'crm' уже существует
+Changing password for user "crm" ...
+  • обновлён пароль пользователя 'crm'
+Setting permissions for user "crm" in vhost "crm" ...
+  • подтверждены права 'crm' на vhost 'crm'
+==> Обработка пользователя 'tasks' и vhost 'tasks'
+  • vhost 'tasks' уже существует
+Changing password for user "tasks" ...
+  • обновлён пароль пользователя 'tasks'
+Setting permissions for user "tasks" in vhost "tasks" ...
+  • подтверждены права 'tasks' на vhost 'tasks'
+==> Обработка пользователя 'telegram' и vhost 'telegram'
+  • vhost 'telegram' уже существует
+Changing password for user "telegram" ...
+  • обновлён пароль пользователя 'telegram'
