@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 revision = "2024052801"
 down_revision = "2024031501"
-branch_labels = ("crm",)
+branch_labels = None
 depends_on = None
 
 

@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "2024060101"
-down_revision = "2024052801_add_next_review_at_to_deals"
-branch_labels = ("crm",)
+down_revision = "2024052801"
+branch_labels = None
 depends_on = None
 
 

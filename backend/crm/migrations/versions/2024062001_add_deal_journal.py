@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "2024062001_add_deal_journal"
-down_revision = "2024061501_add_payments_module"
+down_revision = "2024062001_add_calculations"
 branch_labels = None
 depends_on = None
 

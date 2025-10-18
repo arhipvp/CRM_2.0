@@ -8,7 +8,7 @@ from sqlalchemy.dialects import postgresql
 
 revision = "2024031501"
 down_revision = None
-branch_labels = ("crm",)
+branch_labels = None
 depends_on = None
 
 

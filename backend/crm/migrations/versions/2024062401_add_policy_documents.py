@@ -1,7 +1,5 @@
 """Create policy documents table"""
 
-"""Create policy documents table"""
-
 from __future__ import annotations
 
 from alembic import op
