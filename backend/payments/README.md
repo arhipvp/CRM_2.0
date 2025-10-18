@@ -1,18 +1,40 @@
-# Payments Service (архив)
+# Payments Service
 
-> ⚠️ Каталог `backend/payments` сохранён только для истории. Отдельный сервис платежей больше не входит в целевую архитектуру и не разворачивается в окружениях.
+Spring Boot 3 (Reactive) сервис, который управляет графиком платежей и связанными движениями средств. Сервис синхронизируется с CRM/Deals через REST и события RabbitMQ, хранит данные в схеме `payments` общего кластера PostgreSQL и публикует события `payments.events`.
 
-## Статус
-- исходный Spring Boot-проект не поддерживается и не обновляется;
-- переменные `PAYMENTS_*` больше не используются ни в `env.example`, ни в инфраструктурных скриптах;
-- миграции Flyway и конфигурация очередей описывают прежнюю схему `payments` и нужны только для анализа наследия.
+## Быстрый старт
 
-## Где искать актуальную реализацию платежей
-Модуль платежей перенесён в CRM/Deals и работает поверх таблиц `crm.payments`, `crm.payment_incomes`, `crm.payment_expenses`. Используйте документацию и REST API, описанные в [`backend/crm/README.md`](../crm/README.md) и [`docs/api/crm-deals.md`](../../docs/api/crm-deals.md).
+1. Скопируйте `env.example` в корень и в `backend/payments`:
+   ```bash
+   ./scripts/sync-env.sh backend/payments
+   ```
+2. Убедитесь, что PostgreSQL и RabbitMQ подняты (`docker compose --env-file .env up -d postgres rabbitmq`).
+3. Запустите сервис в локальном профиле:
+   ```bash
+   cd backend/payments
+   SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+   ```
 
-## Что можно найти в архиве
-- историческую документацию по API (`docs/api/payments.md`),
-- старые конфигурации Spring Cloud Stream (`src/main/resources/application*.yml`),
-- пример миграций Flyway для схемы `payments` (`migrations/`).
+   Переменные `PAYMENTS_R2DBC_URL`, `PAYMENTS_DATABASE_URL`, `PAYMENTS_DB_USER`, `PAYMENTS_DB_PASSWORD` и `PAYMENTS_RABBITMQ_URL` берутся из `.env`. Значения по умолчанию нацелены на локальные экземпляры PostgreSQL (`localhost:5432`, схема `payments`) и RabbitMQ (`amqp://crm:crm@localhost:5672/crm`).
 
-Эти материалы помогают при анализе миграции данных или восстановлении контекста предыдущих интеграций.
+## Docker Compose
+
+`infra/docker-compose.yml` содержит сервис `payments` (профиль `backend`). Он строится из `backend/payments`, пробрасывает порт `8083` и использует переменные `PAYMENTS_*` с `_INTERNAL`-суффиксом для подключения к контейнерам PostgreSQL и RabbitMQ. Для запуска выполните:
+
+```bash
+docker compose --env-file .env --profile backend up -d payments
+```
+
+Перед первым стартом убедитесь, что переменные `PAYMENTS_DB_USER`/`PAYMENTS_DB_PASSWORD` скопированы в `.env` и не конфликтуют с существующими пользователями. Скрипт `infra/postgres/init.sh` создаёт роль и схему `payments` автоматически.
+
+## Основные переменные окружения
+
+| Переменная | Назначение |
+| --- | --- |
+| `PAYMENTS_R2DBC_URL` | R2DBC-строка подключения, используется приложением при старте. |
+| `PAYMENTS_DATABASE_URL` | JDBC-строка для Flyway. |
+| `PAYMENTS_DB_USER` / `PAYMENTS_DB_PASSWORD` | Роль PostgreSQL, которой принадлежат объекты схемы `payments`. |
+| `PAYMENTS_RABBITMQ_URL` | Подключение к брокеру для Spring Cloud Stream. |
+| `PAYMENTS_SERVICE_PORT` | HTTP-порт сервиса (по умолчанию `8083`). |
+
+Дополнительные опции (`PAYMENTS_EXPORTS_*`, `PAYMENTS_CRM_WEBHOOK_SECRET` и др.) остаются необязательными и могут быть заполнены при подключении внешних интеграций.

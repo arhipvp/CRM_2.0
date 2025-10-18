@@ -10,7 +10,7 @@ DEFAULT_TARGETS=(
   "backend/gateway"
   "backend/auth"
   "backend/crm"
-  # каталог backend/payments оставлен в репозитории как архив и не синхронизируется автоматически
+  "backend/payments"
   "backend/documents"
   "backend/notifications"
   "backend/tasks"
