@@ -1,0 +1,11 @@
+[Инфо] Контейнер RabbitMQ не запущен (state='absent'). Пытаемся стартовать...
+[Инфо] Ожидаем готовность RabbitMQ (healthcheck)...
+ременную CRM_RABBITMQ_URL: комбинация crm@crm уже получена из RABBITMQ_DEFAULT_USER.
+[Инфо] Пропускаем переменную NOTIFICATIONS_RABBITMQ_URL: комбинация notifications@notifications уже получена из NOTIFICATIONS_RABBITMQ_URI.
+[Инфо] Найдены комбинации пользователей RabbitMQ и vhost:
+  RABBITMQ_DEFAULT_USER -> crm@crm
+  TASKS_RABBITMQ_URL -> tasks@tasks
+  TELEGRAM_BOT_RABBITMQ_URL -> telegram@telegram
+  NOTIFICATIONS_RABBITMQ_URI -> notifications@notifications
+  AUDIT_RABBITMQ_URL -> audit@audit
+ Container crm-rabbitmq  Running

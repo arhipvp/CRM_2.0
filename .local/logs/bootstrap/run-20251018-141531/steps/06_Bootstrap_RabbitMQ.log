@@ -1,0 +1,19 @@
+[Инфо] Контейнер RabbitMQ не запущен (state='absent'). Пытаемся стартовать...
+[Инфо] Ожидаем готовность RabbitMQ (healthcheck)...
+ременную CRM_RABBITMQ_URL: комбинация crm@crm уже получена из RABBITMQ_DEFAULT_USER.
+[Инфо] Пропускаем переменную NOTIFICATIONS_RABBITMQ_URL: комбинация notifications@notifications уже получена из NOTIFICATIONS_RABBITMQ_URI.
+[Инфо] Найдены комбинации пользователей RabbitMQ и vhost:
+  RABBITMQ_DEFAULT_USER -> crm@crm
+  TASKS_RABBITMQ_URL -> tasks@tasks
+  TELEGRAM_BOT_RABBITMQ_URL -> telegram@telegram
+  NOTIFICATIONS_RABBITMQ_URI -> notifications@notifications
+  AUDIT_RABBITMQ_URL -> audit@audit
+ Container crm-rabbitmq  Running
+[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за 60 секунд (state='absent', health='n/a'). Проверьте логи: docker
+compose
+--env-file
+/c/Dev/CRM_2.0/.env -f '/c/Dev/CRM_2.0/infra/docker-compose.yml' logs -f rabbitmq
+[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: docker
+compose
+--env-file
+/c/Dev/CRM_2.0/.env -f '/c/Dev/CRM_2.0/infra/docker-compose.yml' logs -f rabbitmq

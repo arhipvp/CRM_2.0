@@ -7,7 +7,50 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 INFRA_DIR="${ROOT_DIR}/infra"
 ENV_FILE="${ROOT_DIR}/.env"
 COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
-TMP_DIR="$(mktemp -d -t bootstrap-local-XXXXXX)"
+
+create_tmp_dir() {
+  if command -v mktemp >/dev/null 2>&1; then
+    mktemp -d -t bootstrap-local-XXXXXX
+    return
+  fi
+
+  local candidates=(
+    "python3"
+    "python"
+    "python3.12"
+    "python3.11"
+    "python3.10"
+    "python3.9"
+    "python3.8"
+    "py -3"
+    "py -3.12"
+    "py -3.11"
+    "py -3.10"
+    "py -3.9"
+  )
+
+  local python_cmd=""
+  for candidate in "${candidates[@]}"; do
+    if eval "${candidate} --version" >/dev/null 2>&1; then
+      python_cmd="${candidate}"
+      break
+    fi
+  done
+
+  if [[ -n "${python_cmd}" ]]; then
+    "${python_cmd}" - <<'PY'
+import tempfile
+print(tempfile.mkdtemp(prefix="bootstrap-local-"))
+PY
+    return
+  fi
+
+  local fallback="${ROOT_DIR}/.local/tmp/bootstrap-$(date +%s)-$$"
+  mkdir -p "${fallback}"
+  printf '%s\n' "${fallback}"
+}
+
+TMP_DIR="$(create_tmp_dir)"
 LOG_PREFIX="[bootstrap-local]"
 DEFAULT_LOG_DIR="${ROOT_DIR}/.local/logs/bootstrap"
 
