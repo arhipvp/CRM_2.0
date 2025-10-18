@@ -12,6 +12,10 @@ from crm.app import main
 @pytest.mark.asyncio()
 async def test_lifespan_initialises_events_publisher(monkeypatch: pytest.MonkeyPatch) -> None:
     app = FastAPI()
+    close_permissions_queue = AsyncMock()
+
+    monkeypatch.setattr(main, "close_permissions_queue", close_permissions_queue)
+
     class DummyPublisher:
         def __init__(self, *_: object) -> None:
             self.connect = AsyncMock()
@@ -26,11 +30,16 @@ async def test_lifespan_initialises_events_publisher(monkeypatch: pytest.MonkeyP
         assert getattr(app.state, "events_publisher", None) is publisher
 
     publisher.close.assert_awaited_once()
+    close_permissions_queue.assert_awaited_once()
 
 
 @pytest.mark.asyncio()
 async def test_lifespan_handles_connection_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     app = FastAPI()
+
+    close_permissions_queue = AsyncMock()
+
+    monkeypatch.setattr(main, "close_permissions_queue", close_permissions_queue)
 
     class FailingPublisher:
         def __init__(self, *_: object) -> None:
@@ -45,3 +54,4 @@ async def test_lifespan_handles_connection_failure(monkeypatch: pytest.MonkeyPat
 
     # close should not be awaited because connect failed
     assert state["events_publisher"] is None
+    close_permissions_queue.assert_awaited_once()
