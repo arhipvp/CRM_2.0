@@ -113,5 +113,5 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 try:  # pragma: no cover - best effort eager initialisation
     _ensure_session_factory()
 except ValueError:
-    # Некорректный DSN. Инициализация произойдёт позже, когда окружение настроено.
+    # Некорректный DSN. Инициализация произойдёт позже, когда окружение будет настроено.
     pass
