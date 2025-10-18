@@ -49,7 +49,7 @@ docker compose --profile app up -d frontend
 
 - `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Значение обязательно: при пустом URL или недоступном Gateway клиент выбрасывает `ApiError`, запросы помечаются как `isError`, а страницы показывают состояния ошибок.
 - `FRONTEND_PROXY_TIMEOUT` — таймаут (в миллисекундах) для Next.js middleware и браузерных запросов клиента `apiClient`. Значение по умолчанию — 15 секунд.
-- `FRONTEND_SERVER_TIMEOUT_MS` — укороченный таймаут (7.5 секунд по умолчанию) для SSR и серверных экшенов Next.js; при превышении лимита клиент автоматически возвращает мок-данные или ошибку.
+- `FRONTEND_SERVER_TIMEOUT_MS` — укороченный таймаут (7.5 секунд по умолчанию) для SSR и серверных экшенов Next.js; при превышении лимита выбрасывается `ApiError`. Возврат мок-данных возможен только в режиме `NEXT_PUBLIC_API_BASE_URL=mock`.
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
 - `NEXT_PUBLIC_NOTIFICATIONS_SSE_URL` — поток уведомлений (toasts) (дефолт `http://gateway:8080/api/v1/streams/notifications`).
 
