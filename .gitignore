@@ -31,3 +31,5 @@ jdk-25/
 *.pid
 
 .local/
+logs/
+.local/logs/dev-up.log
