@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -55,6 +55,8 @@ const stageOrder: PipelineStageKey[] = [
   "closedWon",
   "closedLost",
 ];
+
+const DEAL_UPDATE_HIGHLIGHT_TIMEOUT = 4_000;
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -115,6 +117,8 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
   const checkHintDismissed = useUiStore((state) => state.isHintDismissed);
   const dismissHint = useUiStore((state) => state.dismissHint);
   const pushNotification = useUiStore((state) => state.pushNotification);
+  const dealUpdates = useUiStore((state) => state.dealUpdates);
+  const clearDealUpdate = useUiStore((state) => state.clearDealUpdate);
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
@@ -193,6 +197,29 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
   };
 
   const effectiveViewMode = forceViewMode ?? viewMode;
+
+  useEffect(() => {
+    if (effectiveViewMode !== "kanban") {
+      return;
+    }
+
+    const dealIds = Object.keys(dealUpdates);
+    if (dealIds.length === 0) {
+      return;
+    }
+
+    const timers = dealIds.map((dealId) =>
+      window.setTimeout(() => {
+        clearDealUpdate(dealId);
+      }, DEAL_UPDATE_HIGHLIGHT_TIMEOUT),
+    );
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [dealUpdates, clearDealUpdate, effectiveViewMode]);
 
   if (effectiveViewMode !== "kanban") {
     return null;
@@ -317,6 +344,7 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
                     stageFilter={stageFilter}
                     isFetching={isFetching}
                     highlightedDealId={highlightedDealId}
+                    dealUpdates={dealUpdates}
                     selectedDealIds={selectedDealIds}
                     onToggleStage={() =>
                       setSelectedStage(stageFilter === stage ? "all" : stage)
@@ -365,6 +393,7 @@ function StageColumn({
   stageFilter,
   isFetching,
   highlightedDealId,
+  dealUpdates,
   selectedDealIds,
   onToggleStage,
   onToggleSelect,
@@ -375,6 +404,7 @@ function StageColumn({
   stageFilter: PipelineStageKey | "all";
   isFetching: boolean;
   highlightedDealId?: string;
+  dealUpdates: Record<string, string>;
   selectedDealIds: string[];
   onToggleStage: () => void;
   onToggleSelect: (dealId: string) => void;
@@ -421,16 +451,21 @@ function StageColumn({
         {deals.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">Нет сделок на этой стадии</p>
         ) : (
-          deals.map((deal) => (
-            <DraggableDealCard
-              key={deal.id}
-              deal={deal}
-              highlighted={highlightedDealId === deal.id}
-              selected={selectedDealIds.includes(deal.id)}
-              onToggleSelect={() => onToggleSelect(deal.id)}
-              onPreview={() => onPreview(deal.id)}
-            />
-          ))
+          deals.map((deal) => {
+            const isDealUpdated = Boolean(dealUpdates[deal.id]);
+            const isHighlighted = highlightedDealId === deal.id || isDealUpdated;
+
+            return (
+              <DraggableDealCard
+                key={deal.id}
+                deal={deal}
+                highlighted={isHighlighted}
+                selected={selectedDealIds.includes(deal.id)}
+                onToggleSelect={() => onToggleSelect(deal.id)}
+                onPreview={() => onPreview(deal.id)}
+              />
+            );
+          })
         )}
       </div>
     </section>

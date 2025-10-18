@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
@@ -14,6 +14,8 @@ import { useUiStore } from "@/stores/uiStore";
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
+
+const DEAL_UPDATE_HIGHLIGHT_TIMEOUT = 4_000;
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ru-RU", {
@@ -88,10 +90,36 @@ export function DealFunnelTable() {
   const clearFilters = useUiStore((state) => state.clearFilters);
   const openDealPreview = useUiStore((state) => state.openDealPreview);
   const highlightedDealId = useUiStore((state) => state.highlightedDealId);
+  const pushNotification = useUiStore((state) => state.pushNotification);
+  const dealUpdates = useUiStore((state) => state.dealUpdates);
+  const clearDealUpdate = useUiStore((state) => state.clearDealUpdate);
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
   const dealsForRender = useMemo(() => sortDealsByNextReview(deals), [deals]);
+
+  useEffect(() => {
+    if (viewMode !== "table") {
+      return;
+    }
+
+    const dealIds = Object.keys(dealUpdates);
+    if (dealIds.length === 0) {
+      return;
+    }
+
+    const timers = dealIds.map((dealId) =>
+      window.setTimeout(() => {
+        clearDealUpdate(dealId);
+      }, DEAL_UPDATE_HIGHLIGHT_TIMEOUT),
+    );
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [dealUpdates, clearDealUpdate, viewMode]);
 
   if (viewMode !== "table") {
     return null;
@@ -168,6 +196,110 @@ export function DealFunnelTable() {
     <>
       <div className={containerClassName}>
         <div className="flex-1 space-y-4">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+            <span>Список сделок</span>
+            {isFetching && <span className="text-xs font-normal text-slate-400">Обновление…</span>}
+          </div>
+          {hasDeals ? (
+            <table className="min-w-full divide-y divide-slate-100 text-sm dark:divide-slate-800">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/60 dark:text-slate-300">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    Сделка
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    Клиент
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    Стадия
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right">
+                    Вероятность
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right">
+                    Сумма
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    Следующий просмотр
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left">
+                    Обновлено
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right">
+                    Действия
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {dealsForRender.map((deal) => {
+                  const isSelected = selectedDealIds.includes(deal.id);
+                  const isDealUpdated = Boolean(dealUpdates[deal.id]);
+                  const isHighlighted = highlightedDealId === deal.id || isDealUpdated;
+                  const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
+
+                  return (
+                    <tr
+                      key={deal.id}
+                      className={classNames(
+                        "cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-900/40",
+                        isSelected && "bg-sky-50/80 dark:bg-sky-500/10",
+                        isHighlighted && "deal-update-highlight ring-1 ring-amber-400",
+                      )}
+                      onClick={() => openDealPreview(deal.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openDealPreview(deal.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                    >
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 flex-shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            checked={isSelected}
+                            onChange={(event) => {
+                              event.stopPropagation();
+                              toggleDealSelection(deal.id);
+                            }}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label="Выбрать сделку"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800 dark:text-slate-100">{deal.name}</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-500">{deal.id}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
+                      <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
+                      <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
+                            <span
+                              className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
+                              aria-hidden="true"
+                            />
+                            Следующий просмотр
+                          </span>
+                          <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
+                            {formatShortDate(deal.nextReviewAt)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          href={`/deals/${deal.id}`}
+                          className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
+                          onClick={(event) => event.stopPropagation()}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
               <span>Список сделок</span>

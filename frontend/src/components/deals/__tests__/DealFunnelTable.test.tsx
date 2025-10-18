@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+
+import { DealFunnelTable } from "@/components/deals/DealFunnelTable";
+import { dealsMock } from "@/mocks/data";
+import { useUiStore } from "@/stores/uiStore";
 import { render, screen, within } from "@testing-library/react";
 
 import { DealFunnelTable } from "@/components/deals/DealFunnelTable";
@@ -52,6 +57,43 @@ vi.mock("@/components/deals/DealPreviewSidebar", () => ({
 
 vi.mock("@/components/deals/DealBulkActions", () => ({
   DealBulkActions: () => null,
+  buildBulkActionNotificationMessage: vi.fn(() => ""),
+}));
+
+vi.mock("@/stores/uiStore", () => {
+  const { create } = require("zustand");
+
+  type BaseUiState = ReturnType<typeof createDefaultUiState>;
+  type UiState = BaseUiState & {
+    markDealUpdated: (dealId: string) => void;
+    clearDealUpdate: (dealId: string) => void;
+  };
+
+  const useUiStoreMock = create<UiState>((set) => ({
+    ...createDefaultUiState(),
+    markDealUpdated: vi.fn((dealId: string) => {
+      set((state) => ({
+        dealUpdates: {
+          ...state.dealUpdates,
+          [dealId]: new Date().toISOString(),
+        },
+      }));
+    }),
+    clearDealUpdate: vi.fn((dealId: string) => {
+      set((state) => {
+        const rest = { ...state.dealUpdates };
+        delete rest[dealId];
+        return { dealUpdates: rest };
+      });
+    }),
+  }));
+
+  (useUiStoreMock as typeof useUiStoreMock & { resetState?: () => void }).resetState = () => {
+    const base = createDefaultUiState();
+    useUiStoreMock.setState((state) => ({
+      ...state,
+      ...base,
+    }));
   buildBulkActionNotificationMessage: vi.fn(),
 }));
 
@@ -88,6 +130,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useDeals: (...args: unknown[]) => useDealsMock(...args),
 }));
 
+const mockedUseUiStore = useUiStore as typeof useUiStore & { resetState?: () => void };
 const mockedUseUiStore = (await import("@/stores/uiStore")).useUiStore as typeof import("@/stores/uiStore").useUiStore & {
   resetState?: () => void;
 };
@@ -96,6 +139,21 @@ function resetUiStore() {
   mockedUseUiStore.resetState?.();
 }
 
+function renderTable() {
+  let result: ReturnType<typeof render> | undefined;
+
+  act(() => {
+    result = render(<DealFunnelTable />);
+  });
+
+  return result!;
+}
+
+describe("DealFunnelTable — deal updates", () => {
+  beforeEach(() => {
+    resetUiStore();
+    useDealsMock.mockReturnValue({
+      data: dealsMock,
 describe("DealFunnelTable", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -148,6 +206,50 @@ describe("DealFunnelTable", () => {
       isFetching: false,
       refetch: vi.fn(),
     });
+    mockedUseUiStore.setState({ viewMode: "table" });
+  });
+
+  afterEach(() => {
+    resetUiStore();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("подсвечивает строку и очищает подсветку после markDealUpdated", async () => {
+    vi.useFakeTimers();
+
+    renderTable();
+
+    const targetDeal = dealsMock[0];
+
+    const dealCell = screen.getByText(targetDeal.id);
+
+    act(() => {
+      mockedUseUiStore.getState().markDealUpdated(targetDeal.id);
+    });
+
+    const row = dealCell.closest("tr");
+    expect(row).not.toBeNull();
+    const rowElement = row as HTMLElement;
+
+    expect(rowElement).toHaveClass("deal-update-highlight");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(rowElement).not.toHaveClass("deal-update-highlight");
+
+    vi.useRealTimers();
+
+    const clearDealUpdateMock = mockedUseUiStore.getState().clearDealUpdate as ReturnType<typeof vi.fn>;
+    expect(clearDealUpdateMock).toHaveBeenCalledWith(targetDeal.id);
   });
 
   afterEach(() => {
