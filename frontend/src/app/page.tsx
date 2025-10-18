@@ -1,22 +1,20 @@
 import { QueryClient } from "@tanstack/react-query";
-import { HomeDealFunnelBoard } from "@/components/deals/HomeDealFunnelBoard";
+import { DealsOverviewCard } from "@/components/deals/DealsOverviewCard";
 import { TaskList } from "@/components/tasks/TaskList";
 import { ApiError, getServerApiClient } from "@/lib/api/client";
 import { dealsQueryOptions, tasksQueryOptions } from "@/lib/api/queries";
-import { createDefaultDealFilters } from "@/lib/utils/dealFilters";
 import Link from "next/link";
 
 export const revalidate = 0;
 
 export default async function HomePage() {
   const queryClient = new QueryClient();
-  const defaultFilters = createDefaultDealFilters();
   const serverApiClient = getServerApiClient();
 
   const prefetchRequests = [
     {
       type: "deals",
-      run: () => queryClient.prefetchQuery(dealsQueryOptions(defaultFilters, serverApiClient)),
+      run: () => queryClient.prefetchQuery(dealsQueryOptions(undefined, serverApiClient)),
     },
     {
       type: "tasks",
@@ -46,11 +44,11 @@ export default async function HomePage() {
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">CRM 2.0</h1>
         <p className="text-slate-500 dark:text-slate-300">
-          Контролируйте воронку, платежи и задачи в одном окне. Данные обновляются через SSE и React Query.
+          Контролируйте сделки, платежи и задачи в одном окне. Данные обновляются через SSE и React Query.
         </p>
         <nav className="flex flex-wrap gap-3 text-sm">
           <Link href="/deals" className="rounded-full bg-sky-600 px-4 py-2 font-medium text-white transition hover:bg-sky-500">
-            Воронка сделок
+            Сделки
           </Link>
           <Link
             href="/payments"
@@ -80,13 +78,8 @@ export default async function HomePage() {
       </header>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Текущая воронка</h2>
-          <Link href="/deals" className="text-sm font-medium text-sky-600 hover:underline">
-            Все сделки
-          </Link>
-        </div>
-        <HomeDealFunnelBoard forceViewMode="kanban" />
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Приоритетные сделки</h2>
+        <DealsOverviewCard />
       </section>
 
       <section className="space-y-4">

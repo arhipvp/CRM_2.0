@@ -3,13 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  dealActivityQueryOptions,
-  dealNotesQueryOptions,
-  dealDetailsQueryOptions,
-  dealStageMetricsQueryKey,
-  dealsQueryKey,
-} from "@/lib/api/queries";
+import { dealActivityQueryOptions, dealNotesQueryOptions, dealDetailsQueryOptions, dealsQueryKey } from "@/lib/api/queries";
 import { useCreateDealNote, useDealActivity, useDealNotes } from "@/lib/api/hooks";
 import type { ActivityLogEntry, DealNote } from "@/types/crm";
 
@@ -71,7 +65,6 @@ export function DealActivity({ dealId, createRequestKey, onCreateHandled }: Deal
       queryClient.invalidateQueries({ queryKey: activityKey }),
       queryClient.invalidateQueries({ queryKey: dealDetailsKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
     ]);
 
     setIsComposerOpen(false);

@@ -1896,7 +1896,7 @@ export const adminRolesMock: AdminRole[] = [
   {
     id: "role-sales",
     name: "Продавец",
-    description: "Работа с воронкой и платежами без доступа к настройкам.",
+    description: "Работа со списком сделок и платежами без доступа к настройкам.",
     permissions: ["view:audit"],
     isDefault: true,
   },

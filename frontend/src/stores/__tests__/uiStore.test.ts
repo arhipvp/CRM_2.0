@@ -10,13 +10,7 @@ afterEach(() => {
 });
 
 describe("useUiStore", () => {
-  describe("ui filters and selection", () => {
-    it("изменяет вид канбана на таблицу", () => {
-      useUiStore.getState().setViewMode("table");
-
-      expect(useUiStore.getState().viewMode).toBe("table");
-    });
-
+  describe("ui filters", () => {
     it("обновляет фильтры и нормализует менеджеров", () => {
       const managers = [" mgr-1 ", "mgr-2", "mgr-2", NO_MANAGER_VALUE];
 
@@ -54,9 +48,8 @@ describe("useUiStore", () => {
       expect(managers).toEqual([" mgr-1 ", "mgr-2", "mgr-2", NO_MANAGER_VALUE]);
     });
 
-    it("сбрасывает фильтры и выделение", () => {
+    it("сбрасывает фильтры", () => {
       useUiStore.getState().setSelectedStage("proposal");
-      useUiStore.getState().selectDeals(["deal-1", "deal-2"]);
 
       useUiStore.getState().clearFilters();
 
@@ -68,35 +61,10 @@ describe("useUiStore", () => {
         search: "",
       });
       expect(state.filters).not.toBe(initialState.filters);
-      expect(state.selectedDealIds).toEqual([]);
     });
   });
 
-  describe("deal selection", () => {
-    it("переключает выделение сделок", () => {
-      useUiStore.getState().toggleDealSelection("deal-1");
-      useUiStore.getState().toggleDealSelection("deal-2");
-
-      expect(useUiStore.getState().selectedDealIds).toEqual(["deal-1", "deal-2"]);
-
-      useUiStore.getState().toggleDealSelection("deal-1");
-
-      expect(useUiStore.getState().selectedDealIds).toEqual(["deal-2"]);
-    });
-
-    it("массово выделяет сделки и очищает выбор", () => {
-      useUiStore.getState().selectDeals(["deal-1", "deal-2"]);
-      useUiStore.getState().selectDeals(["deal-2", "deal-3"]);
-
-      expect(useUiStore.getState().selectedDealIds).toEqual(["deal-1", "deal-2", "deal-3"]);
-
-      useUiStore.getState().clearSelection();
-
-      expect(useUiStore.getState().selectedDealIds).toEqual([]);
-    });
-  });
-
-  describe("preview and hints", () => {
+  describe("preview", () => {
     it("открывает и закрывает предпросмотр сделки", () => {
       useUiStore.getState().openDealPreview("deal-42");
 
@@ -106,13 +74,15 @@ describe("useUiStore", () => {
 
       expect(useUiStore.getState().previewDealId).toBeUndefined();
     });
+  });
 
-    it("помечает подсказку как просмотренную", () => {
-      expect(useUiStore.getState().isHintDismissed("hint-1")).toBe(false);
+  describe("deal updates", () => {
+    it("добавляет и очищает отметку обновлённой сделки", () => {
+      useUiStore.getState().markDealUpdated("deal-1");
+      expect(useUiStore.getState().dealUpdates["deal-1"]).toBeDefined();
 
-      useUiStore.getState().dismissHint("hint-1");
-
-      expect(useUiStore.getState().isHintDismissed("hint-1")).toBe(true);
+      useUiStore.getState().clearDealUpdate("deal-1");
+      expect(useUiStore.getState().dealUpdates["deal-1"]).toBeUndefined();
     });
   });
 

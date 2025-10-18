@@ -33,7 +33,6 @@ import type {
   DealPeriodFilter,
   DealNote,
   DealStage,
-  DealStageMetrics,
   PaginatedResult,
   Payment,
   PaymentEntry,
@@ -901,15 +900,6 @@ export class ApiClient {
     const query = this.buildQueryString(filters);
     const deals = await this.request(`/crm/deals${query}`, undefined, async () => filterDealsMock(dealsMock, filters));
     return sortDealsByNextReview(deals);
-  }
-
-  getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
-    const query = this.buildQueryString(filters);
-    return this.request(
-      `/crm/deals/stage-metrics${query}`,
-      undefined,
-      async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
-    );
   }
 
   getDealDetails(id: string): Promise<DealDetailsData> {
@@ -2965,41 +2955,6 @@ function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
       return a.index - b.index;
     })
     .map((entry) => entry.deal);
-}
-
-function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
-  const baselineCount = deals.filter((deal) => deal.stage === "qualification").length;
-  const now = Date.now();
-
-  return DEAL_STAGE_ORDER.map((stage, index) => {
-    const stageDeals = deals.filter((deal) => deal.stage === stage);
-    const count = stageDeals.length;
-    const totalValue = stageDeals.reduce((acc, deal) => acc + deal.value, 0);
-    const conversionRate =
-      index === 0
-        ? 1
-        : baselineCount > 0
-          ? Math.max(0, Math.min(1, count / baselineCount))
-          : 0;
-    const avgCycleDurationDays =
-      stageDeals.length === 0
-        ? null
-        : Number.parseFloat(
-            (
-              stageDeals.reduce((acc, deal) => acc + (now - new Date(deal.updatedAt).getTime()), 0) /
-              stageDeals.length /
-              DAY_IN_MS
-            ).toFixed(1),
-          );
-
-    return {
-      stage,
-      count,
-      totalValue,
-      conversionRate,
-      avgCycleDurationDays,
-    } satisfies DealStageMetrics;
-  });
 }
 
 function updateDealStageMock(dealId: string, stage: DealStage): Deal {

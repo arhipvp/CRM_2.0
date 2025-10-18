@@ -10,8 +10,8 @@ afterEach(() => {
 
 describe("HomePage SSR", () => {
   it("не прерывает SSR при ApiError от /crm/deals", async () => {
-    vi.mock("@/components/deals/HomeDealFunnelBoard", () => ({
-      HomeDealFunnelBoard: () => null,
+    vi.mock("@/components/deals/DealsOverviewCard", () => ({
+      DealsOverviewCard: () => null,
     }));
     vi.mock("@/components/tasks/TaskList", () => ({
       TaskList: () => null,

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CRM 2.0 Frontend",
-  description: "Веб-клиент CRM с поддержкой воронки сделок, карточек и платежей.",
+  description: "Веб-клиент CRM с поддержкой списка сделок, карточек и платежей.",
 };
 
 export default function RootLayout({

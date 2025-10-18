@@ -3,13 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  dealDetailsQueryOptions,
-  dealStageMetricsQueryKey,
-  dealTasksQueryOptions,
-  dealsQueryKey,
-  tasksQueryOptions,
-} from "@/lib/api/queries";
+import { dealDetailsQueryOptions, dealTasksQueryOptions, dealsQueryKey, tasksQueryOptions } from "@/lib/api/queries";
 import { useCreateDealTask, useDealTasks, useToggleTask } from "@/lib/api/hooks";
 import { Task } from "@/types/crm";
 
@@ -82,7 +76,6 @@ export function DealTasks({ dealId, createRequestKey, onCreateHandled }: DealTas
       queryClient.invalidateQueries({ queryKey: tasksKey }),
       queryClient.invalidateQueries({ queryKey: dealDetailsKey, exact: true }),
       queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
       queryClient.invalidateQueries({ queryKey: tasksQueryOptions().queryKey }),
     ]);
 

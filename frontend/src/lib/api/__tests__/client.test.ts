@@ -139,28 +139,7 @@ describe("ApiClient mock mode", () => {
     expect(updatedClient.email).toBe("new@example.com");
     expect(updatedClient.phone).toBe("+7 000 000-00-00");
 
-    await expect(apiClient.getDealStageMetrics()).resolves.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ stage: "qualification" }),
-      ]),
-    );
-
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("возвращает stage metrics с учётом фильтров", async () => {
-    const { apiClient } = await importClient();
-    const metrics = await apiClient.getDealStageMetrics({ stage: "closedWon" });
-
-    expect(metrics).toHaveLength(5);
-    const closedWonMetrics = metrics.find((item) => item.stage === "closedWon");
-    expect(closedWonMetrics).toBeDefined();
-    expect(closedWonMetrics?.count ?? 0).toBeGreaterThan(0);
-    expect(
-      metrics
-        .filter((item) => item.stage !== "closedWon")
-        .every((item) => item.count === 0 && item.totalValue === 0),
-    ).toBe(true);
   });
 
   it("использует fallback при ошибке формирования URL", async () => {
