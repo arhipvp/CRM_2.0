@@ -22,10 +22,7 @@ import { Deal } from "@/types/crm";
 import { useDeals, useUpdateDealStage } from "@/lib/api/hooks";
 import { DealCard } from "@/components/deals/DealCard";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
-import {
-  DealBulkActions,
-  buildBulkActionNotificationMessage,
-} from "@/components/deals/DealBulkActions";
+import { DealBulkActions } from "@/components/deals/DealBulkActions";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
 const stageConfig: Record<PipelineStageKey, { title: string; description: string }> = {
@@ -235,27 +232,6 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
   const hasDeals = deals.length > 0;
   const hasBulkSelection = selectedDealIds.length > 0;
 
-  const triggerBulkActionNotification = (actionLabel: string, level: "info" | "warning" = "info") => {
-    if (selectedDealIds.length === 0) {
-      return;
-    }
-
-    pushNotification({
-      id: createRandomId(),
-      message: buildBulkActionNotificationMessage(actionLabel, selectedDealIds),
-      type: level,
-      timestamp: new Date().toISOString(),
-      source: "crm",
-    });
-
-    clearSelection();
-  };
-
-  const handleAssignManager = () => triggerBulkActionNotification("Назначить менеджера");
-  const handleChangeStage = () => triggerBulkActionNotification("Изменить этап");
-  const handleAddTask = () => triggerBulkActionNotification("Добавить задачу");
-  const handleDelete = () => triggerBulkActionNotification("Удалить", "warning");
-
   const containerClassName = classNames(
     "flex flex-col gap-6 lg:flex-row",
     hasBulkSelection && "pb-28",
@@ -378,14 +354,7 @@ export function DealFunnelBoard({ forceViewMode }: DealFunnelBoardProps = {}) {
 
         <DealPreviewSidebar key={previewDealId ?? "preview"} />
       </div>
-      <DealBulkActions
-        selectedDealIds={selectedDealIds}
-        onAssignManager={handleAssignManager}
-        onChangeStage={handleChangeStage}
-        onAddTask={handleAddTask}
-        onDelete={handleDelete}
-        onClearSelection={clearSelection}
-      />
+      <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={clearSelection} />
     </>
   );
 }

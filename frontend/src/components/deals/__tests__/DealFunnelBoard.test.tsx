@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
 import { dealsMock } from "@/mocks/data";
@@ -216,5 +217,27 @@ describe("DealFunnelBoard — next review", () => {
       (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     );
     expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
+  });
+
+  it("показывает заглушку массовых действий и скрывает её после подтверждения", async () => {
+    const selectedIds = dealsMock.slice(0, 2).map((deal) => deal.id);
+    const clearSelectionSpy = vi.fn();
+    const user = userEvent.setup();
+
+    mockedUseUiStore.setState?.((state) => ({
+      ...state,
+      selectedDealIds: selectedIds,
+      clearSelection: clearSelectionSpy,
+    }));
+
+    render(<DealFunnelBoard />);
+
+    const panel = await screen.findByRole("region", { name: "Массовые действия со сделками" });
+    expect(within(panel).getByText(/Массовые действия в разработке/i)).toBeInTheDocument();
+
+    const closeButton = within(panel).getByRole("button", { name: "Понятно" });
+    await user.click(closeButton);
+
+    expect(clearSelectionSpy).toHaveBeenCalledTimes(1);
   });
 });
