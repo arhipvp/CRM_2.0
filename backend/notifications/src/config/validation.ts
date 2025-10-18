@@ -2,7 +2,7 @@ import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
   NOTIFICATIONS_HTTP_HOST: Joi.string().default('0.0.0.0'),
-  NOTIFICATIONS_HTTP_PORT: Joi.number().port().default(3050),
+  NOTIFICATIONS_HTTP_PORT: Joi.number().port().default(8085),
 
   NOTIFICATIONS_DB_HOST: Joi.string().hostname().default('localhost'),
   NOTIFICATIONS_DB_PORT: Joi.number().port().default(5432),
