@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 
 revision = "2024071801"
-down_revision = "2024070101_add_payments_foreign_keys"
+down_revision = "2024070101"
 branch_labels = None
 depends_on = None
 
