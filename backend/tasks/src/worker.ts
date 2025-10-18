@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { INestApplication, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -17,7 +17,9 @@ async function bootstrapWorker() {
     Logger.log('Tasks worker started and polling delayed tasks and reminders queues.', 'TasksWorker');
   }
 
-  await appContext.enableShutdownHooks();
+  const app = appContext as unknown as INestApplication;
+
+  await app.enableShutdownHooks();
 }
 
 bootstrapWorker().catch((error) => {
