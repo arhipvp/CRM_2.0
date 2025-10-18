@@ -9,12 +9,18 @@ async function bootstrapWorker() {
   });
 
   const configService = appContext.get(ConfigService);
-  const workerEnabled = configService.get<boolean>('tasks.scheduling.workerEnabled', false);
+  const workerEnabled = configService.get<boolean>(
+    'tasks.scheduling.workerEnabled',
+    false
+  );
 
   if (!workerEnabled) {
     Logger.warn('Worker launched with TASKS_WORKER_ENABLED=false; no delayed tasks will be processed.', 'TasksWorker');
   } else {
-    Logger.log('Tasks worker started and polling delayed tasks and reminders queues.', 'TasksWorker');
+    Logger.log(
+      'Tasks worker started (tasks.scheduling.workerEnabled=true) and polling delayed tasks and reminders queues.',
+      'TasksWorker'
+    );
   }
 
   const app = appContext as unknown as INestApplication;

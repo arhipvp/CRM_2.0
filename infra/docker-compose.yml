@@ -501,6 +501,23 @@ services:
       - infra
     profiles: ["backend"]
 
+  payments:
+    build:
+      context: ..
+      dockerfile: infra/docker/spring-boot-service.Dockerfile
+      args:
+        SERVICE_PATH: backend/payments
+    container_name: crm-payments
+    restart: unless-stopped
+    environment:
+      PAYMENTS_RABBITMQ_URL: ${PAYMENTS_RABBITMQ_INTERNAL_URL:-amqp://payments:payments@${RABBITMQ_HOST_INTERNAL:-rabbitmq}:5672/payments}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - infra
+    profiles: ["legacy"]
+
   frontend:
     build:
       context: ../frontend
