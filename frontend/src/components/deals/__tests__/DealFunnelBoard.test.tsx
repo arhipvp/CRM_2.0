@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
 import { dealsMock } from "@/mocks/data";
@@ -37,8 +37,6 @@ function createDefaultUiState() {
     pushNotification: vi.fn(),
     dismissNotification: vi.fn(),
     handlePaymentEvent: vi.fn(),
-    markDealUpdated: vi.fn(),
-    clearDealUpdate: vi.fn(),
   };
 }
 
@@ -73,28 +71,39 @@ vi.mock("@dnd-kit/utilities", () => ({
 }));
 
 vi.mock("@/stores/uiStore", () => {
-  type UiState = ReturnType<typeof createDefaultUiState>;
-  let state: UiState = createDefaultUiState();
-  const listeners = new Set<(value: UiState) => void>();
+  const { create } = require("zustand");
 
-  const useUiStoreMock = (selector?: (value: UiState) => unknown) => (selector ? selector(state) : state);
-
-  useUiStoreMock.setState = (
-    partial: Partial<UiState> | ((value: UiState) => Partial<UiState>),
-  ) => {
-    const nextState = typeof partial === "function" ? partial(state) : partial;
-    state = { ...state, ...nextState };
-    listeners.forEach((listener) => listener(state));
+  type BaseUiState = ReturnType<typeof createDefaultUiState>;
+  type UiState = BaseUiState & {
+    markDealUpdated: (dealId: string) => void;
+    clearDealUpdate: (dealId: string) => void;
   };
 
-  useUiStoreMock.getState = () => state;
-  useUiStoreMock.subscribe = (listener: (value: UiState) => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
-  useUiStoreMock.resetState = () => {
-    state = createDefaultUiState();
-    listeners.forEach((listener) => listener(state));
+  const useUiStoreMock = create<UiState>((set) => ({
+    ...createDefaultUiState(),
+    markDealUpdated: vi.fn((dealId: string) => {
+      set((state) => ({
+        dealUpdates: {
+          ...state.dealUpdates,
+          [dealId]: new Date().toISOString(),
+        },
+      }));
+    }),
+    clearDealUpdate: vi.fn((dealId: string) => {
+      set((state) => {
+        const rest = { ...state.dealUpdates };
+        delete rest[dealId];
+        return { dealUpdates: rest };
+      });
+    }),
+  }));
+
+  (useUiStoreMock as typeof useUiStoreMock & { resetState?: () => void }).resetState = () => {
+    const base = createDefaultUiState();
+    useUiStoreMock.setState((state) => ({
+      ...state,
+      ...base,
+    }));
   };
 
   return {
@@ -116,6 +125,16 @@ function resetUiStore() {
   mockedUseUiStore.resetState?.();
 }
 
+function renderBoard(props?: Parameters<typeof DealFunnelBoard>[0]) {
+  let result: ReturnType<typeof render> | undefined;
+
+  act(() => {
+    result = render(<DealFunnelBoard {...props} />);
+  });
+
+  return result!;
+}
+
 describe("DealFunnelBoard — next review", () => {
   beforeEach(() => {
     resetUiStore();
@@ -131,11 +150,12 @@ describe("DealFunnelBoard — next review", () => {
 
   afterEach(() => {
     resetUiStore();
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
   it("отображает дату следующего просмотра на карточках", async () => {
-    render(<DealFunnelBoard />);
+    renderBoard();
 
     const qualificationColumn = await screen.findByRole("region", { name: "Квалификация" });
     const cards = await within(qualificationColumn).findAllByRole("button", { name: /Сделка/i });
@@ -164,7 +184,7 @@ describe("DealFunnelBoard — next review", () => {
       refetch: vi.fn(),
     });
 
-    render(<DealFunnelBoard />);
+    renderBoard();
 
     const column = await screen.findByRole("region", { name: "Квалификация" });
     const cards = await within(column).findAllByRole("button", { name: /Сделка/i });
@@ -201,7 +221,7 @@ describe("DealFunnelBoard — next review", () => {
       refetch: vi.fn(),
     });
 
-    render(<DealFunnelBoard />);
+    renderBoard();
 
     const column = await screen.findByRole("region", { name: "Квалификация" });
     const cards = await within(column).findAllByRole("button", { name: /Сделка/i });
@@ -216,5 +236,60 @@ describe("DealFunnelBoard — next review", () => {
       (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     );
     expect(titles).toEqual(expectedOrder.map((deal) => deal.name));
+  });
+});
+
+describe("DealFunnelBoard — deal updates", () => {
+  beforeEach(() => {
+    resetUiStore();
+    useDealsMock.mockReturnValue({
+      data: dealsMock,
+      isLoading: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    resetUiStore();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("подсвечивает сделку после markDealUpdated и очищает подсветку", async () => {
+    vi.useFakeTimers();
+
+    renderBoard();
+
+    const targetDeal = dealsMock[0];
+
+    act(() => {
+      mockedUseUiStore.getState().markDealUpdated(targetDeal.id);
+    });
+
+    const card = screen.getByRole("button", {
+      name: new RegExp(`Сделка ${targetDeal.name}`, "i"),
+    });
+
+    expect(card).toHaveClass("deal-update-highlight");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(card).not.toHaveClass("deal-update-highlight");
+
+    vi.useRealTimers();
+
+    const clearDealUpdateMock = mockedUseUiStore.getState().clearDealUpdate as ReturnType<typeof vi.fn>;
+    expect(clearDealUpdateMock).toHaveBeenCalledWith(targetDeal.id);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
@@ -16,6 +16,8 @@ import { useUiStore } from "@/stores/uiStore";
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
+
+const DEAL_UPDATE_HIGHLIGHT_TIMEOUT = 4_000;
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("ru-RU", {
@@ -91,10 +93,35 @@ export function DealFunnelTable() {
   const openDealPreview = useUiStore((state) => state.openDealPreview);
   const highlightedDealId = useUiStore((state) => state.highlightedDealId);
   const pushNotification = useUiStore((state) => state.pushNotification);
+  const dealUpdates = useUiStore((state) => state.dealUpdates);
+  const clearDealUpdate = useUiStore((state) => state.clearDealUpdate);
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
   const dealsForRender = useMemo(() => sortDealsByNextReview(deals), [deals]);
+
+  useEffect(() => {
+    if (viewMode !== "table") {
+      return;
+    }
+
+    const dealIds = Object.keys(dealUpdates);
+    if (dealIds.length === 0) {
+      return;
+    }
+
+    const timers = dealIds.map((dealId) =>
+      window.setTimeout(() => {
+        clearDealUpdate(dealId);
+      }, DEAL_UPDATE_HIGHLIGHT_TIMEOUT),
+    );
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [dealUpdates, clearDealUpdate, viewMode]);
 
   if (viewMode !== "table") {
     return null;
@@ -223,7 +250,8 @@ export function DealFunnelTable() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {dealsForRender.map((deal) => {
                   const isSelected = selectedDealIds.includes(deal.id);
-                  const isHighlighted = highlightedDealId === deal.id;
+                  const isDealUpdated = Boolean(dealUpdates[deal.id]);
+                  const isHighlighted = highlightedDealId === deal.id || isDealUpdated;
                   const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
 
                   return (
@@ -232,7 +260,7 @@ export function DealFunnelTable() {
                       className={classNames(
                         "cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-900/40",
                         isSelected && "bg-sky-50/80 dark:bg-sky-500/10",
-                        isHighlighted && "ring-1 ring-amber-400",
+                        isHighlighted && "deal-update-highlight ring-1 ring-amber-400",
                       )}
                       onClick={() => openDealPreview(deal.id)}
                       onKeyDown={(event) => {
