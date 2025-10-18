@@ -51,7 +51,16 @@ function createUpstreamServer(): Promise<{ server: Server; url: string }> {
           JSON.stringify({
             upstream: 'crm',
             method,
-            url
+            url,
+            deal_id: 'deal-1',
+            client_details: {
+              owner_id: 'user-1',
+              contact_phone: '+79001234567'
+            },
+            payments: [
+              { payment_id: 'payment-1', net_total: '1500.00' },
+              { payment_id: 'payment-2', net_total: '500.00' }
+            ]
           })
         );
         return;
@@ -135,7 +144,20 @@ describe('Gateway bootstrap', () => {
   it('proxies CRM requests with path and query', async () => {
     const response = await request(app.getHttpServer()).get('/api/v1/crm/customers/42?expand=profile');
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ upstream: 'crm', url: expect.stringContaining('customers/42') });
+    expect(response.body).toEqual({
+      upstream: 'crm',
+      method: 'GET',
+      url: '/crm/customers/42?expand=profile',
+      dealId: 'deal-1',
+      clientDetails: {
+        ownerId: 'user-1',
+        contactPhone: '+79001234567'
+      },
+      payments: [
+        { paymentId: 'payment-1', netTotal: '1500.00' },
+        { paymentId: 'payment-2', netTotal: '500.00' }
+      ]
+    });
   });
 
   it('exposes deals stream as an alias for CRM SSE', async () => {

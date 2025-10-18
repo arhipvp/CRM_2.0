@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from crm.domain import schemas
 from crm.infrastructure import models
 from crm.domain.schemas import DealFilters, DealStage, map_deal_status_to_stage
 
