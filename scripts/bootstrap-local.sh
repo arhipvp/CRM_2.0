@@ -750,8 +750,7 @@ step_wait_backend() {
           break
         fi
 
-        mapfile -t status_lines <<<"${status_output}"$'
-'
+        mapfile -t status_lines <<<"${status_output}"$'\n'
         state=$(strip_cr "${status_lines[0]:-unknown}")
         health=$(strip_cr "${status_lines[1]:-}")
 
