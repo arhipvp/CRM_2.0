@@ -95,6 +95,39 @@ BOOTSTRAP_SKIP_FRONTEND_FLAG="${BOOTSTRAP_SKIP_FRONTEND:-false}"
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
 
+strip_cr() {
+  local value="$1"
+  printf '%s' "${value//$'\r'/}"
+}
+
+docker_service_status() {
+  local profile="$1" service="$2"
+  local compose_args=()
+
+  if [[ -n "${profile:-}" ]]; then
+    compose_args+=(--profile "${profile}")
+  fi
+
+  local container_id=""
+  if ! container_id=$("${COMPOSE_CMD[@]}" "${compose_args[@]}" ps -q "${service}" 2>/dev/null); then
+    return 1
+  fi
+
+  container_id=$(strip_cr "${container_id}")
+
+  if [[ -z "${container_id}" ]]; then
+    printf '%s\n%s\n' "absent" ""
+    return 0
+  fi
+
+  if ! docker inspect "${container_id}" >/dev/null 2>&1; then
+    printf '%s\n%s\n' "absent" ""
+    return 0
+  fi
+
+  docker inspect -f '{{.State.Status}}{{printf "\n"}}{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${container_id}"
+}
+
 cleanup() {
   if ! is_truthy "${SAVE_LOGS_FLAG}"; then
     if [[ -d "${TMP_DIR}" ]]; then
@@ -697,68 +730,69 @@ step_wait_backend() {
     cd "${INFRA_DIR}" || return 1
     local services=("${BACKEND_PROFILE_SERVICES[@]}")
     if "${COMPOSE_CMD[@]}" --profile backend wait "${services[@]}" >/dev/null 2>&1; then
-      echo "docker compose --profile backend wait завершён успешно"
+      echo "docker compose --profile backend wait completed successfully"
       return 0
     fi
 
-    echo "Команда 'docker compose --profile backend wait' недоступна, включён ручной мониторинг статусов"
+    echo "Command docker compose --profile backend wait is unavailable; polling statuses manually"
     local attempt=0
     local max_attempts=60
     local sleep_seconds=3
-    local ps_output=""
+    local status_output="" state="" health=""
 
     while (( attempt < max_attempts )); do
-      if ! ps_output=$("${COMPOSE_CMD[@]}" --profile backend ps); then
-        sleep "$sleep_seconds"
-        attempt=$((attempt + 1))
-        continue
-      fi
-
-      if grep -qE '\\b(Exit|Down|Stopped)\\b' <<<"$ps_output"; then
-        echo "$ps_output"
-        echo "Обнаружены контейнеры backend-профиля в состоянии Exit/Down/Stopped" >&2
-        return 1
-      fi
-
       local unhealthy=false
-      local starting=false
+      local pending=false
 
       for service in "${services[@]}"; do
-        local line
-        line=$(printf '%s\n' "$ps_output" | grep -E "^[[:space:]]*${service}[[:space:]]" || true)
-        if [[ -z "$line" ]]; then
-          starting=true
+        if ! status_output=$(docker_service_status backend "${service}"); then
+          pending=true
           break
         fi
 
-        if grep -q '(unhealthy)' <<<"$line"; then
-          unhealthy=true
-          break
-        fi
+        mapfile -t status_lines <<<"${status_output}"$'
+'
+        state=$(strip_cr "${status_lines[0]:-unknown}")
+        health=$(strip_cr "${status_lines[1]:-}")
 
-        if grep -q '(health: starting)' <<<"$line" || ! grep -q '(healthy)' <<<"$line"; then
-          starting=true
+        case "${state}" in
+          running)
+            if [[ -n "${health}" && "${health}" != "healthy" ]]; then
+              pending=true
+            fi
+            ;;
+          exited|dead)
+            unhealthy=true
+            break
+            ;;
+          *)
+            pending=true
+            ;;
+        esac
+
+        if [[ "${unhealthy}" == true ]]; then
+          break
         fi
       done
 
-      if [[ "$unhealthy" == true ]]; then
-        echo "$ps_output"
-        echo "Контейнеры backend-профиля имеют статус unhealthy" >&2
+      if [[ "${unhealthy}" == true ]]; then
+        "${COMPOSE_CMD[@]}" --profile backend ps
+        echo "Backend services have unhealthy containers" >&2
         return 1
       fi
 
-      if [[ "$starting" == true ]]; then
-        sleep "$sleep_seconds"
+      if [[ "${pending}" == true ]]; then
+        sleep "${sleep_seconds}"
         attempt=$((attempt + 1))
         continue
       fi
 
-      echo "$ps_output"
-      echo "Backend-сервисы готовы."
+      "${COMPOSE_CMD[@]}" --profile backend ps
+      echo "Backend services are ready."
       return 0
     done
 
-    echo "Истёк таймаут ожидания готовности backend-сервисов" >&2
+    echo "Timed out while waiting for backend services" >&2
     "${COMPOSE_CMD[@]}" --profile backend ps
     return 1
   )
