@@ -9,7 +9,7 @@ async function bootstrapWorker() {
   });
 
   const configService = appContext.get(ConfigService);
-  const workerEnabled = configService.get<boolean>('scheduling.workerEnabled', false);
+  const workerEnabled = configService.get<boolean>('tasks.scheduling.workerEnabled', false);
 
   if (!workerEnabled) {
     Logger.warn('Worker launched with TASKS_WORKER_ENABLED=false; no delayed tasks will be processed.', 'TasksWorker');
