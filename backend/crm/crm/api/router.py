@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from crm.api import streams
 from crm.api.routers import (
     calculations,
     clients,
@@ -31,3 +32,7 @@ def get_api_router() -> APIRouter:
     router.include_router(payment_incomes.router)
     router.include_router(payment_expenses.router)
     return router
+
+
+def get_streams_router() -> APIRouter:
+    return streams.router
