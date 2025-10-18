@@ -5,7 +5,7 @@ from __future__ import annotations
 from alembic import op
 
 
-revision = "2024070101"
+revision = "2024070101_add_payments_foreign_keys"
 down_revision = "2024062401_add_policy_documents"
 branch_labels = None
 depends_on = None
