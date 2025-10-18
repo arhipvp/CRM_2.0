@@ -45,9 +45,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/streams", include_in_schema=False)
-    async def streams_route(
-        response: EventSourceResponse = Depends(streams_endpoint),
-    ) -> EventSourceResponse:
+    async def streams_route(response=Depends(streams_endpoint)) -> EventSourceResponse:
         return response
 
     return app

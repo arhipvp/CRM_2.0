@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DealFunnelBoard } from "@/components/deals/DealFunnelBoard";
@@ -154,6 +153,33 @@ describe("DealFunnelBoard — next review", () => {
     resetUiStore();
     vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it("отображает ошибку и позволяет повторить загрузку", async () => {
+    const refetch = vi.fn();
+    useDealsMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: true,
+      error: new Error("Сервер недоступен"),
+      isFetching: false,
+      refetch,
+    });
+
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<DealFunnelBoard />);
+    });
+
+    expect(await screen.findByText(/Не удалось загрузить сделки/i)).toBeInTheDocument();
+
+    const retryButton = await screen.findByRole("button", { name: "Повторить" });
+    await act(async () => {
+      await user.click(retryButton);
+    });
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("отображает дату следующего просмотра на карточках", async () => {

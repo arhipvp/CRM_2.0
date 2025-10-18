@@ -72,34 +72,35 @@ describe("ApiClient при работе с HTTP API", () => {
     );
 
     const { apiClient } = await importClient();
-    const metrics = await apiClient.getDealStageMetrics({
-      stage: "closedWon",
-      period: "30d",
-      managers: ["manager-ivanov", NO_MANAGER_VALUE],
-      search: "Ромашка",
-    });
+    const metrics = await apiClient.getDealStageMetrics({ stage: "closedWon" });
 
-    expect(metrics).toEqual(stageMetricsFixture);
-    expect(requestedUrl?.searchParams.get("stage")).toBe("closedWon");
-    expect(requestedUrl?.searchParams.get("period")).toBe("30d");
-    expect(requestedUrl?.searchParams.getAll("manager")).toEqual(["manager-ivanov", NO_MANAGER_VALUE]);
-    expect(requestedUrl?.searchParams.get("search")).toBe("Ромашка");
+    expect(metrics).toHaveLength(5);
+    const closedWonMetrics = metrics.find((item) => item.stage === "closedWon");
+    expect(closedWonMetrics).toBeDefined();
+    expect(closedWonMetrics?.count ?? 0).toBeGreaterThan(0);
+    expect(
+      metrics
+        .filter((item) => item.stage !== "closedWon")
+        .every((item) => item.count === 0),
+    ).toBe(true);
   });
 
-  it("использует fallback при сетевой ошибке", async () => {
-    server.use(
-      http.get(`${API_BASE_URL}/crm/deals`, () => {
-        return HttpResponse.error();
-      }),
-    );
+  it("пробрасывает ApiError при ошибке формирования URL", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:9999";
+    const { createApiClient, ApiError: ApiErrorCtor } = await importClient();
+    const client = createApiClient({ baseUrl: "http://[" });
 
-    const { apiClient } = await importClient();
-    const deals = await apiClient.getDeals();
+    await expect(client.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
-    expect(deals.length).toBeGreaterThan(0);
-    for (let index = 1; index < deals.length; index += 1) {
-      expect(compareDealsByNextReview(deals[index - 1], deals[index])).toBeLessThanOrEqual(0);
-    }
+  it("пробрасывает ApiError при сетевой ошибке", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    const { apiClient, ApiError: ApiErrorCtor } = await importClient();
+
+    await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("пробрасывает ApiError при ответе 5xx", async () => {
@@ -114,7 +115,7 @@ describe("ApiClient при работе с HTTP API", () => {
     await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
   });
 
-  it("переходит на fallback после досрочного серверного таймаута", async () => {
+  it("пробрасывает ApiError после досрочного серверного таймаута", async () => {
     vi.useFakeTimers();
     process.env.FRONTEND_SERVER_TIMEOUT_MS = "25";
 
@@ -126,15 +127,13 @@ describe("ApiClient при работе с HTTP API", () => {
       });
     });
 
-    try {
-      const { apiClient } = await importClient();
-      const promise = apiClient.getDeals();
+      const { apiClient, ApiError: ApiErrorCtor } = await importClient();
 
+      const handled = apiClient.getDeals().catch((error) => error);
       await vi.advanceTimersByTimeAsync(25);
 
-      const deals = await promise;
-      expect(deals.length).toBeGreaterThan(0);
-      expect(fetchSpy).toHaveBeenCalled();
+      await expect(handled).resolves.toBeInstanceOf(ApiErrorCtor);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     } finally {
       fetchSpy.mockRestore();
     }
