@@ -10,12 +10,14 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from crm.app.config import settings
 from crm.infrastructure import models
-from crm.infrastructure.db import database_url, engine_connect_args
+from crm.infrastructure.db import get_async_database_config
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+database_url, engine_connect_args = get_async_database_config()
 
 config.set_main_option("sqlalchemy.url", str(database_url))
 
