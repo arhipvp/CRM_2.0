@@ -7,14 +7,15 @@ import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import { dealsQueryOptions } from "@/lib/api/queries";
 import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
+import { DEAL_STAGE_TITLES } from "@/lib/utils/deals";
 import { collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
 
 const stageLabels: Record<PipelineStageKey, string> = {
-  qualification: "Квалификация",
-  negotiation: "Переговоры",
-  proposal: "Коммерческое предложение",
-  closedWon: "Успешно",
-  closedLost: "Потеряно",
+  qualification: DEAL_STAGE_TITLES.qualification,
+  negotiation: DEAL_STAGE_TITLES.negotiation,
+  proposal: DEAL_STAGE_TITLES.proposal,
+  closedWon: DEAL_STAGE_TITLES.closedWon,
+  closedLost: DEAL_STAGE_TITLES.closedLost,
 };
 
 const stageDescriptions: Record<PipelineStageKey, string> = {
