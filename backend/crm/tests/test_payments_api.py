@@ -50,7 +50,6 @@ async def _prepare_payment(
         "title": "КАСКО",
         "description": "Оплата полиса",
         "owner_id": str(uuid4()),
-        "value": 1000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -112,7 +111,6 @@ async def test_payments_flow(api_client, configure_environment):
         "title": "КАСКО",
         "description": "Оплата полиса",
         "owner_id": str(uuid4()),
-        "value": 1000,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)
@@ -280,7 +278,6 @@ async def test_payments_policy_not_found_scenarios(api_client, configure_environ
         "title": "Страхование имущества",
         "description": "Основной договор",
         "owner_id": str(uuid4()),
-        "value": 1500,
         "next_review_at": date.today().isoformat(),
     }
     deal_resp = await api_client.post("/api/v1/deals/", json=deal_payload, headers=headers)

@@ -43,7 +43,6 @@ class DealBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: Optional[str] = None
     status: str = Field(default="draft")
-    value: Optional[float] = None
     next_review_at: date
 
 
@@ -56,7 +55,6 @@ class DealUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
-    value: Optional[float] = None
     next_review_at: Optional[date] = Field(default=PydanticUndefined)
 
     @field_validator("next_review_at", mode="before")

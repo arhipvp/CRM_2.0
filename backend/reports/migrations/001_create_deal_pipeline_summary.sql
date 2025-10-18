@@ -14,7 +14,6 @@ BEGIN
          SELECT
              d.status,
              COUNT(*)::bigint AS total_deals,
-             COALESCE(SUM(d.value), 0)::numeric(12, 2) AS total_value,
              MIN(d.created_at) AS first_deal_at,
              MAX(d.updated_at) AS last_activity_at
          FROM %2$I.deals AS d
