@@ -1,4 +1,20 @@
-import type { Deal } from "@/types/crm";
+import type { Deal, DealStage } from "@/types/crm";
+
+export const DEAL_STAGE_TITLES: Record<DealStage, string> = {
+  qualification: "Квалификация",
+  negotiation: "Переговоры",
+  proposal: "Коммерческое предложение",
+  closedWon: "Успешно",
+  closedLost: "Потеряно",
+};
+
+export function getDealStageTitle(stage: DealStage | null | undefined): string {
+  if (!stage) {
+    return "Неизвестная стадия";
+  }
+
+  return DEAL_STAGE_TITLES[stage] ?? "Неизвестная стадия";
+}
 
 function toFiniteTimestamp(value?: string): number | null {
   if (!value) {

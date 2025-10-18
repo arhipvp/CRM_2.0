@@ -27,15 +27,16 @@ import { AuthModule } from './http/auth/auth.module';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService<RedisConfig>) => {
         const config = configService.get<RedisConfig>('redis', { infer: true });
-        const urlValue = config?.url ?? 'redis://localhost:6379/0';
+        const urlValue = config?.url?.trim();
+        const effectiveUrl = urlValue && urlValue.length > 0 ? urlValue : 'redis://localhost:6379/0';
 
-        if (urlValue.startsWith('mock://')) {
+        if (effectiveUrl.startsWith('mock://')) {
           return {
             ttl: config?.cacheTtl
           };
         }
 
-        const parsed = new URL(urlValue);
+        const parsed = new URL(effectiveUrl);
         const db = Number.parseInt(parsed.pathname.replace('/', ''), 10);
 
         return {
