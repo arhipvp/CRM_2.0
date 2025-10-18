@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from crm.app.config import settings
 from crm.infrastructure import models
-from crm.infrastructure.db import database_url
+from crm.infrastructure.db import database_url, engine_connect_args
 
 config = context.config
 
@@ -33,6 +33,7 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=engine_connect_args,
     )
 
     async def do_run_migrations() -> None:
