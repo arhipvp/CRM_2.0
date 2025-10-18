@@ -95,223 +95,27 @@ compose_rabbitmqctl() {
 }
 
 rabbitmq_status() {
-  local ps_output="" ps_status=0
+  local container_id=""
+  if ! container_id=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps -q rabbitmq 2>/dev/null); then
+    return 1
+  fi
 
-  if ps_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps --format json rabbitmq 2>&1); then
-    printf '%s\n' "${ps_output}" | ${PYTHON_CMD} - <<'PY'
-import json
-import sys
+  container_id=$(strip_cr "${container_id}")
 
-raw = sys.stdin.read()
-
-if not raw.strip():
-    print("absent")
-    print("")
-    sys.exit(0)
-
-first_bracket = raw.find('[')
-last_bracket = raw.rfind(']')
-first_brace = raw.find('{')
-last_brace = raw.rfind('}')
-
-payload = ""
-warnings_text = ""
-
-if first_bracket != -1 and last_bracket != -1 and last_bracket >= first_bracket:
-    payload = raw[first_bracket:last_bracket + 1].strip()
-    warnings_text = raw[:first_bracket] + raw[last_bracket + 1:]
-elif first_brace != -1 and last_brace != -1 and last_brace >= first_brace:
-    payload = raw[first_brace:last_brace + 1].strip()
-    warnings_text = raw[:first_brace] + raw[last_brace + 1:]
-
-if payload:
-    for line in warnings_text.splitlines():
-        if line.strip():
-            print(line, file=sys.stderr)
-else:
-    for line in raw.splitlines():
-        if line.strip():
-            print(line, file=sys.stderr)
-    print("[Предупреждение] docker compose ps не вернул JSON (получен только шум).", file=sys.stderr)
-    print("absent")
-    print("")
-    sys.exit(0)
-
-try:
-    data = json.loads(payload)
-except json.JSONDecodeError as exc:
-    filtered_lines = payload.splitlines()
-    error_line = filtered_lines[exc.lineno - 1] if 0 < exc.lineno <= len(filtered_lines) else payload
-    print(
-        f"[Ошибка] docker compose ps вернул невалидный JSON: строка {exc.lineno}: {error_line.strip()} ({exc.msg})",
-        file=sys.stderr,
-    )
-    sys.exit(3)
-
-if isinstance(data, dict):
-    entry = data
-elif isinstance(data, list) and data:
-    entry = data[0]
-else:
-    entry = {}
-
-state = entry.get("State") or entry.get("state") or "unknown"
-health = entry.get("Health") or entry.get("health") or ""
-
-print(state)
-print(health)
-PY
+  if [[ -z "${container_id}" ]]; then
+    echo "absent"
+    echo ""
     return 0
-  else
-    ps_status=$?
   fi
 
-  local ps_output_lower="${ps_output,,}"
-  if [[ "${ps_output_lower}" == *"unknown flag: --format"* || "${ps_output_lower}" == *"no such option: --format"* || "${ps_output_lower}" == *"no such option --format"* ]]; then
-    local fallback_output="" fallback_status=0
-    if fallback_output=$("${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" ps rabbitmq 2>&1); then
-      printf '%s\n' "${fallback_output}" | ${PYTHON_CMD} - <<'PY'
-import re
-import sys
-
-raw_output = sys.stdin.read()
-
-if not raw_output.strip():
-    print("absent")
-    print("")
-    sys.exit(0)
-
-lines = raw_output.splitlines()
-warnings = []
-data_lines = []
-header_lower = []
-header_found = False
-
-for line in lines:
-    stripped = line.strip()
-    if not stripped:
-        continue
-
-    if stripped.lower().startswith(("warning:", "warn")):
-        warnings.append(line)
-        continue
-
-    if set(stripped) <= {"-", " "} or set(stripped) <= {"=", " "}:
-        continue
-
-    segments = [segment.strip() for segment in re.split(r"\s{2,}", stripped) if segment.strip()]
-    segments_lower = [segment.lower() for segment in segments]
-
-    if (not header_found and segments_lower and segments_lower[0] == "name"
-            and any(col in {"status", "state"} for col in segments_lower[1:])):
-        header_found = True
-        header_lower = segments_lower
-        continue
-
-    if not header_found:
-        warnings.append(line)
-        continue
-
-    data_lines.append(line)
-
-for line in warnings:
-    print(line, file=sys.stderr)
-
-if not header_found:
-    print("[Ошибка] docker compose ps (fallback) не вернул распознаваемый заголовок таблицы.", file=sys.stderr)
-    sys.exit(4)
-
-if not data_lines:
-    print("absent")
-    print("")
-    sys.exit(0)
-
-service_idx = header_lower.index("service") if "service" in header_lower else -1
-status_idx = header_lower.index("status") if "status" in header_lower else -1
-state_idx = header_lower.index("state") if "state" in header_lower else -1
-
-selected_parts = None
-
-for line in data_lines:
-    stripped_line = line.strip()
-    if set(stripped_line) <= {"-", " "} or set(stripped_line) <= {"=", " "}:
-        continue
-
-    parts = [segment.strip() for segment in re.split(r"\s{2,}", stripped_line) if segment.strip()]
-    if not parts:
-        continue
-
-    service_name = None
-    if service_idx != -1 and service_idx < len(parts):
-        service_name = parts[service_idx].lower()
-
-    if service_name and service_name != "rabbitmq":
-        continue
-
-    name_value = parts[0].lower()
-    if service_name is None and "rabbitmq" not in name_value:
-        continue
-
-    selected_parts = parts
-    break
-
-if selected_parts is None:
-    print("absent")
-    print("")
-    sys.exit(0)
-
-status_text = ""
-if status_idx != -1 and status_idx < len(selected_parts):
-    status_text = selected_parts[status_idx]
-elif state_idx != -1 and state_idx < len(selected_parts):
-    status_text = selected_parts[state_idx]
-
-status_text = status_text.strip()
-
-if not status_text:
-    print("unknown")
-    print("")
-    sys.exit(0)
-
-state_word = status_text.split()[0].lower()
-
-state_map = {
-    "up": "running",
-    "running": "running",
-    "created": "created",
-    "starting": "starting",
-    "restarting": "restarting",
-    "paused": "paused",
-    "exit": "exited",
-    "exited": "exited",
-    "stopped": "exited",
-    "down": "exited",
-    "dead": "dead",
-    "removing": "removing",
-}
-
-state = state_map.get(state_word, state_word or "unknown")
-
-health = ""
-match = re.search(r"\(([^)]+)\)", status_text)
-if match:
-    health = match.group(1).strip().lower()
-
-print(state)
-print(health)
-PY
-      return 0
-    else
-      fallback_status=$?
-      printf '%s\n' "${fallback_output}" >&2
-      return ${fallback_status}
-    fi
+  if ! docker inspect "${container_id}" >/dev/null 2>&1; then
+    echo "absent"
+    echo ""
+    return 0
   fi
 
-  printf '%s\n' "${ps_output}" >&2
-  return ${ps_status}
+  docker inspect -f '{{.State.Status}}{{printf "\n"}}{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${container_id}"
 }
-
 wait_for_rabbitmq_ready() {
   echo "[Инфо] Ожидаем готовность RabbitMQ (healthcheck)..."
   local status_output=""
@@ -350,7 +154,6 @@ wait_for_rabbitmq_ready() {
   echo "[Ошибка] RabbitMQ не перешёл в состояние 'running/healthy' за ${waited_seconds} секунд (state='${state:-unknown}', health='${health:-n/a}'). Проверьте логи: ${DOCKER_COMPOSE_DISPLAY} -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
   return 1
 }
-
 ensure_rabbitmq_ready() {
   local status_output=""
   local -a status_lines=()
@@ -492,4 +295,7 @@ for key in "${!USER_COMBOS[@]}"; do
 done
 
 echo "\nГотово: проверено ${#USER_COMBOS[@]} комбинаций пользователь/vhost."
+
+
+
 

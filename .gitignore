@@ -30,4 +30,4 @@ jdk-25/
 
 *.pid
 
-#.local/
+.local/
