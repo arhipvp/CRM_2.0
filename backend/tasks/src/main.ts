@@ -9,8 +9,8 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('service.port', 8086);
-  const host = configService.get<string>('service.host', '0.0.0.0');
+  const port = configService.get<number>('tasks.service.port', 8086);
+  const host = configService.get<string>('tasks.service.host', '0.0.0.0');
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
@@ -22,6 +22,10 @@ async function bootstrap() {
   );
 
   await app.listen(port, host);
+
+  const url = await app.getUrl();
+  // eslint-disable-next-line no-console
+  console.log(`Tasks service is listening on ${url}`);
 }
 
 bootstrap().catch((error) => {
