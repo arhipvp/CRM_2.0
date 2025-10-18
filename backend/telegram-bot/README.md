@@ -16,10 +16,11 @@
 ```bash
 cd backend/telegram-bot
 poetry install
-poetry run telegram-bot-main  # запуск через poetry script, см. ниже
+TELEGRAM_BOT_SERVICE_PORT=8090 poetry run telegram-bot-main  # при необходимости измените порт
 ```
 
-Для запуска через uvicorn используйте:
+Скрипт `telegram-bot-main` читает порт из переменной окружения `TELEGRAM_BOT_SERVICE_PORT`, поэтому при запуске можно указать
+любой свободный порт. Аналогично для запуска через uvicorn используйте:
 
 ```bash
 poetry run uvicorn telegram_bot.app:create_app --factory --host 0.0.0.0 --port ${TELEGRAM_BOT_SERVICE_PORT}

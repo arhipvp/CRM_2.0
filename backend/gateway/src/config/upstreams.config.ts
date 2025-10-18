@@ -55,6 +55,11 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
     'http://localhost:8085/api'
   );
 
+  const crmSseUrl = normalizeUrl(
+    process.env.GATEWAY_UPSTREAM_CRM_SSE_URL ?? '',
+    'http://localhost:8082/streams'
+  );
+
   return {
     defaultTimeout,
     reconnectDelay,

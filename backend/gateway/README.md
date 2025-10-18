@@ -15,7 +15,7 @@ Gateway — единая точка входа для веб-клиента и T
 3. Запустите сервис в режиме разработки: `pnpm start:dev`. Приложение слушает `http://${GATEWAY_SERVICE_HOST}:${GATEWAY_SERVICE_PORT}/api`.
 4. Для проверки доступности выполните `curl http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/health` — ответ должен содержать `"status":"ok"` и статусы Redis/Consul.
 5. SSE-канал «heartbeat» доступен по адресу `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/heartbeat` и отдаёт регулярные сообщения, которые удобно использовать как smoke-тест подключения фронтенда.【F:backend/gateway/src/sse/sse.controller.ts†L4-L29】
-6. Основной CRM-поток публикуется как `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`. Внутри Gateway он проксируется из upstream `crm`, поэтому параметры `GATEWAY_UPSTREAM_CRM_SSE_URL` и `NEXT_PUBLIC_CRM_SSE_URL` должны быть согласованы (см. [`env.example`](../../env.example)); для обратной совместимости доступен алиас `/api/v1/streams/crm`.
+6. Основной CRM-поток публикуется как `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`. Внутри Gateway он проксируется из upstream `crm`, который по умолчанию слушает `http://localhost:8082/streams`, поэтому параметры `GATEWAY_UPSTREAM_CRM_SSE_URL` и `NEXT_PUBLIC_CRM_SSE_URL` должны быть согласованы (см. [`env.example`](../../env.example)); для обратной совместимости доступен алиас `/api/v1/streams/crm`.
 7. Для запуска e2e/контрактных тестов выполните `pnpm test` — в них поднимаются mock-сервисы и проверяется проксирование REST/SSE.
 
 ## REST и SSE прокси
