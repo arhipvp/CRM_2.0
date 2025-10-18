@@ -1,22 +1,11 @@
 import {
-  activitiesMock,
   adminAuditLogMock,
   adminDictionariesMock,
   adminRolesMock,
   adminUsersMock,
-  clientPoliciesMock,
-  clientRemindersMock,
-  clientTaskChecklistMock,
-  clientsMock,
-  dealDetailsMock,
-  dealDocumentsMock,
-  dealNotesMock,
-  dealsMock,
   notificationChannelSettingsMock,
   notificationEventJournalMock,
   notificationFeedMock,
-  paymentsMock,
-  tasksMock,
 } from "@/mocks/data";
 import type {
   ActivityLogEntry,
@@ -72,7 +61,7 @@ import type {
   UpdateAdminUserPayload,
   UpsertDictionaryPayload,
 } from "@/types/admin";
-import { compareDealsByNextReview, sortDealsByNextReview } from "@/lib/utils/deals";
+import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 
@@ -1043,46 +1032,11 @@ export class ApiClient {
   }
 
   getDealDetails(id: string): Promise<DealDetailsData> {
-    return this.request(`/crm/deals/${id}`, undefined, async () => {
-      const deal = dealDetailsMock[id];
-      if (!deal) {
-        throw new ApiError("Deal not found", 404);
-      }
-
-      const details = JSON.parse(JSON.stringify(deal)) as DealDetailsData;
-      const base = dealsMock.find((item) => item.id === id);
-      if (base) {
-        details.probability = base.probability;
-        details.stage = base.stage;
-        details.owner = base.owner;
-        details.nextReviewAt = base.nextReviewAt;
-        details.expectedCloseDate = base.expectedCloseDate;
-        details.updatedAt = base.updatedAt;
-      }
-
-      const tasks = tasksMock.filter((item) => item.dealId === id);
-      const notes = dealNotesMock.filter((item) => item.dealId === id);
-      const documents = dealDocumentsMock.filter((item) => item.dealId === id);
-      const payments = paymentsMock
-        .filter((item) => item.dealId === id)
-        .map((payment) => clonePayment(payment));
-      const activity = activitiesMock.filter((item) => item.dealId === id);
-
-      return {
-        ...details,
-        tasks,
-        notes,
-        documents,
-        payments,
-        activity,
-      };
-    });
+    return this.request(`/crm/deals/${id}`, undefined);
   }
 
   getDealTasks(dealId: string): Promise<Task[]> {
-    return this.request(`/crm/deals/${dealId}/tasks`, undefined, async () =>
-      tasksMock.filter((task) => task.dealId === dealId),
-    );
+    return this.request(`/crm/deals/${dealId}/tasks`, undefined);
   }
 
   createDealTask(dealId: string, payload: DealTaskPayload): Promise<Task> {
@@ -1091,31 +1045,11 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const deal = dealsMock.find((item) => item.id === dealId);
-        const task: Task = {
-          id: createRandomId(),
-          title: payload.title,
-          dueDate: payload.dueDate ?? new Date().toISOString(),
-          status: "new",
-          completed: false,
-          owner: payload.owner ?? deal?.owner ?? "",
-          type: "other",
-          tags: [],
-          dealId,
-          clientId: deal?.clientId,
-        };
-        tasksMock.unshift(task);
-        return task;
-      },
-    );
+      });
   }
 
   getDealNotes(dealId: string): Promise<DealNote[]> {
-    return this.request(`/crm/deals/${dealId}/notes`, undefined, async () =>
-      dealNotesMock.filter((note) => note.dealId === dealId),
-    );
+    return this.request(`/crm/deals/${dealId}/notes`, undefined);
   }
 
   createDealNote(dealId: string, payload: DealNotePayload): Promise<DealNote> {
@@ -1124,25 +1058,11 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const note: DealNote = {
-          id: createRandomId(),
-          dealId,
-          author: "Вы",
-          content: payload.content,
-          createdAt: new Date().toISOString(),
-        };
-        dealNotesMock.unshift(note);
-        return note;
-      },
-    );
+      });
   }
 
   getDealDocuments(dealId: string): Promise<DealDocument[]> {
-    return this.request(`/crm/deals/${dealId}/documents`, undefined, async () =>
-      dealDocumentsMock.filter((doc) => doc.dealId === dealId),
-    );
+    return this.request(`/crm/deals/${dealId}/documents`, undefined);
   }
 
   uploadDealDocument(dealId: string, payload: DealDocumentPayload): Promise<DealDocument> {
@@ -1151,36 +1071,15 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const document: DealDocument = {
-          id: createRandomId(),
-          dealId,
-          title: payload.title,
-          fileName: payload.fileName,
-          fileSize: payload.fileSize,
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: "Вы",
-          url: payload.url,
-        };
-        dealDocumentsMock.unshift(document);
-        return document;
-      },
-    );
+      });
   }
 
   getDealPayments(dealId: string): Promise<Payment[]> {
-    return this.request(`/crm/deals/${dealId}/payments`, undefined, async () =>
-      paymentsMock
-        .filter((payment) => payment.dealId === dealId)
-        .map((payment) => clonePayment(payment)),
-    );
+    return this.request(`/crm/deals/${dealId}/payments`, undefined);
   }
 
   getDealActivity(dealId: string): Promise<ActivityLogEntry[]> {
-    return this.request(`/crm/deals/${dealId}/activity`, undefined, async () =>
-      activitiesMock.filter((entry) => entry.dealId === dealId),
-    );
+    return this.request(`/crm/deals/${dealId}/activity`, undefined);
   }
 
   updateDeal(dealId: string, payload: UpdateDealPayload): Promise<DealDetailsData> {
@@ -1189,55 +1088,7 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const deal = dealsMock.find((item) => item.id === dealId);
-        if (!deal) {
-          throw new ApiError("Deal not found", 404);
-        }
-
-        if (payload.name !== undefined) {
-          deal.name = payload.name;
-        }
-        if (payload.stage !== undefined) {
-          deal.stage = payload.stage;
-        }
-        if (payload.probability !== undefined) {
-          deal.probability = payload.probability;
-        }
-        if (payload.owner !== undefined) {
-          deal.owner = payload.owner;
-        }
-
-        deal.nextReviewAt = payload.nextReviewAt;
-
-        if (payload.expectedCloseDate !== undefined) {
-          deal.expectedCloseDate = payload.expectedCloseDate ?? undefined;
-        }
-
-        deal.updatedAt = new Date().toISOString();
-
-        const details = dealDetailsMock[dealId];
-        if (details) {
-          details.name = deal.name;
-          details.stage = deal.stage;
-          details.probability = deal.probability;
-          details.owner = deal.owner;
-          details.nextReviewAt = deal.nextReviewAt;
-          details.expectedCloseDate = deal.expectedCloseDate;
-          details.updatedAt = deal.updatedAt;
-
-          const nextReviewField = details.forms
-            .flatMap((group) => group.fields)
-            .find((field) => field.id === "nextReviewAt");
-          if (nextReviewField) {
-            nextReviewField.value = deal.nextReviewAt.slice(0, 10);
-          }
-        }
-
-        return this.getDealDetails(dealId);
-      },
-    );
+      });
   }
 
   async updateDealStage(dealId: string, stage: DealStage): Promise<Deal> {
@@ -1259,17 +1110,11 @@ export class ApiClient {
   }
 
   getClients(): Promise<Client[]> {
-    return this.request("/crm/clients", undefined, async () => clientsMock);
+    return this.request("/crm/clients", undefined);
   }
 
   getClient(id: string): Promise<Client> {
-    return this.request(`/crm/clients/${id}`, undefined, async () => {
-      const client = clientsMock.find((item) => item.id === id);
-      if (!client) {
-        throw new ApiError("Client not found", 404);
-      }
-      return client;
-    });
+    return this.request(`/crm/clients/${id}`, undefined);
   }
 
   updateClientContacts(clientId: string, payload: UpdateClientContactsPayload): Promise<Client> {
@@ -1278,66 +1123,13 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const client = clientsMock.find((item) => item.id === clientId);
-        if (!client) {
-          throw new ApiError("Client not found", 404);
-        }
-
-        client.email = payload.email;
-        client.phone = payload.phone;
-
-        if (payload.contacts) {
-          client.contacts = payload.contacts.map((contact) => ({
-            ...contact,
-            id: contact.id ?? createRandomId(),
-          }));
-        }
-
-        client.lastActivityAt = new Date().toISOString();
-        return {
-          ...client,
-          contacts: client.contacts?.map((contact) => ({ ...contact })),
-        };
-      },
-    );
+      });
   }
 
   getClientPolicies(clientId: string, params?: ClientPoliciesQueryParams): Promise<ClientPolicy[]> {
     return this.request(
       `/crm/clients/${clientId}/policies`,
-      undefined,
-      async () => {
-        const normalizedSearch = params?.search?.trim().toLowerCase();
-        const statusFilter = params?.status;
-
-        const policies = clientPoliciesMock.filter((policy) => {
-          if (policy.clientId !== clientId) {
-            return false;
-          }
-
-          if (statusFilter === "active" && !isActiveClientPolicyStatus(policy.status)) {
-            return false;
-          }
-
-          if (statusFilter === "archived" && !isArchivedClientPolicyStatus(policy.status)) {
-            return false;
-          }
-
-          if (normalizedSearch) {
-            const haystack = `${policy.number} ${policy.product} ${policy.insurer}`.toLowerCase();
-            return haystack.includes(normalizedSearch);
-          }
-
-          return true;
-        });
-
-        policies.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-        return policies.map((policy) => cloneClientPolicy(policy));
-      },
-    );
+      undefined);
   }
 
   createClientPolicy(clientId: string, payload: UpsertClientPolicyPayload): Promise<ClientPolicy> {
@@ -1346,49 +1138,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const now = new Date().toISOString();
-        const client = clientsMock.find((item) => item.id === clientId);
-        if (!client) {
-          throw new ApiError("Client not found", 404);
-        }
-
-        const managerName = payload.managerName ?? client.owner ?? "Менеджер CRM";
-        const managerId = payload.managerId ?? `manager-${clientId}`;
-
-        const policy: ClientPolicy = {
-          id: createRandomId(),
-          clientId,
-          number: payload.number,
-          product: payload.product,
-          insurer: payload.insurer,
-          status: payload.status ?? "draft",
-          premium: payload.premium,
-          currency: payload.currency,
-          periodStart: payload.periodStart,
-          periodEnd: payload.periodEnd,
-          createdAt: now,
-          updatedAt: now,
-          nextPaymentDate: payload.periodStart,
-          lastInteractionAt: now,
-          manager: {
-            id: managerId,
-            name: managerName,
-            title: payload.managerTitle ?? "Клиентский менеджер",
-            email: payload.managerEmail ?? `${managerId}@crm.local`,
-            phone: payload.managerPhone ?? client.phone,
-          },
-          tags: payload.tags ? Array.from(new Set(payload.tags.filter(Boolean))) : undefined,
-          coverageSummary: payload.coverageSummary,
-          attachmentsCount: 0,
-          reminders: [],
-        };
-
-        clientPoliciesMock.unshift(policy);
-        return cloneClientPolicy(policy);
-      },
-    );
+      });
   }
 
   updateClientPolicy(policyId: string, payload: Partial<UpsertClientPolicyPayload>): Promise<ClientPolicy> {
@@ -1397,71 +1147,13 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const policy = clientPoliciesMock.find((item) => item.id === policyId);
-        if (!policy) {
-          throw new ApiError("Policy not found", 404);
-        }
-
-        if (payload.number !== undefined) {
-          policy.number = payload.number;
-        }
-        if (payload.product !== undefined) {
-          policy.product = payload.product;
-        }
-        if (payload.insurer !== undefined) {
-          policy.insurer = payload.insurer;
-        }
-        if (payload.premium !== undefined) {
-          policy.premium = payload.premium;
-        }
-        if (payload.currency !== undefined) {
-          policy.currency = payload.currency;
-        }
-        if (payload.periodStart !== undefined) {
-          policy.periodStart = payload.periodStart;
-        }
-        if (payload.periodEnd !== undefined) {
-          policy.periodEnd = payload.periodEnd;
-        }
-        if (payload.status !== undefined) {
-          policy.status = payload.status;
-        }
-        if (payload.tags !== undefined) {
-          policy.tags = Array.from(new Set(payload.tags.filter(Boolean)));
-        }
-        if (payload.coverageSummary !== undefined) {
-          policy.coverageSummary = payload.coverageSummary ?? undefined;
-        }
-        if (payload.managerId || payload.managerName || payload.managerTitle || payload.managerEmail || payload.managerPhone) {
-          policy.manager = {
-            ...policy.manager,
-            id: payload.managerId ?? policy.manager.id,
-            name: payload.managerName ?? policy.manager.name,
-            title: payload.managerTitle ?? policy.manager.title,
-            email: payload.managerEmail ?? policy.manager.email,
-            phone: payload.managerPhone ?? policy.manager.phone,
-          };
-        }
-
-        policy.updatedAt = new Date().toISOString();
-        policy.lastInteractionAt = policy.updatedAt;
-
-        return cloneClientPolicy(policy);
-      },
-    );
+      });
   }
 
   getClientTasks(clientId: string): Promise<ClientTaskChecklistItem[]> {
     return this.request(
       `/crm/clients/${clientId}/tasks`,
-      undefined,
-      async () =>
-        clientTaskChecklistMock
-          .filter((task) => task.clientId === clientId)
-          .map((task) => cloneClientTaskChecklistItem(task)),
-    );
+      undefined);
   }
 
   toggleClientTask(taskId: string, completed: boolean): Promise<ClientTaskChecklistItem> {
@@ -1470,34 +1162,17 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify({ completed }),
-      },
-      async () => {
-        const task = clientTaskChecklistMock.find((item) => item.id === taskId);
-        if (!task) {
-          throw new ApiError("Task not found", 404);
-        }
-
-        task.completed = completed;
-        task.reminderAt = completed ? null : task.reminderAt ?? undefined;
-        return cloneClientTaskChecklistItem(task);
-      },
-    );
+      });
   }
 
   getClientReminders(clientId: string): Promise<ClientReminderCalendarItem[]> {
     return this.request(
       `/crm/clients/${clientId}/reminders`,
-      undefined,
-      async () =>
-        clientRemindersMock
-          .filter((reminder) => reminder.clientId === clientId)
-          .sort((a, b) => new Date(a.occursAt).getTime() - new Date(b.occursAt).getTime())
-          .map((reminder) => cloneClientReminder(reminder)),
-    );
+      undefined);
   }
 
   getTasks(): Promise<Task[]> {
-    return this.request("/crm/tasks", undefined, async () => tasksMock);
+    return this.request("/crm/tasks", undefined);
   }
 
   createTask(payload: CreateTaskPayload): Promise<Task> {
@@ -1506,38 +1181,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const status = payload.status ?? "new";
-        const completed = status === "done";
-        const type = payload.type ?? "other";
-        const tags = payload.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [];
-        const reminderAt = payload.reminderAt ?? undefined;
-
-        const checklist = payload.checklist?.map((item) => ({ ...item })) ?? [];
-        const comments = payload.comments?.map((comment) => ({ ...comment })) ?? [];
-
-        const task: Task = {
-          id: createRandomId(),
-          title: payload.title,
-          dueDate: payload.dueDate,
-          status,
-          completed,
-          owner: payload.owner,
-          type,
-          tags,
-          dealId: payload.dealId ?? undefined,
-          clientId: payload.clientId ?? undefined,
-          reminderAt,
-          description: payload.description,
-          checklist,
-          comments,
-        };
-
-        tasksMock.unshift(task);
-        return { ...task };
-      },
-    );
+      });
   }
 
   async updateTask(taskId: string, payload: UpdateTaskPayload): Promise<Task> {
@@ -1548,35 +1192,11 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(changes),
-      },
-      async () => {
-        const task = tasksMock.find((item) => item.id === taskId);
-        if (!task) {
-          throw new ApiError("Task not found", 404);
-        }
-
-        applyTaskPatch(task, changes);
-        return { ...task };
-      },
-    );
+      });
   }
 
   getPayments(params?: { include?: Array<"incomes" | "expenses"> }): Promise<Payment[]> {
-    return this.request("/crm/payments", undefined, async () => {
-      const includeIncomes = params?.include?.includes("incomes");
-      const includeExpenses = params?.include?.includes("expenses");
-
-      return paymentsMock.map((payment) => {
-        const clone = clonePayment(payment);
-        if (!includeIncomes) {
-          clone.incomes = [];
-        }
-        if (!includeExpenses) {
-          clone.expenses = [];
-        }
-        return clone;
-      });
-    });
+    return this.request("/crm/payments", undefined);
   }
 
   createPayment(payload: PaymentPayload): Promise<Payment> {
@@ -1585,52 +1205,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const now = new Date().toISOString();
-        const deal = dealsMock.find((item) => item.id === payload.dealId);
-        const client = clientsMock.find((item) => item.id === payload.clientId);
-        const siblings = paymentsMock.filter((payment) => payment.policyNumber === payload.policyNumber);
-        const nextSequence = siblings.length > 0 ? Math.max(...siblings.map((item) => item.sequence)) + 1 : 1;
-
-        const confirmed = Boolean(payload.actualDate || payload.actualAmount);
-        const payment: Payment = {
-          id: createRandomId(),
-          dealId: payload.dealId,
-          dealName: deal?.name,
-          clientId: payload.clientId,
-          clientName: client?.name,
-          policyId: payload.policyId ?? createRandomId(),
-          policyNumber: payload.policyNumber,
-          sequence: nextSequence,
-          amount: payload.plannedAmount,
-          plannedAmount: payload.plannedAmount,
-          currency: payload.currency,
-          status: payload.status ?? (confirmed ? "received" : "planned"),
-          confirmationStatus: confirmed ? "confirmed" : "pending",
-          actualAmount: payload.actualAmount ?? undefined,
-          paidAt: payload.actualDate ?? undefined,
-          plannedDate: payload.plannedDate,
-          dueDate: payload.plannedDate,
-          actualDate: payload.actualDate ?? undefined,
-          comment: payload.comment ?? undefined,
-          incomesTotal: 0,
-          expensesTotal: 0,
-          netTotal: 0,
-          incomes: [],
-          expenses: [],
-          createdAt: now,
-          updatedAt: now,
-          recordedBy: payload.recordedBy ?? undefined,
-          recordedByRole: payload.recordedByRole ?? undefined,
-          updatedBy: payload.recordedBy ?? undefined,
-          history: [],
-        };
-
-        paymentsMock.unshift(payment);
-        return clonePayment(payment);
-      },
-    );
+      });
   }
 
   updatePayment(paymentId: string, payload: PaymentUpdatePayload): Promise<Payment> {
@@ -1639,82 +1214,7 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        if (payload.plannedAmount !== undefined) {
-          payment.plannedAmount = payload.plannedAmount;
-          payment.amount = payload.plannedAmount;
-        }
-
-        if (payload.plannedDate !== undefined) {
-          payment.plannedDate = payload.plannedDate || undefined;
-          payment.dueDate = payload.plannedDate || undefined;
-        }
-
-        if (payload.currency !== undefined) {
-          payment.currency = payload.currency;
-          payment.incomes = payment.incomes.map((income) => ({ ...income, currency: payload.currency! }));
-          payment.expenses = payment.expenses.map((expense) => ({ ...expense, currency: payload.currency! }));
-        }
-
-        if (payload.status !== undefined) {
-          payment.status = payload.status;
-        }
-
-        if (payload.comment !== undefined) {
-          payment.comment = payload.comment ?? undefined;
-        }
-
-        if (payload.actualDate !== undefined) {
-          payment.actualDate = payload.actualDate ?? undefined;
-          payment.paidAt = payload.actualDate ?? undefined;
-        }
-
-        if (payload.actualAmount !== undefined) {
-          payment.actualAmount = payload.actualAmount ?? undefined;
-        }
-
-        if (payload.recordedBy !== undefined) {
-          payment.recordedBy = payload.recordedBy ?? undefined;
-        }
-
-        if (payload.recordedByRole !== undefined) {
-          payment.recordedByRole = payload.recordedByRole ?? undefined;
-        }
-
-        const now = new Date().toISOString();
-        payment.updatedAt = now;
-        if (payload.recordedBy) {
-          payment.updatedBy = payload.recordedBy;
-        }
-
-        if (payload.changeReason) {
-          payment.history = [
-            {
-              id: createRandomId(),
-              changedAt: now,
-              changedBy: payload.recordedBy ?? payment.updatedBy ?? "Система",
-              reason: payload.changeReason,
-              snapshot: {
-                plannedAmount: payment.plannedAmount,
-                actualAmount: payment.actualAmount,
-                plannedDate: payment.plannedDate,
-                actualDate: payment.actualDate,
-                status: payment.status,
-              },
-            },
-            ...payment.history,
-          ];
-        }
-
-        return clonePayment(recalculateTotals(payment));
-      },
-    );
+      });
   }
 
   confirmPayment(paymentId: string, payload: PaymentConfirmationPayload): Promise<Payment> {
@@ -1723,51 +1223,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const now = new Date().toISOString();
-        payment.actualAmount = payload.actualAmount;
-        payment.actualDate = payload.actualDate;
-        payment.paidAt = payload.actualDate;
-        payment.recordedBy = payload.recordedBy;
-        payment.recordedByRole = payload.recordedByRole ?? payment.recordedByRole;
-        if (payload.comment) {
-          payment.comment = payload.comment;
-        }
-
-        if (payment.status === "planned" || payment.status === "expected") {
-          payment.status = "received";
-        }
-
-        payment.confirmationStatus = "confirmed";
-        payment.updatedAt = now;
-        payment.updatedBy = payload.recordedBy;
-
-        payment.history = [
-          {
-            id: createRandomId(),
-            changedAt: now,
-            changedBy: payload.recordedBy,
-            reason: payload.comment ?? "Платёж подтверждён",
-            snapshot: {
-              plannedAmount: payment.plannedAmount,
-              actualAmount: payment.actualAmount,
-              plannedDate: payment.plannedDate,
-              actualDate: payment.actualDate,
-              status: payment.status,
-            },
-          },
-          ...payment.history,
-        ];
-
-        return clonePayment(recalculateTotals(payment));
-      },
-    );
+      });
   }
 
   revokePaymentConfirmation(paymentId: string, payload: PaymentRevokePayload): Promise<Payment> {
@@ -1776,47 +1232,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const now = new Date().toISOString();
-        payment.confirmationStatus = "pending";
-        payment.actualAmount = undefined;
-        payment.actualDate = undefined;
-        payment.paidAt = undefined;
-        payment.recordedBy = undefined;
-        payment.recordedByRole = undefined;
-        if (payment.status === "received") {
-          payment.status = "expected";
-        }
-
-        payment.updatedAt = now;
-        payment.updatedBy = payload.recordedBy;
-
-        payment.history = [
-          {
-            id: createRandomId(),
-            changedAt: now,
-            changedBy: payload.recordedBy,
-            reason: payload.reason ?? "Подтверждение отменено",
-            snapshot: {
-              plannedAmount: payment.plannedAmount,
-              actualAmount: payment.actualAmount,
-              plannedDate: payment.plannedDate,
-              actualDate: payment.actualDate,
-              status: payment.status,
-            },
-          },
-          ...payment.history,
-        ];
-
-        return clonePayment(recalculateTotals(payment));
-      },
-    );
+      });
   }
 
   deletePayment(paymentId: string): Promise<{ id: string }> {
@@ -1824,17 +1240,7 @@ export class ApiClient {
       `/crm/payments/${paymentId}`,
       {
         method: "DELETE",
-      },
-      async () => {
-        const index = paymentsMock.findIndex((item) => item.id === paymentId);
-        if (index === -1) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        paymentsMock.splice(index, 1);
-        return { id: paymentId };
-      },
-    );
+      });
   }
 
   createPaymentIncome(paymentId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
@@ -1843,64 +1249,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const now = new Date().toISOString();
-        const attachments = (payload.attachments ?? []).map((attachment) => ({
-          id: attachment.id ?? createRandomId(),
-          fileName: attachment.fileName,
-          fileSize: attachment.fileSize,
-          uploadedAt: attachment.uploadedAt ?? now,
-          uploadedBy: attachment.uploadedBy ?? "Система",
-          url: attachment.url,
-        }));
-        const plannedAmount = payload.plannedAmount ?? 0;
-        const actualAmount = payload.actualAmount ?? null;
-        const effectiveAmount = actualAmount ?? plannedAmount;
-        const category = payload.category ?? "other_income";
-        const historyEntry = {
-          id: createRandomId(),
-          changedAt: now,
-          changedBy: "Система",
-          plannedAmount,
-          actualAmount,
-          reason: payload.reason ?? (actualAmount !== null ? "confirmation" : "initial_planning"),
-          note: payload.note ?? null,
-        } satisfies PaymentEntry["history"][number];
-
-        const income: PaymentEntry = {
-          id: createRandomId(),
-          paymentId,
-          amount: effectiveAmount,
-          plannedAmount,
-          actualAmount,
-          currency: payment.currency,
-          category,
-          postedAt: payload.plannedPostedAt ?? now,
-          actualPostedAt: payload.actualPostedAt ?? null,
-          note: payload.note,
-          status: actualAmount !== null ? "confirmed" : "pending_confirmation",
-          adjustmentReason: payload.reason ?? null,
-          attachments,
-          history: [historyEntry],
-          createdAt: now,
-          updatedAt: now,
-          createdBy: "Система",
-          updatedBy: "Система",
-        };
-
-        payment.incomes.unshift(income);
-        payment.updatedAt = now;
-        recalculateTotals(payment);
-
-        return { ...income, attachments: income.attachments.map((item) => ({ ...item })), history: income.history.map((item) => ({ ...item })) };
-      },
-    );
+      });
   }
 
   updatePaymentIncome(paymentId: string, incomeId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
@@ -1909,97 +1258,7 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const income = payment.incomes.find((item) => item.id === incomeId);
-        if (!income) {
-          throw new ApiError("Income not found", 404);
-        }
-
-        if (!income.attachments) {
-          income.attachments = [];
-        }
-        if (!income.history) {
-          income.history = [];
-        }
-
-        const now = new Date().toISOString();
-
-        let hasMeaningfulChange = false;
-
-        if (payload.category !== undefined) {
-          income.category = payload.category;
-          hasMeaningfulChange = true;
-        }
-        if (payload.plannedAmount !== undefined) {
-          income.plannedAmount = payload.plannedAmount;
-          hasMeaningfulChange = true;
-        }
-        if (payload.plannedPostedAt !== undefined) {
-          income.postedAt = payload.plannedPostedAt;
-          hasMeaningfulChange = true;
-        }
-        if (payload.note !== undefined) {
-          income.note = payload.note ?? undefined;
-          hasMeaningfulChange = true;
-        }
-        if (payload.actualAmount !== undefined) {
-          income.actualAmount = payload.actualAmount;
-          hasMeaningfulChange = true;
-        }
-        if (payload.actualPostedAt !== undefined) {
-          income.actualPostedAt = payload.actualPostedAt;
-          hasMeaningfulChange = true;
-        }
-        if (payload.reason !== undefined) {
-          income.adjustmentReason = payload.reason;
-          hasMeaningfulChange = true;
-        }
-
-        if (payload.attachments && payload.attachments.length > 0) {
-          const attachments = payload.attachments.map((attachment) => ({
-            id: attachment.id ?? createRandomId(),
-            fileName: attachment.fileName,
-            fileSize: attachment.fileSize,
-            uploadedAt: attachment.uploadedAt ?? now,
-            uploadedBy: attachment.uploadedBy ?? "Система",
-            url: attachment.url,
-          }));
-          income.attachments.push(...attachments);
-          hasMeaningfulChange = true;
-        }
-
-        income.amount = (income.actualAmount ?? income.plannedAmount) ?? income.amount;
-        income.status = income.actualAmount !== undefined && income.actualAmount !== null ? "confirmed" : "pending_confirmation";
-
-        if (hasMeaningfulChange) {
-          income.history.unshift({
-            id: createRandomId(),
-            changedAt: now,
-            changedBy: "Система",
-            plannedAmount: income.plannedAmount,
-            actualAmount: income.actualAmount ?? null,
-            reason: income.adjustmentReason ?? null,
-            note: income.note ?? null,
-          });
-        }
-
-        income.updatedAt = now;
-        payment.updatedAt = now;
-        recalculateTotals(payment);
-
-        return {
-          ...income,
-          attachments: income.attachments.map((item) => ({ ...item })),
-          history: income.history.map((item) => ({ ...item })),
-        };
-      },
-    );
+      });
   }
 
   deletePaymentIncome(paymentId: string, incomeId: string): Promise<{ id: string }> {
@@ -2007,25 +1266,7 @@ export class ApiClient {
       `/crm/payments/${paymentId}/incomes/${incomeId}`,
       {
         method: "DELETE",
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const index = payment.incomes.findIndex((item) => item.id === incomeId);
-        if (index === -1) {
-          throw new ApiError("Income not found", 404);
-        }
-
-        payment.incomes.splice(index, 1);
-        payment.updatedAt = new Date().toISOString();
-        recalculateTotals(payment);
-
-        return { id: incomeId };
-      },
-    );
+      });
   }
 
   createPaymentExpense(paymentId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
@@ -2034,64 +1275,7 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const now = new Date().toISOString();
-        const attachments = (payload.attachments ?? []).map((attachment) => ({
-          id: attachment.id ?? createRandomId(),
-          fileName: attachment.fileName,
-          fileSize: attachment.fileSize,
-          uploadedAt: attachment.uploadedAt ?? now,
-          uploadedBy: attachment.uploadedBy ?? "Система",
-          url: attachment.url,
-        }));
-        const plannedAmount = payload.plannedAmount ?? 0;
-        const actualAmount = payload.actualAmount ?? null;
-        const effectiveAmount = actualAmount ?? plannedAmount;
-        const category = payload.category ?? "other_expense";
-        const historyEntry = {
-          id: createRandomId(),
-          changedAt: now,
-          changedBy: "Система",
-          plannedAmount,
-          actualAmount,
-          reason: payload.reason ?? (actualAmount !== null ? "confirmation" : "initial_planning"),
-          note: payload.note ?? null,
-        } satisfies PaymentEntry["history"][number];
-
-        const expense: PaymentEntry = {
-          id: createRandomId(),
-          paymentId,
-          amount: effectiveAmount,
-          plannedAmount,
-          actualAmount,
-          currency: payment.currency,
-          category,
-          postedAt: payload.plannedPostedAt ?? now,
-          actualPostedAt: payload.actualPostedAt ?? null,
-          note: payload.note,
-          status: actualAmount !== null ? "confirmed" : "pending_confirmation",
-          adjustmentReason: payload.reason ?? null,
-          attachments,
-          history: [historyEntry],
-          createdAt: now,
-          updatedAt: now,
-          createdBy: "Система",
-          updatedBy: "Система",
-        };
-
-        payment.expenses.unshift(expense);
-        payment.updatedAt = now;
-        recalculateTotals(payment);
-
-        return { ...expense, attachments: expense.attachments.map((item) => ({ ...item })), history: expense.history.map((item) => ({ ...item })) };
-      },
-    );
+      });
   }
 
   updatePaymentExpense(paymentId: string, expenseId: string, payload: PaymentEntryPayload): Promise<PaymentEntry> {
@@ -2100,96 +1284,7 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(payload),
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const expense = payment.expenses.find((item) => item.id === expenseId);
-        if (!expense) {
-          throw new ApiError("Expense not found", 404);
-        }
-
-        if (!expense.attachments) {
-          expense.attachments = [];
-        }
-        if (!expense.history) {
-          expense.history = [];
-        }
-
-        const now = new Date().toISOString();
-        let hasMeaningfulChange = false;
-
-        if (payload.category !== undefined) {
-          expense.category = payload.category;
-          hasMeaningfulChange = true;
-        }
-        if (payload.plannedAmount !== undefined) {
-          expense.plannedAmount = payload.plannedAmount;
-          hasMeaningfulChange = true;
-        }
-        if (payload.plannedPostedAt !== undefined) {
-          expense.postedAt = payload.plannedPostedAt;
-          hasMeaningfulChange = true;
-        }
-        if (payload.note !== undefined) {
-          expense.note = payload.note ?? undefined;
-          hasMeaningfulChange = true;
-        }
-        if (payload.actualAmount !== undefined) {
-          expense.actualAmount = payload.actualAmount;
-          hasMeaningfulChange = true;
-        }
-        if (payload.actualPostedAt !== undefined) {
-          expense.actualPostedAt = payload.actualPostedAt;
-          hasMeaningfulChange = true;
-        }
-        if (payload.reason !== undefined) {
-          expense.adjustmentReason = payload.reason;
-          hasMeaningfulChange = true;
-        }
-
-        if (payload.attachments && payload.attachments.length > 0) {
-          const attachments = payload.attachments.map((attachment) => ({
-            id: attachment.id ?? createRandomId(),
-            fileName: attachment.fileName,
-            fileSize: attachment.fileSize,
-            uploadedAt: attachment.uploadedAt ?? now,
-            uploadedBy: attachment.uploadedBy ?? "Система",
-            url: attachment.url,
-          }));
-          expense.attachments.push(...attachments);
-          hasMeaningfulChange = true;
-        }
-
-        expense.amount = (expense.actualAmount ?? expense.plannedAmount) ?? expense.amount;
-        expense.status = expense.actualAmount !== undefined && expense.actualAmount !== null ? "confirmed" : "pending_confirmation";
-
-        if (hasMeaningfulChange) {
-          expense.history.unshift({
-            id: createRandomId(),
-            changedAt: now,
-            changedBy: "Система",
-            plannedAmount: expense.plannedAmount,
-            actualAmount: expense.actualAmount ?? null,
-            reason: expense.adjustmentReason ?? null,
-            note: expense.note ?? null,
-          });
-        }
-
-        expense.updatedAt = now;
-        payment.updatedAt = now;
-        recalculateTotals(payment);
-
-        return {
-          ...expense,
-          attachments: expense.attachments.map((item) => ({ ...item })),
-          history: expense.history.map((item) => ({ ...item })),
-        };
-      },
-    );
+      });
   }
 
   deletePaymentExpense(paymentId: string, expenseId: string): Promise<{ id: string }> {
@@ -2197,25 +1292,7 @@ export class ApiClient {
       `/crm/payments/${paymentId}/expenses/${expenseId}`,
       {
         method: "DELETE",
-      },
-      async () => {
-        const payment = paymentsMock.find((item) => item.id === paymentId);
-        if (!payment) {
-          throw new ApiError("Payment not found", 404);
-        }
-
-        const index = payment.expenses.findIndex((item) => item.id === expenseId);
-        if (index === -1) {
-          throw new ApiError("Expense not found", 404);
-        }
-
-        payment.expenses.splice(index, 1);
-        payment.updatedAt = new Date().toISOString();
-        recalculateTotals(payment);
-
-        return { id: expenseId };
-      },
-    );
+      });
   }
 
   async bulkUpdateTasks(
@@ -2230,35 +1307,7 @@ export class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify({ taskIds, changes, options }),
-      },
-      async () => {
-        const updated: Task[] = [];
-
-        for (const taskId of taskIds) {
-          const task = tasksMock.find((item) => item.id === taskId);
-          if (!task) {
-            continue;
-          }
-
-          const patch: UpdateTaskPayload = { ...changes };
-
-          if (options?.shiftDueDateByDays) {
-            const dueDate = new Date(task.dueDate);
-            dueDate.setDate(dueDate.getDate() + options.shiftDueDateByDays);
-            patch.dueDate = dueDate.toISOString();
-          }
-
-          applyTaskPatch(task, patch);
-          updated.push({ ...task });
-        }
-
-        if (updated.length === 0) {
-          throw new ApiError("Tasks not found", 404);
-        }
-
-        return updated;
-      },
-    );
+      });
   }
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
@@ -2269,31 +1318,7 @@ export class ApiClient {
     clientId: string,
     params?: ClientActivityQueryParams,
   ): Promise<PaginatedResult<ActivityLogEntry>> {
-    return this.request(`/crm/clients/${clientId}/activity`, undefined, async () => {
-      const pageSize = Math.max(1, params?.pageSize ?? 5);
-      const page = Math.max(1, params?.page ?? 1);
-      const typeFilter = params?.type && params.type !== "all" ? params.type : undefined;
-
-      let entries = activitiesMock.filter((entry) => entry.clientId === clientId);
-
-      if (typeFilter) {
-        entries = entries.filter((entry) => entry.type === typeFilter);
-      }
-
-      entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      const total = entries.length;
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      const items = entries.slice(start, end).map((entry) => ({ ...entry }));
-
-      return {
-        items,
-        total,
-        page,
-        pageSize,
-      };
-    });
+    return this.request(`/crm/clients/${clientId}/activity`, undefined);
   }
 
   async getNotificationFeed(filters?: NotificationFeedFilters): Promise<NotificationFeedResponse> {
@@ -2882,75 +1907,6 @@ export class ApiClient {
   }
 }
 
-const ACTIVE_CLIENT_POLICY_STATUSES: ClientPolicyStatus[] = ["draft", "pending", "active", "expiring"];
-const ARCHIVED_CLIENT_POLICY_STATUSES: ClientPolicyStatus[] = ["archived", "cancelled", "expired"];
-
-function isActiveClientPolicyStatus(status: ClientPolicyStatus) {
-  return ACTIVE_CLIENT_POLICY_STATUSES.includes(status);
-}
-
-export function isArchivedClientPolicyStatus(status: ClientPolicyStatus) {
-  return ARCHIVED_CLIENT_POLICY_STATUSES.includes(status);
-}
-
-function cloneClientPolicy(policy: ClientPolicy): ClientPolicy {
-  return {
-    ...policy,
-    manager: { ...policy.manager },
-    tags: policy.tags ? [...policy.tags] : undefined,
-    reminders: policy.reminders ? policy.reminders.map((reminder) => ({ ...reminder })) : undefined,
-  };
-}
-
-function cloneClientTaskChecklistItem(task: ClientTaskChecklistItem): ClientTaskChecklistItem {
-  return { ...task };
-}
-
-function cloneClientReminder(reminder: ClientReminderCalendarItem): ClientReminderCalendarItem {
-  return { ...reminder };
-}
-
-function clonePaymentEntry(entry: PaymentEntry): PaymentEntry {
-  const attachments = entry.attachments.map((attachment) => ({ ...attachment }));
-  const history = entry.history.map((record) => ({ ...record }));
-
-  return {
-    ...entry,
-    attachments,
-    history,
-  };
-}
-
-function clonePayment(payment: Payment): Payment {
-  return {
-    ...payment,
-    incomes: payment.incomes.map((income) => clonePaymentEntry(income)),
-    expenses: payment.expenses.map((expense) => clonePaymentEntry(expense)),
-    history: payment.history.map((change) => ({
-      ...change,
-      snapshot: { ...change.snapshot },
-    })),
-  };
-}
-
-function recalculateTotals(payment: Payment): Payment {
-  for (const income of payment.incomes) {
-    income.amount = (income.actualAmount ?? income.plannedAmount ?? income.amount) ?? 0;
-  }
-
-  for (const expense of payment.expenses) {
-    expense.amount = (expense.actualAmount ?? expense.plannedAmount ?? expense.amount) ?? 0;
-  }
-
-  const incomesTotal = payment.incomes.reduce((sum, income) => sum + income.amount, 0);
-  const expensesTotal = payment.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  payment.incomesTotal = incomesTotal;
-  payment.expensesTotal = expensesTotal;
-  payment.netTotal = incomesTotal - expensesTotal;
-  payment.amount = payment.plannedAmount;
-  return payment;
-}
-
 function sanitizeTaskPatch(patch: UpdateTaskPayload): UpdateTaskPayload {
   const result = {} as UpdateTaskPayload;
 
@@ -3012,143 +1968,6 @@ function applyTaskPatch(task: Task, patch: UpdateTaskPayload): Task {
   }
 
   return task;
-}
-
-const DAY_IN_MS = 86_400_000;
-
-const DEAL_STAGE_ORDER: DealStage[] = [
-  "qualification",
-  "negotiation",
-  "proposal",
-  "closedWon",
-  "closedLost",
-];
-
-function getPeriodStart(period: DealPeriodFilter | undefined): number | undefined {
-  switch (period) {
-    case "7d":
-      return Date.now() - DAY_IN_MS * 7;
-    case "30d":
-      return Date.now() - DAY_IN_MS * 30;
-    case "90d":
-      return Date.now() - DAY_IN_MS * 90;
-    default:
-      return undefined;
-  }
-}
-
-function filterDealsMock(deals: Deal[], filters?: DealFilters): Deal[] {
-  const managerNames = new Set<string>();
-  const includeNoManager = (filters?.managers ?? []).some((manager) => manager === NO_MANAGER_VALUE);
-
-  for (const manager of filters?.managers ?? []) {
-    if (!manager || manager === NO_MANAGER_VALUE) {
-      continue;
-    }
-
-    managerNames.add(manager.toLowerCase());
-  }
-  const search = filters?.search?.trim().toLowerCase();
-  const periodStart = getPeriodStart(filters?.period);
-  const stageFilter = filters?.stage && filters.stage !== "all" ? filters.stage : undefined;
-
-  return deals
-    .map((deal, index) => ({ deal, index }))
-    .filter(({ deal }) => {
-      if (stageFilter && deal.stage !== stageFilter) {
-        return false;
-      }
-
-      const hasManagerFilter = includeNoManager || managerNames.size > 0;
-
-      if (hasManagerFilter) {
-        const owner = deal.owner?.trim();
-
-        if (!owner) {
-          return includeNoManager;
-        }
-
-        if (managerNames.size > 0 && !managerNames.has(owner.toLowerCase())) {
-          return false;
-        }
-
-      }
-
-      if (periodStart && new Date(deal.updatedAt).getTime() < periodStart) {
-        return false;
-      }
-
-      if (search) {
-        const haystack = `${deal.name} ${deal.clientName}`.toLowerCase();
-        if (!haystack.includes(search)) {
-          return false;
-        }
-      }
-
-      return true;
-    })
-    .map(({ deal, index }) => ({ deal: { ...deal }, index }))
-    .sort((a, b) => {
-      const diff = compareDealsByNextReview(a.deal, b.deal);
-      if (diff !== 0) {
-        return diff;
-      }
-
-      return a.index - b.index;
-    })
-    .map((entry) => entry.deal);
-}
-
-function calculateStageMetrics(deals: Deal[]): DealStageMetrics[] {
-  const baselineCount = deals.filter((deal) => deal.stage === "qualification").length;
-  const now = Date.now();
-
-  return DEAL_STAGE_ORDER.map((stage, index) => {
-    const stageDeals = deals.filter((deal) => deal.stage === stage);
-    const count = stageDeals.length;
-    const conversionRate =
-      index === 0
-        ? 1
-        : baselineCount > 0
-          ? Math.max(0, Math.min(1, count / baselineCount))
-          : 0;
-    const avgCycleDurationDays =
-      stageDeals.length === 0
-        ? null
-        : Number.parseFloat(
-            (
-              stageDeals.reduce((acc, deal) => acc + (now - new Date(deal.updatedAt).getTime()), 0) /
-              stageDeals.length /
-              DAY_IN_MS
-            ).toFixed(1),
-          );
-
-    return {
-      stage,
-      count,
-      conversionRate,
-      avgCycleDurationDays,
-    } satisfies DealStageMetrics;
-  });
-}
-
-function updateDealStageMock(dealId: string, stage: DealStage): Deal {
-  const deal = dealsMock.find((item) => item.id === dealId);
-
-  if (!deal) {
-    throw new ApiError("Deal not found", 404);
-  }
-
-  deal.stage = stage;
-  deal.updatedAt = new Date().toISOString();
-
-  const details = dealDetailsMock[dealId];
-  if (details) {
-    details.stage = stage;
-    details.updatedAt = deal.updatedAt;
-  }
-
-  return { ...deal };
 }
 
 export const apiClient = new ApiClient();
