@@ -114,7 +114,7 @@ export default (): NotificationsConfiguration => {
       uri:
         process.env.NOTIFICATIONS_RABBITMQ_URI ??
         process.env.NOTIFICATIONS_RABBITMQ_URL ??
-        'amqp://guest:guest@localhost:5672',
+        'amqp://notifications:notifications@localhost:5672/notifications',
       exchange: process.env.NOTIFICATIONS_RABBITMQ_EXCHANGE ?? 'notifications.exchange',
       queue: process.env.NOTIFICATIONS_RABBITMQ_QUEUE ?? 'notifications.events',
       routingKey: process.env.NOTIFICATIONS_RABBITMQ_ROUTING_KEY ?? 'notifications.*',
