@@ -55,7 +55,7 @@ class DealBase(BaseModel):
 
 class DealCreate(DealBase):
     client_id: UUID
-    owner_id: UUID
+    owner_id: UUID | None = None
 
 
 class DealUpdate(BaseModel):
@@ -113,7 +113,7 @@ class DealRead(ORMModel, DealBase):
     id: UUID
     tenant_id: UUID
     client_id: UUID
-    owner_id: UUID
+    owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
 

@@ -1,10 +1,13 @@
-import pytest
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
+import pytest
+
 from sqlalchemy.exc import IntegrityError
 
+from crm.domain import schemas
 from crm.infrastructure.repositories import (
     BaseRepository,
     ClientRepository,
@@ -136,3 +139,68 @@ async def test_mark_won_rolls_back_when_missing():
     session.execute.assert_awaited_once()
     session.rollback.assert_awaited_once()
     session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_deal_repository_include_unassigned(db_session):
+    tenant_id = uuid4()
+    owner_id = uuid4()
+    client_repo = ClientRepository(db_session)
+    deal_repo = DealRepository(db_session)
+
+    client = await client_repo.create(
+        tenant_id,
+        {
+            "name": "Test Client",
+            "email": "client@example.com",
+            "phone": "+7-999-000-11-22",
+            "status": "active",
+            "owner_id": owner_id,
+        },
+    )
+
+    assigned_owner = uuid4()
+    await deal_repo.create(
+        tenant_id,
+        {
+            "client_id": client.id,
+            "title": "Assigned Deal",
+            "description": "assigned",
+            "status": "draft",
+            "owner_id": assigned_owner,
+            "next_review_at": date.today(),
+        },
+    )
+
+    await deal_repo.create(
+        tenant_id,
+        {
+            "client_id": client.id,
+            "title": "Unassigned Deal",
+            "description": "unassigned",
+            "status": "draft",
+            "owner_id": None,
+            "next_review_at": date.today(),
+        },
+    )
+
+    all_deals = await deal_repo.list(tenant_id)
+    assert len(all_deals) == 2
+
+    unassigned_only = await deal_repo.list(
+        tenant_id,
+        schemas.DealFilters(include_unassigned=True),
+    )
+    assert [deal.owner_id for deal in unassigned_only] == [None]
+
+    assigned_only = await deal_repo.list(
+        tenant_id,
+        schemas.DealFilters(managers=[assigned_owner]),
+    )
+    assert [deal.owner_id for deal in assigned_only] == [assigned_owner]
+
+    combined = await deal_repo.list(
+        tenant_id,
+        schemas.DealFilters(managers=[assigned_owner], include_unassigned=True),
+    )
+    assert {deal.owner_id for deal in combined} == {None, assigned_owner}
