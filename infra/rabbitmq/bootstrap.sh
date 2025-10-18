@@ -148,13 +148,18 @@ except json.JSONDecodeError as exc:
     )
     sys.exit(3)
 
-if not data:
-    print("absent")
-    print("")
-else:
+if isinstance(data, dict):
+    entry = data
+elif isinstance(data, list) and data:
     entry = data[0]
-    print(entry.get("State") or "unknown")
-    print(entry.get("Health") or "")
+else:
+    entry = {}
+
+state = entry.get("State") or entry.get("state") or "unknown"
+health = entry.get("Health") or entry.get("health") or ""
+
+print(state)
+print(health)
 PY
     return 0
   else
