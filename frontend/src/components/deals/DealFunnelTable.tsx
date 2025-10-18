@@ -5,12 +5,8 @@ import { useMemo } from "react";
 
 import { useDeals } from "@/lib/api/hooks";
 import { DealPreviewSidebar } from "@/components/deals/DealPreviewSidebar";
-import {
-  DealBulkActions,
-  buildBulkActionNotificationMessage,
-} from "@/components/deals/DealBulkActions";
+import { DealBulkActions } from "@/components/deals/DealBulkActions";
 import { sortDealsByNextReview } from "@/lib/utils/deals";
-import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -90,7 +86,6 @@ export function DealFunnelTable() {
   const clearFilters = useUiStore((state) => state.clearFilters);
   const openDealPreview = useUiStore((state) => state.openDealPreview);
   const highlightedDealId = useUiStore((state) => state.highlightedDealId);
-  const pushNotification = useUiStore((state) => state.pushNotification);
 
   const dealsQuery = useDeals(filters);
   const { data: deals = [], isLoading, isError, error, isFetching, refetch } = dealsQuery;
@@ -155,26 +150,9 @@ export function DealFunnelTable() {
   const hasDeals = dealsForRender.length > 0;
   const hasBulkSelection = selectedDealIds.length > 0;
 
-  const triggerBulkActionNotification = (actionLabel: string, level: "info" | "warning" = "info") => {
-    if (selectedDealIds.length === 0) {
-      return;
-    }
-
-    pushNotification({
-      id: createRandomId(),
-      message: buildBulkActionNotificationMessage(actionLabel, selectedDealIds),
-      type: level,
-      timestamp: new Date().toISOString(),
-      source: "crm",
-    });
-
+  const handleHideBulkActions = () => {
     clearSelection();
   };
-
-  const handleAssignManager = () => triggerBulkActionNotification("Назначить менеджера");
-  const handleChangeStage = () => triggerBulkActionNotification("Изменить этап");
-  const handleAddTask = () => triggerBulkActionNotification("Добавить задачу");
-  const handleDelete = () => triggerBulkActionNotification("Удалить", "warning");
 
   const containerClassName = classNames(
     "flex flex-col gap-6 lg:flex-row",
@@ -314,14 +292,7 @@ export function DealFunnelTable() {
 
         <DealPreviewSidebar />
       </div>
-      <DealBulkActions
-        selectedDealIds={selectedDealIds}
-        onAssignManager={handleAssignManager}
-        onChangeStage={handleChangeStage}
-        onAddTask={handleAddTask}
-        onDelete={handleDelete}
-        onClearSelection={clearSelection}
-      />
+      <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={handleHideBulkActions} />
     </>
   );
 }
