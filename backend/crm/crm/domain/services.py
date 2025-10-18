@@ -344,6 +344,14 @@ class CalculationService:
             if linked_policy is None and payload.policy_id is not None:
                 raise repositories.RepositoryError("policy_not_found")
             if linked_policy is not None:
+                if (
+                    calculation.policy is not None
+                    and calculation.policy.id != linked_policy.id
+                ):
+                    await self.policies.assign_calculation(
+                        tenant_id, calculation.policy.id, None
+                    )
+                    calculation.policy = None
                 await self.policies.assign_calculation(tenant_id, linked_policy.id, calculation.id)
         elif new_status == "archived" and calculation.policy is not None:
             detach_policy = True
