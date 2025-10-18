@@ -4,9 +4,11 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from sse_starlette.sse import EventSourceResponse
 
 from crm.api.router import get_api_router
+from crm.api.streams import streams_endpoint
 from crm.app.config import settings
 from crm.app.dependencies import close_permissions_queue
 from crm.app.events import EventsPublisher
@@ -41,6 +43,12 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     async def healthcheck() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/streams", include_in_schema=False)
+    async def streams_route(
+        response: EventSourceResponse = Depends(streams_endpoint),
+    ) -> EventSourceResponse:
+        return response
 
     return app
 

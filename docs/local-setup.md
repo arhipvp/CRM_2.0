@@ -99,6 +99,8 @@ Bootstrap-скрипт выполняет полный цикл подготов
   > ℹ️ Сервис CRM больше не считывает административный `DATABASE_URL` автоматически — для подключения приложения используйте только `CRM_DATABASE_URL` (значение без префикса пригодится для ручных миграций и других админских сценариев).
 - Примените миграции: `poetry run alembic upgrade head`.
 - Запустите API: `poetry run crm-api` (или `poetry run uvicorn crm.app.main:app --reload`). Порт и хост берутся из `.env` (`CRM_SERVICE_PORT`, `CRM_SERVICE_HOST`), поэтому их легко переопределить на время отладки.
+- Проверьте SSE-upstream CRM: `curl -H "Accept: text/event-stream" http://localhost:${CRM_SERVICE_PORT:-8082}/streams`. В ответе каждые ~30 секунд приходит `event: heartbeat` с пустым payload. При публикации события через `EventsPublisher` (`poetry run crm-api` уже держит подключение к RabbitMQ) появится соответствующий `event`.
+  > CRM использует временную очередь, привязанную к exchange `${CRM_EVENTS_EXCHANGE}` (по умолчанию `crm.events`). Exchange должен существовать заранее: его создаёт `infra/rabbitmq/bootstrap.sh` или он объявляется при первой публикации события через `EventsPublisher`/worker.
 - Поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
 - Для smoke-проверки платежей выполните новую последовательность REST-запросов (через Gateway или напрямую в CRM):
   ```bash
