@@ -162,23 +162,21 @@ describe("ApiClient mock mode", () => {
     ).toBe(true);
   });
 
-  it("использует fallback при ошибке формирования URL", async () => {
+  it("пробрасывает ApiError при ошибке формирования URL", async () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:9999";
-    const { createApiClient } = await importClient();
-    const { dealsMock } = await importMocks();
+    const { createApiClient, ApiError: ApiErrorCtor } = await importClient();
     const client = createApiClient({ baseUrl: "http://[" });
 
-    await expect(client.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
+    await expect(client.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("использует fallback при сетевой ошибке", async () => {
+  it("пробрасывает ApiError при сетевой ошибке", async () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    const { apiClient } = await importClient();
-    const { dealsMock } = await importMocks();
+    const { apiClient, ApiError: ApiErrorCtor } = await importClient();
 
-    await expect(apiClient.getDeals()).resolves.toEqual(sortDealsByNextReview(dealsMock));
+    await expect(apiClient.getDeals()).rejects.toBeInstanceOf(ApiErrorCtor);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -213,7 +211,7 @@ describe("ApiClient серверные таймауты", () => {
     vi.restoreAllMocks();
   });
 
-  it("переходит на fallback после досрочного серверного таймаута", async () => {
+  it("пробрасывает ApiError после досрочного серверного таймаута", async () => {
     vi.useFakeTimers();
     process.env.FRONTEND_SERVER_TIMEOUT_MS = "25";
     const originalWindow = globalThis.window;
@@ -234,13 +232,12 @@ describe("ApiClient серверные таймауты", () => {
         });
       });
 
-      const { apiClient } = await importClient();
-      const { dealsMock } = await importMocks();
+      const { apiClient, ApiError: ApiErrorCtor } = await importClient();
 
-      const promise = apiClient.getDeals();
+      const handled = apiClient.getDeals().catch((error) => error);
       await vi.advanceTimersByTimeAsync(25);
 
-      await expect(promise).resolves.toEqual(sortDealsByNextReview(dealsMock));
+      await expect(handled).resolves.toBeInstanceOf(ApiErrorCtor);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

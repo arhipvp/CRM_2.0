@@ -1,17 +1,34 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Generic, Iterable, Sequence, TypeVar
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from crm.infrastructure import models
+from crm.domain.schemas import DealFilters, DealStage, map_deal_status_to_stage
+
+DEAL_STAGE_ORDER: tuple[DealStage, ...] = (
+    "qualification",
+    "negotiation",
+    "proposal",
+    "closedWon",
+    "closedLost",
+)
+
+STAGE_FILTER_MAP: dict[DealStage, tuple[str, ...]] = {
+    "qualification": ("draft", "qualification"),
+    "negotiation": ("in_progress", "negotiation"),
+    "proposal": ("proposal",),
+    "closedWon": ("won", "closed_won"),
+    "closedLost": ("lost", "closed_lost"),
+}
 
 
 ModelType = TypeVar("ModelType", bound=models.CRMBase)
@@ -79,17 +96,53 @@ class ClientRepository(BaseRepository[models.Client]):
 class DealRepository(BaseRepository[models.Deal]):
     model = models.Deal
 
-    async def list(self, tenant_id: UUID) -> Iterable[models.Deal]:
-        stmt = (
-            select(self.model)
-            .where(
-                self.model.tenant_id == tenant_id,
-                self.model.is_deleted.is_(False),
-            )
-            .order_by(self.model.next_review_at.asc(), self.model.updated_at.asc())
+    async def list(
+        self, tenant_id: UUID, filters: DealFilters | None = None
+    ) -> Iterable[models.Deal]:
+        stmt = select(self.model).where(
+            self.model.tenant_id == tenant_id,
+            self.model.is_deleted.is_(False),
         )
+
+        if filters is not None:
+            stmt = self._apply_filters(stmt, filters)
+
+        stmt = stmt.order_by(self.model.next_review_at.asc(), self.model.updated_at.asc())
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    def _apply_filters(self, stmt, filters: DealFilters):
+        if filters.stage is not None:
+            statuses = STAGE_FILTER_MAP.get(filters.stage)
+            if statuses:
+                stmt = stmt.where(self.model.status.in_(statuses))
+
+        owner_filters = []
+        if filters.managers:
+            owner_filters.append(self.model.owner_id.in_(filters.managers))
+        if filters.include_unassigned:
+            owner_filters.append(self.model.owner_id.is_(None))
+        if owner_filters:
+            stmt = stmt.where(or_(*owner_filters))
+
+        if filters.period and filters.period != "all":
+            today = date.today()
+            delta_map = {"7d": 7, "30d": 30, "90d": 90}
+            days = delta_map.get(filters.period)
+            if days is not None:
+                upper_bound = today + timedelta(days=days)
+                stmt = stmt.where(self.model.next_review_at <= upper_bound)
+
+        if filters.search:
+            pattern = f"%{filters.search.lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(self.model.title).like(pattern),
+                    func.lower(self.model.description).like(pattern),
+                )
+            )
+
+        return stmt
 
     async def mark_won(self, tenant_id: UUID, deal_id: UUID) -> models.Deal | None:
         stmt = (
@@ -109,6 +162,99 @@ class DealRepository(BaseRepository[models.Deal]):
             return None
         await self.session.commit()
         return deal
+
+    async def stage_metrics(
+        self, tenant_id: UUID, filters: DealFilters | None = None
+    ) -> list[dict[str, object]]:
+        stmt = select(self.model).where(
+            self.model.tenant_id == tenant_id,
+            self.model.is_deleted.is_(False),
+        )
+
+        if filters is not None:
+            stmt = self._apply_filters(stmt, filters)
+
+        result = await self.session.execute(stmt)
+        deals = list(result.scalars().all())
+
+        if not deals:
+            return [
+                {
+                    "stage": stage,
+                    "count": 0,
+                    "total_value": Decimal("0"),
+                    "conversion_rate": 0.0,
+                    "avg_cycle_duration_days": None,
+                }
+                for stage in DEAL_STAGE_ORDER
+            ]
+
+        deal_ids = [deal.id for deal in deals]
+
+        payments_stmt = (
+            select(models.Payment.deal_id, func.coalesce(func.sum(models.Payment.planned_amount), 0))
+            .where(
+                models.Payment.tenant_id == tenant_id,
+                models.Payment.deal_id.in_(deal_ids),
+            )
+            .group_by(models.Payment.deal_id)
+        )
+        payments_result = await self.session.execute(payments_stmt)
+        payments_map = {row[0]: row[1] for row in payments_result.all()}
+
+        stage_stats = {
+            stage: {
+                "count": 0,
+                "total_value": Decimal("0"),
+                "cycle_days_sum": 0.0,
+                "cycle_count": 0,
+            }
+            for stage in DEAL_STAGE_ORDER
+        }
+
+        for deal in deals:
+            stage = map_deal_status_to_stage(deal.status)
+            stats = stage_stats[stage]
+            stats["count"] += 1
+            amount = payments_map.get(deal.id)
+            if amount is None:
+                amount_decimal = Decimal("0")
+            elif isinstance(amount, Decimal):
+                amount_decimal = amount
+            else:
+                amount_decimal = Decimal(str(amount))
+            stats["total_value"] += amount_decimal
+
+            created_at = deal.created_at
+            updated_at = deal.updated_at
+            if isinstance(created_at, datetime) and isinstance(updated_at, datetime):
+                duration = (updated_at - created_at).total_seconds() / 86400
+                if duration >= 0:
+                    stats["cycle_days_sum"] += duration
+                    stats["cycle_count"] += 1
+
+        total_deals = len(deals)
+        metrics: list[dict[str, object]] = []
+        for stage in DEAL_STAGE_ORDER:
+            stats = stage_stats[stage]
+            count = stats["count"]
+            conversion_rate = count / total_deals if total_deals else 0.0
+            avg_cycle = (
+                stats["cycle_days_sum"] / stats["cycle_count"]
+                if stats["cycle_count"] > 0
+                else None
+            )
+            metrics.append(
+                {
+                    "stage": stage,
+                    "count": count,
+                    "total_value": stats["total_value"],
+                    "conversion_rate": float(conversion_rate),
+                    "avg_cycle_duration_days": avg_cycle,
+                }
+            )
+
+        return metrics
 
 
 class DealJournalRepository:

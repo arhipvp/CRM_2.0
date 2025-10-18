@@ -9,7 +9,7 @@ export class CrmProxyController {
 
   @All()
   async handleRoot(@Req() req: Request, @Res() res: Response): Promise<void> {
-    await this.proxy.forward('crm', '', req, res);
+    await this.proxy.forward('crm', 'v1', req, res);
   }
 
   @All('*')
@@ -18,6 +18,8 @@ export class CrmProxyController {
     @Req() req: Request,
     @Res() res: Response
   ): Promise<void> {
-    await this.proxy.forward('crm', params?.['0'] ?? '', req, res);
+    const suffix = params?.['0'] ?? '';
+    const normalized = suffix ? `v1/${suffix}` : 'v1';
+    await this.proxy.forward('crm', normalized, req, res);
   }
 }
