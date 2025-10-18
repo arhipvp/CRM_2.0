@@ -255,6 +255,22 @@ async def test_payments_flow(api_client, configure_environment):
     assert "deal.payment.expense.deleted" in routing_keys
     assert "deal.payment.deleted" in routing_keys
 
+    grouped_events: dict[str, list[dict[str, object]]] = {}
+    for routing, payload in events:
+        grouped_events.setdefault(routing, []).append(payload)
+
+    created_event = grouped_events["deal.payment.created"][0]
+    created_payment = created_event["payment"]
+    assert created_payment["id"] == str(payment.id)
+    assert created_payment["net_total"] == "0.00"
+
+    updated_payment = grouped_events["deal.payment.updated"][-1]["payment"]
+    assert updated_payment["net_total"] == "1100.00"
+
+    deleted_event = grouped_events["deal.payment.deleted"][0]
+    assert deleted_event["payment_id"] == str(payment.id)
+    assert "deleted_at" in deleted_event
+
     await connection.close()
 
 
