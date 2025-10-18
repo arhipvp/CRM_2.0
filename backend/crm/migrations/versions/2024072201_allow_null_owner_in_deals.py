@@ -6,7 +6,7 @@ from sqlalchemy.dialects import postgresql
 
 revision = "2024072201"
 down_revision = "2024071801"
-branch_labels = ("crm",)
+branch_labels = None
 depends_on = None
 
 
