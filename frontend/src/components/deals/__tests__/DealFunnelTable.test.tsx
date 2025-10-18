@@ -35,8 +35,6 @@ function createDefaultUiState() {
     pushNotification: vi.fn(),
     dismissNotification: vi.fn(),
     handlePaymentEvent: vi.fn(),
-    markDealUpdated: vi.fn(),
-    clearDealUpdate: vi.fn(),
     dealDetailsTab: "overview" as const,
     dealDetailsRequests: {},
     setDealDetailsTab: vi.fn(),
@@ -61,9 +59,66 @@ vi.mock("@/components/deals/DealPreviewSidebar", () => ({
 
 vi.mock("@/components/deals/DealBulkActions", () => ({
   DealBulkActions: () => null,
-  buildBulkActionNotificationMessage: vi.fn(() => ""),
+  buildBulkActionNotificationMessage: vi.fn(),
 }));
 
+vi.mock("@/stores/uiStore", () => {
+  const { create } = require("zustand");
+
+  type ExtendedState = UiState & {
+    markDealUpdated: ReturnType<typeof vi.fn>;
+    clearDealUpdate: ReturnType<typeof vi.fn>;
+  };
+
+  let markDealUpdated: ReturnType<typeof vi.fn>;
+  let clearDealUpdate: ReturnType<typeof vi.fn>;
+
+  const useUiStoreMock = create<ExtendedState>((set) => {
+    markDealUpdated = vi.fn((dealId: string) => {
+      set((current) => ({
+        dealUpdates: {
+          ...current.dealUpdates,
+          [dealId]: new Date().toISOString(),
+        },
+      }));
+    });
+
+    clearDealUpdate = vi.fn((dealId: string) => {
+      set((current) => {
+        const nextUpdates = { ...current.dealUpdates };
+        delete nextUpdates[dealId];
+        return { dealUpdates: nextUpdates };
+      });
+    });
+
+    return {
+      ...createDefaultUiState(),
+      markDealUpdated,
+      clearDealUpdate,
+    };
+  });
+
+  (useUiStoreMock as typeof useUiStoreMock & { resetState?: () => void }).resetState = () => {
+    const base = createDefaultUiState();
+    useUiStoreMock.setState({
+      ...base,
+      markDealUpdated,
+      clearDealUpdate,
+    });
+    markDealUpdated.mockClear();
+    clearDealUpdate.mockClear();
+  };
+
+  return { useUiStore: useUiStoreMock };
+});
+
+vi.mock("@/lib/api/hooks", () => ({
+  useDeals: (...args: unknown[]) => useDealsMock(...args),
+}));
+
+const mockedUseUiStore = (await import("@/stores/uiStore")).useUiStore as ReturnType<
+  typeof import("@/stores/uiStore")
+>["useUiStore"] & { resetState?: () => void };
 vi.mock("@/lib/api/hooks", () => ({
   useDeals: (...args: unknown[]) => useDealsMock(...args),
 }));
@@ -252,12 +307,11 @@ describe("DealFunnelTable", () => {
       isFetching: false,
       refetch: vi.fn(),
     });
-    mockedUseUiStore.setState({ viewMode: "table" });
+    mockedUseUiStore.setState?.({ viewMode: "table" });
   });
 
   afterEach(() => {
     resetUiStore();
-    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -268,12 +322,15 @@ describe("DealFunnelTable", () => {
 
     const targetDeal = dealsMock[0];
 
-    const dealCell = screen.getByText(targetDeal.id);
+    const wideTable = screen.getAllByRole("table")[1];
 
-    act(() => {
+    await act(async () => {
       mockedUseUiStore.getState().markDealUpdated(targetDeal.id);
     });
 
+    expect(mockedUseUiStore.getState().dealUpdates).toHaveProperty(targetDeal.id);
+
+    const dealCell = within(wideTable).getByText(targetDeal.id);
     const row = dealCell.closest("tr");
     expect(row).not.toBeNull();
     const rowElement = row as HTMLElement;
@@ -299,6 +356,63 @@ describe("DealFunnelTable", () => {
     const clearDealUpdateMock = mockedUseUiStore.getState().clearDealUpdate as ReturnType<typeof vi.fn>;
     expect(clearDealUpdateMock).toHaveBeenCalledWith(targetDeal.id);
   });
+});
+
+describe("DealFunnelTable", () => {
+  const deals: Deal[] = [
+    {
+      id: "deal-future",
+      name: "Будущая сделка",
+      clientName: "ООО Альфа",
+      clientId: "client-1",
+      stage: "negotiation",
+      probability: 0.5,
+      value: 250000,
+      nextReviewAt: new Date("2024-01-05T09:00:00.000Z").toISOString(),
+      updatedAt: new Date("2023-12-15T10:00:00.000Z").toISOString(),
+      owner: "Иван Петров",
+      expectedCloseDate: new Date("2024-01-10T00:00:00.000Z").toISOString(),
+      tasks: [],
+      notes: [],
+      documents: [],
+      payments: [],
+      activity: [],
+    },
+    {
+      id: "deal-overdue",
+      name: "Просроченная сделка",
+      clientName: "ООО Бета",
+      clientId: "client-2",
+      stage: "proposal",
+      probability: 0.7,
+      value: 350000,
+      nextReviewAt: new Date("2024-01-03T12:00:00.000Z").toISOString(),
+      updatedAt: new Date("2023-12-20T08:30:00.000Z").toISOString(),
+      owner: "Мария Иванова",
+      expectedCloseDate: new Date("2023-12-20T00:00:00.000Z").toISOString(),
+      tasks: [],
+      notes: [],
+      documents: [],
+      payments: [],
+      activity: [],
+    },
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+    resetUiStore();
+
+    useDealsMock.mockReturnValue({
+      data: deals,
+      isLoading: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+    mockedUseUiStore.setState?.({ viewMode: "table" });
+  });
 
   afterEach(() => {
     vi.useRealTimers();
@@ -306,11 +420,34 @@ describe("DealFunnelTable", () => {
     vi.clearAllMocks();
   });
 
-  it("отображает колонки для ответственного и ожидаемого закрытия", () => {
+  it("отображает колонки для исполнителя и ожидаемого закрытия", () => {
     render(<DealFunnelTable />);
 
-    expect(screen.getByRole("columnheader", { name: /ответственный/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /ожидаемое закрытие/i })).toBeInTheDocument();
+    const wideTable = screen.getAllByRole("table")[1];
+
+    expect(within(wideTable).getByRole("columnheader", { name: /исполнитель/i })).toBeInTheDocument();
+    expect(within(wideTable).getByRole("columnheader", { name: /ожидаемое закрытие/i })).toBeInTheDocument();
+    expect(within(wideTable).queryByRole("columnheader", { name: /сумма/i })).not.toBeInTheDocument();
+  });
+
+  it("перестраивает порядок колонок в компактной таблице", () => {
+    render(<DealFunnelTable />);
+
+    const compactTable = screen.getAllByRole("table")[0];
+    const headers = within(compactTable)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent?.trim());
+
+    expect(headers).toEqual([
+      "Клиент",
+      "Сделка",
+      "Следующий просмотр",
+      "Статус",
+      "Исполнитель",
+      "Вероятность",
+      "Обновлено",
+      "Действия",
+    ]);
   });
 
   it("показывает локализованные названия стадий", () => {
@@ -323,6 +460,9 @@ describe("DealFunnelTable", () => {
   it("выводит владельца сделки и подсвечивает просроченную дату закрытия", () => {
     render(<DealFunnelTable />);
 
+    const wideTable = screen.getAllByRole("table")[1];
+
+    const overdueRow = within(wideTable).getByText("Просроченная сделка").closest("tr");
     const overdueRow = screen
       .getAllByText("Просроченная сделка")
       .map((cell) => cell.closest("tr"))
@@ -334,6 +474,7 @@ describe("DealFunnelTable", () => {
     const ownerCell = within(overdueRow as HTMLTableRowElement).getByText("Мария Иванова");
     expect(ownerCell).toBeInTheDocument();
 
+    const futureRow = within(wideTable).getByText("Будущая сделка").closest("tr");
     const futureRow = screen
       .getAllByText("Будущая сделка")
       .map((cell) => cell.closest("tr"))
