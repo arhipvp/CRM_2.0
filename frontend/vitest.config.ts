@@ -18,6 +18,14 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    deps: {
+      esbuildOptions: {
+        loader: {
+          ".ts": "ts",
+          ".tsx": "tsx",
+        },
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

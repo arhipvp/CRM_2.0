@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 
 import { ClientWorkspace } from "@/components/clients/ClientWorkspace";
 import {
@@ -65,6 +65,25 @@ function seedClientData() {
 describe("ClientWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("отображает ошибку и позволяет повторить запрос при недоступном бэкенде", async () => {
+    const queryClient = createTestQueryClient();
+    const getClientSpy = vi.spyOn(apiClient, "getClient").mockRejectedValue(new Error("Сервер недоступен"));
+    const user = userEvent.setup();
+
+    renderWithQueryClient(<ClientWorkspace clientId={clientId} />, queryClient);
+
+    expect(await screen.findByText(/Не удалось загрузить карточку клиента/i)).toBeInTheDocument();
+
+    const retryButton = await screen.findByRole("button", { name: "Повторить" });
+    await user.click(retryButton);
+
+    await waitFor(() => {
+      expect(getClientSpy).toHaveBeenCalledTimes(2);
+    });
+
+    getClientSpy.mockRestore();
   });
 
   it("отображает профиль клиента и открывает модал редактирования", async () => {
