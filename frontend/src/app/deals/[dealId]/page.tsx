@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
 import { DealDetails } from "@/components/deals/DealDetails";
-import { getServerApiClient } from "@/lib/api/client";
+import { ApiError, getServerApiClient } from "@/lib/api/client";
 import { dealDetailsQueryOptions } from "@/lib/api/queries";
 
 type DealPageProps = PageProps<"/deals/[dealId]">;
@@ -13,10 +13,18 @@ export default async function DealPage({ params }: DealPageProps) {
   const queryClient = new QueryClient();
   const serverApiClient = getServerApiClient();
   const query = dealDetailsQueryOptions(dealId, serverApiClient);
-  const result = await queryClient.fetchQuery(query);
+  try {
+    const result = await queryClient.fetchQuery(query);
 
-  if (!result) {
-    notFound();
+    if (!result) {
+      notFound();
+    }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return notFound();
+    }
+
+    throw error;
   }
 
   return (
