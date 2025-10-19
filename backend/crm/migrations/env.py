@@ -19,7 +19,10 @@ if config.config_file_name is not None:
 
 database_url, engine_connect_args = get_async_database_config()
 
-config.set_main_option("sqlalchemy.url", str(database_url))
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url.render_as_string(hide_password=False),
+)
 
 target_metadata = models.CRMBase.metadata
 
