@@ -91,6 +91,14 @@ type CrmClientSummary = {
   name?: string | null;
 };
 
+export interface CreateDealPayload {
+  name: string;
+  clientId: string;
+  nextReviewAt: string;
+  ownerId?: string | null;
+  description?: string | null;
+}
+
 export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
@@ -1018,6 +1026,48 @@ export class ApiClient {
     }
 
     return sortDealsByNextReview(response as Deal[]);
+  }
+
+  async createDeal(payload: CreateDealPayload): Promise<Deal> {
+    const title = payload.name.trim();
+    const description = payload.description?.trim();
+    const normalizedNextReview = this.normalizeDateToIso(payload.nextReviewAt) ?? payload.nextReviewAt;
+    const ownerId = payload.ownerId && payload.ownerId !== NO_MANAGER_VALUE ? payload.ownerId.trim() : undefined;
+    const response = await this.request<CrmDeal | Deal>(
+      "/crm/deals",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          client_id: payload.clientId,
+          next_review_at: normalizedNextReview,
+          owner_id: ownerId ?? null,
+          description: description ?? undefined,
+        }),
+      },
+      async () => {
+        const now = new Date().toISOString();
+        return {
+          id: `deal-${createRandomId()}`,
+          client_id: payload.clientId,
+          title,
+          description: description ?? null,
+          status: "qualification",
+          stage: "qualification",
+          owner_id: ownerId ?? null,
+          next_review_at: normalizedNextReview,
+          created_at: now,
+          updated_at: now,
+        } satisfies CrmDeal;
+      },
+    );
+
+    if (this.isCrmDeal(response)) {
+      await this.ensureClientNameCache();
+      return this.mapDealFromApi(response);
+    }
+
+    return response as Deal;
   }
 
   async getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {

@@ -3,8 +3,8 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DealFunnelHeader } from "@/components/deals/DealFunnelHeader";
-import { dealStageMetricsQueryOptions, dealsQueryOptions } from "@/lib/api/queries";
-import { dealsMock } from "@/mocks/data";
+import { dealStageMetricsQueryOptions, dealsQueryOptions, clientsQueryOptions } from "@/lib/api/queries";
+import { clientsMock, dealsMock } from "@/mocks/data";
 import { createTestQueryClient, renderWithQueryClient } from "@/test-utils";
 import { useUiStore } from "@/stores/uiStore";
 import type { DealFilters } from "@/types/crm";
@@ -49,6 +49,8 @@ describe("DealFunnelHeader", () => {
       },
     ]);
 
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
+
     renderWithQueryClient(<DealFunnelHeader />, client);
 
     const qualificationCard = await screen.findByRole("button", { name: /Квалификация/ });
@@ -70,6 +72,8 @@ describe("DealFunnelHeader", () => {
     client.setQueryData(dealsQueryOptions(managerFilters).queryKey, dealsMock);
     client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
+
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
 
     const user = userEvent.setup();
 
@@ -123,6 +127,8 @@ describe("DealFunnelHeader", () => {
     client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
 
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
+
     const user = userEvent.setup();
 
     renderWithQueryClient(<DealFunnelHeader />, client);
@@ -169,6 +175,8 @@ describe("DealFunnelHeader", () => {
     client.setQueryData(dealsQueryOptions(filters).queryKey, proposalDeals);
     client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
 
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
+
     const user = userEvent.setup();
 
     renderWithQueryClient(<DealFunnelHeader />, client);
@@ -177,5 +185,28 @@ describe("DealFunnelHeader", () => {
 
     expect(await screen.findByLabelText("Мария Орлова")).toBeInTheDocument();
     expect(screen.queryByLabelText("Анна Савельева")).not.toBeInTheDocument();
+  });
+
+  it("показывает кнопку создания сделки и открывает модалку", async () => {
+    const client = createTestQueryClient();
+    const filters = useUiStore.getState().filters;
+    const managerFilters = createManagerFilters(filters);
+
+    client.setQueryData(dealsQueryOptions(managerFilters).queryKey, dealsMock);
+    client.setQueryData(dealsQueryOptions(filters).queryKey, dealsMock);
+    client.setQueryData(dealStageMetricsQueryOptions(filters).queryKey, []);
+    client.setQueryData(clientsQueryOptions().queryKey, clientsMock);
+
+    const user = userEvent.setup();
+
+    renderWithQueryClient(<DealFunnelHeader />, client);
+
+    const createButton = await screen.findByRole("button", { name: "Новая сделка" });
+    expect(createButton).toBeInTheDocument();
+
+    await user.click(createButton);
+
+    expect(await screen.findByRole("heading", { name: "Новая сделка" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Название сделки")).toBeInTheDocument();
   });
 });

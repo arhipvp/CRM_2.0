@@ -5,6 +5,7 @@ import {
   apiClient,
   type ClientActivityQueryParams,
   type ClientPoliciesQueryParams,
+  type CreateDealPayload,
   type CreateTaskPayload,
   type PaymentConfirmationPayload,
   type PaymentEntryPayload,
@@ -52,6 +53,105 @@ import { useNotificationsStore } from "@/stores/notificationsStore";
 
 export function useDeals(filters?: DealFilters) {
   return useQuery(dealsQueryOptions(filters));
+}
+
+type CreateDealVariables = {
+  payload: CreateDealPayload;
+  optimisticUpdater?: (current: Deal[] | undefined) => Deal[] | undefined;
+  optimisticDealId?: string;
+  invalidateClientId?: string;
+  invalidateDealDetails?: boolean;
+};
+
+type CreateDealContext = {
+  previousDeals: Array<[QueryKey, Deal[] | undefined]>;
+  optimisticDealId?: string;
+};
+
+export function useCreateDeal() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Deal, unknown, CreateDealVariables, CreateDealContext>({
+    mutationKey: ["create-deal"],
+    mutationFn: ({ payload }) => apiClient.createDeal(payload),
+    onMutate: async ({ optimisticUpdater, optimisticDealId }) => {
+      await queryClient.cancelQueries({ queryKey: dealsQueryKey });
+
+      const previousDeals = queryClient.getQueriesData<Deal[]>({
+        queryKey: dealsQueryKey,
+      });
+
+      if (optimisticUpdater) {
+        for (const [queryKey] of previousDeals) {
+          queryClient.setQueryData<Deal[] | undefined>(queryKey, (currentDeals) => optimisticUpdater(currentDeals));
+        }
+      }
+
+      return { previousDeals, optimisticDealId } satisfies CreateDealContext;
+    },
+    onError: (_error, _variables, context) => {
+      if (!context) {
+        return;
+      }
+
+      for (const [queryKey, deals] of context.previousDeals) {
+        queryClient.setQueryData(queryKey, deals);
+      }
+    },
+    onSuccess: async (deal, variables) => {
+      if (variables?.optimisticDealId) {
+        const queries = queryClient.getQueriesData<Deal[]>({
+          queryKey: dealsQueryKey,
+        });
+
+        for (const [queryKey] of queries) {
+          queryClient.setQueryData<Deal[] | undefined>(queryKey, (currentDeals) => {
+            if (!currentDeals) {
+              return currentDeals;
+            }
+
+            let updated = false;
+            const nextDeals = currentDeals.map((item) => {
+              if (item.id === variables.optimisticDealId) {
+                updated = true;
+                return deal;
+              }
+
+              return item;
+            });
+
+            return updated ? nextDeals : currentDeals;
+          });
+        }
+      }
+
+      const invalidations: Array<Promise<unknown>> = [
+        queryClient.invalidateQueries({ queryKey: dealsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: dealStageMetricsQueryKey }),
+      ];
+
+      if (variables?.invalidateClientId) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: clientQueryOptions(variables.invalidateClientId).queryKey,
+            exact: true,
+          }),
+          queryClient.invalidateQueries({ queryKey: clientsQueryOptions().queryKey }),
+        );
+      }
+
+      if (variables?.invalidateDealDetails) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: dealDetailsQueryOptions(deal.id).queryKey,
+            exact: true,
+          }),
+        );
+      }
+
+      await Promise.all(invalidations);
+    },
+  });
 }
 
 export function useDealStageMetrics(filters?: DealFilters) {

@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { useDeals, useDealStageMetrics } from "@/lib/api/hooks";
+import { DealCreateModal } from "@/components/deals/DealCreateModal";
+import { useClients, useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import { dealsQueryOptions } from "@/lib/api/queries";
+import { createRandomId } from "@/lib/utils/id";
+import { DEAL_STAGE_TITLES } from "@/lib/utils/deals";
+import { NO_MANAGER_VALUE, collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
+import type { Deal } from "@/types/crm";
 import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
-import { DEAL_STAGE_TITLES } from "@/lib/utils/deals";
-import { collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
 
 const stageLabels: Record<PipelineStageKey, string> = {
   qualification: DEAL_STAGE_TITLES.qualification,
@@ -63,6 +66,7 @@ export function DealFunnelHeader() {
   const setManagersFilter = useUiStore((state) => state.setManagersFilter);
   const setViewMode = useUiStore((state) => state.setViewMode);
   const setSelectedStage = useUiStore((state) => state.setSelectedStage);
+  const pushNotification = useUiStore((state) => state.pushNotification);
 
   const managerFilters = useMemo(
     () => ({
@@ -77,11 +81,14 @@ export function DealFunnelHeader() {
   const dealsQuery = useDeals(filters);
   const rawDealsQuery = useQuery(dealsQueryOptions(managerFilters));
   const metricsQuery = useDealStageMetrics(filters);
+  const clientsQuery = useClients();
   const { data: deals = [] } = dealsQuery;
   const { data: rawDeals = [] } = rawDealsQuery;
   const { data: metrics = [], isLoading: metricsLoading, isError: metricsError, error: metricsErrorValue } = metricsQuery;
+  const { data: clients = [] } = clientsQuery;
 
   const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
 
   const managers = useMemo(() => {
     return collectManagerValues([
@@ -100,17 +107,43 @@ export function DealFunnelHeader() {
   }, [metrics]);
 
   const activeStage = filters.stage;
+  const defaultOwnerId = useMemo(() => {
+    if (filters.managers.length !== 1) {
+      return undefined;
+    }
+
+    const [manager] = filters.managers;
+    if (manager === NO_MANAGER_VALUE) {
+      return undefined;
+    }
+
+    return manager;
+  }, [filters.managers]);
+
+  const handleDealCreated = useCallback(
+    (deal: Deal) => {
+      pushNotification({
+        id: `notification-${createRandomId()}`,
+        message: `Сделка «${deal.name}» создана`,
+        type: "success",
+        timestamp: new Date().toISOString(),
+        source: "crm",
+      });
+    },
+    [pushNotification],
+  );
 
   return (
-    <header className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Воронка сделок</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-300">
-            Управляйте стадиями, отслеживайте конверсию и реагируйте на риски в реальном времени.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+    <>
+      <header className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Воронка сделок</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-300">
+              Управляйте стадиями, отслеживайте конверсию и реагируйте на риски в реальном времени.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
           <div
             className="relative"
             tabIndex={-1}
@@ -216,6 +249,13 @@ export function DealFunnelHeader() {
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
+            className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
+          >
+            Новая сделка
+          </button>
         </div>
       </div>
 
@@ -279,6 +319,15 @@ export function DealFunnelHeader() {
           })}
         </div>
       </div>
-    </header>
+      </header>
+      <DealCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        clients={clients}
+        owners={managers}
+        defaultOwnerId={defaultOwnerId}
+        onDealCreated={handleDealCreated}
+      />
+    </>
   );
 }
