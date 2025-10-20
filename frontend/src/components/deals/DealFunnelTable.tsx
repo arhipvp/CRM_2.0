@@ -555,33 +555,20 @@ export function DealFunnelTable() {
                           <td className="px-4 py-4">
                             {expectedCloseDate ? (
                               <span
-                                className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
-                                aria-hidden="true"
-                              />
-                              Следующий просмотр
-                            </span>
-                            <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
-                              {formatShortDate(deal.nextReviewAt)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          {expectedCloseDate ? (
-                            <span
-                              className={classNames(
-                                "text-xs",
-                                isExpectedCloseOverdue
-                                  ? "font-semibold text-amber-600 dark:text-amber-300"
-                                  : "text-slate-400 dark:text-slate-500",
-                              )}
-                              title="Ожидаемая дата закрытия"
-                            >
-                              {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
-                          )}
-                        </td>
+                                className={classNames(
+                                  "text-xs",
+                                  isExpectedCloseOverdue
+                                    ? "font-semibold text-amber-600 dark:text-amber-300"
+                                    : "text-slate-400 dark:text-slate-500",
+                                )}
+                                title="Ожидаемая дата закрытия"
+                              >
+                                {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                            )}
+                          </td>
                         <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
                         <td className="px-4 py-4 text-right">
                           <Link
@@ -615,8 +602,10 @@ export function DealFunnelTable() {
 
         <DealPreviewSidebar />
       </div>
-      <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={handleHideBulkActions} />
-    </>
+    </div>
+
+    <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={handleHideBulkActions} />
+  </>
   );
 }
 
