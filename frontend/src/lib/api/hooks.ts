@@ -5,6 +5,7 @@ import {
   apiClient,
   type ClientActivityQueryParams,
   type ClientPoliciesQueryParams,
+  type CreateClientPayload,
   type CreateDealPayload,
   type CreateTaskPayload,
   type PaymentConfirmationPayload,
@@ -41,7 +42,7 @@ import {
   notificationsFeedQueryOptions,
   tasksQueryOptions,
 } from "@/lib/api/queries";
-import type { Deal, DealDetailsData, DealFilters, DealStage } from "@/types/crm";
+import type { Client, Deal, DealDetailsData, DealFilters, DealStage } from "@/types/crm";
 import type {
   NotificationChannel,
   NotificationEventJournalFilters,
@@ -184,6 +185,35 @@ export function useDealActivity(dealId: string) {
 
 export function useClients() {
   return useQuery(clientsQueryOptions());
+}
+
+export function useCreateClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Client, unknown, CreateClientPayload>({
+    mutationKey: ["create-client"],
+    mutationFn: (payload) => apiClient.createClient(payload),
+    onSuccess: async (client) => {
+      queryClient.setQueryData<Client[]>(clientsQueryOptions().queryKey, (current) => {
+        if (!current) {
+          return [client];
+        }
+
+        const existingIndex = current.findIndex((item) => item.id === client.id);
+        if (existingIndex !== -1) {
+          const next = [...current];
+          next[existingIndex] = client;
+          return next;
+        }
+
+        return [client, ...current];
+      });
+
+      queryClient.setQueryData(clientQueryOptions(client.id).queryKey, client);
+
+      await queryClient.invalidateQueries({ queryKey: clientsQueryOptions().queryKey });
+    },
+  });
 }
 
 export function useClient(clientId: string) {

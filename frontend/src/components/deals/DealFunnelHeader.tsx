@@ -4,12 +4,13 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { DealCreateModal } from "@/components/deals/DealCreateModal";
+import { ClientCreateModal } from "@/components/clients/ClientCreateModal";
 import { useClients, useDeals, useDealStageMetrics } from "@/lib/api/hooks";
 import { dealsQueryOptions } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
 import { DEAL_STAGE_TITLES } from "@/lib/utils/deals";
 import { NO_MANAGER_VALUE, collectManagerValues, getManagerLabel } from "@/lib/utils/managers";
-import type { Deal } from "@/types/crm";
+import type { Client, Deal } from "@/types/crm";
 import type { DealPeriodFilter, DealStageMetrics } from "@/types/crm";
 import { DealViewMode, PipelineStageKey, useUiStore } from "@/stores/uiStore";
 
@@ -89,6 +90,7 @@ export function DealFunnelHeader() {
 
   const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isClientModalOpen, setClientModalOpen] = useState(false);
 
   const managers = useMemo(() => {
     return collectManagerValues([
@@ -125,6 +127,23 @@ export function DealFunnelHeader() {
       pushNotification({
         id: `notification-${createRandomId()}`,
         message: `Сделка «${deal.name}» создана`,
+        type: "success",
+        timestamp: new Date().toISOString(),
+        source: "crm",
+      });
+    },
+    [pushNotification],
+  );
+
+  const handleCreateClient = useCallback(() => {
+    setClientModalOpen(true);
+  }, []);
+
+  const handleClientCreated = useCallback(
+    (client: Client) => {
+      pushNotification({
+        id: `notification-${createRandomId()}`,
+        message: `Клиент «${client.name}» создан`,
         type: "success",
         timestamp: new Date().toISOString(),
         source: "crm",
@@ -327,6 +346,17 @@ export function DealFunnelHeader() {
         owners={managers}
         defaultOwnerId={defaultOwnerId}
         onDealCreated={handleDealCreated}
+        onCreateClient={handleCreateClient}
+      />
+      <ClientCreateModal
+        isOpen={isClientModalOpen}
+        onClose={() => setClientModalOpen(false)}
+        owners={managers}
+        defaultOwnerId={defaultOwnerId}
+        onClientCreated={(client) => {
+          handleClientCreated(client);
+          setClientModalOpen(false);
+        }}
       />
     </>
   );

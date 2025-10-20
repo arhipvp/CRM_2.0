@@ -8,6 +8,7 @@ import { renderWithQueryClient } from "@/test-utils";
 import type { Deal } from "@/types/crm";
 
 const mutateAsyncMock = vi.fn();
+let isPendingMock = false;
 
 vi.mock("@/lib/api/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/hooks")>();
@@ -16,7 +17,7 @@ vi.mock("@/lib/api/hooks", async (importOriginal) => {
     ...actual,
     useCreateDeal: () => ({
       mutateAsync: mutateAsyncMock,
-      isPending: false,
+      isPending: isPendingMock,
     }),
   };
 });
@@ -24,6 +25,7 @@ vi.mock("@/lib/api/hooks", async (importOriginal) => {
 describe("DealCreateModal", () => {
   beforeEach(() => {
     mutateAsyncMock.mockReset();
+    isPendingMock = false;
   });
 
   it("показывает ошибки валидации при пустых значениях", async () => {
@@ -127,6 +129,44 @@ describe("DealCreateModal", () => {
     expect(options[1].selected).toBe(true);
     expect(options[2]).toHaveTextContent(clientsMock[0].name);
     expect(options.map((option) => option.textContent)).not.toContain(clientsMock[2].name);
+  });
+
+  it("отображает кнопку создания клиента и вызывает колбэк", async () => {
+    const user = userEvent.setup();
+    const handleCreateClient = vi.fn();
+
+    renderWithQueryClient(
+      <DealCreateModal
+        isOpen
+        onClose={() => {}}
+        clients={clientsMock}
+        owners={[]}
+        onCreateClient={handleCreateClient}
+      />,
+    );
+
+    const createClientButton = screen.getByRole("button", { name: "Добавить нового клиента" });
+    expect(createClientButton).toBeEnabled();
+
+    await user.click(createClientButton);
+
+    expect(handleCreateClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("блокирует кнопку добавления клиента во время создания сделки", () => {
+    isPendingMock = true;
+
+    renderWithQueryClient(
+      <DealCreateModal
+        isOpen
+        onClose={() => {}}
+        clients={clientsMock}
+        owners={[]}
+        onCreateClient={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Добавить нового клиента" })).toBeDisabled();
   });
 });
 
