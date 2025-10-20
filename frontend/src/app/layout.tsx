@@ -6,6 +6,7 @@ import { SSEBridge } from "@/components/providers/SSEBridge";
 import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { MainNavigation } from "@/components/common/MainNavigation";
 import { AuthBootstrap } from "@/components/providers/AuthBootstrap";
+import { AuthGuard } from "@/components/providers/AuthGuard";
 import { UserMenu } from "@/components/common/UserMenu";
 
 const geistSans = Geist({
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           <AuthBootstrap />
+          <AuthGuard />
           <SSEBridge />
           <NotificationCenter />
           <div className="app-shell flex min-h-screen flex-col">
