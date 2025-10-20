@@ -4,7 +4,7 @@ metadata:
   name: gateway-config
 data:
   # Прод использует публичный HTTPS-домен; замените значения на реальные URLы Gateway.
-  NEXT_PUBLIC_API_BASE_URL: "https://gateway.crm.company/api"
+  NEXT_PUBLIC_API_BASE_URL: "https://gateway.crm.company/api/v1"
   NEXT_PUBLIC_CRM_SSE_URL: "https://gateway.crm.company/api/v1/streams/deals"
   NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: "https://gateway.crm.company/api/v1/streams/notifications"
   CONSUL_HTTP_ADDR: "https://consul.internal.crm.company"
