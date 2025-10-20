@@ -9,7 +9,7 @@ import {
   stageMetricsFixture,
 } from "../../../../tests/fixtures/api-data";
 
-const API_BASE_URL = "https://api.test.local";
+const API_BASE_URL = "https://api.test.local/api/v1";
 
 const server = setupServer();
 
@@ -83,6 +83,7 @@ describe("ApiClient при работе с HTTP API", () => {
         .filter((item) => item.stage !== "closedWon")
         .every((item) => item.count === 0),
     ).toBe(true);
+    expect(requestedUrl?.pathname).toBe("/api/v1/crm/deals/stage-metrics");
   });
 
   it("пробрасывает ApiError при ошибке формирования URL", async () => {
@@ -127,6 +128,7 @@ describe("ApiClient при работе с HTTP API", () => {
       });
     });
 
+    try {
       const { apiClient, ApiError: ApiErrorCtor } = await importClient();
 
       const handled = apiClient.getDeals().catch((error) => error);
