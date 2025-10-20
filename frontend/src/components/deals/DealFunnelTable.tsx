@@ -320,9 +320,9 @@ export function DealFunnelTable() {
                             Открыть
                           </Link>
                         </td>
-                      </tr>
-                    );
-                  })}
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             ) : (
@@ -497,7 +497,8 @@ export function DealFunnelTable() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {dealsForRender.map((deal) => {
                       const { isSelected, rowClassName, handleActivate, handleKeyDown } = buildRowState(deal.id);
-                      const nextReviewTone = getNextReviewTone(deal.nextReviewAt);
+                      const nextReviewTone = getNextReviewTone(deal.nextReviewAt ?? "");
+                      const nextReviewDateLabel = deal.nextReviewAt ? formatShortDate(deal.nextReviewAt) : "—";
                       const expectedCloseDateRaw = deal.expectedCloseDate;
                       const expectedCloseDate = expectedCloseDateRaw ? new Date(expectedCloseDateRaw) : undefined;
                       const isExpectedCloseOverdue = expectedCloseDate ? expectedCloseDate.getTime() < Date.now() : false;
@@ -533,65 +534,47 @@ export function DealFunnelTable() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.clientName}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getDealStageTitle(deal.stage)}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
-                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
-                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatCurrency(deal.value)}</td>
                           <td className="px-4 py-4">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={classNames("flex items-center gap-2 text-xs font-medium", nextReviewTone.text)}>
-                                <span className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)} aria-hidden="true" />
-                                Следующий просмотр
-                              </span>
-                              <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
-                                {formatShortDate(deal.nextReviewAt)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{deal.stage}</td>
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
-                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
-                          <td className="px-4 py-4">
-                            {expectedCloseDate ? (
+                            <div className="flex items-center gap-2">
                               <span
                                 className={classNames("h-2 w-2 rounded-full", nextReviewTone.indicator)}
                                 aria-hidden="true"
                               />
-                              Следующий просмотр
-                            </span>
-                            <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
-                              {formatShortDate(deal.nextReviewAt)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          {expectedCloseDate ? (
-                            <span
-                              className={classNames(
-                                "text-xs",
-                                isExpectedCloseOverdue
-                                  ? "font-semibold text-amber-600 dark:text-amber-300"
-                                  : "text-slate-400 dark:text-slate-500",
-                              )}
-                              title="Ожидаемая дата закрытия"
+                              <span className={classNames("text-xs font-semibold", nextReviewTone.text)}>
+                                {nextReviewDateLabel}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{getDealStageTitle(deal.stage)}</td>
+                          <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{ownerLabel}</td>
+                          <td className="px-4 py-4 text-right text-slate-600 dark:text-slate-300">{formatProbability(deal.probability)}</td>
+                          <td className="px-4 py-4">
+                            {expectedCloseDateRaw ? (
+                              <span
+                                className={classNames(
+                                  "text-xs",
+                                  isExpectedCloseOverdue
+                                    ? "font-semibold text-amber-600 dark:text-amber-300"
+                                    : "text-slate-400 dark:text-slate-500",
+                                )}
+                                title="Ожидаемая дата закрытия"
+                              >
+                                {formatShortDate(expectedCloseDateRaw)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
+                          <td className="px-4 py-4 text-right">
+                            <Link
+                              href={`/deals/${deal.id}`}
+                              className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
+                              onClick={(event) => event.stopPropagation()}
                             >
-                              {expectedCloseDateRaw ? formatShortDate(expectedCloseDateRaw) : "—"}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{formatDate(deal.updatedAt)}</td>
-                        <td className="px-4 py-4 text-right">
-                          <Link
-                            href={`/deals/${deal.id}`}
-                            className="text-xs font-semibold text-sky-600 underline-offset-2 transition hover:text-sky-500 hover:underline dark:text-sky-300"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            Открыть
-                          </Link>
-                        </td>
+                              Открыть
+                            </Link>
+                          </td>
                       </tr>
                     );
                   })}
