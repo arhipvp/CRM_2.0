@@ -598,8 +598,10 @@ export function DealFunnelTable() {
 
         <DealPreviewSidebar />
       </div>
-      <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={handleHideBulkActions} />
-    </>
+    </div>
+
+    <DealBulkActions selectedDealIds={selectedDealIds} onClearSelection={handleHideBulkActions} />
+  </>
   );
 }
 
