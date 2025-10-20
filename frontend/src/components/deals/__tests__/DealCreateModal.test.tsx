@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DealCreateModal } from "@/components/deals/DealCreateModal";
@@ -101,6 +101,32 @@ describe("DealCreateModal", () => {
       expect(onDealCreated).toHaveBeenCalledWith(createdDeal);
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("фильтрует список клиентов по поиску и сохраняет выбранный пункт", async () => {
+    const user = userEvent.setup();
+
+    renderWithQueryClient(
+      <DealCreateModal
+        isOpen
+        onClose={() => {}}
+        clients={clientsMock}
+        owners={[]}
+      />,
+    );
+
+    const clientSearchInput = screen.getByPlaceholderText("Начните вводить имя клиента");
+    const clientSelect = screen.getByLabelText("Клиент");
+
+    await user.selectOptions(clientSelect, clientsMock[1].id);
+    await user.type(clientSearchInput, "ооо");
+
+    const options = within(clientSelect).getAllByRole("option");
+    expect(options).toHaveLength(3);
+    expect(options[1]).toHaveTextContent(clientsMock[1].name);
+    expect(options[1].selected).toBe(true);
+    expect(options[2]).toHaveTextContent(clientsMock[0].name);
+    expect(options.map((option) => option.textContent)).not.toContain(clientsMock[2].name);
   });
 });
 

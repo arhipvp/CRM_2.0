@@ -78,6 +78,7 @@ export function DealCreateModal({
   const [formState, setFormState] = useState<FormState>(() => createInitialState(defaultOwnerId));
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
   const { mutateAsync: createDeal, isPending } = useCreateDeal();
   const nameId = useId();
   const clientIdField = useId();
@@ -93,11 +94,41 @@ export function DealCreateModal({
     setFormState(createInitialState(defaultOwnerId));
     setErrors({});
     setSubmitError(null);
+    setClientSearch("");
   }, [defaultOwnerId, isOpen]);
 
   const orderedClients = useMemo(() => {
     return [...clients].sort((a, b) => a.name.localeCompare(b.name));
   }, [clients]);
+
+  const filteredClients = useMemo(() => {
+    const normalizedSearch = clientSearch.trim().toLowerCase();
+    const prefixFiltered = normalizedSearch
+      ? orderedClients.filter((client) =>
+          client.name.toLowerCase().startsWith(normalizedSearch),
+        )
+      : orderedClients;
+
+    if (!formState.clientId) {
+      return prefixFiltered;
+    }
+
+    const selectedInFiltered = prefixFiltered.some(
+      (client) => client.id === formState.clientId,
+    );
+    if (selectedInFiltered) {
+      return prefixFiltered;
+    }
+
+    const selectedClient = orderedClients.find(
+      (client) => client.id === formState.clientId,
+    );
+    if (!selectedClient) {
+      return prefixFiltered;
+    }
+
+    return [selectedClient, ...prefixFiltered];
+  }, [clientSearch, formState.clientId, orderedClients]);
 
   const ownerOptions = useMemo(() => {
     const unique = owners.filter((owner) => owner !== NO_MANAGER_VALUE);
@@ -223,6 +254,13 @@ export function DealCreateModal({
           <label htmlFor={clientIdField} className="text-sm font-medium text-slate-700 dark:text-slate-200">
             Клиент
           </label>
+          <input
+            type="search"
+            value={clientSearch}
+            onChange={(event) => setClientSearch(event.target.value)}
+            placeholder="Начните вводить имя клиента"
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          />
           <select
             id={clientIdField}
             value={formState.clientId}
@@ -232,7 +270,7 @@ export function DealCreateModal({
             <option value="" disabled>
               Выберите клиента
             </option>
-            {orderedClients.map((client) => (
+            {filteredClients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.name}
               </option>
