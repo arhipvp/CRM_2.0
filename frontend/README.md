@@ -26,7 +26,7 @@ cd ../infra
 docker compose --profile app up -d frontend
 ```
 
-Контейнер собирается из `frontend/Dockerfile`, подключается к сети `infra` и обращается к Gateway по адресу `http://gateway:8080`. Если Gateway работает на хостовой машине, оставьте порт `GATEWAY_SERVICE_PORT` в `.env` и измените публичные URL фронтенда на `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` (alias добавлен в `extra_hosts` для Linux). После остановки выполните `docker compose stop frontend` или `docker compose --profile app down` для полной остановки инфраструктуры.
+Контейнер собирается из `frontend/Dockerfile`, подключается к сети `infra` и обращается к Gateway по адресу `http://gateway:8080` (API-база для запросов и SSE задана переменными `NEXT_PUBLIC_*` и по умолчанию равна `http://gateway:8080/api/v1`). Если Gateway работает на хостовой машине, оставьте порт `GATEWAY_SERVICE_PORT` в `.env` и измените публичные URL фронтенда на `http://host.docker.internal:${GATEWAY_SERVICE_PORT}/api/v1` (alias добавлен в `extra_hosts` для Linux). После остановки выполните `docker compose stop frontend` или `docker compose --profile app down` для полной остановки инфраструктуры.
 
 ### Основные скрипты
 
@@ -47,7 +47,7 @@ docker compose --profile app up -d frontend
 
 Все публичные переменные объявлены в [`env.example`](../env.example):
 
-- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api`). Значение обязательно: при пустом URL или недоступном Gateway клиент выбрасывает `ApiError`, запросы помечаются как `isError`, а страницы показывают состояния ошибок.
+- `NEXT_PUBLIC_API_BASE_URL` — REST API Gateway, который оборачивается клиентом `apiClient` (по умолчанию `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1`). Значение обязательно: при пустом URL или недоступном Gateway клиент выбрасывает `ApiError`, запросы помечаются как `isError`, а страницы показывают состояния ошибок.
 - `FRONTEND_PROXY_TIMEOUT` — таймаут (в миллисекундах) для Next.js middleware и браузерных запросов клиента `apiClient`. Значение по умолчанию — 15 секунд.
 - `FRONTEND_SERVER_TIMEOUT_MS` — укороченный таймаут (7.5 секунд по умолчанию) для SSR и серверных экшенов Next.js; при превышении лимита выбрасывается `ApiError`. Возврат мок-данных возможен только в режиме `NEXT_PUBLIC_API_BASE_URL=mock`.
 - `NEXT_PUBLIC_CRM_SSE_URL` — поток событий для статусов сделок и задач (дефолт `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1/streams/deals`).
@@ -61,7 +61,7 @@ docker compose --profile app up -d frontend
 
 CRM-шлюз может отправлять идентификатор сделки как `dealId` (camelCase) или `deal_id` (snake_case). Провайдер `SSEBridge` приводит оба варианта к единому полю `dealId`, обрезая пробелы и сохраняя оригинальное значение в payload. Это гарантирует корректную подсветку карточки сделки, уведомления и инвалидацию кэша React Query независимо от регистра ключей в исходном событии.
 
-В режиме разработки контейнер Next.js ожидает доступный Gateway по адресу `http://gateway:8080`. Для локального `pnpm dev` этот URL можно переопределить на `http://localhost:${GATEWAY_SERVICE_PORT}` (или `http://host.docker.internal:${GATEWAY_SERVICE_PORT}` на Linux) через `.env.local`. Отключение реального Gateway больше не поддерживается: при ошибке подключения `apiClient` завершит запросы с `ApiError`, и React Query отрисует соответствующие error-state блоки.
+В режиме разработки контейнер Next.js ожидает доступный Gateway по адресу `http://gateway:8080`. Для локального `pnpm dev` базовый API можно переопределить на `http://localhost:${GATEWAY_SERVICE_PORT}/api/v1` (или `http://host.docker.internal:${GATEWAY_SERVICE_PORT}/api/v1` на Linux) через `.env.local`. Отключение реального Gateway больше не поддерживается: при ошибке подключения `apiClient` завершит запросы с `ApiError`, и React Query отрисует соответствующие error-state блоки.
 
 ## Обработка ошибок и отказоустойчивость
 

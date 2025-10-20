@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: gateway-config
 data:
-  NEXT_PUBLIC_API_BASE_URL: "https://dev.gateway.crm.local/api"
+  NEXT_PUBLIC_API_BASE_URL: "https://dev.gateway.crm.local/api/v1"
   NEXT_PUBLIC_CRM_SSE_URL: "https://dev.gateway.crm.local/api/v1/streams/deals"
   NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: "https://dev.gateway.crm.local/api/v1/streams/notifications"
   CONSUL_HTTP_ADDR: "http://consul.dev.svc.cluster.local:8500"

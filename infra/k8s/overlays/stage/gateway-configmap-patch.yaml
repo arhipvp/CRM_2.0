@@ -4,7 +4,7 @@ metadata:
   name: gateway-config
 data:
   # Stage использует отдельный HTTPS-хост; отразите фактический домен Gateway при деплое.
-  NEXT_PUBLIC_API_BASE_URL: "https://stage.gateway.crm.local/api"
+  NEXT_PUBLIC_API_BASE_URL: "https://stage.gateway.crm.local/api/v1"
   NEXT_PUBLIC_CRM_SSE_URL: "https://stage.gateway.crm.local/api/v1/streams/deals"
   NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: "https://stage.gateway.crm.local/api/v1/streams/notifications"
   CONSUL_HTTP_ADDR: "http://consul.stage.svc.cluster.local:8500"
