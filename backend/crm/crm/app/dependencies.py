@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Annotated, AsyncIterator
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException, Request
+import jwt
+from fastapi import Cookie, Depends, Header, HTTPException, Request, status
+from jwt import InvalidTokenError
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from redis.asyncio import Redis
 
@@ -16,6 +19,14 @@ from crm.infrastructure.db import AsyncSessionFactory
 
 
 TenantHeader = Annotated[str | None, Header(alias="X-Tenant-ID")]
+AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
+AccessTokenCookie = Annotated[str | None, Cookie(alias="crm_access_token")]
+
+
+class AuthenticatedUser(BaseModel):
+    id: UUID
+    email: EmailStr
+    roles: list[str]
 
 
 async def get_tenant_id(header: TenantHeader = None) -> UUID:
@@ -27,6 +38,97 @@ async def get_tenant_id(header: TenantHeader = None) -> UUID:
     if settings.default_tenant_id:
         return UUID(settings.default_tenant_id)
     raise HTTPException(status_code=400, detail="Tenant scope is required")
+
+
+def _decode_authorization_header(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid_authorization_header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token.strip()
+
+
+def _resolve_token(
+    authorization: AuthorizationHeader = None,
+    access_token_cookie: AccessTokenCookie = None,
+) -> str:
+    token = _decode_authorization_header(authorization)
+    if token:
+        return token
+
+    if access_token_cookie:
+        return access_token_cookie.strip()
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="authorization_required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def get_current_user(
+    authorization: AuthorizationHeader = None,
+    access_token_cookie: AccessTokenCookie = None,
+) -> AuthenticatedUser:
+    token = _resolve_token(authorization, access_token_cookie)
+
+    options: dict[str, bool] = {"verify_signature": True, "verify_exp": True}
+    if settings.jwt_audience:
+        options["verify_aud"] = True
+    else:
+        options["verify_aud"] = False
+    if settings.jwt_issuer:
+        options["verify_iss"] = True
+    else:
+        options["verify_iss"] = False
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_access_secret,
+            algorithms=["HS256"],
+            audience=settings.jwt_audience if settings.jwt_audience else None,
+            issuer=settings.jwt_issuer if settings.jwt_issuer else None,
+            options=options,
+        )
+    except InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid_token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    subject = payload.get("sub")
+    email = payload.get("email")
+    roles_payload = payload.get("roles", [])
+
+    try:
+        user_id = UUID(str(subject))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid_token_subject",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    if not isinstance(email, str):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid_token_email",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    roles: list[str] = []
+    if isinstance(roles_payload, list):
+        roles = [str(role) for role in roles_payload if isinstance(role, (str, bytes))]
+
+    return AuthenticatedUser(id=user_id, email=email, roles=roles)
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:

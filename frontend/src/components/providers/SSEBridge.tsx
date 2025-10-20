@@ -13,6 +13,7 @@ import {
 import { createRandomId } from "@/lib/utils/id";
 import { useUiStore } from "@/stores/uiStore";
 import { useNotificationsStore } from "@/stores/notificationsStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { NotificationChannel, NotificationFeedItem, NotificationFeedResponse } from "@/types/notifications";
 
 type StreamHandlers = Parameters<typeof useEventStream>[1];
@@ -23,7 +24,7 @@ interface StreamSubscriptionProps {
 }
 
 function StreamSubscription({ url, handlers }: StreamSubscriptionProps) {
-  useEventStream(url, handlers);
+  useEventStream(url, { ...handlers, withCredentials: true });
   return null;
 }
 
@@ -215,6 +216,7 @@ export function SSEBridge({
 }: SSEBridgeProps = {}) {
   const resolvedBaseUrl = (apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL)?.trim();
   const mockModeEnabled = !resolvedBaseUrl || resolvedBaseUrl === "mock";
+  const isAuthenticated = useAuthStore((state) => state.status === "authenticated" && Boolean(state.user));
 
   const pushNotification = useUiStore((state) => state.pushNotification);
   const highlightDeal = useUiStore((state) => state.highlightDeal);
@@ -381,7 +383,7 @@ export function SSEBridge({
     [handleNotificationMessage, handleNotificationsError],
   );
 
-  if (mockModeEnabled) {
+  if (mockModeEnabled || !isAuthenticated) {
     return null;
   }
 

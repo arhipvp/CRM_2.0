@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     permissions_job_name: str = Field(default="permissions.sync")
     permissions_redis_url: Optional[AnyUrl] = Field(default=None)
 
+    jwt_access_secret: str = Field(default="change_me_access_secret")
+    jwt_issuer: Optional[str] = None
+    jwt_audience: Optional[str] = None
+
     celery_broker_url: Optional[AnyUrl] = Field(default=None)
     celery_result_backend: Optional[AnyUrl] = Field(default=None)
 

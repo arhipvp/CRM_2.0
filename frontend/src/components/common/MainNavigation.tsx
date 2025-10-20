@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
 
 const primaryLinks = [
   { href: "/", label: "Главная" },
@@ -32,6 +33,11 @@ const isActivePath = (pathname: string, href: string) => {
 
 export const MainNavigation = () => {
   const pathname = usePathname() ?? "/";
+  const isAuthenticated = useAuthStore((state) => state.status === "authenticated" && Boolean(state.user));
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <nav aria-label="Основные разделы" className="flex flex-wrap gap-2">

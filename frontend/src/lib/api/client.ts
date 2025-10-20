@@ -64,6 +64,7 @@ import type {
 import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
+import { ACCESS_TOKEN_COOKIE } from "@/lib/auth/constants";
 
 type CrmDeal = {
   id: string;
@@ -112,6 +113,7 @@ export interface ApiClientConfig {
   timeoutMs?: number;
   serverTimeoutMs?: number;
   adminPermissions?: AdminPermission[];
+  authToken?: string | null;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -774,9 +776,11 @@ export interface UpdateDealPayload {
 export class ApiClient {
   private adminPermissions: Set<AdminPermission>;
   private clientNameCache: Map<string, string> | null = null;
+  private authToken: string | null;
 
   constructor(private readonly config: ApiClientConfig = {}) {
     this.adminPermissions = new Set(config.adminPermissions ?? DEFAULT_ADMIN_PERMISSIONS);
+    this.authToken = config.authToken ?? config.headers?.Authorization?.replace(/^Bearer\s+/i, "") ?? null;
   }
 
   setAdminPermissions(permissions: AdminPermission[]) {
@@ -791,6 +795,10 @@ export class ApiClient {
 
   getAdminPermissions(): AdminPermission[] {
     return Array.from(this.adminPermissions);
+  }
+
+  setAuthToken(token: string | null) {
+    this.authToken = token ? token.trim() : null;
   }
 
   private ensureAdminPermission(permission: AdminPermission) {
@@ -836,6 +844,17 @@ export class ApiClient {
     }
 
     let url: string;
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...this.config.headers,
+      ...(init?.headers as Record<string, string> | undefined),
+    };
+
+    if (this.authToken && !headers.Authorization && !headers.authorization) {
+      headers.Authorization = `Bearer ${this.authToken}`;
+    }
+
     try {
       url = joinUrl(baseUrl, path);
     } catch (error) {
@@ -855,12 +874,7 @@ export class ApiClient {
       const response = await fetch(url, {
         ...init,
         signal: mergeAbortSignals([timeoutController?.signal, init?.signal ?? undefined]),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          ...this.config.headers,
-          ...init?.headers,
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -2152,11 +2166,35 @@ function applyTaskPatch(task: Task, patch: UpdateTaskPayload): Task {
 export const apiClient = new ApiClient();
 
 export function createApiClient(config: ApiClientConfig = {}) {
-  return new ApiClient(config);
+  const client = new ApiClient(config);
+  if (config.authToken) {
+    client.setAuthToken(config.authToken);
+  }
+  return client;
 }
 
 export function getServerApiClient(config: ApiClientConfig = {}) {
   const serverConfig: ApiClientConfig = { ...config };
+  if (typeof window === "undefined") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { cookies } = require("next/headers") as typeof import("next/headers");
+      const cookieStore = cookies();
+      const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+      if (token) {
+        serverConfig.authToken = token;
+        serverConfig.headers = {
+          ...serverConfig.headers,
+          Authorization: `Bearer ${token}`,
+        };
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("[ApiClient] Unable to read authentication cookies on server", error);
+      }
+    }
+  }
 
   if (serverConfig.serverTimeoutMs === undefined) {
     const normalizedTimeout = normalizeTimeout(serverConfig.timeoutMs);

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from crm.api import streams
 from crm.api.routers import (
@@ -16,10 +16,11 @@ from crm.api.routers import (
     policy_documents,
     tasks,
 )
+from crm.app.dependencies import get_current_user
 
 
 def get_api_router() -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(dependencies=[Depends(get_current_user)])
     router.include_router(clients.router)
     router.include_router(deals.router)
     router.include_router(calculations.router)

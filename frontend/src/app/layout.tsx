@@ -5,6 +5,8 @@ import { Providers } from "./providers";
 import { SSEBridge } from "@/components/providers/SSEBridge";
 import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { MainNavigation } from "@/components/common/MainNavigation";
+import { AuthBootstrap } from "@/components/providers/AuthBootstrap";
+import { UserMenu } from "@/components/common/UserMenu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,12 +32,14 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
+          <AuthBootstrap />
           <SSEBridge />
           <NotificationCenter />
           <div className="app-shell flex min-h-screen flex-col">
             <header className="app-header">
-              <div className="app-header__inner">
+              <div className="app-header__inner flex flex-wrap items-center justify-between gap-4">
                 <MainNavigation />
+                <UserMenu />
               </div>
             </header>
             <main className="app-main">{children}</main>

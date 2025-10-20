@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Request
 from sse_starlette.sse import EventSourceResponse
 
 from crm.app.config import Settings, get_settings
+from crm.app.dependencies import AuthenticatedUser, get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,7 @@ async def _events_generator(
 @router.get("/streams", include_in_schema=False)
 async def streams_endpoint(
     request: Request,
+    _: AuthenticatedUser = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> EventSourceResponse:
     generator = _events_generator(request, settings)

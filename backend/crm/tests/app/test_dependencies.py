@@ -5,6 +5,9 @@ import sys
 from types import ModuleType
 from uuid import uuid4
 
+from datetime import datetime, timedelta
+import jwt
+
 import pytest
 from fastapi import HTTPException
 
@@ -30,6 +33,9 @@ if "crm.app.config" not in sys.modules:
             self.permissions_job_name = "permissions.sync"
             self.permissions_redis_url = None
             self.celery_retry_delay_seconds = 60
+            self.jwt_access_secret = "test-secret"
+            self.jwt_issuer = "http://localhost"
+            self.jwt_audience = "crm-clients"
 
         def model_copy(self, *, update: dict | None = None, **_: object) -> DummySettings:
             if not update:
@@ -99,3 +105,63 @@ async def test_get_tenant_id_requires_scope_when_default_missing(monkeypatch: py
     assert excinfo.value.detail == "Tenant scope is required"
 
     monkeypatch.setattr(settings, "default_tenant_id", original_default, raising=False)
+
+
+@pytest.mark.asyncio()
+async def test_get_current_user_requires_token():
+    from crm.app.dependencies import get_current_user
+
+    with pytest.raises(HTTPException) as excinfo:
+        await get_current_user()
+
+    assert excinfo.value.status_code == 401
+
+
+@pytest.mark.asyncio()
+async def test_get_current_user_accepts_authorization_header():
+    from crm.app.dependencies import get_current_user
+
+    token_payload = {
+        "sub": str(uuid4()),
+        "email": "agent@example.com",
+        "roles": ["agent"],
+        "aud": settings.jwt_audience,
+        "iss": settings.jwt_issuer,
+        "exp": datetime.utcnow() + timedelta(minutes=5),
+    }
+    token = jwt.encode(token_payload, settings.jwt_access_secret, algorithm="HS256")
+
+    user = await get_current_user(f"Bearer {token}")
+
+    assert user.email == "agent@example.com"
+    assert "agent" in user.roles
+
+
+@pytest.mark.asyncio()
+async def test_get_current_user_accepts_cookie():
+    from crm.app.dependencies import get_current_user
+
+    token_payload = {
+        "sub": str(uuid4()),
+        "email": "cookie@example.com",
+        "roles": ["manager"],
+        "aud": settings.jwt_audience,
+        "iss": settings.jwt_issuer,
+        "exp": datetime.utcnow() + timedelta(minutes=5),
+    }
+    token = jwt.encode(token_payload, settings.jwt_access_secret, algorithm="HS256")
+
+    user = await get_current_user(None, token)
+
+    assert user.email == "cookie@example.com"
+    assert "manager" in user.roles
+
+
+@pytest.mark.asyncio()
+async def test_get_current_user_rejects_invalid_token():
+    from crm.app.dependencies import get_current_user
+
+    with pytest.raises(HTTPException) as excinfo:
+        await get_current_user("Bearer invalid")
+
+    assert excinfo.value.status_code == 401
