@@ -99,6 +99,13 @@ export interface CreateDealPayload {
   description?: string | null;
 }
 
+export interface CreateClientPayload {
+  name: string;
+  email: string;
+  phone: string;
+  ownerId?: string | null;
+}
+
 export interface ApiClientConfig {
   baseUrl?: string;
   headers?: Record<string, string>;
@@ -1216,6 +1223,73 @@ export class ApiClient {
 
   getClients(): Promise<Client[]> {
     return this.request("/crm/clients", undefined);
+  }
+
+  async createClient(payload: CreateClientPayload): Promise<Client> {
+    const name = payload.name.trim();
+    const email = payload.email.trim();
+    const phone = payload.phone.trim();
+    const ownerId = payload.ownerId && payload.ownerId !== NO_MANAGER_VALUE ? payload.ownerId.trim() : undefined;
+
+    const response = await this.request<Client>(
+      "/crm/clients",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          owner_id: ownerId ?? null,
+        }),
+      },
+      async () => {
+        const now = new Date().toISOString();
+        const id = `client-${createRandomId()}`;
+        const contacts: ClientContact[] = [
+          {
+            id: `${id}-email`,
+            type: "email",
+            label: "E-mail",
+            value: email,
+            primary: true,
+          },
+          {
+            id: `${id}-phone`,
+            type: "phone",
+            label: "Телефон",
+            value: phone,
+            primary: true,
+          },
+        ];
+
+        return {
+          id,
+          name,
+          email,
+          phone,
+          industry: "",
+          city: "",
+          totalDeals: 0,
+          lifetimeValue: 0,
+          lastActivityAt: now,
+          status: "active",
+          owner: ownerId ?? undefined,
+          tags: [],
+          contacts,
+          notes: undefined,
+        } satisfies Client;
+      },
+    );
+
+    const createdClient = response as Client;
+    const label = createdClient.name?.trim().length ? createdClient.name.trim() : createdClient.id;
+
+    if (!this.clientNameCache) {
+      this.clientNameCache = new Map();
+    }
+    this.clientNameCache.set(createdClient.id, label);
+
+    return createdClient;
   }
 
   getClient(id: string): Promise<Client> {

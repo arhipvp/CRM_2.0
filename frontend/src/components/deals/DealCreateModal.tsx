@@ -15,6 +15,7 @@ interface DealCreateModalProps {
   owners: string[];
   defaultOwnerId?: string;
   onDealCreated?: (deal: Deal) => void;
+  onCreateClient?: () => void;
 }
 
 interface FormState {
@@ -74,6 +75,7 @@ export function DealCreateModal({
   owners,
   defaultOwnerId,
   onDealCreated,
+  onCreateClient,
 }: DealCreateModalProps) {
   const [formState, setFormState] = useState<FormState>(() => createInitialState(defaultOwnerId));
   const [errors, setErrors] = useState<FormErrors>({});
@@ -277,6 +279,16 @@ export function DealCreateModal({
             ))}
           </select>
           {errors.clientId ? <p className="text-xs text-rose-500">{errors.clientId}</p> : null}
+          {onCreateClient ? (
+            <button
+              type="button"
+              onClick={onCreateClient}
+              className="mt-2 text-xs font-semibold text-sky-600 transition hover:text-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isPending}
+            >
+              Добавить нового клиента
+            </button>
+          ) : null}
         </div>
 
         <div className="space-y-1">
