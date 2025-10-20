@@ -28,7 +28,7 @@ class ClientBase(BaseModel):
 
 
 class ClientCreate(ClientBase):
-    owner_id: UUID
+    owner_id: UUID | None = None
 
 
 class ClientUpdate(BaseModel):
@@ -41,7 +41,7 @@ class ClientUpdate(BaseModel):
 class ClientRead(ORMModel, ClientBase):
     id: UUID
     tenant_id: UUID
-    owner_id: UUID
+    owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
 
