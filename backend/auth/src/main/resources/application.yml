@@ -30,4 +30,9 @@ auth:
     secret: ${AUTH_JWT_SECRET:change-me}
     access-token-ttl-raw: ${AUTH_ACCESS_TOKEN_TTL:}
     refresh-token-ttl-raw: ${AUTH_REFRESH_TOKEN_TTL:}
+  bootstrap:
+    enabled: ${AUTH_BOOTSTRAP_ENABLED:false}
+    email: ${AUTH_BOOTSTRAP_EMAIL:}
+    password: ${AUTH_BOOTSTRAP_PASSWORD:}
+    roles: ${AUTH_BOOTSTRAP_ROLES:ROLE_ADMIN}
 
