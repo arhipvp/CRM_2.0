@@ -1,13 +1,18 @@
 "use client";
 
-import { FormEvent, useCallback, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/";
+  const [redirectTo, setRedirectTo] = useState("/");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect");
+    setRedirectTo(redirect && redirect.startsWith("/") ? redirect : "/");
+  }, []);
   const { status, error, login } = useAuthStore((state) => ({
     status: state.status,
     error: state.error,
