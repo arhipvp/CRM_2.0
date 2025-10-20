@@ -176,6 +176,61 @@ function mergeAbortSignals(signals: Array<AbortSignal | undefined>): AbortSignal
   return controller.signal;
 }
 
+function joinUrl(baseUrl: string, path: string): string {
+  const trimmedBase = baseUrl.trim();
+  const trimmedPath = path.trim();
+
+  if (!trimmedPath) {
+    return trimmedBase;
+  }
+
+  // Если path уже абсолютный URL, используем его без изменений.
+  try {
+    return new URL(trimmedPath).toString();
+  } catch {
+    // noop — путь относительный.
+  }
+
+  const base = new URL(trimmedBase);
+
+  let hash = "";
+  let rest = trimmedPath;
+  const hashIndex = rest.indexOf("#");
+  if (hashIndex !== -1) {
+    hash = rest.slice(hashIndex);
+    rest = rest.slice(0, hashIndex);
+  }
+
+  let search = "";
+  let pathPart = rest;
+  const searchIndex = pathPart.indexOf("?");
+  if (searchIndex !== -1) {
+    search = pathPart.slice(searchIndex);
+    pathPart = pathPart.slice(0, searchIndex);
+  }
+
+  const basePath = base.pathname === "/" ? "" : base.pathname.replace(/\/+$/, "");
+
+  let joinedPath: string;
+  if (!pathPart) {
+    joinedPath = basePath || "/";
+  } else if (pathPart.startsWith("/")) {
+    joinedPath = `${basePath}${pathPart}`;
+  } else {
+    joinedPath = `${basePath}/${pathPart}`;
+  }
+
+  if (!joinedPath.startsWith("/")) {
+    joinedPath = `/${joinedPath}`;
+  }
+
+  base.pathname = joinedPath;
+  base.search = search;
+  base.hash = hash;
+
+  return base.toString();
+}
+
 const NOTIFICATION_SOURCE_LABELS: Record<NotificationFeedItem["source"], string> = {
   crm: "CRM",
   payments: "Платежи",
@@ -775,7 +830,7 @@ export class ApiClient {
 
     let url: string;
     try {
-      url = new URL(path, baseUrl).toString();
+      url = joinUrl(baseUrl, path);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to construct API URL";
       throw new ApiError(message);
