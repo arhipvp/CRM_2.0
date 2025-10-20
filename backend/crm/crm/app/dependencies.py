@@ -6,7 +6,7 @@ from uuid import UUID
 import jwt
 from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from jwt import InvalidTokenError
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from redis.asyncio import Redis
 
@@ -25,7 +25,7 @@ AccessTokenCookie = Annotated[str | None, Cookie(alias="crm_access_token")]
 
 class AuthenticatedUser(BaseModel):
     id: UUID
-    email: EmailStr
+    email: str
     roles: list[str]
 
 
