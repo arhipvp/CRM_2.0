@@ -41,16 +41,16 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 dark:bg-slate-950">
       <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900">
         <header className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Вход в систему</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Р’С…РѕРґ РІ СЃРёСЃС‚РµРјСѓ</h1>
           <p className="text-sm text-slate-500 dark:text-slate-300">
-            Авторизуйтесь, чтобы получить доступ к CRM и управлять сделками, клиентами и задачами.
+            РђРІС‚РѕСЂРёР·СѓР№С‚РµСЃСЊ, С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ РґРѕСЃС‚СѓРї Рє CRM Рё СѓРїСЂР°РІР»СЏС‚СЊ СЃРґРµР»РєР°РјРё, РєР»РёРµРЅС‚Р°РјРё Рё Р·Р°РґР°С‡Р°РјРё.
           </p>
         </header>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Электронная почта
+              Р­Р»РµРєС‚СЂРѕРЅРЅР°СЏ РїРѕС‡С‚Р°
             </label>
             <input
               id="email"
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Пароль
+              РџР°СЂРѕР»СЊ
             </label>
             <input
               id="password"
@@ -80,7 +80,7 @@ export default function LoginPage() {
 
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/40 dark:text-red-200">
-              Не удалось войти. Проверьте введённые данные и попробуйте ещё раз.
+              РќРµ СѓРґР°Р»РѕСЃСЊ РІРѕР№С‚Рё. РџСЂРѕРІРµСЂСЊС‚Рµ РІРІРµРґС‘РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ Рё РїРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰С‘ СЂР°Р·.
             </div>
           ) : null}
 
@@ -89,7 +89,7 @@ export default function LoginPage() {
             disabled={disabled}
             className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
           >
-            {disabled ? "Выполняем вход..." : "Войти"}
+            {disabled ? "Р’С‹РїРѕР»РЅСЏРµРј РІС…РѕРґ..." : "Р’РѕР№С‚Рё"}
           </button>
         </form>
       </div>
