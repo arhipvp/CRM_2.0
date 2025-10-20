@@ -14,7 +14,7 @@ from crm.infrastructure.repositories import RepositoryError
 router = APIRouter(prefix="/deals/{deal_id}/calculations", tags=["calculations"])
 
 
-@router.get("/", response_model=list[schemas.CalculationRead])
+@router.get("", response_model=list[schemas.CalculationRead])
 async def list_calculations(
     deal_id: UUID,
     *,
@@ -37,7 +37,7 @@ async def list_calculations(
     )
 
 
-@router.post("/", response_model=schemas.CalculationRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.CalculationRead, status_code=status.HTTP_201_CREATED)
 async def create_calculation(
     deal_id: UUID,
     payload: schemas.CalculationCreate,

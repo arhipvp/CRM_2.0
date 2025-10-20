@@ -12,7 +12,7 @@ from crm.domain.services import ClientService
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 
-@router.get("/", response_model=list[schemas.ClientRead])
+@router.get("", response_model=list[schemas.ClientRead])
 async def list_clients(
     service: Annotated[ClientService, Depends(get_client_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
@@ -20,7 +20,7 @@ async def list_clients(
     return list(await service.list_clients(tenant_id))
 
 
-@router.post("/", response_model=schemas.ClientRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.ClientRead, status_code=status.HTTP_201_CREATED)
 async def create_client(
     payload: schemas.ClientCreate,
     service: Annotated[ClientService, Depends(get_client_service)],

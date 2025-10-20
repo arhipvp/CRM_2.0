@@ -12,7 +12,7 @@ from crm.domain.services import PolicyService
 router = APIRouter(prefix="/policies", tags=["policies"])
 
 
-@router.get("/", response_model=list[schemas.PolicyRead])
+@router.get("", response_model=list[schemas.PolicyRead])
 async def list_policies(
     service: Annotated[PolicyService, Depends(get_policy_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
@@ -20,7 +20,7 @@ async def list_policies(
     return list(await service.list_policies(tenant_id))
 
 
-@router.post("/", response_model=schemas.PolicyRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.PolicyRead, status_code=status.HTTP_201_CREATED)
 async def create_policy(
     payload: schemas.PolicyCreate,
     service: Annotated[PolicyService, Depends(get_policy_service)],

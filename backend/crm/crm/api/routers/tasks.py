@@ -12,7 +12,7 @@ from crm.domain.services import TaskService
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("/", response_model=list[schemas.TaskRead])
+@router.get("", response_model=list[schemas.TaskRead])
 async def list_tasks(
     service: Annotated[TaskService, Depends(get_task_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
@@ -20,7 +20,7 @@ async def list_tasks(
     return list(await service.list_tasks(tenant_id))
 
 
-@router.post("/", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
 async def create_task(
     payload: schemas.TaskCreate,
     service: Annotated[TaskService, Depends(get_task_service)],

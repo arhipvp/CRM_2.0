@@ -13,7 +13,7 @@ from crm.infrastructure.repositories import RepositoryError
 router = APIRouter(prefix="/policies/{policy_id}/documents", tags=["policy-documents"])
 
 
-@router.get("/", response_model=list[schemas.PolicyDocumentRead])
+@router.get("", response_model=list[schemas.PolicyDocumentRead])
 async def list_policy_documents(
     policy_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],
@@ -25,7 +25,7 @@ async def list_policy_documents(
     return list(documents)
 
 
-@router.post("/", response_model=schemas.PolicyDocumentRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.PolicyDocumentRead, status_code=status.HTTP_201_CREATED)
 async def attach_policy_document(
     policy_id: UUID,
     payload: schemas.PolicyDocumentLink,

@@ -22,7 +22,7 @@ def _handle_repository_error(exc: RepositoryError) -> None:
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
 
 
-@router.get("/", response_model=schemas.PaymentList)
+@router.get("", response_model=schemas.PaymentList)
 async def list_payments(
     deal_id: UUID,
     policy_id: UUID,
@@ -48,7 +48,7 @@ async def list_payments(
         _handle_repository_error(exc)
 
 
-@router.post("/", response_model=schemas.PaymentRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.PaymentRead, status_code=status.HTTP_201_CREATED)
 async def create_payment(
     deal_id: UUID,
     policy_id: UUID,

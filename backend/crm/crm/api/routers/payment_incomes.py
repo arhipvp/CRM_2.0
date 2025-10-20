@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=schemas.PaymentIncomeRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.PaymentIncomeRead, status_code=status.HTTP_201_CREATED)
 async def create_income(
     deal_id: UUID,
     policy_id: UUID,
