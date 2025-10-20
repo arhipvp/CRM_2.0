@@ -29,13 +29,22 @@ describe("MainNavigation", () => {
 
     render(<MainNavigation />);
 
-    expect(screen.getByRole("link", { name: "Главная" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Сделки" })).toHaveAttribute("href", "/deals");
-    expect(screen.getByRole("link", { name: "Задачи" })).toHaveAttribute("href", "/tasks");
-    expect(screen.getByRole("link", { name: "Платежи" })).toHaveAttribute("href", "/payments");
-    expect(screen.getByRole("link", { name: "Полисы" })).toHaveAttribute("href", "/policies");
-    expect(screen.getByRole("link", { name: "Уведомления" })).toHaveAttribute("href", "/notifications");
-    expect(screen.getByRole("link", { name: "Администрирование" })).toHaveAttribute("href", "/admin");
+    const expectedLinks = [
+      { name: "Главная", href: "/" },
+      { name: "Сделки", href: "/deals" },
+      { name: "Клиенты", href: "/clients" },
+      { name: "Задачи", href: "/tasks" },
+      { name: "Платежи", href: "/payments" },
+      { name: "Полисы", href: "/policies" },
+      { name: "Уведомления", href: "/notifications" },
+      { name: "Администрирование", href: "/admin" },
+    ];
+
+    expectedLinks.forEach(({ name, href }) => {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    });
+
+    expect(screen.getAllByRole("link")).toHaveLength(expectedLinks.length);
   });
 
   it("подсвечивает активный маршрут", () => {

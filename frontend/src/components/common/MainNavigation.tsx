@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const primaryLinks = [
   { href: "/", label: "Главная" },
   { href: "/deals", label: "Сделки" },
+  { href: "/clients", label: "Клиенты" },
   { href: "/tasks", label: "Задачи" },
   { href: "/payments", label: "Платежи" },
   { href: "/policies", label: "Полисы" },
