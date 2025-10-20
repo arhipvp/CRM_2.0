@@ -12,7 +12,7 @@ from crm.domain.services import DealJournalService
 router = APIRouter(prefix="/deals/{deal_id}/journal", tags=["deal-journal"])
 
 
-@router.get("/", response_model=schemas.DealJournalEntryList)
+@router.get("", response_model=schemas.DealJournalEntryList)
 async def list_deal_journal(
     deal_id: UUID,
     *,
@@ -24,7 +24,7 @@ async def list_deal_journal(
     return await service.list_entries(tenant_id, deal_id, limit=limit, offset=offset)
 
 
-@router.post("/", response_model=schemas.DealJournalEntryRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.DealJournalEntryRead, status_code=status.HTTP_201_CREATED)
 async def append_deal_journal_entry(
     deal_id: UUID,
     payload: schemas.DealJournalEntryCreate,

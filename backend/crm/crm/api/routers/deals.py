@@ -63,7 +63,7 @@ def _build_deal_filters(
         ) from exc
 
 
-@router.get("/", response_model=list[schemas.DealRead])
+@router.get("", response_model=list[schemas.DealRead])
 async def list_deals(
     service: Annotated[DealService, Depends(get_deal_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
@@ -76,13 +76,26 @@ async def list_deals(
     return list(await service.list_deals(tenant_id, filters))
 
 
-@router.post("/", response_model=schemas.DealRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.DealRead, status_code=status.HTTP_201_CREATED)
 async def create_deal(
     payload: schemas.DealCreate,
     service: Annotated[DealService, Depends(get_deal_service)],
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.DealRead:
     return await service.create_deal(tenant_id, payload)
+
+
+@router.get("/stage-metrics", response_model=list[schemas.DealStageMetric])
+async def get_stage_metrics(
+    service: Annotated[DealService, Depends(get_deal_service)],
+    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
+    stage: Annotated[str | None, Query()] = None,
+    manager: Annotated[list[str] | None, Query()] = None,
+    period: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+) -> list[schemas.DealStageMetric]:
+    filters = _build_deal_filters(stage, manager, period, search)
+    return list(await service.get_stage_metrics(tenant_id, filters))
 
 
 @router.get("/{deal_id}", response_model=schemas.DealRead)
@@ -121,16 +134,3 @@ async def update_deal_stage(
     if deal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="deal_not_found")
     return deal
-
-
-@router.get("/stage-metrics", response_model=list[schemas.DealStageMetric])
-async def get_stage_metrics(
-    service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
-    stage: Annotated[str | None, Query()] = None,
-    manager: Annotated[list[str] | None, Query()] = None,
-    period: Annotated[str | None, Query()] = None,
-    search: Annotated[str | None, Query()] = None,
-) -> list[schemas.DealStageMetric]:
-    filters = _build_deal_filters(stage, manager, period, search)
-    return list(await service.get_stage_metrics(tenant_id, filters))
