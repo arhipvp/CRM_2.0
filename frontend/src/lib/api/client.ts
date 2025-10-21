@@ -63,6 +63,7 @@ import type {
 } from "@/types/admin";
 import { sortDealsByNextReview } from "@/lib/utils/deals";
 import { createRandomId } from "@/lib/utils/id";
+import { resolvePublicUrl } from "@/lib/utils/url";
 import { NO_MANAGER_VALUE } from "@/lib/utils/managers";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/auth/constants";
 
@@ -118,6 +119,8 @@ export interface ApiClientConfig {
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_SERVER_TIMEOUT_MS = 7_500;
+const DEFAULT_API_BASE_URL = "http://gateway:8080/api/v1";
+const PUBLIC_API_FALLBACK_PATH = "/api/v1";
 const DEFAULT_ADMIN_PERMISSIONS: AdminPermission[] = [
   "manage:users",
   "manage:dictionaries",
@@ -808,7 +811,10 @@ export class ApiClient {
   }
 
   private get baseUrl() {
-    return this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL;
+    const rawBaseUrl =
+      this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+    const fallback = typeof window === "undefined" ? DEFAULT_API_BASE_URL : PUBLIC_API_FALLBACK_PATH;
+    return resolvePublicUrl(rawBaseUrl, fallback) ?? DEFAULT_API_BASE_URL;
   }
 
   private get timeoutMs(): number {
