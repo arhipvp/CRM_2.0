@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 
-const PUBLIC_ROUTES = new Set<string>(["/login"]);
+const PUBLIC_ROUTES = new Set<string>(["/login", "/auth"]);
 
 export function AuthGuard() {
   const router = useRouter();
