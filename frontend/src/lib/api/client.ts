@@ -121,6 +121,11 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_SERVER_TIMEOUT_MS = 7_500;
 const DEFAULT_API_BASE_URL = "http://gateway:8080/api/v1";
 const PUBLIC_API_FALLBACK_PATH = "/api/v1";
+const AUTH_DISABLED_TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+const AUTH_DISABLED =
+  AUTH_DISABLED_TRUE_VALUES.has(
+    (process.env.NEXT_PUBLIC_AUTH_DISABLED ?? process.env.AUTH_DISABLED ?? "").trim().toLowerCase(),
+  );
 const DEFAULT_ADMIN_PERMISSIONS: AdminPermission[] = [
   "manage:users",
   "manage:dictionaries",
@@ -816,6 +821,10 @@ export class ApiClient {
   }
 
   private get baseUrl() {
+    if (AUTH_DISABLED) {
+      return "mock";
+    }
+
     const rawBaseUrl =
       this.config.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
     const fallback = typeof window === "undefined" ? DEFAULT_API_BASE_URL : PUBLIC_API_FALLBACK_PATH;
@@ -1178,7 +1187,7 @@ export class ApiClient {
   async getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
     const query = this.buildQueryString(filters);
     const response = await this.request<Array<CrmDealStageMetric | DealStageMetrics>>(
-      `/crm/deals/st_metrics${query}`,
+      `/crm/deals/stage-metrics${query}`,
       undefined,
       async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
     );
