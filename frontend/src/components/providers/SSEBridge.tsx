@@ -11,6 +11,7 @@ import {
   notificationsFeedQueryKey,
 } from "@/lib/api/queries";
 import { createRandomId } from "@/lib/utils/id";
+import { resolvePublicUrl } from "@/lib/utils/url";
 import { useUiStore } from "@/stores/uiStore";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -34,9 +35,9 @@ export interface SSEBridgeProps {
   notificationsSseUrl?: string | null;
 }
 
-function normalizeUrl(value?: string | null) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+function normalizeUrl(value?: string | null, fallbackPath?: string) {
+  const resolved = resolvePublicUrl(value ?? undefined, fallbackPath);
+  return resolved?.trim() || undefined;
 }
 
 function normalizeNotificationSource(value?: string): NotificationFeedItem["source"] {
@@ -387,9 +388,13 @@ export function SSEBridge({
     return null;
   }
 
-  const crmStreamUrl = normalizeUrl(crmSseUrl ?? process.env.NEXT_PUBLIC_CRM_SSE_URL);
+  const crmStreamUrl = normalizeUrl(
+    crmSseUrl ?? process.env.NEXT_PUBLIC_CRM_SSE_URL,
+    "/api/v1/streams/deals",
+  );
   const notificationsStreamUrl = normalizeUrl(
     notificationsSseUrl ?? process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE_URL,
+    "/api/v1/streams/notifications",
   );
 
   const shouldRenderCrmStream = Boolean(crmStreamUrl) && crmStreamEnabled;
