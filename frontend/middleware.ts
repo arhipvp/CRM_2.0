@@ -2,7 +2,7 @@
 import type { NextRequest } from "next/server";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/auth/constants";
 
-const PUBLIC_PATHS = new Set(["/login"]);
+const PUBLIC_PATHS = new Set(["/login", "/auth"]);
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.has(pathname);
@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasToken && pathname === "/login") {
+  if (hasToken && (pathname === "/login" || pathname === "/auth")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
