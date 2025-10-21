@@ -780,6 +780,7 @@ export class ApiClient {
   private adminPermissions: Set<AdminPermission>;
   private clientNameCache: Map<string, string> | null = null;
   private authToken: string | null;
+  private unauthorizedHandler?: () => void | Promise<void>;
 
   constructor(private readonly config: ApiClientConfig = {}) {
     this.adminPermissions = new Set(config.adminPermissions ?? DEFAULT_ADMIN_PERMISSIONS);
@@ -802,6 +803,10 @@ export class ApiClient {
 
   setAuthToken(token: string | null) {
     this.authToken = token ? token.trim() : null;
+  }
+
+  setUnauthorizedHandler(handler: (() => void | Promise<void>) | null) {
+    this.unauthorizedHandler = handler ?? undefined;
   }
 
   private ensureAdminPermission(permission: AdminPermission) {
@@ -884,7 +889,25 @@ export class ApiClient {
       });
 
       if (!response.ok) {
-        const details = await response.text();
+        let details: string | undefined;
+        try {
+          details = await response.text();
+        } catch (readError) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[ApiClient] Failed to read error response body", readError);
+          }
+        }
+
+        if (response.status === 401 && this.unauthorizedHandler) {
+          try {
+            await this.unauthorizedHandler();
+          } catch (handlerError) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[ApiClient] Unauthorized handler failed", handlerError);
+            }
+          }
+        }
+
         throw new ApiError(details || response.statusText, response.status);
       }
 
@@ -1155,7 +1178,7 @@ export class ApiClient {
   async getDealStageMetrics(filters?: DealFilters): Promise<DealStageMetrics[]> {
     const query = this.buildQueryString(filters);
     const response = await this.request<Array<CrmDealStageMetric | DealStageMetrics>>(
-      `/crm/deals/stage-metrics${query}`,
+      `/crm/deals/st_metrics${query}`,
       undefined,
       async () => calculateStageMetrics(filterDealsMock(dealsMock, filters)),
     );

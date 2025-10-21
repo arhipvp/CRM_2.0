@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { isAuthDisabled } from "@/lib/config";
 import { useAuthStore } from "@/stores/authStore";
 
 const PUBLIC_ROUTES = new Set<string>(["/login", "/auth"]);
+const AUTH_DISABLED = isAuthDisabled();
 
 export function AuthGuard() {
   const router = useRouter();
@@ -21,8 +23,16 @@ export function AuthGuard() {
 
   const isLoginRoute = pathname === "/login";
   const isPublicRoute = PUBLIC_ROUTES.has(pathname);
+  const authDisabled = AUTH_DISABLED;
 
   useEffect(() => {
+    if (authDisabled) {
+      if (isLoginRoute) {
+        router.replace("/");
+      }
+      return;
+    }
+
     if (!initialized) {
       return;
     }
@@ -46,7 +56,7 @@ export function AuthGuard() {
       const redirectSuffix = redirectTarget !== "/" ? `?redirect=${encodeURIComponent(redirectTarget)}` : "";
       router.replace(`/login${redirectSuffix}`);
     }
-  }, [initialized, isLoginRoute, isPublicRoute, pathname, router, searchParamsString, status, user]);
+  }, [authDisabled, initialized, isLoginRoute, isPublicRoute, pathname, router, searchParamsString, status, user]);
 
   return null;
 }
