@@ -3,6 +3,7 @@ name: crm
 description: Специалист по CRM-сервису (FastAPI/Python). Используйте при работе с клиентами, сделками, котировками, полисами, платежами, журналами сделок
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#10B981"
 ---
 
 # CRM/Deals Service Agent

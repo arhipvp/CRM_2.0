@@ -3,6 +3,7 @@ name: backup
 description: Специалист по Backup-сервису. Используйте при работе с автоматическими бэкапами PostgreSQL, Redis, RabbitMQ, Consul, S3-совместимым хранилищем
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#059669"
 ---
 
 # Backup Service Agent

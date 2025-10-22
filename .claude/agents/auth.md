@@ -3,6 +3,7 @@ name: auth
 description: Специалист по Auth-сервису (Spring Boot/Kotlin). Используйте при работе с аутентификацией, авторизацией, JWT, OAuth/OIDC, управлением пользователями и ролями
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#EF4444"
 ---
 
 # Auth Service Agent

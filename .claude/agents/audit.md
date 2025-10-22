@@ -3,6 +3,7 @@ name: audit
 description: Специалист по Audit-сервису (NestJS/TypeScript). Используйте при работе с централизованным логированием, event archival, партиционированием событий
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#6B7280"
 ---
 
 # Audit Service Agent

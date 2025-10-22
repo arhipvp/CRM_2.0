@@ -3,6 +3,7 @@ name: notifications
 description: Специалист по Notifications-сервису (NestJS/TypeScript). Используйте при работе с уведомлениями, SSE-стримами, Telegram-интеграцией, event-driven notifications
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#8B5CF6"
 ---
 
 # Notifications Service Agent

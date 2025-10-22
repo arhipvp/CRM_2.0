@@ -3,6 +3,7 @@ name: tasks
 description: Специалист по Tasks-сервису (NestJS/TypeScript). Используйте при работе с задачами, планированием, отложенными напоминаниями, SLA
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#06B6D4"
 ---
 
 # Tasks Service Agent

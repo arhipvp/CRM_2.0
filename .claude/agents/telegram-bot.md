@@ -3,6 +3,7 @@ name: telegram-bot
 description: Специалист по Telegram Bot-сервису (Python/aiogram). Используйте при работе с Telegram интеграцией, webhook'ами, FSM, уведомлениями, быстрым созданием сделок
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#0088CC"
 ---
 
 # Telegram Bot Service Agent

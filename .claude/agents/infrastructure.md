@@ -3,6 +3,7 @@ name: infrastructure
 description: Специалист по инфраструктуре и DevOps. Используйте при работе с Docker, docker-compose, миграциями БД, bootstrap-скриптами, окружением
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#DC2626"
 ---
 
 # Infrastructure Agent

@@ -3,6 +3,7 @@ name: documents
 description: Специалист по Documents-сервису (NestJS/TypeScript). Используйте при работе с файлами, метаданными документов, POSIX ACL, server-side storage
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#F59E0B"
 ---
 
 # Documents Service Agent

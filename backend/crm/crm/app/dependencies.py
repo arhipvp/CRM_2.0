@@ -76,6 +76,15 @@ async def get_current_user(
     authorization: AuthorizationHeader = None,
     access_token_cookie: AccessTokenCookie = None,
 ) -> AuthenticatedUser:
+    # If auth is disabled, return a mock admin user
+    if settings.auth_disabled:
+        from uuid import UUID
+        return AuthenticatedUser(
+            id=UUID("00000000-0000-0000-0000-000000000001"),
+            email="admin@local.dev",
+            roles=["admin"],
+        )
+
     token = _resolve_token(authorization, access_token_cookie)
 
     options: dict[str, bool] = {"verify_signature": True, "verify_exp": True}

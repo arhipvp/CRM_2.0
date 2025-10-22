@@ -3,6 +3,7 @@ name: reports
 description: Специалист по Reports-сервису (FastAPI/Python). Используйте при работе с отчётами, materialized views, аналитикой, агрегированными метриками
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
+color: "#14B8A6"
 ---
 
 # Reports Service Agent

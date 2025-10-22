@@ -3,6 +3,7 @@ name: gateway
 description: Специалист по Gateway-сервису (NestJS/TypeScript). Используйте при работе с API Gateway, сессиями, SSE-стримами, маршрутизацией запросов
 tools: Read, Write, Edit, Glob, Grep, Bash, NotebookEdit
 model: inherit
+color: "#3B82F6"
 ---
 
 # Gateway Service Agent
