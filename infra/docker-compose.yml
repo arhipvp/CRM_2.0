@@ -529,21 +529,33 @@ services:
     profiles: ["app-legacy"]
 
   frontend:
+    image: crm-frontend:latest
     build:
-      context: ../frontend-new
+      context: ../frontend
       dockerfile: Dockerfile
-    container_name: frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api/v1}
+        NEXT_PUBLIC_AUTH_DISABLED: ${NEXT_PUBLIC_AUTH_DISABLED:-true}
+        NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-http://gateway:8080/api/v1/streams/deals}
+        NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: ${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL:-http://gateway:8080/api/v1/streams/notifications}
+    container_name: crm-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_BASE_URL: http://gateway:8080/api/v1
-      NEXT_PUBLIC_AUTH_DISABLED: ${AUTH_DISABLED:-false}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api/v1}
+      NEXT_PUBLIC_AUTH_DISABLED: ${NEXT_PUBLIC_AUTH_DISABLED:-true}
     ports:
       - "${FRONTEND_SERVICE_PORT:-3000}:3000"
     depends_on:
       gateway:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - infra
     profiles: ["app"]
@@ -553,8 +565,6 @@ services:
     container_name: crm-nginx
     restart: unless-stopped
     depends_on:
-      gateway:
-        condition: service_healthy
       frontend:
         condition: service_started
     ports:
