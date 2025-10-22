@@ -33,3 +33,6 @@ jdk-25/
 .local/
 logs/
 .local/logs/dev-up.log
+
+# Claude Code local settings (agents should be tracked)
+.claude/settings.local.json
