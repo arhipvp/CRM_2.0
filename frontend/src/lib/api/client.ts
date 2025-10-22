@@ -781,6 +781,10 @@ export interface UpdateDealPayload {
   nextReviewAt: string;
 }
 
+export function isArchivedClientPolicyStatus(status: ClientPolicyStatus): boolean {
+  return status === "archived" || status === "expired" || status === "terminated";
+}
+
 export class ApiClient {
   private adminPermissions: Set<AdminPermission>;
   private clientNameCache: Map<string, string> | null = null;
