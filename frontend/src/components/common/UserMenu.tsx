@@ -3,14 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
+import { shallow } from "zustand/shallow";
 
 export function UserMenu() {
   const router = useRouter();
-  const { user, status, logout } = useAuthStore((state) => ({
-    user: state.user,
-    status: state.status,
-    logout: state.logout,
-  }));
+  const { user, status, logout } = useAuthStore(
+    (state) => ({
+      user: state.user,
+      status: state.status,
+      logout: state.logout,
+    }),
+    shallow,
+  );
   const [isProcessing, setProcessing] = useState(false);
 
   if (status === "idle" || status === "loading") {

@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { isAuthDisabled } from "@/lib/config";
 import { useAuthStore } from "@/stores/authStore";
+import { shallow } from "zustand/shallow";
 
 const PUBLIC_ROUTES = new Set<string>(["/login", "/auth"]);
 const AUTH_DISABLED = isAuthDisabled();
@@ -13,11 +14,14 @@ export function AuthGuard() {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
 
-  const { initialized, status, user } = useAuthStore((state) => ({
-    initialized: state.initialized,
-    status: state.status,
-    user: state.user,
-  }));
+  const { initialized, status, user } = useAuthStore(
+    (state) => ({
+      initialized: state.initialized,
+      status: state.status,
+      user: state.user,
+    }),
+    shallow,
+  );
 
   const searchParamsString = useMemo(() => searchParams?.toString() ?? "", [searchParams]);
 

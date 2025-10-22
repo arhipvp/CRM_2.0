@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
+import { shallow } from "zustand/shallow";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,11 +14,14 @@ export default function LoginPage() {
     const redirect = params.get("redirect");
     setRedirectTo(redirect && redirect.startsWith("/") ? redirect : "/");
   }, []);
-  const { status, error, login } = useAuthStore((state) => ({
-    status: state.status,
-    error: state.error,
-    login: state.login,
-  }));
+  const { status, error, login } = useAuthStore(
+    (state) => ({
+      status: state.status,
+      error: state.error,
+      login: state.login,
+    }),
+    shallow,
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
