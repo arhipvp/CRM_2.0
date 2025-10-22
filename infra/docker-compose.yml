@@ -495,7 +495,7 @@ services:
       - infra
     profiles: ["legacy"]
 
-  frontend:
+  frontend-old:
     build:
       context: ../frontend
       dockerfile: Dockerfile
@@ -524,6 +524,26 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "${FRONTEND_SERVICE_PORT:-3000}:3000"
+    networks:
+      - infra
+    profiles: ["app-legacy"]
+
+  frontend:
+    build:
+      context: ../frontend-new
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: http://gateway:8080/api/v1
+      NEXT_PUBLIC_AUTH_DISABLED: ${AUTH_DISABLED:-false}
+    ports:
+      - "${FRONTEND_SERVICE_PORT:-3000}:3000"
+    depends_on:
+      gateway:
+        condition: service_healthy
     networks:
       - infra
     profiles: ["app"]
