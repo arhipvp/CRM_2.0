@@ -7,7 +7,7 @@ import { DocumentEntity } from './src/documents/document.entity';
 
 const config = configuration();
 
-export const DocumentsDataSource = new DataSource({
+const DocumentsDataSource = new DataSource({
   type: 'postgres',
   url: config.database.url,
   schema: config.database.schema,
