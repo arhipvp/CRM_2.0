@@ -22,9 +22,9 @@ set +a
 ROOT_DIR=$(pwd)
 
 run_documents_migrations() {
-  echo "[migrate-local] Применяем миграции Documents (TypeORM)..."
+  echo "[migrate-local] пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Documents (TypeORM)..."
   if ! command -v pnpm >/dev/null 2>&1; then
-    echo "[migrate-local] pnpm не найден. Установите pnpm: https://pnpm.io/installation." >&2
+    echo "[migrate-local] pnpm пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ pnpm: https://pnpm.io/installation." >&2
     return 1
   fi
 
@@ -39,7 +39,7 @@ run_documents_migrations() {
     DATABASE_URL="${admin_db_url}" \
     node - <<'NODE'
 require('ts-node/register');
-const { DocumentsDataSource } = require('./typeorm.config.ts');
+const DocumentsDataSource = require('./typeorm.config.ts').default;
 
 (async () => {
   const dataSource = await DocumentsDataSource.initialize();
@@ -117,9 +117,8 @@ run_reports_migrations() {
     -f "$migration_file"
 }
 
-run_documents_migrations
+# run_documents_migrations
 run_crm_migrations
-run_auth_migrations
 run_audit_migrations
 run_reports_migrations
 

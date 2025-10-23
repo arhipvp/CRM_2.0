@@ -8,9 +8,10 @@
 
 ## Доступные субагенты
 
-### Frontend
+### Frontend & Desktop
 
 - **`frontend`** — Frontend Application (Next.js/React/TypeScript) - веб-интерфейс, SSR, React компоненты, UI/UX
+- **`desktop-app`** — Desktop Application (Python/Tkinter) - десктопное приложение, GUI, работа с API
 
 ### Микросервисы (Backend)
 
@@ -90,6 +91,25 @@ Claude использует:
 3. reports - при необходимости добавляет новые endpoints
 ```
 
+### Работа с десктопным приложением
+
+```
+Вы: "Добавь форму для управления сделками в десктоп приложение"
+
+Claude использует:
+1. desktop-app - создаёт UI в Tkinter
+2. gateway - проверяет доступность API
+3. crm - смотрит API endpoints для сделок
+```
+
+```
+Вы: "Десктоп приложение зависает при загрузке данных"
+
+Claude использует:
+1. desktop-app - добавляет threading для сетевых запросов
+2. gateway - проверяет производительность API
+```
+
 ### Разработка нового функционала
 
 ```
@@ -142,6 +162,7 @@ Claude использует:
 
 ### Технологический стек
 - **Frontend**: Next.js 15 (React 18, TypeScript) — использует **pnpm**
+- **Desktop**: Python 3.8+ (Tkinter) — использует **pip** с requirements.txt
 - **NestJS сервисы**: Gateway, Documents, Notifications, Tasks, Audit — используют **pnpm**
 - **Python сервисы**: CRM, Reports, Telegram Bot — используют **Poetry**
 - **Kotlin сервисы**: Auth — использует **Gradle wrapper**
@@ -158,17 +179,26 @@ Event-driven архитектура:
 
 ## Добавление нового субагента
 
-Если вы добавляете новый микросервис:
+Если вы добавляете новый микросервис или компонент:
 
 1. Создайте файл `.claude/agents/<service-name>.md`
 2. Используйте существующие субагенты как шаблон
 3. Заполните секции:
-   - `name`, `description`, `tools`, `model` в frontmatter
+   - `name`, `description`, `tools`, `model` в frontmatter (YAML header)
    - Область ответственности
    - Технический стек
-   - Команды
+   - Основные команды
+   - Структура проекта
+   - Ключевые особенности
    - Правила работы
    - Взаимодействие с другими сервисами
+   - Environment переменные
+   - Частые проблемы и решения
+   - Testing
+   - Debugging
+   - Troubleshooting Checklist
+4. Обновите этот README, добавив новый субагент в нужную секцию
+5. (Опционально) Добавьте примеры использования в секцию "Примеры использования"
 
 ## Полезные команды Claude Code
 

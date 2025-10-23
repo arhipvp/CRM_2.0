@@ -258,6 +258,7 @@ services:
       interval: 20s
       timeout: 5s
       retries: 5
+      start_period: 60s
     networks:
       - infra
     profiles: ["backend"]
@@ -534,16 +535,16 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api/v1}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-mock}
         NEXT_PUBLIC_AUTH_DISABLED: ${NEXT_PUBLIC_AUTH_DISABLED:-true}
-        NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-http://gateway:8080/api/v1/streams/deals}
-        NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: ${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL:-http://gateway:8080/api/v1/streams/notifications}
+        NEXT_PUBLIC_CRM_SSE_URL: ${NEXT_PUBLIC_CRM_SSE_URL:-mock}
+        NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: ${NEXT_PUBLIC_NOTIFICATIONS_SSE_URL:-mock}
     container_name: crm-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://gateway:8080/api/v1}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-mock}
       NEXT_PUBLIC_AUTH_DISABLED: ${NEXT_PUBLIC_AUTH_DISABLED:-true}
     ports:
       - "${FRONTEND_SERVICE_PORT:-3000}:3000"

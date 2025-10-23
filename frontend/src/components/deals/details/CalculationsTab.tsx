@@ -183,7 +183,7 @@ export function CalculationsTab({ calculations, isLoading, error, onRetry }: Cal
         <div className="space-y-3" aria-live="polite">
           {Array.from({ length: 3 }).map((_, index) => (
             <div
-              // eslint-disable-next-line react/no-array-index-key
+               
               key={index}
               className="h-20 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/80"
             />

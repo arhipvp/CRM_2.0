@@ -1,0 +1,274 @@
+# CRM Desktop Application
+
+A professional Python Tkinter-based desktop application for managing CRM clients, deals, and payments.
+
+## Features
+
+### Current Features
+- **Authentication**: Secure login with JWT Bearer tokens
+- **Client Management** (CRUD):
+  - View all clients in table format
+  - Add new clients with name, email, phone
+  - Edit existing client information
+  - Delete clients with confirmation
+- **Deals Viewing**: List all deals with title, client, status, and amount
+- **Payments Viewing**: View payments for selected deals
+- **Asynchronous Operations**: Non-blocking API calls using threading
+- **Error Handling**:
+  - 401 Unauthorized (session expiration) detection
+  - Connection error handling with user-friendly messages
+  - API timeout protection (10 seconds default)
+- **Logging**: Debug logging with configurable levels
+
+### Planned Features
+- Deal creation and editing
+- Payment recording and tracking
+- Advanced filtering and search
+- Report generation
+- Offline mode with local caching
+
+## Architecture
+
+### Module Structure
+
+```
+desktop_app/
+├── main.py              # Main application window with tabs
+├── login_dialog.py      # Login authentication UI
+├── config.py            # Configuration and environment variables
+├── logger.py            # Logging setup
+├── api_client.py        # HTTP client with error handling
+├── auth_service.py      # Authentication service
+├── crm_service.py       # CRM business logic
+├── deals_tab.py         # Deals management tab component
+├── payments_tab.py      # Payments viewing tab component
+├── requirements.txt     # Python dependencies
+├── .env.example         # Environment variables template
+└── README.md            # This file
+```
+
+### Design Patterns
+
+1. **Service Layer**: Separation of concerns with dedicated services
+   - `APIClient`: Low-level HTTP communication
+   - `AuthService`: Authentication logic
+   - `CRMService`: Business logic for clients, deals, payments
+
+2. **Threading**: Non-blocking operations prevent UI freezing
+   - Worker threads for API calls
+   - Main thread callback for UI updates
+
+3. **Configuration Management**: Environment-based settings
+   - `.env` file for secrets
+   - `config.py` for centralized configuration
+   - Supports development and production environments
+
+4. **Error Handling**: Graceful error recovery
+   - Custom exception `UnauthorizedException` for 401 responses
+   - Callback system for session expiration
+   - User-friendly error messages
+
+## Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- pip or poetry
+
+### Setup
+
+1. Clone or navigate to the repository:
+```bash
+cd C:/Dev/CRM_2.0/desktop_app
+```
+
+2. Create virtual environment (optional but recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Create `.env` file from template:
+```bash
+cp .env.example .env
+```
+
+5. Update `.env` with your API configuration:
+```
+DESKTOP_API_BASE_URL=http://localhost:8080/api/v1
+DESKTOP_API_TIMEOUT=10
+DESKTOP_LOG_LEVEL=INFO
+```
+
+## Usage
+
+### Starting the Application
+
+```bash
+python main.py
+```
+
+### Login
+1. Application opens with login dialog
+2. Enter username and password
+3. Click "Login" button
+4. On success, main window opens with tabs
+
+### Client Management
+1. Navigate to "Clients" tab
+2. View all clients in table
+3. **Add Client**: Click "Add" button, fill form, click "OK"
+4. **Edit Client**: Select client, click "Edit", modify, click "OK"
+5. **Delete Client**: Select client, click "Delete", confirm
+
+### Deals Viewing
+1. Navigate to "Deals" tab
+2. View all deals in table format
+3. Features for editing/creating coming soon
+
+### Payments Viewing
+1. Navigate to "Payments" tab
+2. Select deal from dropdown
+3. View associated payments
+4. Payments for multiple deals supported
+
+## API Integration
+
+### Endpoints Used
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/auth/token` | User authentication |
+| GET | `/crm/clients` | List all clients |
+| GET | `/crm/clients/{id}` | Get specific client |
+| POST | `/crm/clients` | Create client |
+| PATCH | `/crm/clients/{id}` | Update client |
+| DELETE | `/crm/clients/{id}` | Delete client |
+| GET | `/crm/deals` | List all deals |
+| GET | `/crm/deals/{id}` | Get specific deal |
+| GET | `/crm/deals/{id}/payments` | Get payments for deal |
+
+### Authentication
+
+All API requests (except login) include Bearer token:
+```
+Authorization: Bearer <access_token>
+```
+
+Token expires based on server configuration. On 401 response:
+- User sees "Session Expired" message
+- Application closes
+- User must restart and login again
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DESKTOP_API_BASE_URL` | `http://localhost:8080/api/v1` | API base URL |
+| `DESKTOP_API_TIMEOUT` | `10` | Request timeout in seconds |
+| `DESKTOP_LOG_LEVEL` | `INFO` | Logging level |
+
+### Logging
+
+Logs are printed to console with format:
+```
+2025-10-23 17:30:45,123 - crm_service - INFO - Fetched 5 clients
+```
+
+Configure level in `.env`:
+- `DEBUG`: Detailed diagnostic information
+- `INFO`: General information (default)
+- `WARNING`: Warning messages
+- `ERROR`: Error messages only
+
+## Development
+
+### Running Tests
+
+```bash
+# Unit tests (when added)
+pytest tests/unit/
+
+# E2E tests (when added)
+pytest tests/e2e/
+```
+
+### Code Style
+
+Follow PEP 8 guidelines:
+```bash
+# Format code
+black desktop_app/
+
+# Check style
+flake8 desktop_app/
+
+# Type checking
+mypy desktop_app/
+```
+
+### Adding New Features
+
+1. Create new service in `services/` if needed
+2. Create new tab component if adding UI
+3. Add methods to `CRMService` for API calls
+4. Update main.py to integrate new feature
+5. Add logging at key points
+6. Write tests
+
+## Troubleshooting
+
+### Connection Errors
+- Verify API is running on port 8080
+- Check firewall settings
+- Review logs for detailed error messages
+
+### Authentication Failures
+- Verify username and password are correct
+- Check if user has required permissions
+- Ensure token is not expired
+
+### UI Freezing
+- Application uses threading for API calls
+- If still frozen, check logs for errors
+- Increase timeout in `.env` if network is slow
+
+## Future Enhancements
+
+1. **Token Refresh**: Automatic refresh before expiration
+2. **Caching**: Local cache for offline functionality
+3. **Sync**: Background sync with server
+4. **Notifications**: Desktop notifications for updates
+5. **Analytics**: Charts and reports within app
+6. **Export**: Export client/deal data to CSV/PDF
+
+## Performance Considerations
+
+- UI thread never blocks on network calls
+- Default 10-second timeout prevents hanging
+- Pagination for large datasets (when implemented)
+- Local cache to reduce API calls (future feature)
+
+## Security
+
+- Tokens never stored to disk (in-memory only)
+- HTTPS support via requests library
+- No credentials logged to console
+- Environment variables for sensitive config
+
+## License
+
+Internal use only - CRM_2.0 Project
+
+## Support
+
+For issues or questions:
+1. Check logs: Application logs to console
+2. Review API health: `http://localhost:8080/api/v1/gateway/health`
+3. Check error messages in application dialogs

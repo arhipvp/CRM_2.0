@@ -2219,7 +2219,7 @@ export function getServerApiClient(config: ApiClientConfig = {}) {
   const serverConfig: ApiClientConfig = { ...config };
   if (typeof window === "undefined") {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+       
       const { cookies } = require("next/headers") as typeof import("next/headers");
       const cookieStore = cookies();
       const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -2232,7 +2232,7 @@ export function getServerApiClient(config: ApiClientConfig = {}) {
       }
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
+         
         console.warn("[ApiClient] Unable to read authentication cookies on server", error);
       }
     }

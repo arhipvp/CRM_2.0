@@ -220,7 +220,7 @@ export function DealDetails({ dealId }: { dealId: string }) {
           />
         );
       case "finance":
-        return <FinanceTab summary={currentDeal.finance} />;
+        return <FinanceTab summary={currentDeal.finance} deal={currentDeal as any} />;
       default:
         return null;
     }

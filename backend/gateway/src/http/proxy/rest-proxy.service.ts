@@ -133,7 +133,15 @@ export class RestProxyService {
         return;
       }
 
-      const headerValue = Array.isArray(value) ? value : String(value);
+      let headerValue: string | string[] = Array.isArray(value) ? value.map(String) : String(value);
+
+      // Rewrite Location header for redirects to use localhost instead of internal Docker DNS names
+      if (headerKey === 'location' && status >= 300 && status < 400) {
+        headerValue = Array.isArray(headerValue)
+          ? headerValue.map((item) => this.rewriteLocationHeader(item))
+          : this.rewriteLocationHeader(headerValue);
+      }
+
       res.setHeader(key, headerValue);
     });
 
@@ -178,6 +186,31 @@ export class RestProxyService {
       this.logger.warn(`Response transform failed: ${(error as Error).message}`);
       return data;
     }
+  }
+
+  private rewriteLocationHeader(location: string): string {
+    // Map of internal Docker service names to localhost ports
+    const internalServiceMap: Record<string, string> = {
+      'crm:8082': 'localhost:8080',
+      'auth:8081': 'localhost:8080',
+      'notifications:8085': 'localhost:8080',
+      'documents:8084': 'localhost:8080',
+      'tasks:8086': 'localhost:8080',
+      'payments:8083': 'localhost:8080',
+    };
+
+    let rewritten = location;
+
+    // Replace internal Docker service names with gateway proxy URLs
+    for (const [internal, external] of Object.entries(internalServiceMap)) {
+      const serviceUrl = `http://${internal}`;
+      if (rewritten.includes(serviceUrl)) {
+        rewritten = rewritten.replace(new RegExp(serviceUrl, 'g'), `http://${external}`);
+        break;
+      }
+    }
+
+    return rewritten;
   }
 
   private buildUrl(baseUrl: string, path: string): string {

@@ -1,17 +1,21 @@
+"""Main application module for CRM Desktop App"""
 import tkinter as tk
 from tkinter import ttk, messagebox
-import requests
-import json
-from uuid import UUID
+from threading import Thread
+from typing import Optional
 
 from login_dialog import LoginDialog
+from api_client import APIClient, UnauthorizedException
+from auth_service import AuthService
+from crm_service import CRMService
+from logger import logger
+from deals_tab import DealsTab
+from payments_tab import PaymentsTab
 
-# --- API Configuration ---
-BASE_URL = "http://173.249.7.183/api/v1"
-AUTH_TOKEN_URL = f"{BASE_URL}/auth/token"
-CRM_CLIENTS_URL = f"{BASE_URL}/crm/clients"
 
 class CustomerDialog(tk.Toplevel):
+    """Dialog for adding/editing customers"""
+
     def __init__(self, parent, customer=None):
         super().__init__(parent)
         self.transient(parent)
@@ -53,7 +57,7 @@ class CustomerDialog(tk.Toplevel):
             return
 
         self.result = {
-            "id": str(self.customer["id"]) if self.customer else None, # Ensure UUID is string
+            "id": str(self.customer["id"]) if self.customer else None,
             "name": name,
             "email": self.email_var.get().strip(),
             "phone": self.phone_var.get().strip()
@@ -62,23 +66,65 @@ class CustomerDialog(tk.Toplevel):
 
 
 class App(tk.Tk):
+    """Main application window"""
+
     def __init__(self):
         super().__init__()
-        self.title("Simple CRM")
+        self.title("CRM Desktop Application")
         self.geometry("700x400")
 
-        self.access_token = None
-        self.headers = {}
+        self.api_client: Optional[APIClient] = None
+        self.crm_service: Optional[CRMService] = None
+        self.tree: Optional[ttk.Treeview] = None
 
+        # Show login dialog
         self.show_login_dialog()
 
         # If login was cancelled or failed, exit the app
-        if not self.access_token:
+        if not self.api_client:
             self.destroy()
             return
 
+        # Setup UI
+        self._setup_ui()
+
+        # Setup 401 callback
+        self.api_client.set_unauthorized_callback(self._on_unauthorized)
+
+        self.refresh_tree()
+
+    def show_login_dialog(self):
+        """Show login dialog and authenticate user"""
+        dialog = LoginDialog(self)
+        if dialog.result:
+            username = dialog.result["username"]
+            password = dialog.result["password"]
+            try:
+                access_token = AuthService.login(username, password)
+                if access_token:
+                    self.api_client = APIClient(access_token)
+                    self.crm_service = CRMService(self.api_client)
+                else:
+                    messagebox.showerror("Login Error", "Invalid credentials.")
+                    self.api_client = None
+            except Exception as e:
+                messagebox.showerror("Login Error", f"Failed to login: {e}")
+                self.api_client = None
+        else:
+            self.api_client = None  # Login cancelled
+
+    def _setup_ui(self):
+        """Setup user interface with tabs"""
+        # Create tab interface
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(pady=10, padx=10, fill="both", expand=True)
+
+        # --- Clients Tab ---
+        clients_frame = ttk.Frame(self.notebook)
+        self.notebook.add(clients_frame, text="Clients")
+
         # Frame for Treeview and Scrollbar
-        tree_frame = tk.Frame(self)
+        tree_frame = tk.Frame(clients_frame)
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.tree = ttk.Treeview(tree_frame, columns=("ID", "Name", "Email", "Phone"), show="headings")
@@ -99,101 +145,126 @@ class App(tk.Tk):
         scrollbar.pack(side="right", fill="y")
 
         # Frame for buttons
-        button_frame = tk.Frame(self)
+        button_frame = tk.Frame(clients_frame)
         button_frame.pack(pady=10)
 
         tk.Button(button_frame, text="Add", command=self.add_customer).pack(side="left", padx=5)
         tk.Button(button_frame, text="Edit", command=self.edit_customer).pack(side="left", padx=5)
         tk.Button(button_frame, text="Delete", command=self.delete_customer).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Exit", command=self.quit).pack(side="left", padx=20)
 
-        self.refresh_tree()
+        # --- Deals Tab ---
+        deals_frame = ttk.Frame(self.notebook)
+        self.notebook.add(deals_frame, text="Deals")
+        self.deals_tab = DealsTab(deals_frame, self.crm_service)
 
-    def show_login_dialog(self):
-        dialog = LoginDialog(self)
-        if dialog.result:
-            username = dialog.result["username"]
-            password = dialog.result["password"]
-            try:
-                response = requests.post(AUTH_TOKEN_URL, json={
-                    "username": username,
-                    "password": password
-                })
-                response.raise_for_status() # Raise an exception for HTTP errors
-                token_data = response.json()
-                self.access_token = token_data["accessToken"]
-                self.headers = {"Authorization": f"Bearer {self.access_token}"}
-            except requests.exceptions.RequestException as e:
-                messagebox.showerror("Login Error", f"Failed to login: {e}")
-                self.access_token = None
-            except KeyError:
-                messagebox.showerror("Login Error", "Invalid token response from server.")
-                self.access_token = None
-        else:
-            self.access_token = None # Login cancelled
+        # --- Payments Tab ---
+        payments_frame = ttk.Frame(self.notebook)
+        self.notebook.add(payments_frame, text="Payments")
+        self.payments_tab = PaymentsTab(payments_frame, self.crm_service)
+
+        # Exit button
+        exit_button_frame = tk.Frame(self)
+        exit_button_frame.pack(pady=10)
+        tk.Button(exit_button_frame, text="Exit", command=self.quit).pack(padx=20)
 
     def refresh_tree(self):
+        """Refresh client list asynchronously"""
+        def worker():
+            try:
+                clients = self.crm_service.get_clients()
+                self.after(0, self._update_tree_ui, clients)
+            except Exception as e:
+                logger.error(f"Failed to fetch clients: {e}")
+                self.after(0, self._handle_api_error, f"Failed to fetch clients: {e}")
+
+        Thread(target=worker, daemon=True).start()
+
+    def _update_tree_ui(self, clients):
+        """Update tree UI on main thread"""
+        if not self.tree:
+            return
         for i in self.tree.get_children():
             self.tree.delete(i)
-        try:
-            response = requests.get(CRM_CLIENTS_URL, headers=self.headers)
-            response.raise_for_status()
-            clients = response.json()
-            for client in clients:
-                self.tree.insert("", "end", values=(client["id"], client["name"], client["email"], client["phone"]))
-        except requests.exceptions.RequestException as e:
-            messagebox.showerror("API Error", f"Failed to fetch clients: {e}")
-            self.access_token = None # Invalidate token on API error
-            self.destroy()
+        for client in clients:
+            self.tree.insert("", "end", values=(client["id"], client["name"], client["email"], client["phone"]))
+
+    def _handle_api_error(self, error_msg):
+        """Handle API errors on main thread"""
+        messagebox.showerror("API Error", error_msg)
+        self.api_client = None
+        self.destroy()
+
+    def _on_unauthorized(self):
+        """Handle 401 Unauthorized response"""
+        logger.warning("Session expired, re-login required")
+        messagebox.showwarning("Session Expired", "Your session has expired. Please login again.")
+        self.api_client = None
+        self.destroy()
 
     def add_customer(self):
+        """Add new customer"""
         dialog = CustomerDialog(self)
         if dialog.result:
-            new_customer_data = {
-                "name": dialog.result["name"],
-                "email": dialog.result["email"],
-                "phone": dialog.result["phone"]
-            }
-            try:
-                response = requests.post(CRM_CLIENTS_URL, json=new_customer_data, headers=self.headers)
-                response.raise_for_status()
-                self.refresh_tree()
-            except requests.exceptions.RequestException as e:
-                messagebox.showerror("API Error", f"Failed to add client: {e}")
+            def worker():
+                try:
+                    self.crm_service.create_client(
+                        dialog.result["name"],
+                        dialog.result["email"],
+                        dialog.result["phone"]
+                    )
+                    self.after(0, self.refresh_tree)
+                except Exception as e:
+                    logger.error(f"Failed to add client: {e}")
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to add client: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def edit_customer(self):
+        """Edit selected customer"""
+        if not self.tree:
+            return
         selected_item = self.tree.focus()
         if not selected_item:
             messagebox.showwarning("Warning", "Please select a customer to edit.")
             return
 
         item_values = self.tree.item(selected_item)["values"]
-        client_id = item_values[0] # UUID as string
+        client_id = item_values[0]  # UUID as string
 
-        # Fetch current client data to pre-fill dialog
-        try:
-            response = requests.get(f"{CRM_CLIENTS_URL}/{client_id}", headers=self.headers)
-            response.raise_for_status()
-            current_customer = response.json()
-        except requests.exceptions.RequestException as e:
-            messagebox.showerror("API Error", f"Failed to fetch client for editing: {e}")
-            return
+        # Fetch current client data asynchronously
+        def fetch_and_edit():
+            try:
+                current_customer = self.crm_service.get_client(client_id)
+                self.after(0, lambda: self._show_edit_dialog(client_id, current_customer))
+            except Exception as e:
+                logger.error(f"Failed to fetch client for editing: {e}")
+                self.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch client: {e}"))
 
+        Thread(target=fetch_and_edit, daemon=True).start()
+
+    def _show_edit_dialog(self, client_id, current_customer):
+        """Show edit dialog on main thread"""
         dialog = CustomerDialog(self, customer=current_customer)
         if dialog.result:
-            updated_customer_data = {
-                "name": dialog.result["name"],
-                "email": dialog.result["email"],
-                "phone": dialog.result["phone"]
-            }
-            try:
-                response = requests.patch(f"{CRM_CLIENTS_URL}/{client_id}", json=updated_customer_data, headers=self.headers)
-                response.raise_for_status()
-                self.refresh_tree()
-            except requests.exceptions.RequestException as e:
-                messagebox.showerror("API Error", f"Failed to update client: {e}")
+            def worker():
+                try:
+                    self.crm_service.update_client(
+                        client_id,
+                        dialog.result["name"],
+                        dialog.result["email"],
+                        dialog.result["phone"]
+                    )
+                    self.after(0, self.refresh_tree)
+                except Exception as e:
+                    logger.error(f"Failed to update client: {e}")
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to update client: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def delete_customer(self):
+        """Delete selected customer"""
+        if not self.tree:
+            return
         selected_item = self.tree.focus()
         if not selected_item:
             messagebox.showwarning("Warning", "Please select a customer to delete.")
@@ -201,13 +272,17 @@ class App(tk.Tk):
 
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this customer?"):
             item_values = self.tree.item(selected_item)["values"]
-            client_id = item_values[0] # UUID as string
-            try:
-                response = requests.delete(f"{CRM_CLIENTS_URL}/{client_id}", headers=self.headers)
-                response.raise_for_status()
-                self.refresh_tree()
-            except requests.exceptions.RequestException as e:
-                messagebox.showerror("API Error", f"Failed to delete client: {e}")
+            client_id = item_values[0]  # UUID as string
+
+            def worker():
+                try:
+                    self.crm_service.delete_client(client_id)
+                    self.after(0, self.refresh_tree)
+                except Exception as e:
+                    logger.error(f"Failed to delete client: {e}")
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete client: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
 
 if __name__ == "__main__":
