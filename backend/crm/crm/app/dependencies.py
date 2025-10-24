@@ -149,7 +149,14 @@ async def get_current_user(
 
     roles: list[str] = []
     if isinstance(roles_payload, list):
-        roles = [str(role) for role in roles_payload if isinstance(role, (str, bytes))]
+        for role in roles_payload:
+            if isinstance(role, str):
+                roles.append(role)
+            elif isinstance(role, bytes):
+                try:
+                    roles.append(role.decode("utf-8"))
+                except UnicodeDecodeError:
+                    continue
 
     return AuthenticatedUser(id=user_id, email=email, roles=roles)
 

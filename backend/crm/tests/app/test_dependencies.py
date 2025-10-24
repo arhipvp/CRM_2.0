@@ -172,6 +172,26 @@ async def test_get_current_user_accepts_cookie():
 
 
 @pytest.mark.asyncio()
+async def test_get_current_user_decodes_byte_roles(monkeypatch: pytest.MonkeyPatch):
+    from crm.app import dependencies
+    from crm.app.dependencies import get_current_user
+
+    token = "token-with-bytes"
+
+    decoded_payload = {
+        "sub": str(uuid4()),
+        "email": "binary@example.com",
+        "roles": [b"admin", "editor"],
+    }
+
+    monkeypatch.setattr(dependencies.jwt, "decode", lambda *args, **kwargs: decoded_payload)
+
+    user = await get_current_user(f"Bearer {token}")
+
+    assert user.roles == ["admin", "editor"]
+
+
+@pytest.mark.asyncio()
 async def test_get_current_user_falls_back_to_cookie_for_invalid_header():
     from crm.app.dependencies import get_current_user
 
