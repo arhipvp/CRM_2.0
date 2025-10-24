@@ -728,13 +728,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", income.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(income.currency) if income.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(income.currency) != normalized_currency:
-            income.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         income = await self.incomes.update_income(income, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentIncomeRead.model_validate(income)
@@ -818,13 +819,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", expense.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(expense.currency) if expense.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(expense.currency) != normalized_currency:
-            expense.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         expense = await self.expenses.update_expense(expense, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentExpenseRead.model_validate(expense)
