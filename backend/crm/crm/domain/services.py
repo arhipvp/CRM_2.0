@@ -647,7 +647,8 @@ class PaymentService:
             planned_date = update_data.get("planned_date", payment.planned_date)
             if planned_date is not None and actual_date < planned_date:
                 raise repositories.RepositoryError("actual_date_before_planned_date")
-            if actual_date > date.today():
+            local_today = datetime.now(timezone.utc).astimezone().date()
+            if actual_date > local_today:
                 raise repositories.RepositoryError("actual_date_in_future")
 
         await self.payments.update_payment(payment, update_data)
