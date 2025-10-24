@@ -43,9 +43,9 @@ interface PaymentStage {
 #### Логика расчёта этапов
 
 1. **Документы** - всегда "completed" (создан платёж)
-2. **Ожидание** - "waiting" если статус `planned` или `expected`, иначе "completed"
-3. **Получен** - "completed" если статус `received` или `paid_out`, иначе "pending"
-4. **Распределение** - "completed" если статус `paid_out`, иначе "pending"
+2. **Ожидание** - "waiting" если статус `scheduled`, "failed" если `cancelled`, иначе "completed"
+3. **Получен** - "completed" если статус `paid`, "waiting" если `partially_paid`, "failed" если `cancelled`, иначе "pending"
+4. **Распределение** - "completed" если статус `paid`, "failed" если `cancelled`, иначе "pending"
 
 #### Пример использования
 
@@ -283,7 +283,7 @@ export function PaymentOverview({ payment }: { payment: Payment }) {
 ### PaymentStatus (из types/crm.ts)
 
 ```typescript
-type PaymentStatus = "planned" | "expected" | "received" | "paid_out" | "cancelled";
+type PaymentStatus = "scheduled" | "partially_paid" | "paid" | "cancelled";
 ```
 
 ### Payment (из types/crm.ts)
@@ -476,7 +476,7 @@ import { PaymentTimeline } from './PaymentTimeline';
 
 describe('PaymentTimeline', () => {
   it('renders all 4 stages', () => {
-    const payment = mockPayment({ status: 'expected' });
+    const payment = mockPayment({ status: 'scheduled' });
     render(<PaymentTimeline payment={payment} dealId="123" />);
 
     expect(screen.getByText('Документы')).toBeInTheDocument();
@@ -486,12 +486,12 @@ describe('PaymentTimeline', () => {
   });
 
   it('shows correct stages status', () => {
-    const payment = mockPayment({ status: 'received' });
+    const payment = mockPayment({ status: 'paid' });
     render(<PaymentTimeline payment={payment} dealId="123" />);
 
     // Документы и ожидание должны быть завершены
     // Получен должен быть завершён
-    // Распределение должно быть в ожидании
+    // Распределение должно быть завершено
   });
 
   it('calculates days until due correctly', () => {
@@ -499,7 +499,7 @@ describe('PaymentTimeline', () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const payment = mockPayment({
-      status: 'expected',
+      status: 'scheduled',
       dueDate: tomorrow.toISOString(),
     });
 

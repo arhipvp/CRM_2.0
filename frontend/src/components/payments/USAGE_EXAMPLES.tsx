@@ -253,7 +253,7 @@ export function CustomTimelineView({ payment }: { payment: Payment }) {
 export function PaymentsDashboardWidget({ payments }: { payments: Payment[] }) {
   const overduePayments = payments.filter((p) => {
     const dueDate = p.dueDate ?? p.plannedDate;
-    if (!dueDate || p.status === "received" || p.status === "paid_out") return false;
+    if (!dueDate || p.status === "paid" || p.status === "cancelled") return false;
     return new Date(dueDate).getTime() < Date.now();
   });
 
@@ -418,7 +418,12 @@ function calculateStagesHelper(payment: Payment): PaymentStage[] {
     {
       id: "awaiting",
       label: "Ожидание",
-      status: payment.status === "planned" || payment.status === "expected" ? "waiting" : "completed",
+      status:
+        payment.status === "scheduled"
+          ? "waiting"
+          : payment.status === "cancelled"
+          ? "failed"
+          : "completed",
       dueDate: payment.dueDate ?? payment.plannedDate,
       daysUntilDue,
       isOverdue,
@@ -426,13 +431,25 @@ function calculateStagesHelper(payment: Payment): PaymentStage[] {
     {
       id: "received",
       label: "Получен",
-      status: payment.status === "received" || payment.status === "paid_out" ? "completed" : "pending",
+      status:
+        payment.status === "paid"
+          ? "completed"
+          : payment.status === "cancelled"
+          ? "failed"
+          : payment.status === "partially_paid"
+          ? "waiting"
+          : "pending",
       completedAt: payment.actualDate ?? payment.paidAt,
     },
     {
       id: "distributed",
       label: "Распределение",
-      status: payment.status === "paid_out" ? "completed" : "pending",
+      status:
+        payment.status === "paid"
+          ? "completed"
+          : payment.status === "cancelled"
+          ? "failed"
+          : "pending",
       completedAt: payment.updatedAt,
     },
   ];
