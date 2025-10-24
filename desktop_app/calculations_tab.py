@@ -89,8 +89,7 @@ class CalculationsTab(ttk.Frame):
             tree_frame,
             columns=columns,
             show="headings",
-            yscrollcommand=scrollbar.set,
-            height=20
+            yscrollcommand=scrollbar.set
         )
         scrollbar.config(command=self.tree.yview)
 
@@ -207,6 +206,10 @@ class CalculationsTab(ttk.Frame):
 
         logger.info(f"Tree now has {len(self.tree.get_children())} rows")
 
+        # Force UI update to ensure rows are visible
+        self.tree.update()
+        self.update_idletasks()
+
     def apply_filters(self):
         """Apply filter to calculations"""
         status_filter = self.status_filter.get()
@@ -234,6 +237,10 @@ class CalculationsTab(ttk.Frame):
                         is_deleted
                     )
                 )
+
+        # Force UI update to ensure rows are visible
+        self.tree.update()
+        self.update_idletasks()
 
     def on_calculation_select(self, event):
         """Handle calculation selection"""

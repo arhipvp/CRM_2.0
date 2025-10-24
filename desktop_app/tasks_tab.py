@@ -88,8 +88,7 @@ class TasksTab(ttk.Frame):
             tree_frame,
             columns=columns,
             show="headings",
-            yscrollcommand=scrollbar.set,
-            height=20
+            yscrollcommand=scrollbar.set
         )
         scrollbar.config(command=self.tree.yview)
 
@@ -172,6 +171,10 @@ class TasksTab(ttk.Frame):
                 logger.error(f"Failed to insert task row: {e}")
 
         logger.info(f"Tree now has {len(self.tree.get_children())} rows")
+
+        # Force UI update to ensure rows are visible
+        self.tree.update()
+        self.update_idletasks()
 
     def apply_filters(self):
         """Apply filter to tasks"""
@@ -335,6 +338,10 @@ class TasksTab(ttk.Frame):
                     is_deleted
                 )
             )
+
+        # Force UI update to ensure rows are visible
+        self.tree.update()
+        self.update_idletasks()
 
     def export_to_csv(self):
         """Export tasks to CSV file"""
