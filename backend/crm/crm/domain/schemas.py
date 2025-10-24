@@ -92,7 +92,7 @@ _STATUS_TO_STAGE: dict[str, DealStage] = {
 }
 
 _STAGE_TO_STATUS: dict[DealStage, str] = {
-    "qualification": "draft",
+    "qualification": "qualification",
     "negotiation": "in_progress",
     "proposal": "proposal",
     "closedWon": "won",
