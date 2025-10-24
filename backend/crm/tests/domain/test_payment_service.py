@@ -48,6 +48,23 @@ def test_validate_transaction_allows_same_local_day(monkeypatch: pytest.MonkeyPa
     )
 
 
+def test_validate_transaction_accepts_case_insensitive_currency() -> None:
+    service = _build_service()
+    payment = SimpleNamespace(currency="USD")
+
+    service._validate_transaction_input(payment, currency=" usd ", posted_at=None)
+
+
+def test_validate_transaction_rejects_currency_mismatch() -> None:
+    service = _build_service()
+    payment = SimpleNamespace(currency="EUR")
+
+    with pytest.raises(services.repositories.RepositoryError) as excinfo:
+        service._validate_transaction_input(payment, currency="usd", posted_at=None)
+
+    assert str(excinfo.value) == "currency_mismatch"
+
+
 def test_validate_transaction_rejects_future_local_day(monkeypatch: pytest.MonkeyPatch) -> None:
     service = _build_service()
     payment = SimpleNamespace(currency="RUB")
