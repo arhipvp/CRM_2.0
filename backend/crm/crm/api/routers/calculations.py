@@ -92,7 +92,9 @@ async def change_calculation_status(
     try:
         calculation = await service.change_status(tenant_id, deal_id, calculation_id, payload)
     except RepositoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        detail = str(exc)
+        status_code = status.HTTP_404_NOT_FOUND if detail == "policy_not_found" else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     if calculation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="calculation_not_found")
     return calculation
