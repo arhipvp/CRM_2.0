@@ -65,12 +65,19 @@ class DealDetailDialog(tk.Toplevel):
         super().__init__(parent)
         self.transient(parent)
         self.title(i18n("Deal Details"))
-        self.geometry("900x700")
+        self.geometry("1000x750")
         self.deal_data = deal_data
         self.crm_service = crm_service
+        self.parent_app = parent
         self.policies = []
         self.calculations = []
         self.payments = []
+        self.all_clients = []
+
+        # Store IDs for display in trees
+        self.policy_id_map = {}  # Maps tree item ID to policy ID
+        self.calculation_id_map = {}  # Maps tree item ID to calculation ID
+        self.payment_id_map = {}  # Maps tree item ID to payment ID
 
         self._create_widgets()
         self._load_dependent_data()
@@ -256,15 +263,20 @@ class DealDetailDialog(tk.Toplevel):
         summary_frame = ttk.LabelFrame(parent, text=i18n("Financial Summary"))
         summary_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        fields = [
-            (i18n("Total Income"), "0.00"),
-            (i18n("Total Expenses"), "0.00"),
-            (i18n("Net"), "0.00"),
-        ]
+        # Total Income
+        ttk.Label(summary_frame, text=f"{i18n('Total Income')}:").grid(row=0, column=0, sticky="w", padx=10, pady=5)
+        self.income_label = ttk.Label(summary_frame, text="0.00", font=("Arial", 12, "bold"))
+        self.income_label.grid(row=0, column=1, sticky="w", padx=10, pady=5)
 
-        for i, (label, value) in enumerate(fields):
-            ttk.Label(summary_frame, text=f"{label}:").grid(row=i, column=0, sticky="w", padx=10, pady=5)
-            ttk.Label(summary_frame, text=str(value), font=("Arial", 12, "bold")).grid(row=i, column=1, sticky="w", padx=10, pady=5)
+        # Total Expenses
+        ttk.Label(summary_frame, text=f"{i18n('Total Expenses')}:").grid(row=1, column=0, sticky="w", padx=10, pady=5)
+        self.expenses_label = ttk.Label(summary_frame, text="0.00", font=("Arial", 12, "bold"))
+        self.expenses_label.grid(row=1, column=1, sticky="w", padx=10, pady=5)
+
+        # Net
+        ttk.Label(summary_frame, text=f"{i18n('Net')}:").grid(row=2, column=0, sticky="w", padx=10, pady=5)
+        self.net_label = ttk.Label(summary_frame, text="0.00", font=("Arial", 12, "bold"))
+        self.net_label.grid(row=2, column=1, sticky="w", padx=10, pady=5)
 
     def _load_dependent_data(self):
         """Load policies, calculations, and payments asynchronously"""
@@ -272,6 +284,7 @@ class DealDetailDialog(tk.Toplevel):
         def worker():
             try:
                 deal_id = self.deal_data.get("id", "")
+                self.all_clients = self.crm_service.get_clients()
                 self.policies = self.crm_service.get_policies()
                 self.calculations = self.crm_service.get_calculations(deal_id)
                 self.payments = self.crm_service.get_payments(deal_id)
@@ -284,63 +297,258 @@ class DealDetailDialog(tk.Toplevel):
 
     def _update_dependent_data(self):
         """Update the tree views with loaded data"""
-        # Update Policies
+        self._update_policies_tree()
+        self._update_calculations_tree()
+        self._update_payments_tree()
+        self._update_finances()
+
+    def _add_policy(self):
+        """Add policy to deal"""
+        from edit_dialogs import PolicyEditDialog
+        dialog = PolicyEditDialog(self, self.crm_service, clients_list=self.all_clients, policy=None)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.create_policy(**dialog.result)
+                    self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Policy created successfully")))
+                    self.after(0, self._reload_policies)
+                except Exception as e:
+                    from logger import logger
+                    logger.error(f"Failed to create policy: {e}")
+                    self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to create policy: {str(e)}"))
+            from threading import Thread
+            Thread(target=worker, daemon=True).start()
+
+    def _delete_policy(self):
+        """Delete policy from deal"""
+        try:
+            selected = self.policies_tree.selection()[0]
+        except:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a policy to delete"))
+            return
+
+        if not messagebox.askyesno(i18n("Confirm Delete"), i18n("Are you sure you want to delete this")):
+            return
+
+        policy_id = self.policy_id_map.get(selected)
+        if not policy_id:
+            messagebox.showerror(i18n("Error"), "Policy ID not found")
+            return
+
+        def worker():
+            try:
+                self.crm_service.delete_policy(policy_id)
+                self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Policy deleted successfully")))
+                self.after(0, self._reload_policies)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to delete policy: {e}")
+                self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to delete policy: {str(e)}"))
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _add_calculation(self):
+        """Add calculation to deal"""
+        from edit_dialogs import CalculationEditDialog
+        dialog = CalculationEditDialog(self, self.crm_service, deals_list=[self.deal_data], calculation=None)
+        if dialog.result:
+            def worker():
+                try:
+                    deal_id = self.deal_data.get("id", "")
+                    self.crm_service.create_calculation(deal_id, **dialog.result)
+                    self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Calculation created successfully")))
+                    self.after(0, self._reload_calculations)
+                except Exception as e:
+                    from logger import logger
+                    logger.error(f"Failed to create calculation: {e}")
+                    self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to create calculation: {str(e)}"))
+            from threading import Thread
+            Thread(target=worker, daemon=True).start()
+
+    def _delete_calculation(self):
+        """Delete calculation from deal"""
+        try:
+            selected = self.calculations_tree.selection()[0]
+        except:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a calculation to delete"))
+            return
+
+        if not messagebox.askyesno(i18n("Confirm Delete"), i18n("Are you sure you want to delete this")):
+            return
+
+        calc_id = self.calculation_id_map.get(selected)
+        if not calc_id:
+            messagebox.showerror(i18n("Error"), "Calculation ID not found")
+            return
+
+        def worker():
+            try:
+                deal_id = self.deal_data.get("id", "")
+                self.crm_service.delete_calculation(deal_id, calc_id)
+                self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Calculation deleted successfully")))
+                self.after(0, self._reload_calculations)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to delete calculation: {e}")
+                self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to delete calculation: {str(e)}"))
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _add_payment(self):
+        """Add payment to deal"""
+        from edit_dialogs import PaymentEditDialog
+        dialog = PaymentEditDialog(self, self.crm_service, deals_list=[self.deal_data], policies_list=self.policies, payment=None)
+        if dialog.result:
+            def worker():
+                try:
+                    deal_id = self.deal_data.get("id", "")
+                    self.crm_service.create_payment(deal_id, **dialog.result)
+                    self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Payment created successfully")))
+                    self.after(0, self._reload_payments)
+                except Exception as e:
+                    from logger import logger
+                    logger.error(f"Failed to create payment: {e}")
+                    self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to create payment: {str(e)}"))
+            from threading import Thread
+            Thread(target=worker, daemon=True).start()
+
+    def _delete_payment(self):
+        """Delete payment from deal"""
+        try:
+            selected = self.payments_tree.selection()[0]
+        except:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a payment to delete"))
+            return
+
+        if not messagebox.askyesno(i18n("Confirm Delete"), i18n("Are you sure you want to delete this")):
+            return
+
+        payment_id = self.payment_id_map.get(selected)
+        if not payment_id:
+            messagebox.showerror(i18n("Error"), "Payment ID not found")
+            return
+
+        def worker():
+            try:
+                self.crm_service.delete_payment(payment_id)
+                self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Payment deleted successfully")))
+                self.after(0, self._reload_payments)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to delete payment: {e}")
+                self.after(0, lambda: messagebox.showerror(i18n("Error"), f"Failed to delete payment: {str(e)}"))
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _reload_policies(self):
+        """Reload policies data"""
+        def worker():
+            try:
+                self.policies = self.crm_service.get_policies()
+                self.after(0, self._update_policies_tree)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to reload policies: {e}")
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _reload_calculations(self):
+        """Reload calculations data"""
+        def worker():
+            try:
+                deal_id = self.deal_data.get("id", "")
+                self.calculations = self.crm_service.get_calculations(deal_id)
+                self.after(0, self._update_calculations_tree)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to reload calculations: {e}")
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _reload_payments(self):
+        """Reload payments data"""
+        def worker():
+            try:
+                deal_id = self.deal_data.get("id", "")
+                self.payments = self.crm_service.get_payments(deal_id)
+                self.after(0, self._update_payments_tree)
+                self.after(0, self._update_finances)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to reload payments: {e}")
+
+        from threading import Thread
+        Thread(target=worker, daemon=True).start()
+
+    def _update_policies_tree(self):
+        """Update policies tree view"""
+        # Clear existing items
+        for item in self.policies_tree.get_children():
+            self.policies_tree.delete(item)
+
+        self.policy_id_map.clear()
+
+        # Add policies
         for policy in self.policies:
-            self.policies_tree.insert("", "end", values=(
+            item_id = self.policies_tree.insert("", "end", values=(
                 policy.get("policy_number", "N/A"),
                 policy.get("status", "N/A"),
                 policy.get("premium", "N/A"),
                 policy.get("effective_from", "N/A"),
                 policy.get("effective_to", "N/A"),
             ))
+            self.policy_id_map[item_id] = policy.get("id")
 
-        # Update Calculations
+    def _update_calculations_tree(self):
+        """Update calculations tree view"""
+        # Clear existing items
+        for item in self.calculations_tree.get_children():
+            self.calculations_tree.delete(item)
+
+        self.calculation_id_map.clear()
+
+        # Add calculations
         for calc in self.calculations:
-            self.calculations_tree.insert("", "end", values=(
+            item_id = self.calculations_tree.insert("", "end", values=(
                 calc.get("insurance_company", "N/A"),
                 calc.get("program_name", "N/A"),
                 calc.get("premium_amount", "N/A"),
                 calc.get("coverage_sum", "N/A"),
             ))
+            self.calculation_id_map[item_id] = calc.get("id")
 
-        # Update Payments
+    def _update_payments_tree(self):
+        """Update payments tree view"""
+        # Clear existing items
+        for item in self.payments_tree.get_children():
+            self.payments_tree.delete(item)
+
+        self.payment_id_map.clear()
+
+        # Add payments
         for payment in self.payments:
-            self.payments_tree.insert("", "end", values=(
+            item_id = self.payments_tree.insert("", "end", values=(
                 payment.get("actual_date", payment.get("planned_date", "N/A")),
                 payment.get("incomes_total", "N/A"),
                 payment.get("status", "N/A"),
                 payment.get("planned_amount", "N/A"),
             ))
+            self.payment_id_map[item_id] = payment.get("id")
 
-    def _add_policy(self):
-        """Add policy to deal"""
-        from tkinter import messagebox
-        messagebox.showinfo(i18n("Info"), "Add policy feature coming soon")
+    def _update_finances(self):
+        """Update financial summary"""
+        total_income = sum(float(p.get("incomes_total", 0) or 0) for p in self.payments)
+        total_expenses = sum(float(p.get("expenses_total", 0) or 0) for p in self.payments)
+        net = total_income - total_expenses
 
-    def _delete_policy(self):
-        """Delete policy from deal"""
-        from tkinter import messagebox
-        messagebox.showwarning(i18n("Warning"), "Delete policy feature coming soon")
-
-    def _add_calculation(self):
-        """Add calculation to deal"""
-        from tkinter import messagebox
-        messagebox.showinfo(i18n("Info"), "Add calculation feature coming soon")
-
-    def _delete_calculation(self):
-        """Delete calculation from deal"""
-        from tkinter import messagebox
-        messagebox.showwarning(i18n("Warning"), "Delete calculation feature coming soon")
-
-    def _add_payment(self):
-        """Add payment to deal"""
-        from tkinter import messagebox
-        messagebox.showinfo(i18n("Info"), "Add payment feature coming soon")
-
-    def _delete_payment(self):
-        """Delete payment from deal"""
-        from tkinter import messagebox
-        messagebox.showwarning(i18n("Warning"), "Delete payment feature coming soon")
+        self.income_label.config(text=f"{total_income:,.2f}")
+        self.expenses_label.config(text=f"{total_expenses:,.2f}")
+        self.net_label.config(text=f"{net:,.2f}")
 
 
 class PolicyDetailDialog(tk.Toplevel):
