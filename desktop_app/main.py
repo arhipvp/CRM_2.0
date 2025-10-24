@@ -307,7 +307,8 @@ class App(tk.Tk):
                     self.after(0, self.refresh_tree)
                 except Exception as e:
                     logger.error(f"Failed to add client: {e}")
-                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to add client: {e}"))
+                    error_msg = str(e)
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to add client: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 

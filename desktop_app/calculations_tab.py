@@ -139,7 +139,8 @@ class CalculationsTab(ttk.Frame):
             logger.info(f"Fetched {len(self.deals)} deals")
         except Exception as e:
             logger.error(f"Failed to fetch deals: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {error_msg}"))
 
     def _update_deal_combo(self):
         """Update deal combo box"""
@@ -172,7 +173,8 @@ class CalculationsTab(ttk.Frame):
             logger.info(f"Fetched {len(self.calculations)} calculations")
         except Exception as e:
             logger.error(f"Failed to fetch calculations: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch calculations: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch calculations: {error_msg}"))
 
     def _update_tree(self):
         """Update tree with calculations data"""
@@ -261,7 +263,8 @@ class CalculationsTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Calculation created successfully"))
         except Exception as e:
             logger.error(f"Failed to create calculation: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create calculation: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create calculation: {error_msg}"))
 
     def edit_calculation(self):
         """Edit selected calculation"""
@@ -286,7 +289,8 @@ class CalculationsTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Calculation updated successfully"))
         except Exception as e:
             logger.error(f"Failed to update calculation: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update calculation: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update calculation: {error_msg}"))
 
     def delete_calculation(self):
         """Delete selected calculation"""
@@ -310,7 +314,8 @@ class CalculationsTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Calculation deleted successfully"))
         except Exception as e:
             logger.error(f"Failed to delete calculation: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete calculation: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete calculation: {error_msg}"))
 
     def _on_tree_double_click(self, event):
         """Handle double-click on calculation row to open detail dialog"""

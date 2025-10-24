@@ -134,7 +134,8 @@ class TasksTab(ttk.Frame):
             logger.info(f"Fetched {len(self.tasks)} tasks")
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
 
     def _update_tree(self):
         """Update tree with tasks data"""
@@ -219,7 +220,8 @@ class TasksTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Task created successfully"))
         except Exception as e:
             logger.error(f"Failed to create task: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create task: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create task: {error_msg}"))
 
     def edit_task(self):
         """Edit selected task"""
@@ -244,7 +246,8 @@ class TasksTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Task updated successfully"))
         except Exception as e:
             logger.error(f"Failed to update task: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update task: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update task: {error_msg}"))
 
     def delete_task(self):
         """Delete selected task"""
@@ -268,7 +271,8 @@ class TasksTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Task deleted successfully"))
         except Exception as e:
             logger.error(f"Failed to delete task: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete task: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete task: {error_msg}"))
 
     def _on_tree_double_click(self, event):
         """Handle double-click on task row to open detail dialog"""

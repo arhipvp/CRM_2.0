@@ -141,7 +141,8 @@ class PoliciesTab(ttk.Frame):
             logger.info(f"Fetched {len(self.policies)} policies")
         except Exception as e:
             logger.error(f"Failed to fetch policies: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch policies: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch policies: {error_msg}"))
 
     def _update_tree(self):
         """Update tree with policies data"""

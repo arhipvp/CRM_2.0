@@ -87,7 +87,8 @@ class DealsTab:
                 self.parent.after(0, self._update_tree_ui, deals, clients)
             except Exception as e:
                 logger.error(f"Failed to fetch deals: {e}")
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {e}"))
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -134,7 +135,8 @@ class DealsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal created successfully"))
                 except Exception as e:
                     logger.error(f"Failed to create deal: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create deal: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -156,7 +158,8 @@ class DealsTab:
                 self.parent.after(0, lambda: self._show_edit_dialog(deal_id, current_deal))
             except Exception as e:
                 logger.error(f"Failed to fetch deal for editing: {e}")
-                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch deal: {e}"))
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch deal: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -171,7 +174,8 @@ class DealsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal updated successfully"))
                 except Exception as e:
                     logger.error(f"Failed to update deal: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update deal: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -194,7 +198,8 @@ class DealsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal deleted successfully"))
                 except Exception as e:
                     logger.error(f"Failed to delete deal: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete deal: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
