@@ -60,8 +60,28 @@ NODE
 run_crm_migrations() {
   echo "[migrate-local] Применяем миграции CRM (Alembic)..."
   pushd "$ROOT_DIR/backend/crm" >/dev/null
-  poetry run alembic upgrade head
+
+  local max_retries=10
+  local attempt=1
+  local success=0
+
+  while [ $attempt -le $max_retries ]; do
+    if poetry run alembic upgrade head; then
+      success=1
+      break
+    else
+      echo "[migrate-local] Попытка $attempt из $max_retries: Миграции CRM не удались. Повторная попытка через 5 секунд..."
+      sleep 5
+      attempt=$((attempt + 1))
+    fi
+  done
+
   popd >/dev/null
+
+  if [ $success -eq 0 ]; then
+    echo "[migrate-local] Ошибка: Миграции CRM не удалось применить после $max_retries попыток." >&2
+    return 1
+  fi
 }
 
 run_auth_migrations() {
