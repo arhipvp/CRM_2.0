@@ -1,4 +1,4 @@
-"""Deals management tab component with hierarchical structure"""
+"""Deals management tab component"""
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from threading import Thread
@@ -13,7 +13,7 @@ from i18n import i18n
 
 
 class DealsTab:
-    """Tab for managing deals with hierarchical view (policies, calculations, payments)"""
+    """Tab for managing deals with table view"""
 
     def __init__(self, parent: ttk.Frame, crm_service: CRMService):
         self.parent = parent
@@ -22,13 +22,12 @@ class DealsTab:
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []  # Store all deals for filtering
         self.all_clients: List[Dict[str, Any]] = []  # Store all clients for dropdowns
-        self.selected_deal_id: Optional[str] = None
 
         self._setup_ui()
         self.refresh_tree()
 
     def _setup_ui(self):
-        """Setup Deals tab UI with hierarchical tree structure"""
+        """Setup Deals tab UI with table view"""
         # Search filter frame
         search_frame = tk.Frame(self.parent)
         search_frame.pack(pady=5, padx=10, fill="x")
@@ -40,12 +39,27 @@ class DealsTab:
         tree_frame = tk.Frame(self.parent)
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-        # Create hierarchical Treeview (no columns, just text)
+        # Create table Treeview with columns
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=(),
-            show="tree"
+            columns=("ID", "Title", "Client", "Status", "Amount", "Deleted"),
+            show="headings"
         )
+
+        # Define column headings and widths
+        self.tree.heading("ID", text=i18n("ID"))
+        self.tree.heading("Title", text=i18n("Deal Title"))
+        self.tree.heading("Client", text=i18n("Client"))
+        self.tree.heading("Status", text=i18n("Status"))
+        self.tree.heading("Amount", text=i18n("Amount"))
+        self.tree.heading("Deleted", text=i18n("Deleted"))
+
+        self.tree.column("ID", width=50)
+        self.tree.column("Title", width=150)
+        self.tree.column("Client", width=120)
+        self.tree.column("Status", width=80)
+        self.tree.column("Amount", width=100)
+        self.tree.column("Deleted", width=60)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -55,8 +69,6 @@ class DealsTab:
 
         # Bind double-click to open detail dialog
         self.tree.bind("<Double-1>", self._on_tree_double_click)
-        # Bind right-click to context menu (expand/collapse)
-        self.tree.bind("<Button-3>", self._on_tree_right_click)
 
         # Frame for buttons
         button_frame = tk.Frame(self.parent)
@@ -102,7 +114,7 @@ class DealsTab:
         self._refresh_tree_display(deals)
 
     def _refresh_tree_display(self, deals_to_display: List[Dict[str, Any]]):
-        """Refresh tree display with hierarchical structure"""
+        """Refresh tree display with deals table"""
         if not self.tree:
             return
 
@@ -110,106 +122,20 @@ class DealsTab:
         for i in self.tree.get_children():
             self.tree.delete(i)
 
-        # Add deals with hierarchical children
+        # Add deals as rows in table
         for deal in deals_to_display:
-            is_deleted = "✓" if deal.get("is_deleted", False) else ""
-            deal_id = deal.get("id", "")
+            is_deleted = i18n("Yes") if deal.get("is_deleted", False) else i18n("No")
+            deal_id = deal.get("id", "")[:8]  # Short ID for display
 
-            # Main deal node
-            deal_text = (
-                f"{deal.get('title', 'N/A')} | "
-                f"{i18n('Status')}: {deal.get('status', 'N/A')} | "
-                f"{i18n('Amount')}: {deal.get('amount', 'N/A')} "
-                f"{is_deleted}"
+            values = (
+                deal_id,
+                deal.get("title", "N/A"),
+                deal.get("client_id", "N/A"),
+                deal.get("status", "N/A"),
+                deal.get("amount", "N/A"),
+                is_deleted
             )
-            deal_item = self.tree.insert("", "end", iid=deal_id, text=deal_text, open=False)
-
-            # Add placeholder children that will be loaded on expand
-            # This makes the tree appear expandable
-            self.tree.insert(deal_item, "end", text=f"📋 {i18n('Policies')}...", tags=("policies_group",))
-            self.tree.insert(deal_item, "end", text=f"📊 {i18n('Calculations')}...", tags=("calculations_group",))
-            self.tree.insert(deal_item, "end", text=f"💰 {i18n('Payments')}...", tags=("payments_group",))
-
-        # Bind expand event to load actual data
-        self.tree.bind("<<TreeviewOpen>>", self._on_expand_node)
-
-    def _on_expand_node(self, event):
-        """Load child data when node is expanded"""
-        selected = self.tree.focus()
-        if not selected:
-            return
-
-        # Check if this is a deal node (has 3 placeholder children)
-        children = self.tree.get_children(selected)
-        if len(children) != 3:
-            return  # Not a deal node
-
-        # Check if we already loaded data (no placeholder children)
-        first_child_text = self.tree.item(children[0])["text"]
-        if "..." not in first_child_text:
-            return  # Already loaded
-
-        # Load actual data
-        deal_id = selected
-        self._load_deal_children(deal_id)
-
-    def _load_deal_children(self, deal_id: str):
-        """Load policies, calculations, and payments for a deal"""
-        def worker():
-            try:
-                policies = self.crm_service.get_policies()  # Get all policies (filter by deal if needed)
-                calculations = self.crm_service.get_calculations(deal_id)
-                payments = self.crm_service.get_payments(deal_id)
-                self.parent.after(0, self._populate_deal_children, deal_id, policies, calculations, payments)
-            except Exception as e:
-                logger.error(f"Failed to load deal children: {e}")
-
-        Thread(target=worker, daemon=True).start()
-
-    def _populate_deal_children(self, deal_id: str, policies: List, calculations: List, payments: List):
-        """Populate deal node with actual policies, calculations, and payments"""
-        if not self.tree:
-            return
-
-        try:
-            deal_item = self.tree.selection()[0] if self.tree.selection() else deal_id
-        except:
-            return
-
-        # Clear placeholder children
-        children = self.tree.get_children(deal_item)
-        for child in children:
-            self.tree.delete(child)
-
-        # Add Policies section
-        policies_node = self.tree.insert(deal_item, "end", text=f"📋 {i18n('Policies')} ({len(policies)})", tags=("section",))
-        for policy in policies:
-            status = policy.get("status", "N/A")
-            premium = policy.get("premium", "N/A")
-            self.tree.insert(policies_node, "end", text=f"  • {policy.get('policy_number', 'N/A')} | {i18n('Status')}: {status} | {i18n('Premium')}: {premium}")
-
-        # Add Calculations section
-        calculations_node = self.tree.insert(deal_item, "end", text=f"📊 {i18n('Calculations')} ({len(calculations)})", tags=("section",))
-        for calc in calculations:
-            company = calc.get("insurance_company", "N/A")
-            amount = calc.get("premium_amount", "N/A")
-            self.tree.insert(calculations_node, "end", text=f"  • {company} | {amount}")
-
-        # Add Payments section
-        payments_node = self.tree.insert(deal_item, "end", text=f"💰 {i18n('Payments')} ({len(payments)})", tags=("section",))
-        for payment in payments:
-            amount = payment.get("amount", "N/A")
-            date = payment.get("payment_date", "N/A")
-            status = payment.get("status", "N/A")
-            self.tree.insert(payments_node, "end", text=f"  • {date} | {amount} | {status}")
-
-    def _on_tree_right_click(self, event):
-        """Handle right-click context menu"""
-        item = self.tree.identify("item", event.x, event.y)
-        if item:
-            self.tree.selection_set(item)
-            # Simple context menu - just show info
-            logger.info(f"Right-clicked on: {self.tree.item(item)['text']}")
+            self.tree.insert("", "end", iid=deal.get("id", ""), values=values)
 
     def add_deal(self):
         """Add new deal"""
@@ -235,12 +161,6 @@ class DealsTab:
             selected_item = self.tree.selection()[0]
         except:
             messagebox.showwarning(i18n("Warning"), i18n("Please select a deal to edit"))
-            return
-
-        # Check if it's a deal (not a child node)
-        parent = self.tree.parent(selected_item)
-        if parent:
-            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal, not a child item"))
             return
 
         deal_id = selected_item
@@ -281,12 +201,6 @@ class DealsTab:
             selected_item = self.tree.selection()[0]
         except:
             messagebox.showwarning(i18n("Warning"), i18n("Please select a deal to delete"))
-            return
-
-        # Check if it's a deal (not a child node)
-        parent = self.tree.parent(selected_item)
-        if parent:
-            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal, not a child item"))
             return
 
         if messagebox.askyesno(i18n("Confirm Delete"), i18n("Are you sure you want to delete this")):
@@ -409,17 +323,12 @@ class DealsTab:
         except:
             return
 
-        # Check if it's a deal (not a child node)
-        parent = self.tree.parent(selected_item)
-        if parent:
-            return  # Clicked on child node, not a deal
-
         # Fetch full deal data
         deal_id = selected_item
         try:
             deal_data = self.crm_service.get_deal(deal_id)
             if deal_data:
-                DealDetailDialog(self.parent, deal_data)
+                DealDetailDialog(self.parent, self.crm_service, deal_data)
         except Exception as e:
             logger.error(f"Failed to fetch deal details: {e}")
             messagebox.showerror(i18n("Error"), f"Failed to fetch deal details: {e}")

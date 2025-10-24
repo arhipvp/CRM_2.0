@@ -59,16 +59,21 @@ class ClientDetailDialog(tk.Toplevel):
 
 
 class DealDetailDialog(tk.Toplevel):
-    """Dialog for viewing/editing deal details"""
+    """Dialog for viewing/editing deal details with dependent entities management"""
 
-    def __init__(self, parent, deal_data: Dict[str, Any]):
+    def __init__(self, parent, crm_service, deal_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
         self.title(i18n("Deal Details"))
-        self.geometry("700x600")
+        self.geometry("900x700")
         self.deal_data = deal_data
+        self.crm_service = crm_service
+        self.policies = []
+        self.calculations = []
+        self.payments = []
 
         self._create_widgets()
+        self._load_dependent_data()
 
     def _create_widgets(self):
         """Create detail dialog widgets"""
@@ -77,14 +82,14 @@ class DealDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
             ("ID", self.deal_data.get("id", "N/A")),
-            ("Title", self.deal_data.get("title", "N/A")),
-            ("Client ID", self.deal_data.get("client_id", "N/A")),
-            ("Status", self.deal_data.get("status", "N/A")),
-            ("Amount", self.deal_data.get("amount", "N/A")),
+            (i18n("Deal Title"), self.deal_data.get("title", "N/A")),
+            (i18n("Client"), self.deal_data.get("client_id", "N/A")),
+            (i18n("Status"), self.deal_data.get("status", "N/A")),
+            (i18n("Amount"), self.deal_data.get("amount", "N/A")),
             ("Next Review Date", self.deal_data.get("next_review_at", "N/A")),
         ]
 
@@ -94,13 +99,33 @@ class DealDetailDialog(tk.Toplevel):
 
         # Description Tab
         desc_frame = ttk.Frame(notebook)
-        notebook.add(desc_frame, text="Description")
+        notebook.add(desc_frame, text=i18n("Description"))
 
-        ttk.Label(desc_frame, text="Description:").pack(anchor="w", padx=10, pady=5)
+        ttk.Label(desc_frame, text=i18n("Description") + ":").pack(anchor="w", padx=10, pady=5)
         desc_text = tk.Text(desc_frame, height=10, width=80)
         desc_text.pack(padx=10, pady=5, fill="both", expand=True)
         desc_text.insert("end", self.deal_data.get("description", ""))
         desc_text.config(state="disabled")
+
+        # Policies Tab
+        policies_frame = ttk.Frame(notebook)
+        notebook.add(policies_frame, text=i18n("Policies"))
+        self._create_policies_tab(policies_frame)
+
+        # Calculations Tab
+        calculations_frame = ttk.Frame(notebook)
+        notebook.add(calculations_frame, text=i18n("Calculations"))
+        self._create_calculations_tab(calculations_frame)
+
+        # Payments Tab
+        payments_frame = ttk.Frame(notebook)
+        notebook.add(payments_frame, text=i18n("Payments"))
+        self._create_payments_tab(payments_frame)
+
+        # Income/Expenses Tab
+        finances_frame = ttk.Frame(notebook)
+        notebook.add(finances_frame, text=i18n("Income/Expenses"))
+        self._create_finances_tab(finances_frame)
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
@@ -109,7 +134,7 @@ class DealDetailDialog(tk.Toplevel):
         ts_fields = [
             ("Created At", self.deal_data.get("created_at", "N/A")),
             ("Updated At", self.deal_data.get("updated_at", "N/A")),
-            ("Is Deleted", "Yes" if self.deal_data.get("is_deleted") else "No"),
+            ("Is Deleted", i18n("Yes") if self.deal_data.get("is_deleted") else i18n("No")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):
@@ -118,6 +143,204 @@ class DealDetailDialog(tk.Toplevel):
 
         # Close button
         ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
+
+    def _create_policies_tab(self, parent):
+        """Create policies management tab"""
+        # Treeview for policies
+        tree_frame = ttk.Frame(parent)
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.policies_tree = ttk.Treeview(
+            tree_frame,
+            columns=("Number", "Status", "Premium", "From", "To"),
+            show="headings",
+            height=12
+        )
+
+        self.policies_tree.heading("Number", text=i18n("Policy Number"))
+        self.policies_tree.heading("Status", text=i18n("Status"))
+        self.policies_tree.heading("Premium", text=i18n("Premium"))
+        self.policies_tree.heading("From", text=i18n("Effective From"))
+        self.policies_tree.heading("To", text=i18n("Effective To"))
+
+        self.policies_tree.column("Number", width=100)
+        self.policies_tree.column("Status", width=80)
+        self.policies_tree.column("Premium", width=100)
+        self.policies_tree.column("From", width=120)
+        self.policies_tree.column("To", width=120)
+
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.policies_tree.yview)
+        self.policies_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.policies_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Buttons
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("Add"), command=self._add_policy).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_policy).pack(side="left", padx=5)
+
+    def _create_calculations_tab(self, parent):
+        """Create calculations management tab"""
+        # Treeview for calculations
+        tree_frame = ttk.Frame(parent)
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.calculations_tree = ttk.Treeview(
+            tree_frame,
+            columns=("Company", "Program", "Amount", "Coverage"),
+            show="headings",
+            height=12
+        )
+
+        self.calculations_tree.heading("Company", text=i18n("Insurance Company"))
+        self.calculations_tree.heading("Program", text=i18n("Program Name"))
+        self.calculations_tree.heading("Amount", text=i18n("Premium Amount"))
+        self.calculations_tree.heading("Coverage", text=i18n("Coverage Sum"))
+
+        self.calculations_tree.column("Company", width=120)
+        self.calculations_tree.column("Program", width=150)
+        self.calculations_tree.column("Amount", width=100)
+        self.calculations_tree.column("Coverage", width=120)
+
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.calculations_tree.yview)
+        self.calculations_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.calculations_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Buttons
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("Add"), command=self._add_calculation).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_calculation).pack(side="left", padx=5)
+
+    def _create_payments_tab(self, parent):
+        """Create payments management tab"""
+        # Treeview for payments
+        tree_frame = ttk.Frame(parent)
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.payments_tree = ttk.Treeview(
+            tree_frame,
+            columns=("Date", "Amount", "Status", "Planned"),
+            show="headings",
+            height=12
+        )
+
+        self.payments_tree.heading("Date", text="Date")
+        self.payments_tree.heading("Amount", text=i18n("Amount"))
+        self.payments_tree.heading("Status", text=i18n("Status"))
+        self.payments_tree.heading("Planned", text="Planned Amount")
+
+        self.payments_tree.column("Date", width=120)
+        self.payments_tree.column("Amount", width=100)
+        self.payments_tree.column("Status", width=100)
+        self.payments_tree.column("Planned", width=100)
+
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.payments_tree.yview)
+        self.payments_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.payments_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Buttons
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("Add"), command=self._add_payment).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_payment).pack(side="left", padx=5)
+
+    def _create_finances_tab(self, parent):
+        """Create income/expenses summary tab"""
+        summary_frame = ttk.LabelFrame(parent, text=i18n("Financial Summary"))
+        summary_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        fields = [
+            (i18n("Total Income"), "0.00"),
+            (i18n("Total Expenses"), "0.00"),
+            (i18n("Net"), "0.00"),
+        ]
+
+        for i, (label, value) in enumerate(fields):
+            ttk.Label(summary_frame, text=f"{label}:").grid(row=i, column=0, sticky="w", padx=10, pady=5)
+            ttk.Label(summary_frame, text=str(value), font=("Arial", 12, "bold")).grid(row=i, column=1, sticky="w", padx=10, pady=5)
+
+    def _load_dependent_data(self):
+        """Load policies, calculations, and payments asynchronously"""
+        from threading import Thread
+        def worker():
+            try:
+                deal_id = self.deal_data.get("id", "")
+                self.policies = self.crm_service.get_policies()
+                self.calculations = self.crm_service.get_calculations(deal_id)
+                self.payments = self.crm_service.get_payments(deal_id)
+                self.after(0, self._update_dependent_data)
+            except Exception as e:
+                from logger import logger
+                logger.error(f"Failed to load deal dependent data: {e}")
+
+        Thread(target=worker, daemon=True).start()
+
+    def _update_dependent_data(self):
+        """Update the tree views with loaded data"""
+        # Update Policies
+        for policy in self.policies:
+            self.policies_tree.insert("", "end", values=(
+                policy.get("policy_number", "N/A"),
+                policy.get("status", "N/A"),
+                policy.get("premium", "N/A"),
+                policy.get("effective_from", "N/A"),
+                policy.get("effective_to", "N/A"),
+            ))
+
+        # Update Calculations
+        for calc in self.calculations:
+            self.calculations_tree.insert("", "end", values=(
+                calc.get("insurance_company", "N/A"),
+                calc.get("program_name", "N/A"),
+                calc.get("premium_amount", "N/A"),
+                calc.get("coverage_sum", "N/A"),
+            ))
+
+        # Update Payments
+        for payment in self.payments:
+            self.payments_tree.insert("", "end", values=(
+                payment.get("actual_date", payment.get("planned_date", "N/A")),
+                payment.get("incomes_total", "N/A"),
+                payment.get("status", "N/A"),
+                payment.get("planned_amount", "N/A"),
+            ))
+
+    def _add_policy(self):
+        """Add policy to deal"""
+        from messagebox import showinfo
+        showinfo(i18n("Info"), "Add policy feature coming soon")
+
+    def _delete_policy(self):
+        """Delete policy from deal"""
+        from messagebox import showwarning
+        showwarning(i18n("Warning"), "Delete policy feature coming soon")
+
+    def _add_calculation(self):
+        """Add calculation to deal"""
+        from messagebox import showinfo
+        showinfo(i18n("Info"), "Add calculation feature coming soon")
+
+    def _delete_calculation(self):
+        """Delete calculation from deal"""
+        from messagebox import showwarning
+        showwarning(i18n("Warning"), "Delete calculation feature coming soon")
+
+    def _add_payment(self):
+        """Add payment to deal"""
+        from messagebox import showinfo
+        showinfo(i18n("Info"), "Add payment feature coming soon")
+
+    def _delete_payment(self):
+        """Delete payment from deal"""
+        from messagebox import showwarning
+        showwarning(i18n("Warning"), "Delete payment feature coming soon")
 
 
 class PolicyDetailDialog(tk.Toplevel):
