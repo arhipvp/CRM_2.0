@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
 from uuid import UUID
@@ -439,9 +439,15 @@ class CalculationService:
     def _date_range_from_pg(range_value: PgRange | None) -> schemas.DateRange | None:
         if range_value is None:
             return None
-        if getattr(range_value, "lower", None) is None and getattr(range_value, "upper", None) is None:
+        if getattr(range_value, "isempty", False):
             return None
-        return schemas.DateRange(start=range_value.lower, end=range_value.upper)
+        lower = getattr(range_value, "lower", None)
+        upper = getattr(range_value, "upper", None)
+        if lower is None and upper is None:
+            return None
+        if upper is not None and not getattr(range_value, "upper_inc", False):
+            upper = upper - timedelta(days=1)
+        return schemas.DateRange(start=lower, end=upper)
 
     def _to_schema(self, calculation: models.Calculation) -> schemas.CalculationRead:
         validity_period = self._date_range_from_pg(calculation.validity_period)
