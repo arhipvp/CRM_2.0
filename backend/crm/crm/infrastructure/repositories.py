@@ -197,6 +197,7 @@ class DealRepository(BaseRepository[models.Deal]):
             .where(
                 models.Payment.tenant_id == tenant_id,
                 models.Payment.deal_id.in_(deal_ids),
+                models.Payment.status != "cancelled",
             )
             .group_by(models.Payment.deal_id)
         )
