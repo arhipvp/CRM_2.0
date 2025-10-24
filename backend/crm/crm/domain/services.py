@@ -854,8 +854,12 @@ class PaymentService:
         currency: str | None,
         posted_at: date | None,
     ) -> None:
-        if currency is not None and currency != payment.currency:
-            raise repositories.RepositoryError("currency_mismatch")
+        if currency is not None:
+            normalized = currency.strip()
+            if not normalized:
+                raise repositories.RepositoryError("currency_mismatch")
+            if normalized.upper() != payment.currency.upper():
+                raise repositories.RepositoryError("currency_mismatch")
         if posted_at is not None:
             # Используем локальную дату сервера, чтобы не отклонять операции,
             # введённые в тот же календарный день в регионах, опережающих UTC.
