@@ -6,6 +6,7 @@ from threading import Thread
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import PolicyDetailDialog
+from edit_dialogs import PolicyEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
@@ -20,6 +21,8 @@ class PoliciesTab(ttk.Frame):
         self.all_policies = []  # Store all policies for filtering
         self.current_policy = None
         self.search_filter: Optional[SearchFilter] = None
+        self.all_clients: List[Dict[str, Any]] = []
+        self.all_deals: List[Dict[str, Any]] = []
 
         self.create_widgets()
         self.refresh_data()
@@ -131,6 +134,9 @@ class PoliciesTab(ttk.Frame):
         try:
             self.policies = self.crm_service.get_policies()
             self.all_policies = self.policies  # Store all policies for filtering
+            # Also fetch clients and deals for dropdowns
+            self.all_clients = self.crm_service.get_clients()
+            self.all_deals = self.crm_service.get_deals()
             self.after(0, self._update_tree)
             logger.info(f"Fetched {len(self.policies)} policies")
         except Exception as e:
@@ -204,7 +210,7 @@ class PoliciesTab(ttk.Frame):
 
     def add_policy(self):
         """Add new policy"""
-        dialog = PolicyDialog(self)
+        dialog = PolicyEditDialog(self, policy=None, clients_list=self.all_clients, deals_list=self.all_deals)
         if dialog.result:
             thread = Thread(
                 target=self._create_policy,
@@ -229,7 +235,7 @@ class PoliciesTab(ttk.Frame):
             messagebox.showwarning("Warning", "Please select a policy to edit")
             return
 
-        dialog = PolicyDialog(self, policy=self.current_policy)
+        dialog = PolicyEditDialog(self, policy=self.current_policy, clients_list=self.all_clients, deals_list=self.all_deals)
         if dialog.result:
             thread = Thread(
                 target=self._update_policy,
@@ -405,84 +411,3 @@ class PoliciesTab(ttk.Frame):
             messagebox.showerror("Error", f"Failed to export data: {e}")
 
 
-class PolicyDialog(tk.Toplevel):
-    """Dialog for adding/editing policies"""
-
-    def __init__(self, parent, policy=None):
-        super().__init__(parent)
-        self.transient(parent)
-        self.parent = parent
-        self.result = None
-        self.policy = policy
-
-        if self.policy:
-            self.title("Edit Policy")
-        else:
-            self.title("Add Policy")
-
-        self.policy_number_var = tk.StringVar(value=policy.get("policy_number", "") if policy else "")
-        self.client_id_var = tk.StringVar(value=str(policy.get("client_id", "")) if policy else "")
-        self.status_var = tk.StringVar(value=policy.get("status", "draft") if policy else "draft")
-        self.premium_var = tk.StringVar(value=str(policy.get("premium", "")) if policy else "")
-        self.effective_from_var = tk.StringVar(value=policy.get("effective_from", "") if policy else "")
-        self.effective_to_var = tk.StringVar(value=policy.get("effective_to", "") if policy else "")
-
-        # Policy Number
-        tk.Label(self, text="Policy Number:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.policy_number_var, width=40).grid(row=0, column=1, padx=10, pady=5)
-
-        # Client ID
-        tk.Label(self, text="Client ID:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.client_id_var, width=40).grid(row=1, column=1, padx=10, pady=5)
-
-        # Status
-        tk.Label(self, text="Status:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        status_combo = ttk.Combobox(
-            self,
-            textvariable=self.status_var,
-            values=["draft", "active", "inactive"],
-            state="readonly",
-            width=37
-        )
-        status_combo.grid(row=2, column=1, padx=10, pady=5)
-
-        # Premium
-        tk.Label(self, text="Premium:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.premium_var, width=40).grid(row=3, column=1, padx=10, pady=5)
-
-        # Effective From
-        tk.Label(self, text="Effective From (YYYY-MM-DD):").grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.effective_from_var, width=40).grid(row=4, column=1, padx=10, pady=5)
-
-        # Effective To
-        tk.Label(self, text="Effective To (YYYY-MM-DD):").grid(row=5, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.effective_to_var, width=40).grid(row=5, column=1, padx=10, pady=5)
-
-        # Buttons
-        button_frame = tk.Frame(self)
-        button_frame.grid(row=6, columnspan=2, pady=10)
-
-        tk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
-
-        self.grab_set()
-        self.wait_window(self)
-
-    def on_ok(self):
-        """Handle OK button"""
-        policy_number = self.policy_number_var.get().strip()
-        client_id = self.client_id_var.get().strip()
-
-        if not policy_number or not client_id:
-            messagebox.showerror("Error", "Policy Number and Client ID cannot be empty.", parent=self)
-            return
-
-        self.result = {
-            "policy_number": policy_number,
-            "client_id": client_id,
-            "status": self.status_var.get(),
-            "premium": float(self.premium_var.get()) if self.premium_var.get() else None,
-            "effective_from": self.effective_from_var.get() if self.effective_from_var.get() else None,
-            "effective_to": self.effective_to_var.get() if self.effective_to_var.get() else None
-        }
-        self.destroy()

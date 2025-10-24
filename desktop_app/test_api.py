@@ -3,6 +3,7 @@
 
 import requests
 import json
+import os
 from config import AUTH_TOKEN_URL, CRM_CLIENTS_URL
 
 print("=" * 60)
@@ -24,10 +25,12 @@ except Exception as e:
 # Test 2: Auth Login
 print("\n2. Testing authentication...")
 try:
-    # Use test credentials (from seed data if available)
+    # Use test credentials from environment variables
+    test_username = os.getenv("TEST_USERNAME", "admin")
+    test_password = os.getenv("TEST_PASSWORD", "admin123")
     response = requests.post(
         AUTH_TOKEN_URL,
-        json={"username": "admin", "password": "admin123"},
+        json={"username": test_username, "password": test_password},
         timeout=5
     )
     print(f"   Status: {response.status_code}")

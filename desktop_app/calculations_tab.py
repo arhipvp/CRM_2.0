@@ -6,6 +6,7 @@ from threading import Thread
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import CalculationDetailDialog
+from edit_dialogs import CalculationEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
@@ -243,7 +244,7 @@ class CalculationsTab(ttk.Frame):
             messagebox.showwarning("Warning", "Please select a deal first")
             return
 
-        dialog = CalculationDialog(self)
+        dialog = CalculationEditDialog(self, calculation=None, deals_list=self.deals)
         if dialog.result:
             thread = Thread(
                 target=self._create_calculation,
@@ -268,7 +269,7 @@ class CalculationsTab(ttk.Frame):
             messagebox.showwarning("Warning", "Please select a calculation to edit")
             return
 
-        dialog = CalculationDialog(self, calculation=self.current_calculation)
+        dialog = CalculationEditDialog(self, calculation=self.current_calculation, deals_list=self.deals)
         if dialog.result:
             thread = Thread(
                 target=self._update_calculation,
@@ -445,82 +446,3 @@ class CalculationsTab(ttk.Frame):
             messagebox.showerror("Error", f"Failed to export data: {e}")
 
 
-class CalculationDialog(tk.Toplevel):
-    """Dialog for adding/editing calculations"""
-
-    def __init__(self, parent, calculation=None):
-        super().__init__(parent)
-        self.transient(parent)
-        self.parent = parent
-        self.result = None
-        self.calculation = calculation
-
-        if self.calculation:
-            self.title("Edit Calculation")
-        else:
-            self.title("Add Calculation")
-
-        self.insurance_company_var = tk.StringVar(value=calculation.get("insurance_company", "") if calculation else "")
-        self.program_name_var = tk.StringVar(value=calculation.get("program_name", "") if calculation else "")
-        self.premium_amount_var = tk.StringVar(value=str(calculation.get("premium_amount", "")) if calculation else "")
-        self.coverage_sum_var = tk.StringVar(value=str(calculation.get("coverage_sum", "")) if calculation else "")
-        self.status_var = tk.StringVar(value=calculation.get("status", "draft") if calculation else "draft")
-        self.calculation_date_var = tk.StringVar(value=calculation.get("calculation_date", "") if calculation else "")
-
-        # Insurance Company
-        tk.Label(self, text="Insurance Company:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.insurance_company_var, width=40).grid(row=0, column=1, padx=10, pady=5)
-
-        # Program Name
-        tk.Label(self, text="Program Name:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.program_name_var, width=40).grid(row=1, column=1, padx=10, pady=5)
-
-        # Premium Amount
-        tk.Label(self, text="Premium Amount:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.premium_amount_var, width=40).grid(row=2, column=1, padx=10, pady=5)
-
-        # Coverage Sum
-        tk.Label(self, text="Coverage Sum:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.coverage_sum_var, width=40).grid(row=3, column=1, padx=10, pady=5)
-
-        # Status
-        tk.Label(self, text="Status:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        status_combo = ttk.Combobox(
-            self,
-            textvariable=self.status_var,
-            values=["draft", "ready", "confirmed", "archived"],
-            state="readonly",
-            width=37
-        )
-        status_combo.grid(row=4, column=1, padx=10, pady=5)
-
-        # Calculation Date
-        tk.Label(self, text="Calculation Date (YYYY-MM-DD):").grid(row=5, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.calculation_date_var, width=40).grid(row=5, column=1, padx=10, pady=5)
-
-        # Buttons
-        button_frame = tk.Frame(self)
-        button_frame.grid(row=6, columnspan=2, pady=10)
-
-        tk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
-
-        self.grab_set()
-        self.wait_window(self)
-
-    def on_ok(self):
-        """Handle OK button"""
-        insurance_company = self.insurance_company_var.get().strip()
-        if not insurance_company:
-            messagebox.showerror("Error", "Insurance Company cannot be empty.", parent=self)
-            return
-
-        self.result = {
-            "insurance_company": insurance_company,
-            "program_name": self.program_name_var.get().strip(),
-            "premium_amount": float(self.premium_amount_var.get()) if self.premium_amount_var.get() else None,
-            "coverage_sum": float(self.coverage_sum_var.get()) if self.coverage_sum_var.get() else None,
-            "status": self.status_var.get(),
-            "calculation_date": self.calculation_date_var.get() if self.calculation_date_var.get() else None
-        }
-        self.destroy()

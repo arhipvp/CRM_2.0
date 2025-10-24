@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import PaymentDetailDialog
+from edit_dialogs import PaymentEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
@@ -21,6 +22,9 @@ class PaymentsTab:
         self.payments = []
         self.all_payments = []  # Store all payments for filtering
         self.search_filter: Optional[SearchFilter] = None
+        self.all_deals: List[Dict[str, Any]] = []
+        self.all_policies: List[Dict[str, Any]] = []
+        self.deal_dict = {}
 
         self._setup_ui()
 
@@ -79,6 +83,10 @@ class PaymentsTab:
         button_frame = tk.Frame(self.parent)
         button_frame.pack(pady=10)
 
+        tk.Button(button_frame, text="Add Payment", command=self.add_payment).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Edit", command=self.edit_payment).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Delete", command=self.delete_payment).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Refresh", command=self._refresh_current_deal).pack(side="left", padx=5)
         tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
 
@@ -90,6 +98,9 @@ class PaymentsTab:
         def worker():
             try:
                 deals = self.crm_service.get_deals()
+                policies = self.crm_service.get_policies()
+                self.all_deals = deals
+                self.all_policies = policies
                 deal_dict = {deal.get("title", f"Deal {deal.get('id')}"): deal.get("id") for deal in deals}
                 self.parent.after(0, self._update_deals_combo, deal_dict)
             except Exception as e:
@@ -108,6 +119,13 @@ class PaymentsTab:
         if selected_deal and selected_deal in self.deal_dict:
             self.current_deal_id = self.deal_dict[selected_deal]
             self.refresh_payments()
+
+    def _refresh_current_deal(self):
+        """Refresh payments for current deal"""
+        if self.current_deal_id:
+            self.refresh_payments()
+        else:
+            messagebox.showwarning("Warning", "Please select a deal first.")
 
     def refresh_payments(self):
         """Refresh payments list for selected deal"""
@@ -131,6 +149,77 @@ class PaymentsTab:
                     self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch payments: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
+
+    def add_payment(self):
+        """Add new payment"""
+        if not self.current_deal_id:
+            messagebox.showwarning("Warning", "Please select a deal first.")
+            return
+
+        dialog = PaymentEditDialog(self.parent, payment=None, deals_list=self.all_deals, policies_list=self.all_policies)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.create_payment(**dialog.result)
+                    self.parent.after(0, self.refresh_payments)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment created successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to create payment: {e}")
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create payment: {e}"))
+
+            Thread(target=worker, daemon=True).start()
+
+    def edit_payment(self):
+        """Edit selected payment"""
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a payment to edit.")
+            return
+
+        payment_id = selected_item
+        # Find payment in list
+        payment_data = next((p for p in self.payments if p.get("id") == payment_id), None)
+        if not payment_data:
+            messagebox.showerror("Error", "Payment not found.")
+            return
+
+        dialog = PaymentEditDialog(self.parent, payment=payment_data, deals_list=self.all_deals, policies_list=self.all_policies)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.update_payment(payment_id, **dialog.result)
+                    self.parent.after(0, self.refresh_payments)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment updated successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to update payment: {e}")
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update payment: {e}"))
+
+            Thread(target=worker, daemon=True).start()
+
+    def delete_payment(self):
+        """Delete selected payment"""
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a payment to delete.")
+            return
+
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this payment?"):
+            payment_id = selected_item
+
+            def worker():
+                try:
+                    self.crm_service.delete_payment(payment_id)
+                    self.parent.after(0, self.refresh_payments)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment deleted successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to delete payment: {e}")
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete payment: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def _update_tree_ui(self, payments):
         """Update tree UI on main thread"""

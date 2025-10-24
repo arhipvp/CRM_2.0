@@ -6,14 +6,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-API_BASE_URL = os.getenv("DESKTOP_API_BASE_URL", "http://localhost:8080/api/v1")
+# Используем CRM API напрямую без авторизации (для разработки)
+API_BASE_URL = os.getenv("DESKTOP_API_BASE_URL", "http://localhost:8082/api/v1")
 API_TIMEOUT = int(os.getenv("DESKTOP_API_TIMEOUT", "10"))
 
 # Service URLs
 AUTH_TOKEN_URL = f"{API_BASE_URL}/auth/token"
-CRM_CLIENTS_URL = f"{API_BASE_URL}/crm/clients"
-CRM_DEALS_URL = f"{API_BASE_URL}/crm/deals"
-CRM_PAYMENTS_URL = f"{API_BASE_URL}/crm/payments"
+CRM_CLIENTS_URL = f"{API_BASE_URL}/clients"
+CRM_DEALS_URL = f"{API_BASE_URL}/deals"
+CRM_PAYMENTS_URL = f"{API_BASE_URL}/payments"
+CRM_POLICIES_URL = f"{API_BASE_URL}/policies"
+CRM_TASKS_URL = f"{API_BASE_URL}/tasks"
 
 # Logging Configuration
 LOG_LEVEL = os.getenv("DESKTOP_LOG_LEVEL", "INFO")

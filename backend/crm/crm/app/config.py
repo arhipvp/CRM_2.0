@@ -20,17 +20,17 @@ class Settings(BaseSettings):
     service_port: int = Field(default=8082)
 
     database_url: AnyUrl = Field(
-        default="postgresql+asyncpg://user:pass@localhost:5432/crm",
+        default="postgresql+asyncpg://localhost:5432/crm",
     )
     redis_url: AnyUrl = Field(default="redis://localhost:6379/0")
-    rabbitmq_url: AnyUrl = Field(default="amqp://guest:guest@localhost:5672/")
+    rabbitmq_url: AnyUrl = Field(default="amqp://localhost:5672/")
 
     permissions_queue_name: str = Field(default="permissions:sync")
     permissions_queue_prefix: str = Field(default="bull")
     permissions_job_name: str = Field(default="permissions.sync")
     permissions_redis_url: Optional[AnyUrl] = Field(default=None)
 
-    jwt_access_secret: str = Field(default="change_me_access_secret")
+    jwt_access_secret: str = Field(default="dev-secret-change-in-production")
     jwt_issuer: Optional[str] = None
     jwt_audience: Optional[str] = None
 
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
 
     documents_base_url: Optional[AnyUrl] = Field(default=None)
 
-    auth_disabled: bool = Field(default=False)
+    auth_disabled: bool = Field(default=True)
 
     @property
     def resolved_celery_broker(self) -> str:

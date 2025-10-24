@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import DealDetailDialog
+from edit_dialogs import DealEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
@@ -19,6 +20,7 @@ class DealsTab:
         self.tree: Optional[ttk.Treeview] = None
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []  # Store all deals for filtering
+        self.all_clients: List[Dict[str, Any]] = []  # Store all clients for dropdowns
 
         self._setup_ui()
         self.refresh_tree()
@@ -79,21 +81,25 @@ class DealsTab:
         """Refresh deals list asynchronously"""
         def worker():
             try:
+                # Load both deals and clients
                 deals = self.crm_service.get_deals()
-                self.parent.after(0, self._update_tree_ui, deals)
+                clients = self.crm_service.get_clients()
+                self.parent.after(0, self._update_tree_ui, deals, clients)
             except Exception as e:
                 logger.error(f"Failed to fetch deals: {e}")
                 self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {e}"))
 
         Thread(target=worker, daemon=True).start()
 
-    def _update_tree_ui(self, deals):
+    def _update_tree_ui(self, deals, clients=None):
         """Update tree UI on main thread"""
         if not self.tree:
             return
 
-        # Store all deals for filtering
+        # Store all data for filtering
         self.all_deals = deals
+        if clients:
+            self.all_clients = clients
         self._refresh_tree_display(deals)
 
     def _refresh_tree_display(self, deals_to_display: List[Dict[str, Any]]):
@@ -119,7 +125,18 @@ class DealsTab:
 
     def add_deal(self):
         """Add new deal"""
-        messagebox.showinfo("Coming Soon", "Deal creation feature coming soon!")
+        dialog = DealEditDialog(self.parent, self.crm_service, deal=None, clients_list=self.all_clients)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.create_deal(**dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal created successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to create deal: {e}")
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create deal: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def edit_deal(self):
         """Edit selected deal"""
@@ -136,12 +153,27 @@ class DealsTab:
         def fetch_and_edit():
             try:
                 current_deal = self.crm_service.get_deal(deal_id)
-                self.parent.after(0, lambda: messagebox.showinfo("Coming Soon", "Deal editing feature coming soon!"))
+                self.parent.after(0, lambda: self._show_edit_dialog(deal_id, current_deal))
             except Exception as e:
                 logger.error(f"Failed to fetch deal for editing: {e}")
                 self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch deal: {e}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
+
+    def _show_edit_dialog(self, deal_id, current_deal):
+        """Show edit dialog on main thread"""
+        dialog = DealEditDialog(self.parent, self.crm_service, deal=current_deal, clients_list=self.all_clients)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.update_deal(deal_id, **dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal updated successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to update deal: {e}")
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update deal: {e}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def delete_deal(self):
         """Delete selected deal"""
@@ -159,6 +191,7 @@ class DealsTab:
                 try:
                     self.crm_service.delete_deal(deal_id)
                     self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal deleted successfully"))
                 except Exception as e:
                     logger.error(f"Failed to delete deal: {e}")
                     self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete deal: {e}"))
