@@ -58,7 +58,16 @@ def _resolve_token(
     authorization: AuthorizationHeader = None,
     access_token_cookie: AccessTokenCookie = None,
 ) -> str:
-    token = _decode_authorization_header(authorization)
+    token: str | None = None
+
+    if authorization:
+        try:
+            token = _decode_authorization_header(authorization)
+        except HTTPException:
+            if access_token_cookie:
+                return access_token_cookie.strip()
+            raise
+
     if token:
         return token
 
