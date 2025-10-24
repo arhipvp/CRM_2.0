@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 
 from crm.app.dependencies import get_deal_service, get_tenant_id
 from crm.domain import schemas
@@ -56,7 +57,7 @@ def _build_deal_filters(
 
     try:
         return schemas.DealFilters.model_validate(data)
-    except ValueError as exc:  # pragma: no cover - surface as HTTP 422
+    except ValidationError as exc:  # pragma: no cover - surface as HTTP 422
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="invalid_filters",
