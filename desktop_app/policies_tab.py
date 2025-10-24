@@ -1,8 +1,9 @@
-"""Policies tab module for CRM Desktop App"""
+"""Policies management tab component"""
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from typing import Optional, Dict, Any, Callable, List
 from threading import Thread
+from typing import Optional, List, Dict, Any
+
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import PolicyDetailDialog
@@ -10,302 +11,210 @@ from edit_dialogs import PolicyEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
-class PoliciesTab(ttk.Frame):
+class PoliciesTab:
     """Tab for managing policies"""
 
-    def __init__(self, parent, crm_service: CRMService, on_refresh: Optional[Callable] = None):
-        super().__init__(parent)
+    def __init__(self, parent: ttk.Frame, crm_service: CRMService):
+        self.parent = parent
         self.crm_service = crm_service
-        self.on_refresh = on_refresh
-        self.policies = []
-        self.all_policies = []  # Store all policies for filtering
-        self.current_policy = None
+        self.tree: Optional[ttk.Treeview] = None
         self.search_filter: Optional[SearchFilter] = None
-        self.all_clients: List[Dict[str, Any]] = []
-        self.all_deals: List[Dict[str, Any]] = []
+        self.all_policies: List[Dict[str, Any]] = []  # Store all policies for filtering
+        self.all_clients: List[Dict[str, Any]] = []  # Store all clients for dropdowns
+        self.all_deals: List[Dict[str, Any]] = []  # Store all deals for dropdowns
 
-        self.create_widgets()
-        self.refresh_data()
+        self._setup_ui()
+        self.refresh_tree()
 
-    def create_widgets(self):
-        """Create UI elements"""
+    def _setup_ui(self):
+        """Setup Policies tab UI"""
         # Search filter frame
-        search_frame = tk.Frame(self)
-        search_frame.pack(pady=5, padx=5, fill="x")
+        search_frame = tk.Frame(self.parent)
+        search_frame.pack(pady=5, padx=10, fill="x")
 
         self.search_filter = SearchFilter(search_frame, self._on_search_change)
         self.search_filter.pack(fill="x")
 
-        # Control frame
-        control_frame = ttk.Frame(self)
-        control_frame.pack(fill="x", padx=5, pady=5)
+        # Frame for Treeview and Scrollbar
+        tree_frame = tk.Frame(self.parent)
+        tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-        ttk.Button(control_frame, text="Add Policy", command=self.add_policy).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Edit", command=self.edit_policy).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Delete", command=self.delete_policy).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Refresh", command=self.refresh_data).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
-
-        # Filter frame
-        filter_frame = ttk.LabelFrame(self, text="Filters", padding=5)
-        filter_frame.pack(fill="x", padx=5, pady=5)
-
-        ttk.Label(filter_frame, text="Status:").pack(side="left", padx=5)
-        self.status_filter = ttk.Combobox(
-            filter_frame,
-            values=["All", "draft", "active", "inactive"],
-            state="readonly",
-            width=15
-        )
-        self.status_filter.set("All")
-        self.status_filter.pack(side="left", padx=5)
-        self.status_filter.bind("<<ComboboxSelected>>", lambda e: self.apply_filters())
-
-        # Treeview frame
-        tree_frame = ttk.Frame(self)
-        tree_frame.pack(fill="both", expand=True, padx=5, pady=5)
-
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(tree_frame)
-        scrollbar.pack(side="right", fill="y")
-
-        # Treeview
-        columns = ("policy_number", "status", "premium", "effective_from", "effective_to", "created_at", "deleted")
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=columns,
-            show="headings",
-            yscrollcommand=scrollbar.set
+            columns=("ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"),
+            show="headings"
         )
-        scrollbar.config(command=self.tree.yview)
+        self.tree.heading("ID", text="ID")
+        self.tree.heading("Policy Number", text="Policy Number")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Premium", text="Premium")
+        self.tree.heading("Effective From", text="Effective From")
+        self.tree.heading("Effective To", text="Effective To")
+        self.tree.heading("Deleted", text="Deleted")
 
-        # Define column headings and widths
-        self.tree.column("policy_number", width=150, anchor="w")
-        self.tree.column("status", width=100, anchor="w")
-        self.tree.column("premium", width=100, anchor="e")
-        self.tree.column("effective_from", width=100, anchor="w")
-        self.tree.column("effective_to", width=100, anchor="w")
-        self.tree.column("created_at", width=100, anchor="w")
-        self.tree.column("deleted", width=60, anchor="w")
+        self.tree.column("ID", width=50, anchor="center")
+        self.tree.column("Policy Number", width=150)
+        self.tree.column("Status", width=100)
+        self.tree.column("Premium", width=100)
+        self.tree.column("Effective From", width=120)
+        self.tree.column("Effective To", width=120)
+        self.tree.column("Deleted", width=60)
 
-        self.tree.heading("policy_number", text="Policy Number")
-        self.tree.heading("status", text="Status")
-        self.tree.heading("premium", text="Premium")
-        self.tree.heading("effective_from", text="Effective From")
-        self.tree.heading("effective_to", text="Effective To")
-        self.tree.heading("created_at", text="Created")
-        self.tree.heading("deleted", text="Deleted")
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Bind selection and double-click
-        self.tree.bind("<<TreeviewSelect>>", self.on_policy_select)
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind double-click to open detail dialog
         self.tree.bind("<Double-1>", self._on_tree_double_click)
 
-        self.tree.pack(fill="both", expand=True)
+        # Frame for buttons
+        button_frame = tk.Frame(self.parent)
+        button_frame.pack(pady=10)
 
-        # Details frame
-        details_frame = ttk.LabelFrame(self, text="Policy Details", padding=5)
-        details_frame.pack(fill="x", padx=5, pady=5)
+        tk.Button(button_frame, text="Add Policy", command=self.add_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Edit", command=self.edit_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Delete", command=self.delete_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
 
-        ttk.Label(details_frame, text="Policy Number:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
-        self.policy_number_label = ttk.Label(details_frame, text="")
-        self.policy_number_label.grid(row=0, column=1, sticky="w", padx=5, pady=2)
+    def refresh_tree(self):
+        """Refresh policies list asynchronously"""
+        def worker():
+            try:
+                # Load policies, clients, and deals
+                policies = self.crm_service.get_policies()
+                clients = self.crm_service.get_clients()
+                deals = self.crm_service.get_deals()
+                self.parent.after(0, self._update_tree_ui, policies, clients, deals)
+            except Exception as e:
+                logger.error(f"Failed to fetch policies: {e}")
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch policies: {error_msg}"))
 
-        ttk.Label(details_frame, text="Client ID:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        self.client_id_label = ttk.Label(details_frame, text="")
-        self.client_id_label.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        Thread(target=worker, daemon=True).start()
 
-        ttk.Label(details_frame, text="Status:").grid(row=2, column=0, sticky="w", padx=5, pady=2)
-        self.status_label = ttk.Label(details_frame, text="")
-        self.status_label.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+    def _update_tree_ui(self, policies, clients=None, deals=None):
+        """Update tree UI on main thread"""
+        if not self.tree:
+            return
 
-        ttk.Label(details_frame, text="Premium:").grid(row=3, column=0, sticky="w", padx=5, pady=2)
-        self.premium_label = ttk.Label(details_frame, text="")
-        self.premium_label.grid(row=3, column=1, sticky="w", padx=5, pady=2)
+        # Store all data for filtering
+        self.all_policies = policies
+        if clients:
+            self.all_clients = clients
+        if deals:
+            self.all_deals = deals
+        self._refresh_tree_display(policies)
 
-    def refresh_data(self):
-        """Refresh policies data from API"""
-        thread = Thread(target=self._fetch_policies, daemon=True)
-        thread.start()
+    def _refresh_tree_display(self, policies_to_display: List[Dict[str, Any]]):
+        """Refresh tree display with given list of policies"""
+        if not self.tree:
+            return
 
-    def _fetch_policies(self):
-        """Fetch policies in background"""
-        try:
-            self.policies = self.crm_service.get_policies()
-            self.all_policies = self.policies  # Store all policies for filtering
-            # Also fetch clients and deals for dropdowns
-            self.all_clients = self.crm_service.get_clients()
-            self.all_deals = self.crm_service.get_deals()
-            self.after(0, self._update_tree)
-            logger.info(f"Fetched {len(self.policies)} policies")
-        except Exception as e:
-            logger.error(f"Failed to fetch policies: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch policies: {error_msg}"))
-
-    def _update_tree(self):
-        """Update tree with policies data"""
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        logger.info(f"_update_tree called with {len(self.policies)} policies")
+        # Clear tree
+        for i in self.tree.get_children():
+            self.tree.delete(i)
 
         # Add policies
-        for policy in self.policies:
+        for policy in policies_to_display:
             is_deleted = "Yes" if policy.get("is_deleted", False) else "No"
-            try:
-                self.tree.insert(
-                    "",
-                    "end",
-                    iid=policy.get("id"),
-                    values=(
-                        policy.get("policy_number", ""),
-                        policy.get("status", ""),
-                        f"{policy.get('premium', 0):.2f}" if policy.get('premium') else "0.00",
-                        policy.get("effective_from", ""),
-                        policy.get("effective_to", ""),
-                        policy.get("created_at", "")[:10] if policy.get("created_at") else "",
-                        is_deleted
-                    )
-                )
-            except Exception as e:
-                logger.error(f"Failed to insert policy row: {e}")
+            premium = policy.get("premium", 0)
+            if premium:
+                premium_str = f"{float(premium):.2f}"
+            else:
+                premium_str = "N/A"
 
-        logger.info(f"Tree now has {len(self.tree.get_children())} rows")
-
-        # Force UI update to ensure rows are visible
-        self.tree.update()
-        self.update_idletasks()
-
-    def apply_filters(self):
-        """Apply filter to policies"""
-        status_filter = self.status_filter.get()
-
-        # Clear and repopulate tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        for policy in self.policies:
-            status_match = (status_filter == "All" or policy.get("status") == status_filter)
-
-            if status_match:
-                is_deleted = "Yes" if policy.get("is_deleted", False) else "No"
-                self.tree.insert(
-                    "",
-                    "end",
-                    iid=policy.get("id"),
-                    values=(
-                        policy.get("policy_number", ""),
-                        policy.get("status", ""),
-                        f"{policy.get('premium', 0):.2f}" if policy.get('premium') else "0.00",
-                        policy.get("effective_from", ""),
-                        policy.get("effective_to", ""),
-                        policy.get("created_at", "")[:10] if policy.get("created_at") else "",
-                        is_deleted
-                    )
-                )
-
-        # Force UI update to ensure rows are visible
-        self.tree.update()
-        self.update_idletasks()
-
-    def on_policy_select(self, event):
-        """Handle policy selection"""
-        selection = self.tree.selection()
-        if selection:
-            policy_id = selection[0]
-            self.current_policy = next((p for p in self.policies if p.get("id") == policy_id), None)
-            if self.current_policy:
-                self.policy_number_label.config(text=self.current_policy.get("policy_number", ""))
-                self.client_id_label.config(text=str(self.current_policy.get("client_id", "")))
-                self.status_label.config(text=self.current_policy.get("status", ""))
-                premium = self.current_policy.get("premium", 0)
-                self.premium_label.config(text=f"{premium:.2f}" if premium else "0.00")
+            self.tree.insert("", "end", iid=policy.get("id"), values=(
+                policy.get("id", "")[:8] + "...",  # Show first 8 chars of ID
+                policy.get("policy_number", "N/A"),
+                policy.get("status", "N/A"),
+                premium_str,
+                policy.get("effective_from", "N/A"),
+                policy.get("effective_to", "N/A"),
+                is_deleted
+            ))
 
     def add_policy(self):
         """Add new policy"""
-        dialog = PolicyEditDialog(self, policy=None, clients_list=self.all_clients, deals_list=self.all_deals)
+        dialog = PolicyEditDialog(self.parent, policy=None, clients_list=self.all_clients, deals_list=self.all_deals)
         if dialog.result:
-            thread = Thread(
-                target=self._create_policy,
-                args=(dialog.result,),
-                daemon=True
-            )
-            thread.start()
+            def worker():
+                try:
+                    self.crm_service.create_policy(**dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy created successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to create policy: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create policy: {error_msg}"))
 
-    def _create_policy(self, data):
-        """Create policy in API"""
-        try:
-            self.crm_service.create_policy(**data)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Policy created successfully"))
-        except Exception as e:
-            logger.error(f"Failed to create policy: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create policy: {error_msg}"))
+            Thread(target=worker, daemon=True).start()
 
     def edit_policy(self):
         """Edit selected policy"""
-        if not self.current_policy:
-            messagebox.showwarning("Warning", "Please select a policy to edit")
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a policy to edit.")
             return
 
-        dialog = PolicyEditDialog(self, policy=self.current_policy, clients_list=self.all_clients, deals_list=self.all_deals)
-        if dialog.result:
-            thread = Thread(
-                target=self._update_policy,
-                args=(self.current_policy["id"], dialog.result),
-                daemon=True
-            )
-            thread.start()
+        policy_id = selected_item
 
-    def _update_policy(self, policy_id: str, data):
-        """Update policy in API"""
-        try:
-            self.crm_service.update_policy(policy_id, **data)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Policy updated successfully"))
-        except Exception as e:
-            logger.error(f"Failed to update policy: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update policy: {error_msg}"))
+        # Fetch current policy data asynchronously
+        def fetch_and_edit():
+            try:
+                current_policy = self.crm_service.get_policy(policy_id)
+                self.parent.after(0, lambda: self._show_edit_dialog(policy_id, current_policy))
+            except Exception as e:
+                logger.error(f"Failed to fetch policy for editing: {e}")
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch policy: {error_msg}"))
+
+        Thread(target=fetch_and_edit, daemon=True).start()
+
+    def _show_edit_dialog(self, policy_id, current_policy):
+        """Show edit dialog on main thread"""
+        dialog = PolicyEditDialog(self.parent, policy=current_policy, clients_list=self.all_clients, deals_list=self.all_deals)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.update_policy(policy_id, **dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy updated successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to update policy: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update policy: {error_msg}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def delete_policy(self):
         """Delete selected policy"""
-        if not self.current_policy:
-            messagebox.showwarning("Warning", "Please select a policy to delete")
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a policy to delete.")
             return
 
-        if messagebox.askyesno("Confirm", "Are you sure you want to delete this policy?"):
-            thread = Thread(
-                target=self._remove_policy,
-                args=(self.current_policy["id"],),
-                daemon=True
-            )
-            thread.start()
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this policy?"):
+            policy_id = selected_item
 
-    def _remove_policy(self, policy_id: str):
-        """Remove policy from API"""
-        try:
-            self.crm_service.delete_policy(policy_id)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Policy deleted successfully"))
-        except Exception as e:
-            logger.error(f"Failed to delete policy: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete policy: {error_msg}"))
+            def worker():
+                try:
+                    self.crm_service.delete_policy(policy_id)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy deleted successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to delete policy: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete policy: {error_msg}"))
 
-    def _on_tree_double_click(self, event):
-        """Handle double-click on policy row to open detail dialog"""
-        selection = self.tree.selection()
-        if not selection:
-            return
-
-        policy_id = selection[0]
-        self.current_policy = next((p for p in self.policies if p.get("id") == policy_id), None)
-        if self.current_policy:
-            PolicyDetailDialog(self, self.current_policy)
+            Thread(target=worker, daemon=True).start()
 
     def _on_search_change(self, search_text: str):
         """Handle search filter change"""
@@ -318,33 +227,6 @@ class PoliciesTab(ttk.Frame):
 
         # Update tree display with filtered results
         self._refresh_tree_display(filtered_policies)
-
-    def _refresh_tree_display(self, policies_to_display: List[Dict[str, Any]]):
-        """Refresh tree display with given list of policies"""
-        if not self.tree:
-            return
-
-        # Clear tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        # Add policies
-        for policy in policies_to_display:
-            is_deleted = "Yes" if policy.get("is_deleted", False) else "No"
-            self.tree.insert(
-                "",
-                "end",
-                iid=policy.get("id"),
-                values=(
-                    policy.get("policy_number", ""),
-                    policy.get("status", ""),
-                    f"{policy.get('premium', 0):.2f}" if policy.get('premium') else "0.00",
-                    policy.get("effective_from", ""),
-                    policy.get("effective_to", ""),
-                    policy.get("created_at", "")[:10] if policy.get("created_at") else "",
-                    is_deleted
-                )
-            )
 
     def export_to_csv(self):
         """Export policies to CSV file"""
@@ -369,7 +251,7 @@ class PoliciesTab(ttk.Frame):
                 return
 
             # Prepare data
-            columns = ["Policy Number", "Status", "Premium", "Effective From", "Effective To", "Created", "Deleted"]
+            columns = ["ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"]
             rows = []
 
             for item in displayed_items:
@@ -410,7 +292,7 @@ class PoliciesTab(ttk.Frame):
                 return
 
             # Prepare data
-            columns = ["Policy Number", "Status", "Premium", "Effective From", "Effective To", "Created", "Deleted"]
+            columns = ["ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"]
             rows = []
 
             for item in displayed_items:
@@ -428,4 +310,20 @@ class PoliciesTab(ttk.Frame):
             logger.error(f"Export error: {e}")
             messagebox.showerror("Error", f"Failed to export data: {e}")
 
+    def _on_tree_double_click(self, event):
+        """Handle double-click on policy row to open detail dialog"""
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            return
 
+        # Fetch full policy data
+        policy_id = selected_item
+        try:
+            policy_data = self.crm_service.get_policy(policy_id)
+            if policy_data:
+                PolicyDetailDialog(self.parent, policy_data)
+        except Exception as e:
+            logger.error(f"Failed to fetch policy details: {e}")
+            messagebox.showerror("Error", f"Failed to fetch policy details: {e}")
