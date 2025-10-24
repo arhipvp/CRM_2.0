@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Literal, Optional
@@ -99,10 +100,23 @@ _STAGE_TO_STATUS: dict[DealStage, str] = {
 }
 
 
+def _normalize_status(value: str) -> str:
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
+    normalized = normalized.replace("-", "_")
+    normalized = normalized.strip().lower()
+    synonyms = {
+        "inprogress": "in_progress",
+        "closedwon": "closed_won",
+        "closedlost": "closed_lost",
+    }
+    return synonyms.get(normalized, normalized)
+
+
 def map_deal_status_to_stage(status: str | None) -> DealStage:
     if not status:
         return "qualification"
-    return _STATUS_TO_STAGE.get(status.lower(), "qualification")
+    normalized = _normalize_status(status)
+    return _STATUS_TO_STAGE.get(normalized, "qualification")
 
 
 def map_stage_to_deal_status(stage: DealStage) -> str:
