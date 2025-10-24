@@ -15,6 +15,15 @@ router = APIRouter(
 )
 
 
+def _handle_repository_error(exc: RepositoryError) -> None:
+    detail = str(exc)
+    if detail == "policy_not_found":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
+    if detail in {"currency_mismatch", "posted_at_in_future"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
+
+
 @router.post("", response_model=schemas.PaymentIncomeRead, status_code=status.HTTP_201_CREATED)
 async def create_income(
     deal_id: UUID,
@@ -27,7 +36,7 @@ async def create_income(
     try:
         payment, income = await service.create_income(tenant_id, deal_id, policy_id, payment_id, payload)
     except RepositoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _handle_repository_error(exc)
     if payment is None or income is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return income
@@ -48,7 +57,7 @@ async def update_income(
             tenant_id, deal_id, policy_id, payment_id, income_id, payload
         )
     except RepositoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _handle_repository_error(exc)
     if payment is None or income is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="income_not_found")
     return income
