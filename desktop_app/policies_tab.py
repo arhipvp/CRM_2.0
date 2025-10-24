@@ -10,6 +10,7 @@ from detail_dialogs import PolicyDetailDialog
 from edit_dialogs import PolicyEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 from i18n import i18n
+from table_sort_utils import treeview_sort_column
 
 
 class PoliciesTab:

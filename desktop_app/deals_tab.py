@@ -10,6 +10,7 @@ from detail_dialogs import DealDetailDialog
 from edit_dialogs import DealEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 from i18n import i18n
+from table_sort_utils import treeview_sort_column
 
 
 class DealsTab:
@@ -42,24 +43,25 @@ class DealsTab:
         # Create table Treeview with columns
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("ID", "Title", "Client", "Status", "Amount", "Deleted"),
+            columns=("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Tenant ID", "Created At", "Updated At", "Next Review At"),
             show="headings"
         )
 
         # Define column headings and widths
-        self.tree.heading("ID", text=i18n("ID"))
-        self.tree.heading("Title", text=i18n("Deal Title"))
-        self.tree.heading("Client", text=i18n("Client"))
-        self.tree.heading("Status", text=i18n("Status"))
-        self.tree.heading("Amount", text=i18n("Amount"))
-        self.tree.heading("Deleted", text=i18n("Deleted"))
+        for col in ("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Tenant ID", "Created At", "Updated At", "Next Review At"):
+            self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50)
         self.tree.column("Title", width=150)
-        self.tree.column("Client", width=120)
+        self.tree.column("Client ID", width=120)
         self.tree.column("Status", width=80)
-        self.tree.column("Amount", width=100)
+        self.tree.column("Description", width=200)
         self.tree.column("Deleted", width=60)
+        self.tree.column("Owner ID", width=120)
+        self.tree.column("Tenant ID", width=120)
+        self.tree.column("Created At", width=150)
+        self.tree.column("Updated At", width=150)
+        self.tree.column("Next Review At", width=150)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -86,6 +88,22 @@ class DealsTab:
         info_frame.pack(pady=5, padx=10, fill="x")
         self.info_label = tk.Label(info_frame, text=i18n("Select a deal to view its details"), fg="gray")
         self.info_label.pack(side="left")
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Title": "title",
+            "Client ID": "client_id",
+            "Status": "status",
+            "Description": "description",
+            "Deleted": "is_deleted",
+            "Owner ID": "owner_id",
+            "Tenant ID": "tenant_id",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+            "Next Review At": "next_review_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_deals, display_map)
 
     def refresh_tree(self):
         """Refresh deals list asynchronously"""
@@ -132,8 +150,13 @@ class DealsTab:
                 deal.get("title", "N/A"),
                 deal.get("client_id", "N/A"),
                 deal.get("status", "N/A"),
-                deal.get("amount", "N/A"),
-                is_deleted
+                deal.get("description", "N/A"),
+                is_deleted,
+                deal.get("owner_id", "N/A"),
+                deal.get("tenant_id", "N/A"),
+                deal.get("created_at", "N/A"),
+                deal.get("updated_at", "N/A"),
+                deal.get("next_review_at", "N/A"),
             )
             self.tree.insert("", "end", iid=deal.get("id", ""), values=values)
 
@@ -247,7 +270,7 @@ class DealsTab:
 
         try:
             # Prepare data from all_deals
-            columns = [i18n("ID"), i18n("Title"), i18n("Client"), i18n("Status"), i18n("Amount"), i18n("Deleted")]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Tenant ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
             rows = []
 
             for deal in self.all_deals:
@@ -257,8 +280,13 @@ class DealsTab:
                     deal.get("title", "N/A"),
                     deal.get("client_id", "N/A"),
                     deal.get("status", "N/A"),
-                    deal.get("amount", "N/A"),
-                    is_deleted
+                    deal.get("description", "N/A"),
+                    is_deleted,
+                    deal.get("owner_id", "N/A"),
+                    deal.get("tenant_id", "N/A"),
+                    deal.get("created_at", "N/A"),
+                    deal.get("updated_at", "N/A"),
+                    deal.get("next_review_at", "N/A"),
                 ])
 
             # Export using DataExporter
@@ -289,7 +317,7 @@ class DealsTab:
 
         try:
             # Prepare data from all_deals
-            columns = [i18n("ID"), i18n("Title"), i18n("Client"), i18n("Status"), i18n("Amount"), i18n("Deleted")]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Tenant ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
             rows = []
 
             for deal in self.all_deals:
@@ -299,8 +327,13 @@ class DealsTab:
                     deal.get("title", "N/A"),
                     deal.get("client_id", "N/A"),
                     deal.get("status", "N/A"),
-                    deal.get("amount", "N/A"),
-                    is_deleted
+                    deal.get("description", "N/A"),
+                    is_deleted,
+                    deal.get("owner_id", "N/A"),
+                    deal.get("tenant_id", "N/A"),
+                    deal.get("created_at", "N/A"),
+                    deal.get("updated_at", "N/A"),
+                    deal.get("next_review_at", "N/A"),
                 ])
 
             # Export using DataExporter

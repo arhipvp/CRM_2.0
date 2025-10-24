@@ -7,6 +7,7 @@ from datetime import datetime
 
 from crm_service import CRMService
 from logger import logger
+from table_sort_utils import treeview_sort_column
 
 
 class DealJournalTab:
@@ -18,6 +19,7 @@ class DealJournalTab:
         self.deal_id = deal_id
         self.tree: Optional[ttk.Treeview] = None
         self.current_deal_id: Optional[str] = None
+        self.all_journal_entries: List[Dict[str, Any]] = [] # Store all journal entries for filtering and sorting
 
         self._setup_ui()
 
@@ -44,9 +46,8 @@ class DealJournalTab:
             columns=("Date", "Note", "Deleted"),
             show="headings"
         )
-        self.tree.heading("Date", text="Date")
-        self.tree.heading("Note", text="Note / Journal Entry")
-        self.tree.heading("Deleted", text="Deleted")
+        for col in ("Date", "Note", "Deleted"):
+            self.tree.heading(col, text=col, command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("Date", width=100)
         self.tree.column("Note", width=400)
@@ -69,6 +70,14 @@ class DealJournalTab:
 
         # Load deals on init
         self._load_deals()
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "Date": "date",
+            "Note": "note",
+            "Deleted": "is_deleted",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_journal_entries, display_map)
 
     def _load_deals(self):
         """Load deals for dropdown"""
@@ -152,6 +161,9 @@ class DealJournalTab:
         """Update tree UI on main thread"""
         if not self.tree:
             return
+
+        self.all_journal_entries = entries # Store for sorting
+
         for i in self.tree.get_children():
             self.tree.delete(i)
         for entry in entries:

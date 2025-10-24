@@ -10,6 +10,7 @@ from detail_dialogs import CalculationDetailDialog
 from edit_dialogs import CalculationEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 from i18n import i18n
+from table_sort_utils import treeview_sort_column
 
 
 class CalculationsTab:
@@ -88,7 +89,12 @@ class CalculationsTab:
         scrollbar.pack(side="right", fill="y")
 
         # Treeview
-        columns = ("insurance_company", "program_name", "premium_amount", "coverage_sum", "status", "created_at", "deleted")
+        columns = (
+            "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID",
+            "Insurance Company", "Program Name", "Premium Amount", "Coverage Sum",
+            "Calculation Date", "Validity Period", "Status", "Files", "Comments",
+            "Created At", "Updated At"
+        )
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -98,21 +104,25 @@ class CalculationsTab:
         scrollbar.config(command=self.tree.yview)
 
         # Define column headings and widths
-        self.tree.column("insurance_company", width=150, anchor="w")
-        self.tree.column("program_name", width=150, anchor="w")
-        self.tree.column("premium_amount", width=120, anchor="e")
-        self.tree.column("coverage_sum", width=120, anchor="e")
-        self.tree.column("status", width=100, anchor="w")
-        self.tree.column("created_at", width=100, anchor="w")
-        self.tree.column("deleted", width=60, anchor="w")
+        for col in columns:
+            self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
-        self.tree.heading("insurance_company", text=i18n("Insurance Company"))
-        self.tree.heading("program_name", text=i18n("Program Name"))
-        self.tree.heading("premium_amount", text=i18n("Premium Amount"))
-        self.tree.heading("coverage_sum", text=i18n("Coverage Sum"))
-        self.tree.heading("status", text=i18n("Status"))
-        self.tree.heading("created_at", text=i18n("Created"))
-        self.tree.heading("deleted", text=i18n("Deleted"))
+        self.tree.column("ID", width=100, anchor="w")
+        self.tree.column("Tenant ID", width=100, anchor="w")
+        self.tree.column("Owner ID", width=100, anchor="w")
+        self.tree.column("Deleted", width=60, anchor="w")
+        self.tree.column("Deal ID", width=100, anchor="w")
+        self.tree.column("Insurance Company", width=150, anchor="w")
+        self.tree.column("Program Name", width=150, anchor="w")
+        self.tree.column("Premium Amount", width=120, anchor="e")
+        self.tree.column("Coverage Sum", width=120, anchor="e")
+        self.tree.column("Calculation Date", width=100, anchor="w")
+        self.tree.column("Validity Period", width=150, anchor="w")
+        self.tree.column("Status", width=100, anchor="w")
+        self.tree.column("Files", width=80, anchor="w")
+        self.tree.column("Comments", width=200, anchor="w")
+        self.tree.column("Created At", width=150, anchor="w")
+        self.tree.column("Updated At", width=150, anchor="w")
 
         # Bind selection and double-click
         self.tree.bind("<<TreeviewSelect>>", self._on_calculation_select)
@@ -128,6 +138,27 @@ class CalculationsTab:
         self.comments_text = tk.Text(details_frame, height=3, width=80)
         self.comments_text.pack(fill="x", padx=5, pady=2)
         self.comments_text.config(state="disabled")
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Owner ID": "owner_id",
+            "Deleted": "is_deleted",
+            "Deal ID": "deal_id",
+            "Insurance Company": "insurance_company",
+            "Program Name": "program_name",
+            "Premium Amount": "premium_amount",
+            "Coverage Sum": "coverage_sum",
+            "Calculation Date": "calculation_date",
+            "Validity Period": "validity_period",
+            "Status": "status",
+            "Files": "files",
+            "Comments": "comments",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_calculations, display_map)
 
     def refresh_deals(self):
         """Refresh deals for selection asynchronously"""
@@ -205,13 +236,22 @@ class CalculationsTab:
                 "end",
                 iid=calc.get("id"),
                 values=(
-                    calc.get("insurance_company", ""),
-                    calc.get("program_name", ""),
+                    calc.get("id", "N/A")[:8],
+                    calc.get("tenant_id", "N/A")[:8],
+                    calc.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    calc.get("deal_id", "N/A")[:8],
+                    calc.get("insurance_company", "N/A"),
+                    calc.get("program_name", "N/A"),
                     f"{calc.get('premium_amount', 0):.2f}" if calc.get('premium_amount') else "0.00",
                     f"{calc.get('coverage_sum', 0):.2f}" if calc.get('coverage_sum') else "0.00",
-                    calc.get("status", ""),
-                    calc.get("created_at", "")[:10] if calc.get("created_at") else "",
-                    is_deleted
+                    calc.get("calculation_date", "N/A"),
+                    str(calc.get("validity_period", "N/A")),
+                    calc.get("status", "N/A"),
+                    str(calc.get("files", "N/A")),
+                    calc.get("comments", "N/A"),
+                    calc.get("created_at", "N/A"),
+                    calc.get("updated_at", "N/A"),
                 )
             )
 
@@ -360,19 +400,35 @@ class CalculationsTab:
             return
 
         try:
-            # Get current displayed calculations from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"), i18n("Status"), i18n("Created"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
+                i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"),
+                i18n("Calculation Date"), i18n("Validity Period"), i18n("Status"), i18n("Files"), i18n("Comments"),
+                i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for calc in self.all_calculations:
+                is_deleted = i18n("Yes") if calc.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    calc.get("id", "N/A")[:8],
+                    calc.get("tenant_id", "N/A")[:8],
+                    calc.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    calc.get("deal_id", "N/A")[:8],
+                    calc.get("insurance_company", "N/A"),
+                    calc.get("program_name", "N/A"),
+                    f"{calc.get('premium_amount', 0):.2f}" if calc.get('premium_amount') else "0.00",
+                    f"{calc.get('coverage_sum', 0):.2f}" if calc.get('coverage_sum') else "0.00",
+                    calc.get("calculation_date", "N/A"),
+                    str(calc.get("validity_period", "N/A")),
+                    calc.get("status", "N/A"),
+                    str(calc.get("files", "N/A")),
+                    calc.get("comments", "N/A"),
+                    calc.get("created_at", "N/A"),
+                    calc.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
@@ -401,19 +457,35 @@ class CalculationsTab:
             return
 
         try:
-            # Get current displayed calculations from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"), i18n("Status"), i18n("Created"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
+                i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"),
+                i18n("Calculation Date"), i18n("Validity Period"), i18n("Status"), i18n("Files"), i18n("Comments"),
+                i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for calc in self.all_calculations:
+                is_deleted = i18n("Yes") if calc.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    calc.get("id", "N/A")[:8],
+                    calc.get("tenant_id", "N/A")[:8],
+                    calc.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    calc.get("deal_id", "N/A")[:8],
+                    calc.get("insurance_company", "N/A"),
+                    calc.get("program_name", "N/A"),
+                    f"{calc.get('premium_amount', 0):.2f}" if calc.get('premium_amount') else "0.00",
+                    f"{calc.get('coverage_sum', 0):.2f}" if calc.get('coverage_sum') else "0.00",
+                    calc.get("calculation_date", "N/A"),
+                    str(calc.get("validity_period", "N/A")),
+                    calc.get("status", "N/A"),
+                    str(calc.get("files", "N/A")),
+                    calc.get("comments", "N/A"),
+                    calc.get("created_at", "N/A"),
+                    calc.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):

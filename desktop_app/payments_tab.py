@@ -9,6 +9,7 @@ from logger import logger
 from detail_dialogs import PaymentDetailDialog
 from edit_dialogs import PaymentEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from table_sort_utils import treeview_sort_column
 
 
 class PaymentsTab:
@@ -53,22 +54,40 @@ class PaymentsTab:
         tree_frame = tk.Frame(self.parent)
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
+        columns = (
+            "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+            "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
+            "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
+            "Expenses Total", "Net Total", "Created At", "Updated At"
+        )
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("Date", "Type", "Amount", "Status", "Deleted"),
+            columns=columns,
             show="headings"
         )
-        self.tree.heading("Date", text="Date")
-        self.tree.heading("Type", text="Type")
-        self.tree.heading("Amount", text="Amount")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Deleted", text="Deleted")
 
-        self.tree.column("Date", width=100)
-        self.tree.column("Type", width=100)
-        self.tree.column("Amount", width=100)
+        for col in columns:
+            self.tree.heading(col, text=col, command=lambda c=col: self._on_tree_sort(c))
+
+        self.tree.column("ID", width=100)
+        self.tree.column("Tenant ID", width=100)
+        self.tree.column("Deal ID", width=100)
+        self.tree.column("Policy ID", width=100)
+        self.tree.column("Sequence", width=80)
         self.tree.column("Status", width=100)
-        self.tree.column("Deleted", width=60)
+        self.tree.column("Planned Date", width=100)
+        self.tree.column("Actual Date", width=100)
+        self.tree.column("Planned Amount", width=120)
+        self.tree.column("Currency", width=80)
+        self.tree.column("Comment", width=200)
+        self.tree.column("Recorded By ID", width=100)
+        self.tree.column("Created By ID", width=100)
+        self.tree.column("Updated By ID", width=100)
+        self.tree.column("Incomes Total", width=120)
+        self.tree.column("Expenses Total", width=120)
+        self.tree.column("Net Total", width=120)
+        self.tree.column("Created At", width=150)
+        self.tree.column("Updated At", width=150)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -92,6 +111,30 @@ class PaymentsTab:
 
         # Load deals
         self._load_deals()
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Deal ID": "deal_id",
+            "Policy ID": "policy_id",
+            "Sequence": "sequence",
+            "Status": "status",
+            "Planned Date": "planned_date",
+            "Actual Date": "actual_date",
+            "Planned Amount": "planned_amount",
+            "Currency": "currency",
+            "Comment": "comment",
+            "Recorded By ID": "recorded_by_id",
+            "Created By ID": "created_by_id",
+            "Updated By ID": "updated_by_id",
+            "Incomes Total": "incomes_total",
+            "Expenses Total": "expenses_total",
+            "Net Total": "net_total",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_payments, display_map)
 
     def _load_deals(self):
         """Load deals for dropdown"""
@@ -243,13 +286,26 @@ class PaymentsTab:
 
         # Add payments
         for payment in payments_to_display:
-            is_deleted = "Yes" if payment.get("is_deleted", False) else "No"
             self.tree.insert("", "end", iid=payment.get("id"), values=(
-                payment.get("date", "N/A"),
-                payment.get("type", "N/A"),
-                payment.get("amount", "N/A"),
+                payment.get("id", "N/A")[:8],
+                payment.get("tenant_id", "N/A")[:8],
+                payment.get("deal_id", "N/A")[:8],
+                payment.get("policy_id", "N/A")[:8],
+                payment.get("sequence", "N/A"),
                 payment.get("status", "N/A"),
-                is_deleted
+                payment.get("planned_date", "N/A"),
+                payment.get("actual_date", "N/A"),
+                f"{payment.get('planned_amount', 0):.2f}" if payment.get('planned_amount') else "0.00",
+                payment.get("currency", "N/A"),
+                payment.get("comment", "N/A"),
+                payment.get("recorded_by_id", "N/A")[:8],
+                payment.get("created_by_id", "N/A")[:8],
+                payment.get("updated_by_id", "N/A")[:8],
+                f"{payment.get('incomes_total', 0):.2f}" if payment.get('incomes_total') else "0.00",
+                f"{payment.get('expenses_total', 0):.2f}" if payment.get('expenses_total') else "0.00",
+                f"{payment.get('net_total', 0):.2f}" if payment.get('net_total') else "0.00",
+                payment.get("created_at", "N/A"),
+                payment.get("updated_at", "N/A"),
             ))
 
     def _on_search_change(self, search_text: str):
@@ -280,19 +336,37 @@ class PaymentsTab:
             return
 
         try:
-            # Get current displayed payments from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
-                return
-
             # Prepare data
-            columns = ["Date", "Type", "Amount", "Status", "Deleted"]
+            columns = [
+                "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+                "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
+                "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
+                "Expenses Total", "Net Total", "Created At", "Updated At"
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for payment in self.all_payments:
+                rows.append([
+                    payment.get("id", "N/A")[:8],
+                    payment.get("tenant_id", "N/A")[:8],
+                    payment.get("deal_id", "N/A")[:8],
+                    payment.get("policy_id", "N/A")[:8],
+                    payment.get("sequence", "N/A"),
+                    payment.get("status", "N/A"),
+                    payment.get("planned_date", "N/A"),
+                    payment.get("actual_date", "N/A"),
+                    f"{payment.get('planned_amount', 0):.2f}" if payment.get('planned_amount') else "0.00",
+                    payment.get("currency", "N/A"),
+                    payment.get("comment", "N/A"),
+                    payment.get("recorded_by_id", "N/A")[:8],
+                    payment.get("created_by_id", "N/A")[:8],
+                    payment.get("updated_by_id", "N/A")[:8],
+                    f"{payment.get('incomes_total', 0):.2f}" if payment.get('incomes_total') else "0.00",
+                    f"{payment.get('expenses_total', 0):.2f}" if payment.get('expenses_total') else "0.00",
+                    f"{payment.get('net_total', 0):.2f}" if payment.get('net_total') else "0.00",
+                    payment.get("created_at", "N/A"),
+                    payment.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
@@ -321,19 +395,37 @@ class PaymentsTab:
             return
 
         try:
-            # Get current displayed payments from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
-                return
-
             # Prepare data
-            columns = ["Date", "Type", "Amount", "Status", "Deleted"]
+            columns = [
+                "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+                "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
+                "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
+                "Expenses Total", "Net Total", "Created At", "Updated At"
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for payment in self.all_payments:
+                rows.append([
+                    payment.get("id", "N/A")[:8],
+                    payment.get("tenant_id", "N/A")[:8],
+                    payment.get("deal_id", "N/A")[:8],
+                    payment.get("policy_id", "N/A")[:8],
+                    payment.get("sequence", "N/A"),
+                    payment.get("status", "N/A"),
+                    payment.get("planned_date", "N/A"),
+                    payment.get("actual_date", "N/A"),
+                    f"{payment.get('planned_amount', 0):.2f}" if payment.get('planned_amount') else "0.00",
+                    payment.get("currency", "N/A"),
+                    payment.get("comment", "N/A"),
+                    payment.get("recorded_by_id", "N/A")[:8],
+                    payment.get("created_by_id", "N/A")[:8],
+                    payment.get("updated_by_id", "N/A")[:8],
+                    f"{payment.get('incomes_total', 0):.2f}" if payment.get('incomes_total') else "0.00",
+                    f"{payment.get('expenses_total', 0):.2f}" if payment.get('expenses_total') else "0.00",
+                    f"{payment.get('net_total', 0):.2f}" if payment.get('net_total') else "0.00",
+                    payment.get("created_at", "N/A"),
+                    payment.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
