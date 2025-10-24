@@ -174,6 +174,15 @@ class PolicyBase(BaseModel):
     effective_from: Optional[date] = None
     effective_to: Optional[date] = None
 
+    @field_validator("effective_from", "effective_to", mode="before")
+    @classmethod
+    def _convert_datetime_to_date(cls, value: date | datetime | None) -> date | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
 
 class PolicyCreate(PolicyBase):
     client_id: UUID
@@ -194,7 +203,7 @@ class PolicyRead(ORMModel, PolicyBase):
     client_id: UUID
     deal_id: Optional[UUID]
     calculation_id: Optional[UUID]
-    owner_id: UUID
+    owner_id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
 
@@ -273,7 +282,7 @@ class CalculationRead(ORMModel, CalculationBase):
     id: UUID
     tenant_id: UUID
     deal_id: UUID
-    owner_id: UUID
+    owner_id: Optional[UUID]
     status: CalculationStatus
     linked_policy_id: Optional[UUID] = None
     created_at: datetime
@@ -291,6 +300,15 @@ class TaskBase(BaseModel):
     status: str = Field(default="open")
     priority: str = Field(default="normal")
     due_date: Optional[date] = None
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def _convert_datetime_to_date(cls, value: date | datetime | None) -> date | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        return value
 
 
 class TaskCreate(TaskBase):
@@ -310,7 +328,7 @@ class TaskUpdate(BaseModel):
 class TaskRead(ORMModel, TaskBase):
     id: UUID
     tenant_id: UUID
-    owner_id: UUID
+    owner_id: Optional[UUID]
     deal_id: Optional[UUID]
     client_id: Optional[UUID]
     created_at: datetime
