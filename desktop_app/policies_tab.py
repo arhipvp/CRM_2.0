@@ -9,6 +9,7 @@ from logger import logger
 from detail_dialogs import PolicyDetailDialog
 from edit_dialogs import PolicyEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from i18n import i18n
 
 
 class PoliciesTab:
@@ -44,13 +45,13 @@ class PoliciesTab:
             columns=("ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"),
             show="headings"
         )
-        self.tree.heading("ID", text="ID")
-        self.tree.heading("Policy Number", text="Policy Number")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Premium", text="Premium")
-        self.tree.heading("Effective From", text="Effective From")
-        self.tree.heading("Effective To", text="Effective To")
-        self.tree.heading("Deleted", text="Deleted")
+        self.tree.heading("ID", text=i18n("ID"))
+        self.tree.heading("Policy Number", text=i18n("Policy Number"))
+        self.tree.heading("Status", text=i18n("Status"))
+        self.tree.heading("Premium", text=i18n("Premium"))
+        self.tree.heading("Effective From", text=i18n("Effective From"))
+        self.tree.heading("Effective To", text=i18n("Effective To"))
+        self.tree.heading("Deleted", text=i18n("Deleted"))
 
         self.tree.column("ID", width=50, anchor="center")
         self.tree.column("Policy Number", width=150)
@@ -73,12 +74,12 @@ class PoliciesTab:
         button_frame = tk.Frame(self.parent)
         button_frame.pack(pady=10)
 
-        tk.Button(button_frame, text="Add Policy", command=self.add_policy).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Edit", command=self.edit_policy).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Delete", command=self.delete_policy).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Add Policy"), command=self.add_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Edit"), command=self.edit_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Delete"), command=self.delete_policy).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
     def refresh_tree(self):
         """Refresh policies list asynchronously"""
@@ -92,7 +93,7 @@ class PoliciesTab:
             except Exception as e:
                 logger.error(f"Failed to fetch policies: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch policies: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} policies: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -120,7 +121,7 @@ class PoliciesTab:
 
         # Add policies
         for policy in policies_to_display:
-            is_deleted = "Yes" if policy.get("is_deleted", False) else "No"
+            is_deleted = i18n("Yes") if policy.get("is_deleted", False) else i18n("No")
             premium = policy.get("premium", 0)
             if premium:
                 premium_str = f"{float(premium):.2f}"
@@ -145,11 +146,11 @@ class PoliciesTab:
                 try:
                     self.crm_service.create_policy(**dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy created successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Policy Number')} {i18n('created successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to create policy: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create policy: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to create')} policy: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -159,7 +160,7 @@ class PoliciesTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a policy to edit.")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a policy to edit"))
             return
 
         policy_id = selected_item
@@ -172,7 +173,7 @@ class PoliciesTab:
             except Exception as e:
                 logger.error(f"Failed to fetch policy for editing: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch policy: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('Failed to fetch')} policy: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -184,11 +185,11 @@ class PoliciesTab:
                 try:
                     self.crm_service.update_policy(policy_id, **dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy updated successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Policy Number')} {i18n('updated successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to update policy: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update policy: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to update')} policy: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -198,21 +199,21 @@ class PoliciesTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a policy to delete.")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a policy to delete"))
             return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this policy?"):
+        if messagebox.askyesno(i18n("Confirm Delete"), f"{i18n('Are you sure you want to delete this')} policy?"):
             policy_id = selected_item
 
             def worker():
                 try:
                     self.crm_service.delete_policy(policy_id)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Policy deleted successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Policy Number')} {i18n('deleted successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to delete policy: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete policy: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to delete')} policy: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -231,7 +232,7 @@ class PoliciesTab:
     def export_to_csv(self):
         """Export policies to CSV file"""
         if not self.tree or not self.all_policies:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -247,11 +248,11 @@ class PoliciesTab:
             # Get current displayed policies from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"]
+            columns = [i18n("ID"), i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -260,19 +261,19 @@ class PoliciesTab:
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} policies to CSV")
             else:
-                messagebox.showerror("Error", "Failed to export data")
+                messagebox.showerror(i18n("Error"), i18n("Failed to export data"))
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
     def export_to_excel(self):
         """Export policies to Excel file"""
         if not self.tree or not self.all_policies:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -288,11 +289,11 @@ class PoliciesTab:
             # Get current displayed policies from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"]
+            columns = [i18n("ID"), i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -301,14 +302,14 @@ class PoliciesTab:
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} policies to Excel")
             else:
-                messagebox.showerror("Error", "Failed to export data. Make sure openpyxl is installed.")
+                messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}. Make sure openpyxl is installed.")
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
     def _on_tree_double_click(self, event):
         """Handle double-click on policy row to open detail dialog"""
@@ -326,4 +327,4 @@ class PoliciesTab:
                 PolicyDetailDialog(self.parent, policy_data)
         except Exception as e:
             logger.error(f"Failed to fetch policy details: {e}")
-            messagebox.showerror("Error", f"Failed to fetch policy details: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} policy details: {e}")

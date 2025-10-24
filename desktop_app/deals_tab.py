@@ -9,6 +9,7 @@ from logger import logger
 from detail_dialogs import DealDetailDialog
 from edit_dialogs import DealEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from i18n import i18n
 
 
 class DealsTab:
@@ -43,12 +44,12 @@ class DealsTab:
             columns=("ID", "Title", "Client ID", "Status", "Amount", "Deleted"),
             show="headings"
         )
-        self.tree.heading("ID", text="ID")
-        self.tree.heading("Title", text="Deal Title")
-        self.tree.heading("Client ID", text="Client")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Amount", text="Amount")
-        self.tree.heading("Deleted", text="Deleted")
+        self.tree.heading("ID", text=i18n("ID"))
+        self.tree.heading("Title", text=i18n("Deal Title"))
+        self.tree.heading("Client ID", text=i18n("Client"))
+        self.tree.heading("Status", text=i18n("Status"))
+        self.tree.heading("Amount", text=i18n("Amount"))
+        self.tree.heading("Deleted", text=i18n("Deleted"))
 
         self.tree.column("ID", width=50, anchor="center")
         self.tree.column("Title", width=200)
@@ -70,12 +71,12 @@ class DealsTab:
         button_frame = tk.Frame(self.parent)
         button_frame.pack(pady=10)
 
-        tk.Button(button_frame, text="Add Deal", command=self.add_deal).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Edit", command=self.edit_deal).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Delete", command=self.delete_deal).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Add Deal"), command=self.add_deal).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Edit"), command=self.edit_deal).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Delete"), command=self.delete_deal).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
     def refresh_tree(self):
         """Refresh deals list asynchronously"""
@@ -88,7 +89,7 @@ class DealsTab:
             except Exception as e:
                 logger.error(f"Failed to fetch deals: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} deals: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -114,7 +115,7 @@ class DealsTab:
 
         # Add deals
         for deal in deals_to_display:
-            is_deleted = "Yes" if deal.get("is_deleted", False) else "No"
+            is_deleted = i18n("Yes") if deal.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=deal.get("id"), values=(
                 deal.get("id"),
                 deal.get("title", "N/A"),
@@ -132,11 +133,11 @@ class DealsTab:
                 try:
                     self.crm_service.create_deal(**dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal created successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), "Deal created successfully"))
                 except Exception as e:
                     logger.error(f"Failed to create deal: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create deal: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"Failed to create deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -146,7 +147,7 @@ class DealsTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a deal to edit.")
+            messagebox.showwarning(i18n("Warning"), "Please select a deal to edit.")
             return
 
         deal_id = selected_item
@@ -159,7 +160,7 @@ class DealsTab:
             except Exception as e:
                 logger.error(f"Failed to fetch deal for editing: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch deal: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"Failed to fetch deal: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -171,11 +172,11 @@ class DealsTab:
                 try:
                     self.crm_service.update_deal(deal_id, **dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal updated successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), "Deal updated successfully"))
                 except Exception as e:
                     logger.error(f"Failed to update deal: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update deal: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"Failed to update deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -185,21 +186,21 @@ class DealsTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a deal to delete.")
+            messagebox.showwarning(i18n("Warning"), "Please select a deal to delete.")
             return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this deal?"):
+        if messagebox.askyesno(i18n("Confirm Delete"), "Are you sure you want to delete this deal?"):
             deal_id = selected_item
 
             def worker():
                 try:
                     self.crm_service.delete_deal(deal_id)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Deal deleted successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), "Deal deleted successfully"))
                 except Exception as e:
                     logger.error(f"Failed to delete deal: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete deal: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"Failed to delete deal: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -218,7 +219,7 @@ class DealsTab:
     def export_to_csv(self):
         """Export deals to CSV file"""
         if not self.tree or not self.all_deals:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), "No data to export.")
             return
 
         # Ask user for file location
@@ -234,11 +235,11 @@ class DealsTab:
             # Get current displayed deals from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), "No data to export.")
                 return
 
             # Prepare data
-            columns = ["ID", "Title", "Client ID", "Status", "Amount", "Deleted"]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client"), i18n("Status"), i18n("Amount"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -247,19 +248,19 @@ class DealsTab:
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"Data exported to {filename}")
                 logger.info(f"Exported {len(rows)} deals to CSV")
             else:
-                messagebox.showerror("Error", "Failed to export data")
+                messagebox.showerror(i18n("Error"), "Failed to export data")
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"Failed to export data: {e}")
 
     def export_to_excel(self):
         """Export deals to Excel file"""
         if not self.tree or not self.all_deals:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), "No data to export.")
             return
 
         # Ask user for file location
@@ -275,11 +276,11 @@ class DealsTab:
             # Get current displayed deals from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), "No data to export.")
                 return
 
             # Prepare data
-            columns = ["ID", "Title", "Client ID", "Status", "Amount", "Deleted"]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client"), i18n("Status"), i18n("Amount"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -288,14 +289,14 @@ class DealsTab:
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"Data exported to {filename}")
                 logger.info(f"Exported {len(rows)} deals to Excel")
             else:
-                messagebox.showerror("Error", "Failed to export data. Make sure openpyxl is installed.")
+                messagebox.showerror(i18n("Error"), "Failed to export data. Make sure openpyxl is installed.")
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"Failed to export data: {e}")
 
     def _on_tree_double_click(self, event):
         """Handle double-click on deal row to open detail dialog"""
@@ -313,4 +314,4 @@ class DealsTab:
                 DealDetailDialog(self.parent, deal_data)
         except Exception as e:
             logger.error(f"Failed to fetch deal details: {e}")
-            messagebox.showerror("Error", f"Failed to fetch deal details: {e}")
+            messagebox.showerror(i18n("Error"), f"Failed to fetch deal details: {e}")

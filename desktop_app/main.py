@@ -9,6 +9,7 @@ from api_client import APIClient, UnauthorizedException
 from auth_service import AuthService
 from crm_service import CRMService
 from logger import logger
+from i18n import i18n
 from deals_tab import DealsTab
 from payments_tab import PaymentsTab
 from deal_journal_tab import DealJournalTab
@@ -30,25 +31,25 @@ class CustomerDialog(tk.Toplevel):
         self.customer = customer
 
         if self.customer:
-            self.title("Edit Customer")
+            self.title(i18n("Edit Customer"))
         else:
-            self.title("Add Customer")
+            self.title(i18n("Add Customer"))
 
         self.name_var = tk.StringVar(value=customer["name"] if customer else "")
         self.email_var = tk.StringVar(value=customer["email"] if customer else "")
         self.phone_var = tk.StringVar(value=customer["phone"] if customer else "")
         self.status_var = tk.StringVar(value=customer.get("status", "active") if customer else "active")
 
-        tk.Label(self, text="Name:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(self, text=i18n("Name") + ":").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         tk.Entry(self, textvariable=self.name_var, width=30).grid(row=0, column=1, padx=10, pady=5)
 
-        tk.Label(self, text="Email:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(self, text=i18n("Email") + ":").grid(row=1, column=0, padx=10, pady=5, sticky="w")
         tk.Entry(self, textvariable=self.email_var, width=30).grid(row=1, column=1, padx=10, pady=5)
 
-        tk.Label(self, text="Phone:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(self, text=i18n("Phone") + ":").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         tk.Entry(self, textvariable=self.phone_var, width=30).grid(row=2, column=1, padx=10, pady=5)
 
-        tk.Label(self, text="Status:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(self, text=i18n("Status") + ":").grid(row=3, column=0, padx=10, pady=5, sticky="w")
         status_combo = ttk.Combobox(
             self,
             textvariable=self.status_var,
@@ -61,8 +62,8 @@ class CustomerDialog(tk.Toplevel):
         button_frame = tk.Frame(self)
         button_frame.grid(row=4, columnspan=2, pady=10)
 
-        tk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("OK"), command=self.on_ok).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Cancel"), command=self.destroy).pack(side="left", padx=5)
 
         self.grab_set()
         self.wait_window(self)
@@ -70,7 +71,7 @@ class CustomerDialog(tk.Toplevel):
     def on_ok(self):
         name = self.name_var.get().strip()
         if not name:
-            messagebox.showerror("Error", "Name cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), i18n("Name cannot be empty."), parent=self)
             return
 
         self.result = {
@@ -88,7 +89,7 @@ class App(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("CRM Desktop Application")
+        self.title(i18n("CRM Management System"))
         self.geometry("1300x700")
 
         self.api_client: Optional[APIClient] = None
@@ -149,7 +150,7 @@ class App(tk.Tk):
 
         # --- Clients Tab ---
         clients_frame = ttk.Frame(self.notebook)
-        self.notebook.add(clients_frame, text="Clients")
+        self.notebook.add(clients_frame, text=i18n("Clients"))
 
         # Search filter frame
         search_frame = tk.Frame(clients_frame)
@@ -167,13 +168,13 @@ class App(tk.Tk):
             columns=("ID", "Name", "Email", "Phone", "Status", "Deleted", "Created"),
             show="headings"
         )
-        self.tree.heading("ID", text="ID")
-        self.tree.heading("Name", text="Name")
-        self.tree.heading("Email", text="Email")
-        self.tree.heading("Phone", text="Phone")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Deleted", text="Deleted")
-        self.tree.heading("Created", text="Created")
+        self.tree.heading("ID", text=i18n("ID"))
+        self.tree.heading("Name", text=i18n("Name"))
+        self.tree.heading("Email", text=i18n("Email"))
+        self.tree.heading("Phone", text=i18n("Phone"))
+        self.tree.heading("Status", text=i18n("Status"))
+        self.tree.heading("Deleted", text=i18n("Deleted"))
+        self.tree.heading("Created", text=i18n("Created"))
 
         self.tree.column("ID", width=40)
         self.tree.column("Name", width=140)
@@ -196,47 +197,47 @@ class App(tk.Tk):
         button_frame = tk.Frame(clients_frame)
         button_frame.pack(pady=10)
 
-        tk.Button(button_frame, text="Add", command=self.add_customer).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Edit", command=self.edit_customer).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Delete", command=self.delete_customer).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Add"), command=self.add_customer).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Edit"), command=self.edit_customer).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Delete"), command=self.delete_customer).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
         # --- Deals Tab ---
         deals_frame = ttk.Frame(self.notebook)
-        self.notebook.add(deals_frame, text="Deals")
+        self.notebook.add(deals_frame, text=i18n("Deals"))
         self.deals_tab = DealsTab(deals_frame, self.crm_service)
 
         # --- Payments Tab ---
         payments_frame = ttk.Frame(self.notebook)
-        self.notebook.add(payments_frame, text="Payments")
+        self.notebook.add(payments_frame, text=i18n("Payments"))
         self.payments_tab = PaymentsTab(payments_frame, self.crm_service)
 
         # --- Deal Journal Tab ---
         journal_frame = ttk.Frame(self.notebook)
-        self.notebook.add(journal_frame, text="Deal Journal")
+        self.notebook.add(journal_frame, text=i18n("Deal Journal"))
         self.journal_tab = DealJournalTab(journal_frame, self.crm_service)
 
         # --- Tasks Tab ---
         tasks_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tasks_frame, text="Tasks")
+        self.notebook.add(tasks_frame, text=i18n("Tasks"))
         self.tasks_tab = TasksTab(tasks_frame, self.crm_service)
 
         # --- Policies Tab ---
         policies_frame = ttk.Frame(self.notebook)
-        self.notebook.add(policies_frame, text="Policies")
+        self.notebook.add(policies_frame, text=i18n("Policies"))
         self.policies_tab = PoliciesTab(policies_frame, self.crm_service)
 
         # --- Calculations Tab ---
         calculations_frame = ttk.Frame(self.notebook)
-        self.notebook.add(calculations_frame, text="Calculations")
+        self.notebook.add(calculations_frame, text=i18n("Calculations"))
         self.calculations_tab = CalculationsTab(calculations_frame, self.crm_service)
 
         # Exit button
         exit_button_frame = tk.Frame(self)
         exit_button_frame.pack(pady=10)
-        tk.Button(exit_button_frame, text="Exit", command=self.quit).pack(padx=20)
+        tk.Button(exit_button_frame, text=i18n("Exit"), command=self.quit).pack(padx=20)
 
     def refresh_tree(self):
         """Refresh client list asynchronously"""
@@ -284,14 +285,14 @@ class App(tk.Tk):
 
     def _handle_api_error(self, error_msg):
         """Handle API errors on main thread"""
-        messagebox.showerror("API Error", error_msg)
+        messagebox.showerror(i18n("API Error"), error_msg)
         self.api_client = None
         self.destroy()
 
     def _on_unauthorized(self):
         """Handle 401 Unauthorized response"""
         logger.warning("Session expired, re-login required")
-        messagebox.showwarning("Session Expired", "Your session has expired. Please login again.")
+        messagebox.showwarning(i18n("Session Expired"), i18n("Your session has expired. Please login again."))
         self.api_client = None
         self.destroy()
 
@@ -321,7 +322,7 @@ class App(tk.Tk):
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a customer to edit.")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a customer to edit."))
             return
 
         client_id = selected_item  # Use the iid which is the client ID
@@ -334,7 +335,7 @@ class App(tk.Tk):
             except Exception as e:
                 logger.error(f"Failed to fetch client for editing: {e}")
                 error_msg = str(e)
-                self.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch client: {error_msg}"))
+                self.after(0, lambda: messagebox.showerror(i18n("API Error"), i18n("Failed to fetch client") + ": " + error_msg))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -368,7 +369,7 @@ class App(tk.Tk):
             messagebox.showwarning("Warning", "Please select a customer to delete.")
             return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this customer?"):
+        if messagebox.askyesno(i18n("Confirm Delete"), i18n("Are you sure you want to delete this")):
             client_id = selected_item  # Use the iid which is the client ID
 
             def worker():
@@ -378,7 +379,7 @@ class App(tk.Tk):
                 except Exception as e:
                     logger.error(f"Failed to delete client: {e}")
                     error_msg = str(e)
-                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete client: {error_msg}"))
+                    self.after(0, lambda: messagebox.showerror(i18n("API Error"), i18n("Failed to delete client") + ": " + error_msg))
 
             Thread(target=worker, daemon=True).start()
 
@@ -398,7 +399,7 @@ class App(tk.Tk):
                 ClientDetailDialog(self, client_data)
         except Exception as e:
             logger.error(f"Failed to fetch client details: {e}")
-            messagebox.showerror("Error", f"Failed to fetch client details: {e}")
+            messagebox.showerror(i18n("Error"), i18n("Failed to fetch") + f": {e}")
 
     def _on_search_change(self, search_text: str):
         """Handle search filter change"""
@@ -415,13 +416,13 @@ class App(tk.Tk):
     def export_to_csv(self):
         """Export clients to CSV file"""
         if not self.tree or not self.all_clients:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
         filename = filedialog.asksaveasfilename(
             defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            filetypes=[(i18n("CSV files"), "*.csv"), (i18n("All files"), "*.*")]
         )
 
         if not filename:
@@ -431,11 +432,11 @@ class App(tk.Tk):
             # Get current displayed clients from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Name", "Email", "Phone", "Status", "Deleted", "Created"]
+            columns = [i18n("ID"), i18n("Name"), i18n("Email"), i18n("Phone"), i18n("Status"), i18n("Deleted"), i18n("Created")]
             rows = []
 
             for item in displayed_items:
@@ -444,25 +445,25 @@ class App(tk.Tk):
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), i18n("Data exported to") + f" {filename}")
                 logger.info(f"Exported {len(rows)} clients to CSV")
             else:
-                messagebox.showerror("Error", "Failed to export data")
+                messagebox.showerror(i18n("Error"), i18n("Failed to export data"))
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), i18n("Failed to export data") + f": {e}")
 
     def export_to_excel(self):
         """Export clients to Excel file"""
         if not self.tree or not self.all_clients:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
         filename = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            filetypes=[(i18n("Excel files"), "*.xlsx"), (i18n("All files"), "*.*")]
         )
 
         if not filename:
@@ -472,11 +473,11 @@ class App(tk.Tk):
             # Get current displayed clients from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Name", "Email", "Phone", "Status", "Deleted", "Created"]
+            columns = [i18n("ID"), i18n("Name"), i18n("Email"), i18n("Phone"), i18n("Status"), i18n("Deleted"), i18n("Created")]
             rows = []
 
             for item in displayed_items:
@@ -485,14 +486,14 @@ class App(tk.Tk):
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), i18n("Data exported to") + f" {filename}")
                 logger.info(f"Exported {len(rows)} clients to Excel")
             else:
-                messagebox.showerror("Error", "Failed to export data. Make sure openpyxl is installed.")
+                messagebox.showerror(i18n("Error"), i18n("Failed to export data. Make sure openpyxl is installed."))
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), i18n("Failed to export data") + f": {e}")
 
     def _on_tab_changed(self, event):
         """Handle notebook tab change to refresh data"""

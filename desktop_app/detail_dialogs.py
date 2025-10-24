@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional, Dict, Any
 from datetime import datetime
+from i18n import i18n
 
 
 class ClientDetailDialog(tk.Toplevel):
@@ -11,7 +12,7 @@ class ClientDetailDialog(tk.Toplevel):
     def __init__(self, parent, client_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Client Details")
+        self.title(i18n("Client Details"))
         self.geometry("600x500")
         self.client_data = client_data
 
@@ -54,7 +55,7 @@ class ClientDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
 
 
 class DealDetailDialog(tk.Toplevel):
@@ -63,7 +64,7 @@ class DealDetailDialog(tk.Toplevel):
     def __init__(self, parent, deal_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Deal Details")
+        self.title(i18n("Deal Details"))
         self.geometry("700x600")
         self.deal_data = deal_data
 
@@ -116,7 +117,7 @@ class DealDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
 
 
 class PolicyDetailDialog(tk.Toplevel):
@@ -125,7 +126,7 @@ class PolicyDetailDialog(tk.Toplevel):
     def __init__(self, parent, policy_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Policy Details")
+        self.title(i18n("Policy Details"))
         self.geometry("700x600")
         self.policy_data = policy_data
 
@@ -170,7 +171,7 @@ class PolicyDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
 
 
 class CalculationDetailDialog(tk.Toplevel):
@@ -179,7 +180,7 @@ class CalculationDetailDialog(tk.Toplevel):
     def __init__(self, parent, calc_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Calculation Details")
+        self.title(i18n("Calculation Details"))
         self.geometry("700x700")
         self.calc_data = calc_data
 
@@ -234,7 +235,7 @@ class CalculationDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
 
 
 class TaskDetailDialog(tk.Toplevel):
@@ -243,7 +244,7 @@ class TaskDetailDialog(tk.Toplevel):
     def __init__(self, parent, task_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Task Details")
+        self.title(i18n("Task Details"))
         self.geometry("700x600")
         self.task_data = task_data
 
@@ -297,7 +298,7 @@ class TaskDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
 
 
 class PaymentDetailDialog(tk.Toplevel):
@@ -306,7 +307,7 @@ class PaymentDetailDialog(tk.Toplevel):
     def __init__(self, parent, payment_data: Dict[str, Any]):
         super().__init__(parent)
         self.transient(parent)
-        self.title("Payment Details")
+        self.title(i18n("Payment Details"))
         self.geometry("700x700")
         self.payment_data = payment_data
 
@@ -386,4 +387,4 @@ class PaymentDetailDialog(tk.Toplevel):
             ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
-        ttk.Button(self, text="Close", command=self.destroy).pack(pady=10)
+        ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)

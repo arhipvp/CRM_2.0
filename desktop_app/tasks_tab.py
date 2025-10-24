@@ -9,6 +9,7 @@ from logger import logger
 from detail_dialogs import TaskDetailDialog
 from edit_dialogs import TaskEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from i18n import i18n
 
 
 class TasksTab:
@@ -43,12 +44,12 @@ class TasksTab:
             columns=("ID", "Title", "Status", "Priority", "Due Date", "Deleted"),
             show="headings"
         )
-        self.tree.heading("ID", text="ID")
-        self.tree.heading("Title", text="Task Title")
-        self.tree.heading("Status", text="Status")
-        self.tree.heading("Priority", text="Priority")
-        self.tree.heading("Due Date", text="Due Date")
-        self.tree.heading("Deleted", text="Deleted")
+        self.tree.heading("ID", text=i18n("ID"))
+        self.tree.heading("Title", text=i18n("Task Title"))
+        self.tree.heading("Status", text=i18n("Status"))
+        self.tree.heading("Priority", text=i18n("Priority"))
+        self.tree.heading("Due Date", text=i18n("Due Date"))
+        self.tree.heading("Deleted", text=i18n("Deleted"))
 
         self.tree.column("ID", width=50, anchor="center")
         self.tree.column("Title", width=250)
@@ -70,12 +71,12 @@ class TasksTab:
         button_frame = tk.Frame(self.parent)
         button_frame.pack(pady=10)
 
-        tk.Button(button_frame, text="Add Task", command=self.add_task).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Edit", command=self.edit_task).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Delete", command=self.delete_task).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Add Task"), command=self.add_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Edit"), command=self.edit_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Delete"), command=self.delete_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
     def refresh_tree(self):
         """Refresh tasks list asynchronously"""
@@ -88,7 +89,7 @@ class TasksTab:
             except Exception as e:
                 logger.error(f"Failed to fetch tasks: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} tasks: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -114,7 +115,7 @@ class TasksTab:
 
         # Add tasks
         for task in tasks_to_display:
-            is_deleted = "Yes" if task.get("is_deleted", False) else "No"
+            is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
                 task.get("id", "")[:8] + "...",  # Show first 8 chars of ID
                 task.get("title", "N/A"),
@@ -132,11 +133,11 @@ class TasksTab:
                 try:
                     self.crm_service.create_task(**dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task created successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Task Title')} {i18n('created successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to create task: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create task: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to create')} task: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -146,7 +147,7 @@ class TasksTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a task to edit.")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a task to edit"))
             return
 
         task_id = selected_item
@@ -159,7 +160,7 @@ class TasksTab:
             except Exception as e:
                 logger.error(f"Failed to fetch task for editing: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch task: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('Failed to fetch')} task: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -171,11 +172,11 @@ class TasksTab:
                 try:
                     self.crm_service.update_task(task_id, **dialog.result)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task updated successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Task Title')} {i18n('updated successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to update task: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update task: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to update')} task: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -185,21 +186,21 @@ class TasksTab:
             return
         selected_item = self.tree.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a task to delete.")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a task to delete"))
             return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this task?"):
+        if messagebox.askyesno(i18n("Confirm Delete"), f"{i18n('Are you sure you want to delete this')} task?"):
             task_id = selected_item
 
             def worker():
                 try:
                     self.crm_service.delete_task(task_id)
                     self.parent.after(0, self.refresh_tree)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task deleted successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Task Title')} {i18n('deleted successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to delete task: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete task: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to delete')} task: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -218,7 +219,7 @@ class TasksTab:
     def export_to_csv(self):
         """Export tasks to CSV file"""
         if not self.tree or not self.all_tasks:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -234,11 +235,11 @@ class TasksTab:
             # Get current displayed tasks from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Title", "Status", "Priority", "Due Date", "Deleted"]
+            columns = [i18n("ID"), i18n("Title"), i18n("Status"), i18n("Priority"), i18n("Due Date"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -247,19 +248,19 @@ class TasksTab:
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} tasks to CSV")
             else:
-                messagebox.showerror("Error", "Failed to export data")
+                messagebox.showerror(i18n("Error"), i18n("Failed to export data"))
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
     def export_to_excel(self):
         """Export tasks to Excel file"""
         if not self.tree or not self.all_tasks:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -275,11 +276,11 @@ class TasksTab:
             # Get current displayed tasks from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["ID", "Title", "Status", "Priority", "Due Date", "Deleted"]
+            columns = [i18n("ID"), i18n("Title"), i18n("Status"), i18n("Priority"), i18n("Due Date"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -288,14 +289,14 @@ class TasksTab:
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} tasks to Excel")
             else:
-                messagebox.showerror("Error", "Failed to export data. Make sure openpyxl is installed.")
+                messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}. Make sure openpyxl is installed.")
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
     def _on_tree_double_click(self, event):
         """Handle double-click on task row to open detail dialog"""
@@ -313,4 +314,4 @@ class TasksTab:
                 TaskDetailDialog(self.parent, task_data)
         except Exception as e:
             logger.error(f"Failed to fetch task details: {e}")
-            messagebox.showerror("Error", f"Failed to fetch task details: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} task details: {e}")

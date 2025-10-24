@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from i18n import i18n
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -49,8 +50,8 @@ class BaseEditDialog(tk.Toplevel):
         button_frame = tk.Frame(self)
         button_frame.grid(row=row, columnspan=3, pady=15)
 
-        tk.Button(button_frame, text="OK", command=self.on_ok, width=10).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Cancel", command=self.destroy, width=10).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("OK"), command=self.on_ok, width=10).pack(side="left", padx=5)
+        tk.Button(button_frame, text=i18n("Cancel"), command=self.destroy, width=10).pack(side="left", padx=5)
 
         self.grab_set()
         self.wait_window(self)
@@ -71,7 +72,7 @@ class BaseEditDialog(tk.Toplevel):
             if is_required:
                 value = self.get_text_value(var) if hasattr(var, 'text_widget_ref') else var.get()
                 if not value or not value.strip():
-                    messagebox.showerror("Error", f"{field_label} cannot be empty.", parent=self)
+                    messagebox.showerror(i18n("Error"), f"{field_label} cannot be empty.", parent=self)
                     return False
         return True
 
@@ -82,7 +83,7 @@ class DealEditDialog(BaseEditDialog):
     """Dialog for adding/editing deals"""
 
     def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None):
-        super().__init__(parent, "Edit Deal" if deal else "Add Deal", deal)
+        super().__init__(parent, i18n("Edit Deal") if deal else i18n("Add Deal"), deal)
         self.crm_service = crm_service
         self.clients_list = clients_list or []
         self.client_dict = {c.get("name", f"Client {c.get('id')}"): c.get("id") for c in self.clients_list}
@@ -101,21 +102,21 @@ class DealEditDialog(BaseEditDialog):
                 self.client_id_var.set(client_name)
 
         # Title
-        self.create_field(0, "Title", self.title_var, "entry")
+        self.create_field(0, i18n("Title"), self.title_var, "entry")
 
         # Client
-        self.create_field(1, "Client", self.client_id_var, "combobox",
+        self.create_field(1, i18n("Client"), self.client_id_var, "combobox",
                          list(self.client_dict.keys()))
 
         # Description
-        self.create_field(2, "Description", self.description_var, "text")
+        self.create_field(2, i18n("Description"), self.description_var, "text")
 
         # Status
-        self.create_field(3, "Status", self.status_var, "combobox",
+        self.create_field(3, i18n("Status"), self.status_var, "combobox",
                          ["draft", "in_progress", "won", "lost"])
 
         # Amount
-        self.create_field(4, "Amount", self.amount_var, "entry")
+        self.create_field(4, i18n("Amount"), self.amount_var, "entry")
 
         # Next Review Date
         self.create_field(5, "Next Review Date", self.next_review_var, "date")
@@ -129,16 +130,16 @@ class DealEditDialog(BaseEditDialog):
         client_name = self.client_id_var.get().strip()
 
         if not title:
-            messagebox.showerror("Error", "Title cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), "Title cannot be empty.", parent=self)
             return
 
         if not client_name:
-            messagebox.showerror("Error", "Client must be selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Client must be selected.", parent=self)
             return
 
         client_id = self.client_dict.get(client_name)
         if not client_id:
-            messagebox.showerror("Error", "Invalid client selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Invalid client selected.", parent=self)
             return
 
         description = self.get_text_value(self.description_var)
@@ -228,22 +229,22 @@ class PaymentEditDialog(BaseEditDialog):
         planned_amount = self.planned_amount_var.get().strip()
 
         if not deal_name:
-            messagebox.showerror("Error", "Deal must be selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Deal must be selected.", parent=self)
             return
 
         if not policy_name:
-            messagebox.showerror("Error", "Policy must be selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Policy must be selected.", parent=self)
             return
 
         if not planned_amount:
-            messagebox.showerror("Error", "Planned Amount cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), "Planned Amount cannot be empty.", parent=self)
             return
 
         deal_id = self.deal_dict.get(deal_name)
         policy_id = self.policy_dict.get(policy_name)
 
         if not deal_id or not policy_id:
-            messagebox.showerror("Error", "Invalid deal or policy selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Invalid deal or policy selected.", parent=self)
             return
 
         comment = self.get_text_value(self.comment_var)
@@ -327,18 +328,18 @@ class PolicyEditDialog(BaseEditDialog):
         client_name = self.client_id_var.get().strip()
 
         if not policy_number:
-            messagebox.showerror("Error", "Policy Number cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), "Policy Number cannot be empty.", parent=self)
             return
 
         if not client_name:
-            messagebox.showerror("Error", "Client must be selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Client must be selected.", parent=self)
             return
 
         client_id = self.client_dict.get(client_name)
         deal_id = self.deal_dict.get(self.deal_id_var.get().strip()) if self.deal_id_var.get().strip() else None
 
         if not client_id:
-            messagebox.showerror("Error", "Invalid client selected.", parent=self)
+            messagebox.showerror(i18n("Error"), "Invalid client selected.", parent=self)
             return
 
         self.result = {
@@ -412,7 +413,7 @@ class CalculationEditDialog(BaseEditDialog):
         insurance_company = self.insurance_company_var.get().strip()
 
         if not insurance_company:
-            messagebox.showerror("Error", "Insurance Company cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), "Insurance Company cannot be empty.", parent=self)
             return
 
         deal_name = self.deal_id_var.get().strip()
@@ -470,8 +471,8 @@ class TaskEditDialog(BaseEditDialog):
         button_frame = ttk.Frame(self)
         button_frame.grid(row=5, columnspan=2, pady=10)
 
-        ttk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("OK"), command=self.on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Cancel"), command=self.destroy).pack(side="left", padx=5)
 
         self.geometry("500x450")
         self.grab_set()
@@ -481,7 +482,7 @@ class TaskEditDialog(BaseEditDialog):
         """Handle OK button"""
         title = self.title_var.get().strip()
         if not title:
-            messagebox.showerror("Error", "Title cannot be empty.", parent=self)
+            messagebox.showerror(i18n("Error"), "Title cannot be empty.", parent=self)
             return
 
         description = self.get_text_value(self.description_var)

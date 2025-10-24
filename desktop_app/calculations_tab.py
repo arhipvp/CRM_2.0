@@ -9,6 +9,7 @@ from logger import logger
 from detail_dialogs import CalculationDetailDialog
 from edit_dialogs import CalculationEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from i18n import i18n
 
 
 class CalculationsTab:
@@ -33,10 +34,10 @@ class CalculationsTab:
     def _setup_ui(self):
         """Setup Calculations tab UI"""
         # Deal selector frame
-        deal_frame = ttk.LabelFrame(self.parent, text="Select Deal", padding=5)
+        deal_frame = ttk.LabelFrame(self.parent, text=i18n("Select Deal"), padding=5)
         deal_frame.pack(fill="x", padx=5, pady=5)
 
-        ttk.Label(deal_frame, text="Deal:").pack(side="left", padx=5)
+        ttk.Label(deal_frame, text=f"{i18n('Deal')}:").pack(side="left", padx=5)
         self.deal_combo = ttk.Combobox(
             deal_frame,
             state="readonly",
@@ -56,25 +57,25 @@ class CalculationsTab:
         control_frame = ttk.Frame(self.parent)
         control_frame.pack(fill="x", padx=5, pady=5)
 
-        tk.Button(control_frame, text="Add Calculation", command=self.add_calculation).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Edit", command=self.edit_calculation).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Delete", command=self.delete_calculation).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Refresh", command=self.refresh_deals).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Add Calculation"), command=self.add_calculation).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Edit"), command=self.edit_calculation).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Delete"), command=self.delete_calculation).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Refresh"), command=self.refresh_deals).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
         # Filter frame
-        filter_frame = ttk.LabelFrame(self.parent, text="Filters", padding=5)
+        filter_frame = ttk.LabelFrame(self.parent, text=i18n("Filters"), padding=5)
         filter_frame.pack(fill="x", padx=5, pady=5)
 
-        ttk.Label(filter_frame, text="Status:").pack(side="left", padx=5)
+        ttk.Label(filter_frame, text=f"{i18n('Status')}:").pack(side="left", padx=5)
         self.status_filter = ttk.Combobox(
             filter_frame,
-            values=["All", "draft", "ready", "confirmed", "archived"],
+            values=[i18n("All"), "draft", "ready", "confirmed", "archived"],
             state="readonly",
             width=15
         )
-        self.status_filter.set("All")
+        self.status_filter.set(i18n("All"))
         self.status_filter.pack(side="left", padx=5)
         self.status_filter.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
 
@@ -105,13 +106,13 @@ class CalculationsTab:
         self.tree.column("created_at", width=100, anchor="w")
         self.tree.column("deleted", width=60, anchor="w")
 
-        self.tree.heading("insurance_company", text="Insurance Company")
-        self.tree.heading("program_name", text="Program Name")
-        self.tree.heading("premium_amount", text="Premium Amount")
-        self.tree.heading("coverage_sum", text="Coverage Sum")
-        self.tree.heading("status", text="Status")
-        self.tree.heading("created_at", text="Created")
-        self.tree.heading("deleted", text="Deleted")
+        self.tree.heading("insurance_company", text=i18n("Insurance Company"))
+        self.tree.heading("program_name", text=i18n("Program Name"))
+        self.tree.heading("premium_amount", text=i18n("Premium Amount"))
+        self.tree.heading("coverage_sum", text=i18n("Coverage Sum"))
+        self.tree.heading("status", text=i18n("Status"))
+        self.tree.heading("created_at", text=i18n("Created"))
+        self.tree.heading("deleted", text=i18n("Deleted"))
 
         # Bind selection and double-click
         self.tree.bind("<<TreeviewSelect>>", self._on_calculation_select)
@@ -120,10 +121,10 @@ class CalculationsTab:
         self.tree.pack(fill="both", expand=True)
 
         # Details frame
-        details_frame = ttk.LabelFrame(self.parent, text="Calculation Details", padding=5)
+        details_frame = ttk.LabelFrame(self.parent, text=i18n("Calculation Details"), padding=5)
         details_frame.pack(fill="x", padx=5, pady=5)
 
-        ttk.Label(details_frame, text="Comments:").pack(anchor="w", padx=5, pady=2)
+        ttk.Label(details_frame, text=f"{i18n('Comments')}:").pack(anchor="w", padx=5, pady=2)
         self.comments_text = tk.Text(details_frame, height=3, width=80)
         self.comments_text.pack(fill="x", padx=5, pady=2)
         self.comments_text.config(state="disabled")
@@ -137,7 +138,7 @@ class CalculationsTab:
             except Exception as e:
                 logger.error(f"Failed to fetch deals: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch deals: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} deals: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -164,7 +165,7 @@ class CalculationsTab:
     def refresh_calculations(self):
         """Refresh calculations for selected deal asynchronously"""
         if not self.selected_deal_id:
-            messagebox.showwarning("Warning", "Please select a deal first")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"))
             return
 
         def worker():
@@ -174,7 +175,7 @@ class CalculationsTab:
             except Exception as e:
                 logger.error(f"Failed to fetch calculations: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch calculations: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('Failed to fetch')} calculations: {error_msg}"))
 
         Thread(target=worker, daemon=True).start()
 
@@ -198,7 +199,7 @@ class CalculationsTab:
 
         # Add calculations
         for calc in calculations_to_display:
-            is_deleted = "Yes" if calc.get("is_deleted", False) else "No"
+            is_deleted = i18n("Yes") if calc.get("is_deleted", False) else i18n("No")
             self.tree.insert(
                 "",
                 "end",
@@ -247,7 +248,7 @@ class CalculationsTab:
     def add_calculation(self):
         """Add new calculation"""
         if not self.selected_deal_id:
-            messagebox.showwarning("Warning", "Please select a deal first")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"))
             return
 
         dialog = CalculationEditDialog(self.parent, calculation=None, deals_list=self.deals)
@@ -256,18 +257,18 @@ class CalculationsTab:
                 try:
                     self.crm_service.create_calculation(self.selected_deal_id, **dialog.result)
                     self.parent.after(0, self.refresh_calculations)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Calculation created successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Add Calculation')} {i18n('created successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to create calculation: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to create calculation: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("Error"), f"{i18n('failed to create')} calculation: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
     def edit_calculation(self):
         """Edit selected calculation"""
         if not self.current_calculation:
-            messagebox.showwarning("Warning", "Please select a calculation to edit")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a calculation to edit"))
             return
 
         def fetch_and_edit():
@@ -277,7 +278,7 @@ class CalculationsTab:
             except Exception as e:
                 logger.error(f"Failed to fetch calculation for editing: {e}")
                 error_msg = str(e)
-                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch calculation: {error_msg}"))
+                self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('Failed to fetch')} calculation: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -289,32 +290,32 @@ class CalculationsTab:
                 try:
                     self.crm_service.update_calculation(self.selected_deal_id, calc_id, **dialog.result)
                     self.parent.after(0, self.refresh_calculations)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Calculation updated successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Add Calculation')} {i18n('updated successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to update calculation: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update calculation: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to update')} calculation: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
     def delete_calculation(self):
         """Delete selected calculation"""
         if not self.current_calculation:
-            messagebox.showwarning("Warning", "Please select a calculation to delete")
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a calculation to delete"))
             return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this calculation?"):
+        if messagebox.askyesno(i18n("Confirm Delete"), f"{i18n('Are you sure you want to delete this')} calculation?"):
             calc_id = self.current_calculation["id"]
 
             def worker():
                 try:
                     self.crm_service.delete_calculation(self.selected_deal_id, calc_id)
                     self.parent.after(0, self.refresh_calculations)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Calculation deleted successfully"))
+                    self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Add Calculation')} {i18n('deleted successfully')}"))
                 except Exception as e:
                     logger.error(f"Failed to delete calculation: {e}")
                     error_msg = str(e)
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete calculation: {error_msg}"))
+                    self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to delete')} calculation: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -346,7 +347,7 @@ class CalculationsTab:
     def export_to_csv(self):
         """Export calculations to CSV file"""
         if not self.tree or not self.all_calculations:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -362,11 +363,11 @@ class CalculationsTab:
             # Get current displayed calculations from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["Insurance Company", "Program Name", "Premium Amount", "Coverage Sum", "Status", "Created", "Deleted"]
+            columns = [i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"), i18n("Status"), i18n("Created"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -375,19 +376,19 @@ class CalculationsTab:
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} calculations to CSV")
             else:
-                messagebox.showerror("Error", "Failed to export data")
+                messagebox.showerror(i18n("Error"), i18n("Failed to export data"))
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
     def export_to_excel(self):
         """Export calculations to Excel file"""
         if not self.tree or not self.all_calculations:
-            messagebox.showwarning("Warning", "No data to export.")
+            messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
             return
 
         # Ask user for file location
@@ -403,11 +404,11 @@ class CalculationsTab:
             # Get current displayed calculations from tree
             displayed_items = self.tree.get_children()
             if not displayed_items:
-                messagebox.showwarning("Warning", "No data to export.")
+                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
                 return
 
             # Prepare data
-            columns = ["Insurance Company", "Program Name", "Premium Amount", "Coverage Sum", "Status", "Created", "Deleted"]
+            columns = [i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"), i18n("Status"), i18n("Created"), i18n("Deleted")]
             rows = []
 
             for item in displayed_items:
@@ -416,11 +417,11 @@ class CalculationsTab:
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
-                messagebox.showinfo("Success", f"Data exported to {filename}")
+                messagebox.showinfo(i18n("Success"), f"{i18n('Data exported to')} {filename}")
                 logger.info(f"Exported {len(rows)} calculations to Excel")
             else:
-                messagebox.showerror("Error", "Failed to export data. Make sure openpyxl is installed.")
+                messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}. Make sure openpyxl is installed.")
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
