@@ -143,17 +143,17 @@ class DealsTab:
         # Add deals as rows in table
         for deal in deals_to_display:
             is_deleted = i18n("Yes") if deal.get("is_deleted", False) else i18n("No")
-            deal_id = deal.get("id", "")[:8]  # Short ID for display
+            deal_id = str(deal.get("id", "N/A"))[:8]  # Short ID for display
 
             values = (
                 deal_id,
                 deal.get("title", "N/A"),
-                deal.get("client_id", "N/A"),
+                str(deal.get("client_id", "N/A"))[:8],
                 deal.get("status", "N/A"),
                 deal.get("description", "N/A"),
                 is_deleted,
-                deal.get("owner_id", "N/A"),
-                deal.get("tenant_id", "N/A"),
+                str(deal.get("owner_id", "N/A"))[:8],
+                str(deal.get("tenant_id", "N/A"))[:8],
                 deal.get("created_at", "N/A"),
                 deal.get("updated_at", "N/A"),
                 deal.get("next_review_at", "N/A"),

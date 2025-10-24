@@ -280,7 +280,6 @@ class PolicyEditDialog(BaseEditDialog):
         self.client_id_var = tk.StringVar()
         self.deal_id_var = tk.StringVar()
         self.status_var = tk.StringVar(value=policy.get("status", "draft") if policy else "draft")
-        self.premium_var = tk.StringVar(value=str(policy.get("premium", "")) if policy else "")
         self.effective_from_var = tk.StringVar(value=policy.get("effective_from", "") if policy else "")
         self.effective_to_var = tk.StringVar(value=policy.get("effective_to", "") if policy else "")
 
@@ -310,17 +309,14 @@ class PolicyEditDialog(BaseEditDialog):
         self.create_field(3, "Status", self.status_var, "combobox",
                          ["draft", "active", "inactive"])
 
-        # Premium
-        self.create_field(4, "Premium", self.premium_var, "entry")
-
         # Effective From
-        self.create_field(5, "Effective From", self.effective_from_var, "date")
+        self.create_field(4, "Effective From", self.effective_from_var, "date")
 
         # Effective To
-        self.create_field(6, "Effective To", self.effective_to_var, "date")
+        self.create_field(5, "Effective To", self.effective_to_var, "date")
 
         # Buttons
-        self.setup_buttons(7)
+        self.setup_buttons(6)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -347,7 +343,6 @@ class PolicyEditDialog(BaseEditDialog):
             "client_id": client_id,
             "deal_id": deal_id,
             "status": self.status_var.get(),
-            "premium": float(self.premium_var.get()) if self.premium_var.get() else None,
             "effective_from": self.effective_from_var.get() if self.effective_from_var.get() else None,
             "effective_to": self.effective_to_var.get() if self.effective_to_var.get() else None
         }

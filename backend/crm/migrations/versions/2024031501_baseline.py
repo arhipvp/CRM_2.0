@@ -76,14 +76,12 @@ def upgrade() -> None:
     op.create_table(
         "policies",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("client_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("deal_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("policy_number", sa.String(length=64), nullable=False),
         sa.Column("status", sa.String(length=50), nullable=False, server_default="draft"),
-        sa.Column("premium", sa.Numeric(12, 2), nullable=True),
         sa.Column("effective_from", sa.Date(), nullable=True),
         sa.Column("effective_to", sa.Date(), nullable=True),
         sa.Column(
@@ -105,7 +103,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_policies_status", "policies", ["status"], schema="crm")
     op.create_index("ix_policies_client", "policies", ["client_id"], schema="crm")
-    op.create_index("ix_policies_tenant", "policies", ["tenant_id"], schema="crm")
     op.create_index("ix_policies_owner", "policies", ["owner_id"], schema="crm")
 
     op.create_table(

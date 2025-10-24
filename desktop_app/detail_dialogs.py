@@ -27,14 +27,14 @@ class ClientDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
-            ("ID", self.client_data.get("id", "N/A")),
-            ("Name", self.client_data.get("name", "N/A")),
-            ("Email", self.client_data.get("email", "N/A")),
-            ("Phone", self.client_data.get("phone", "N/A")),
-            ("Status", self.client_data.get("status", "N/A")),
+            (i18n("ID"), self.client_data.get("id", "N/A")),
+            (i18n("Name"), self.client_data.get("name", "N/A")),
+            (i18n("Email"), self.client_data.get("email", "N/A")),
+            (i18n("Phone"), self.client_data.get("phone", "N/A")),
+            (i18n("Status"), self.client_data.get("status", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
@@ -43,12 +43,12 @@ class ClientDetailDialog(tk.Toplevel):
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
+        notebook.add(timestamps_frame, text=i18n("Timestamps"))
 
         ts_fields = [
-            ("Created At", self.client_data.get("created_at", "N/A")),
-            ("Updated At", self.client_data.get("updated_at", "N/A")),
-            ("Is Deleted", "Yes" if self.client_data.get("is_deleted") else "No"),
+            (i18n("Created At"), self.client_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.client_data.get("updated_at", "N/A")),
+            (i18n("Is Deleted"), i18n("Yes") if self.client_data.get("is_deleted") else i18n("No")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):
@@ -92,28 +92,37 @@ class DealDetailDialog(tk.Toplevel):
         general_frame = ttk.Frame(notebook)
         notebook.add(general_frame, text=i18n("General Info"))
 
+        # General fields
         fields = [
-            ("ID", self.deal_data.get("id", "N/A")),
+            (i18n("ID"), self.deal_data.get("id", "N/A")),
             (i18n("Deal Title"), self.deal_data.get("title", "N/A")),
             (i18n("Client"), self.deal_data.get("client_id", "N/A")),
             (i18n("Status"), self.deal_data.get("status", "N/A")),
             (i18n("Amount"), self.deal_data.get("amount", "N/A")),
-            ("Next Review Date", self.deal_data.get("next_review_at", "N/A")),
+            (i18n("Next Review Date"), self.deal_data.get("next_review_at", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
             ttk.Label(general_frame, text=f"{label}:").grid(row=i, column=0, sticky="w", padx=10, pady=5)
             ttk.Label(general_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
-        # Description Tab
-        desc_frame = ttk.Frame(notebook)
-        notebook.add(desc_frame, text=i18n("Description"))
-
-        ttk.Label(desc_frame, text=i18n("Description") + ":").pack(anchor="w", padx=10, pady=5)
-        desc_text = tk.Text(desc_frame, height=10, width=80)
-        desc_text.pack(padx=10, pady=5, fill="both", expand=True)
+        # Description
+        ttk.Label(general_frame, text=i18n("Description") + ":").grid(row=len(fields), column=0, sticky="nw", padx=10, pady=5)
+        desc_text = tk.Text(general_frame, height=5, width=80)
+        desc_text.grid(row=len(fields), column=1, sticky="ew", padx=10, pady=5)
         desc_text.insert("end", self.deal_data.get("description", ""))
         desc_text.config(state="disabled")
+
+        # Timestamps
+        ts_fields = [
+            (i18n("Created At"), self.deal_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.deal_data.get("updated_at", "N/A")),
+            (i18n("Is Deleted"), i18n("Yes") if self.deal_data.get("is_deleted") else i18n("No")),
+        ]
+
+        for i, (label, value) in enumerate(ts_fields):
+            ttk.Label(general_frame, text=f"{label}:").grid(row=len(fields) + 1 + i, column=0, sticky="w", padx=10, pady=5)
+            ttk.Label(general_frame, text=str(value)).grid(row=len(fields) + 1 + i, column=1, sticky="w", padx=10, pady=5)
 
         # Policies Tab
         policies_frame = ttk.Frame(notebook)
@@ -134,20 +143,6 @@ class DealDetailDialog(tk.Toplevel):
         finances_frame = ttk.Frame(notebook)
         notebook.add(finances_frame, text=i18n("Income/Expenses"))
         self._create_finances_tab(finances_frame)
-
-        # Timestamps Tab
-        timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
-
-        ts_fields = [
-            ("Created At", self.deal_data.get("created_at", "N/A")),
-            ("Updated At", self.deal_data.get("updated_at", "N/A")),
-            ("Is Deleted", i18n("Yes") if self.deal_data.get("is_deleted") else i18n("No")),
-        ]
-
-        for i, (label, value) in enumerate(ts_fields):
-            ttk.Label(timestamps_frame, text=f"{label}:").grid(row=i, column=0, sticky="w", padx=10, pady=5)
-            ttk.Label(timestamps_frame, text=str(value)).grid(row=i, column=1, sticky="w", padx=10, pady=5)
 
         # Close button
         ttk.Button(self, text=i18n("Close"), command=self.destroy).pack(pady=10)
@@ -592,17 +587,17 @@ class PolicyDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
-            ("ID", self.policy_data.get("id", "N/A")),
-            ("Policy Number", self.policy_data.get("policy_number", "N/A")),
-            ("Client ID", self.policy_data.get("client_id", "N/A")),
-            ("Deal ID", self.policy_data.get("deal_id", "N/A")),
-            ("Status", self.policy_data.get("status", "N/A")),
-            ("Premium", self.policy_data.get("premium", "N/A")),
-            ("Effective From", self.policy_data.get("effective_from", "N/A")),
-            ("Effective To", self.policy_data.get("effective_to", "N/A")),
+            (i18n("ID"), self.policy_data.get("id", "N/A")),
+            (i18n("Policy Number"), self.policy_data.get("policy_number", "N/A")),
+            (i18n("Client ID"), self.policy_data.get("client_id", "N/A")),
+            (i18n("Deal ID"), self.policy_data.get("deal_id", "N/A")),
+            (i18n("Status"), self.policy_data.get("status", "N/A")),
+            (i18n("Premium"), self.policy_data.get("premium", "N/A")),
+            (i18n("Effective From"), self.policy_data.get("effective_from", "N/A")),
+            (i18n("Effective To"), self.policy_data.get("effective_to", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
@@ -611,12 +606,12 @@ class PolicyDetailDialog(tk.Toplevel):
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
+        notebook.add(timestamps_frame, text=i18n("Timestamps"))
 
         ts_fields = [
-            ("Created At", self.policy_data.get("created_at", "N/A")),
-            ("Updated At", self.policy_data.get("updated_at", "N/A")),
-            ("Is Deleted", "Yes" if self.policy_data.get("is_deleted") else "No"),
+            (i18n("Created At"), self.policy_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.policy_data.get("updated_at", "N/A")),
+            (i18n("Is Deleted"), i18n("Yes") if self.policy_data.get("is_deleted") else i18n("No")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):
@@ -646,17 +641,17 @@ class CalculationDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
-            ("ID", self.calc_data.get("id", "N/A")),
-            ("Deal ID", self.calc_data.get("deal_id", "N/A")),
-            ("Insurance Company", self.calc_data.get("insurance_company", "N/A")),
-            ("Program Name", self.calc_data.get("program_name", "N/A")),
-            ("Premium Amount", self.calc_data.get("premium_amount", "N/A")),
-            ("Coverage Sum", self.calc_data.get("coverage_sum", "N/A")),
-            ("Calculation Date", self.calc_data.get("calculation_date", "N/A")),
-            ("Status", self.calc_data.get("status", "N/A")),
+            (i18n("ID"), self.calc_data.get("id", "N/A")),
+            (i18n("Deal ID"), self.calc_data.get("deal_id", "N/A")),
+            (i18n("Insurance Company"), self.calc_data.get("insurance_company", "N/A")),
+            (i18n("Program Name"), self.calc_data.get("program_name", "N/A")),
+            (i18n("Premium Amount"), self.calc_data.get("premium_amount", "N/A")),
+            (i18n("Coverage Sum"), self.calc_data.get("coverage_sum", "N/A")),
+            (i18n("Calculation Date"), self.calc_data.get("calculation_date", "N/A")),
+            (i18n("Status"), self.calc_data.get("status", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
@@ -665,9 +660,9 @@ class CalculationDetailDialog(tk.Toplevel):
 
         # Comments Tab
         comments_frame = ttk.Frame(notebook)
-        notebook.add(comments_frame, text="Comments")
+        notebook.add(comments_frame, text=i18n("Comments"))
 
-        ttk.Label(comments_frame, text="Comments:").pack(anchor="w", padx=10, pady=5)
+        ttk.Label(comments_frame, text=i18n("Comments") + ":").pack(anchor="w", padx=10, pady=5)
         comments_text = tk.Text(comments_frame, height=12, width=80)
         comments_text.pack(padx=10, pady=5, fill="both", expand=True)
         comments_text.insert("end", self.calc_data.get("comments", ""))
@@ -675,12 +670,12 @@ class CalculationDetailDialog(tk.Toplevel):
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
+        notebook.add(timestamps_frame, text=i18n("Timestamps"))
 
         ts_fields = [
-            ("Created At", self.calc_data.get("created_at", "N/A")),
-            ("Updated At", self.calc_data.get("updated_at", "N/A")),
-            ("Is Deleted", "Yes" if self.calc_data.get("is_deleted") else "No"),
+            (i18n("Created At"), self.calc_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.calc_data.get("updated_at", "N/A")),
+            (i18n("Is Deleted"), i18n("Yes") if self.calc_data.get("is_deleted") else i18n("No")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):
@@ -710,16 +705,16 @@ class TaskDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
-            ("ID", self.task_data.get("id", "N/A")),
-            ("Title", self.task_data.get("title", "N/A")),
-            ("Status", self.task_data.get("status", "N/A")),
-            ("Priority", self.task_data.get("priority", "N/A")),
-            ("Due Date", self.task_data.get("due_date", "N/A")),
-            ("Deal ID", self.task_data.get("deal_id", "N/A")),
-            ("Client ID", self.task_data.get("client_id", "N/A")),
+            (i18n("ID"), self.task_data.get("id", "N/A")),
+            (i18n("Title"), self.task_data.get("title", "N/A")),
+            (i18n("Status"), self.task_data.get("status", "N/A")),
+            (i18n("Priority"), self.task_data.get("priority", "N/A")),
+            (i18n("Due Date"), self.task_data.get("due_date", "N/A")),
+            (i18n("Deal ID"), self.task_data.get("deal_id", "N/A")),
+            (i18n("Client ID"), self.task_data.get("client_id", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
@@ -728,9 +723,9 @@ class TaskDetailDialog(tk.Toplevel):
 
         # Description Tab
         desc_frame = ttk.Frame(notebook)
-        notebook.add(desc_frame, text="Description")
+        notebook.add(desc_frame, text=i18n("Description"))
 
-        ttk.Label(desc_frame, text="Description:").pack(anchor="w", padx=10, pady=5)
+        ttk.Label(desc_frame, text=i18n("Description") + ":").pack(anchor="w", padx=10, pady=5)
         desc_text = tk.Text(desc_frame, height=10, width=80)
         desc_text.pack(padx=10, pady=5, fill="both", expand=True)
         desc_text.insert("end", self.task_data.get("description", ""))
@@ -738,12 +733,12 @@ class TaskDetailDialog(tk.Toplevel):
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
+        notebook.add(timestamps_frame, text=i18n("Timestamps"))
 
         ts_fields = [
-            ("Created At", self.task_data.get("created_at", "N/A")),
-            ("Updated At", self.task_data.get("updated_at", "N/A")),
-            ("Is Deleted", "Yes" if self.task_data.get("is_deleted") else "No"),
+            (i18n("Created At"), self.task_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.task_data.get("updated_at", "N/A")),
+            (i18n("Is Deleted"), i18n("Yes") if self.task_data.get("is_deleted") else i18n("No")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):
@@ -773,15 +768,15 @@ class PaymentDetailDialog(tk.Toplevel):
 
         # General Info Tab
         general_frame = ttk.Frame(notebook)
-        notebook.add(general_frame, text="General Info")
+        notebook.add(general_frame, text=i18n("General Info"))
 
         fields = [
-            ("ID", self.payment_data.get("id", "N/A")),
-            ("Deal ID", self.payment_data.get("deal_id", "N/A")),
-            ("Policy ID", self.payment_data.get("policy_id", "N/A")),
-            ("Sequence", self.payment_data.get("sequence", "N/A")),
-            ("Status", self.payment_data.get("status", "N/A")),
-            ("Currency", self.payment_data.get("currency", "N/A")),
+            (i18n("ID"), self.payment_data.get("id", "N/A")),
+            (i18n("Deal ID"), self.payment_data.get("deal_id", "N/A")),
+            (i18n("Policy ID"), self.payment_data.get("policy_id", "N/A")),
+            (i18n("Sequence"), self.payment_data.get("sequence", "N/A")),
+            (i18n("Status"), self.payment_data.get("status", "N/A")),
+            (i18n("Currency"), self.payment_data.get("currency", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):
@@ -790,11 +785,11 @@ class PaymentDetailDialog(tk.Toplevel):
 
         # Dates Tab
         dates_frame = ttk.Frame(notebook)
-        notebook.add(dates_frame, text="Dates")
+        notebook.add(dates_frame, text=i18n("Dates"))
 
         dates_fields = [
-            ("Planned Date", self.payment_data.get("planned_date", "N/A")),
-            ("Actual Date", self.payment_data.get("actual_date", "N/A")),
+            (i18n("Planned Date"), self.payment_data.get("planned_date", "N/A")),
+            (i18n("Actual Date"), self.payment_data.get("actual_date", "N/A")),
         ]
 
         for i, (label, value) in enumerate(dates_fields):
@@ -803,13 +798,13 @@ class PaymentDetailDialog(tk.Toplevel):
 
         # Amounts Tab
         amounts_frame = ttk.Frame(notebook)
-        notebook.add(amounts_frame, text="Amounts")
+        notebook.add(amounts_frame, text=i18n("Amounts"))
 
         amounts_fields = [
-            ("Planned Amount", self.payment_data.get("planned_amount", "N/A")),
-            ("Incomes Total", self.payment_data.get("incomes_total", "N/A")),
-            ("Expenses Total", self.payment_data.get("expenses_total", "N/A")),
-            ("Net Total", self.payment_data.get("net_total", "N/A")),
+            (i18n("Planned Amount"), self.payment_data.get("planned_amount", "N/A")),
+            (i18n("Incomes Total"), self.payment_data.get("incomes_total", "N/A")),
+            (i18n("Expenses Total"), self.payment_data.get("expenses_total", "N/A")),
+            (i18n("Net Total"), self.payment_data.get("net_total", "N/A")),
         ]
 
         for i, (label, value) in enumerate(amounts_fields):
@@ -818,9 +813,9 @@ class PaymentDetailDialog(tk.Toplevel):
 
         # Comment Tab
         comment_frame = ttk.Frame(notebook)
-        notebook.add(comment_frame, text="Comment")
+        notebook.add(comment_frame, text=i18n("Comment"))
 
-        ttk.Label(comment_frame, text="Comment:").pack(anchor="w", padx=10, pady=5)
+        ttk.Label(comment_frame, text=i18n("Comment") + ":").pack(anchor="w", padx=10, pady=5)
         comment_text = tk.Text(comment_frame, height=10, width=80)
         comment_text.pack(padx=10, pady=5, fill="both", expand=True)
         comment_text.insert("end", self.payment_data.get("comment", ""))
@@ -828,11 +823,11 @@ class PaymentDetailDialog(tk.Toplevel):
 
         # Timestamps Tab
         timestamps_frame = ttk.Frame(notebook)
-        notebook.add(timestamps_frame, text="Timestamps")
+        notebook.add(timestamps_frame, text=i18n("Timestamps"))
 
         ts_fields = [
-            ("Created At", self.payment_data.get("created_at", "N/A")),
-            ("Updated At", self.payment_data.get("updated_at", "N/A")),
+            (i18n("Created At"), self.payment_data.get("created_at", "N/A")),
+            (i18n("Updated At"), self.payment_data.get("updated_at", "N/A")),
         ]
 
         for i, (label, value) in enumerate(ts_fields):

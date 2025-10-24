@@ -169,12 +169,12 @@ class TasksTab:
         for task in tasks_to_display:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
-                task.get("id", "N/A")[:8],
-                task.get("tenant_id", "N/A")[:8],
-                task.get("owner_id", "N/A")[:8],
+                str(task.get("id", "N/A"))[:8],
+                str(task.get("tenant_id", "N/A"))[:8],
+                str(task.get("owner_id", "N/A"))[:8],
                 is_deleted,
-                task.get("deal_id", "N/A")[:8],
-                task.get("client_id", "N/A")[:8],
+                str(task.get("deal_id", "N/A"))[:8],
+                str(task.get("client_id", "N/A"))[:8],
                 task.get("title", "N/A"),
                 task.get("description", "N/A"),
                 task.get("status", "N/A"),

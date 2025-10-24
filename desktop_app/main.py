@@ -210,21 +210,6 @@ class App(tk.Tk):
         tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
 
-    def _on_tree_sort(self, col):
-        display_map = {
-            "ID": "id",
-            "Tenant ID": "tenant_id",
-            "Owner ID": "owner_id",
-            "Deleted": "is_deleted",
-            "Name": "name",
-            "Email": "email",
-            "Phone": "phone",
-            "Status": "status",
-            "Created At": "created_at",
-            "Updated At": "updated_at",
-        }
-        treeview_sort_column(self.tree, col, False, self.all_clients, display_map)
-
         # --- Deals Tab ---
         deals_frame = ttk.Frame(self.notebook)
         self.notebook.add(deals_frame, text=i18n("Deals"))
@@ -260,6 +245,21 @@ class App(tk.Tk):
         exit_button_frame.pack(pady=10)
         tk.Button(exit_button_frame, text=i18n("Exit"), command=self.quit).pack(padx=20)
 
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Owner ID": "owner_id",
+            "Deleted": "is_deleted",
+            "Name": "name",
+            "Email": "email",
+            "Phone": "phone",
+            "Status": "status",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_clients, display_map)
+
     def refresh_tree(self):
         """Refresh client list asynchronously"""
         def worker():
@@ -292,12 +292,14 @@ class App(tk.Tk):
 
         # Add clients
         for client in clients_to_display:
-            client_id = str(client.get("id", ""))[:8]  # Show first 8 chars of UUID
+            client_id = str(client.get("id", "N/A"))[:8]  # Show first 8 chars of UUID
+            tenant_id = str(client.get("tenant_id", "N/A"))[:8]
+            owner_id = str(client.get("owner_id", "N/A"))[:8]
             is_deleted = "Yes" if client.get("is_deleted", False) else "No"
             self.tree.insert("", "end", iid=client.get("id"), values=(
                 client_id,
-                client.get("tenant_id", "N/A")[:8],
-                client.get("owner_id", "N/A")[:8],
+                tenant_id,
+                owner_id,
                 is_deleted,
                 client.get("name", "N/A"),
                 client.get("email", "N/A"),

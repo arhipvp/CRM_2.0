@@ -55,25 +55,6 @@ def upgrade() -> None:
     op.create_index(CALCULATIONS_DATE_INDEX, "calculations", ["calculation_date"], schema="crm")
     op.create_index(CALCULATIONS_COMPANY_INDEX, "calculations", ["insurance_company"], schema="crm")
 
-    op.add_column(
-        "policies",
-        sa.Column("calculation_id", postgresql.UUID(as_uuid=True), nullable=True),
-        schema="crm",
-    )
-    op.create_foreign_key(
-        "fk_policies_calculation",
-        "policies",
-        "calculations",
-        ["calculation_id"],
-        ["id"],
-        source_schema="crm",
-        referent_schema="crm",
-        ondelete="SET NULL",
-    )
-    op.create_index(POLICIES_CALCULATION_INDEX, "policies", ["calculation_id"], schema="crm")
-
-
-def downgrade() -> None:
     op.drop_index(POLICIES_CALCULATION_INDEX, table_name="policies", schema="crm")
     op.drop_constraint("fk_policies_calculation", "policies", schema="crm", type_="foreignkey")
     op.drop_column("policies", "calculation_id", schema="crm")

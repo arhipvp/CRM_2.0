@@ -287,10 +287,10 @@ class PaymentsTab:
         # Add payments
         for payment in payments_to_display:
             self.tree.insert("", "end", iid=payment.get("id"), values=(
-                payment.get("id", "N/A")[:8],
-                payment.get("tenant_id", "N/A")[:8],
-                payment.get("deal_id", "N/A")[:8],
-                payment.get("policy_id", "N/A")[:8],
+                str(payment.get("id", "N/A"))[:8],
+                str(payment.get("tenant_id", "N/A"))[:8],
+                str(payment.get("deal_id", "N/A"))[:8],
+                str(payment.get("policy_id", "N/A"))[:8],
                 payment.get("sequence", "N/A"),
                 payment.get("status", "N/A"),
                 payment.get("planned_date", "N/A"),
@@ -298,9 +298,9 @@ class PaymentsTab:
                 f"{payment.get('planned_amount', 0):.2f}" if payment.get('planned_amount') else "0.00",
                 payment.get("currency", "N/A"),
                 payment.get("comment", "N/A"),
-                payment.get("recorded_by_id", "N/A")[:8],
-                payment.get("created_by_id", "N/A")[:8],
-                payment.get("updated_by_id", "N/A")[:8],
+                str(payment.get("recorded_by_id", "N/A"))[:8],
+                str(payment.get("created_by_id", "N/A"))[:8],
+                str(payment.get("updated_by_id", "N/A"))[:8],
                 f"{payment.get('incomes_total', 0):.2f}" if payment.get('incomes_total') else "0.00",
                 f"{payment.get('expenses_total', 0):.2f}" if payment.get('expenses_total') else "0.00",
                 f"{payment.get('net_total', 0):.2f}" if payment.get('net_total') else "0.00",
