@@ -620,7 +620,9 @@ class PaymentService:
                 forced_status = status_value
             update_data.pop("status", None)
 
-        if "currency" in update_data and update_data["currency"] is not None:
+        if "currency" in update_data:
+            if update_data["currency"] is None:
+                raise repositories.RepositoryError("currency_mismatch")
             normalized_currency = self._normalize_currency(str(update_data["currency"]))
             if not normalized_currency:
                 raise repositories.RepositoryError("currency_mismatch")

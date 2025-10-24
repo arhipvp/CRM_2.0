@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 
@@ -130,3 +132,50 @@ def test_payment_income_create_normalizes_currency() -> None:
     )
 
     assert payload.currency == "USD"
+
+
+@pytest.mark.asyncio()
+async def test_update_payment_rejects_null_currency() -> None:
+    tenant_id = uuid4()
+    deal_id = uuid4()
+    policy_id = uuid4()
+    payment_id = uuid4()
+    payment = SimpleNamespace(
+        id=payment_id,
+        tenant_id=tenant_id,
+        deal_id=deal_id,
+        policy_id=policy_id,
+        status="scheduled",
+        currency="RUB",
+        planned_amount=Decimal("100.00"),
+        planned_date=date.today(),
+        actual_date=None,
+        incomes_total=Decimal("0"),
+        expenses_total=Decimal("0"),
+        net_total=Decimal("0"),
+        comment=None,
+        recorded_by_id=None,
+        created_by_id=None,
+        updated_by_id=None,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    payments_repo = SimpleNamespace(
+        get_payment=AsyncMock(return_value=payment),
+        update_payment=AsyncMock(),
+        recalculate_totals=AsyncMock(return_value=payment),
+    )
+    income_repo = SimpleNamespace()
+    expense_repo = SimpleNamespace()
+    events = SimpleNamespace(publish=AsyncMock())
+    service = services.PaymentService(payments_repo, income_repo, expense_repo, events)
+
+    payload = schemas.PaymentUpdate(currency=None)
+
+    with pytest.raises(services.repositories.RepositoryError) as excinfo:
+        await service.update_payment(tenant_id, deal_id, policy_id, payment_id, payload)
+
+    assert str(excinfo.value) == "currency_mismatch"
+    payments_repo.update_payment.assert_not_awaited()
+    events.publish.assert_not_called()
