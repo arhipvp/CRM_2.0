@@ -52,7 +52,7 @@ class Settings(BaseSettings):
 
     documents_base_url: Optional[AnyUrl] = Field(default=None)
 
-    auth_disabled: bool = Field(default=True)
+    auth_disabled: bool = Field(default=False)
 
     @property
     def resolved_celery_broker(self) -> str:
