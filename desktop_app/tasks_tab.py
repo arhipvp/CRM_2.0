@@ -7,6 +7,7 @@ from datetime import datetime
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import TaskDetailDialog
+from edit_dialogs import TaskEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
@@ -21,6 +22,8 @@ class TasksTab(ttk.Frame):
         self.all_tasks = []  # Store all tasks for filtering
         self.current_task = None
         self.search_filter: Optional[SearchFilter] = None
+        self.deals = []  # Store deals for dialog dropdown
+        self.all_deals = []  # Store all deals for filtering
 
         self.create_widgets()
         self.refresh_data()
@@ -130,6 +133,9 @@ class TasksTab(ttk.Frame):
         try:
             self.tasks = self.crm_service.get_tasks()
             self.all_tasks = self.tasks  # Store all tasks for filtering
+            # Also fetch deals for dropdown
+            self.deals = self.crm_service.get_deals()
+            self.all_deals = self.deals
             self.after(0, self._update_tree)
             logger.info(f"Fetched {len(self.tasks)} tasks")
         except Exception as e:
@@ -203,7 +209,7 @@ class TasksTab(ttk.Frame):
 
     def add_task(self):
         """Add new task"""
-        dialog = TaskDialog(self)
+        dialog = TaskEditDialog(self, deals_list=self.deals)
         if dialog.result:
             thread = Thread(
                 target=self._create_task,
@@ -229,7 +235,7 @@ class TasksTab(ttk.Frame):
             messagebox.showwarning("Warning", "Please select a task to edit")
             return
 
-        dialog = TaskDialog(self, task=self.current_task)
+        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals)
         if dialog.result:
             thread = Thread(
                 target=self._update_task,
@@ -362,7 +368,8 @@ class TasksTab(ttk.Frame):
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            error_msg = str(e)
+            messagebox.showerror("Error", f"Failed to export data: {error_msg}")
 
     def export_to_excel(self):
         """Export tasks to Excel file"""
@@ -403,89 +410,5 @@ class TasksTab(ttk.Frame):
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            messagebox.showerror("Error", f"Failed to export data: {e}")
-
-
-class TaskDialog(tk.Toplevel):
-    """Dialog for adding/editing tasks"""
-
-    def __init__(self, parent, task=None):
-        super().__init__(parent)
-        self.transient(parent)
-        self.parent = parent
-        self.result = None
-        self.task = task
-
-        if self.task:
-            self.title("Edit Task")
-        else:
-            self.title("Add Task")
-
-        self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
-        self.description_var = tk.StringVar(value=task.get("description", "") if task else "")
-        self.status_var = tk.StringVar(value=task.get("status", "open") if task else "open")
-        self.priority_var = tk.StringVar(value=task.get("priority", "normal") if task else "normal")
-        self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
-
-        # Title
-        tk.Label(self, text="Title:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.title_var, width=40).grid(row=0, column=1, padx=10, pady=5)
-
-        # Description
-        tk.Label(self, text="Description:").grid(row=1, column=0, padx=10, pady=5, sticky="nw")
-        description_text = tk.Text(self, height=3, width=40)
-        description_text.grid(row=1, column=1, padx=10, pady=5)
-        description_text.insert("end", task.get("description", "") if task else "")
-        self.description_text = description_text
-
-        # Status
-        tk.Label(self, text="Status:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        status_combo = ttk.Combobox(
-            self,
-            textvariable=self.status_var,
-            values=["open", "in_progress", "completed", "closed"],
-            state="readonly",
-            width=37
-        )
-        status_combo.grid(row=2, column=1, padx=10, pady=5)
-
-        # Priority
-        tk.Label(self, text="Priority:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        priority_combo = ttk.Combobox(
-            self,
-            textvariable=self.priority_var,
-            values=["low", "normal", "high", "urgent"],
-            state="readonly",
-            width=37
-        )
-        priority_combo.grid(row=3, column=1, padx=10, pady=5)
-
-        # Due Date
-        tk.Label(self, text="Due Date (YYYY-MM-DD):").grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        tk.Entry(self, textvariable=self.due_date_var, width=40).grid(row=4, column=1, padx=10, pady=5)
-
-        # Buttons
-        button_frame = tk.Frame(self)
-        button_frame.grid(row=5, columnspan=2, pady=10)
-
-        tk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
-        tk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
-
-        self.grab_set()
-        self.wait_window(self)
-
-    def on_ok(self):
-        """Handle OK button"""
-        title = self.title_var.get().strip()
-        if not title:
-            messagebox.showerror("Error", "Title cannot be empty.", parent=self)
-            return
-
-        self.result = {
-            "title": title,
-            "description": self.description_text.get("1.0", "end").strip(),
-            "status": self.status_var.get(),
-            "priority": self.priority_var.get(),
-            "due_date": self.due_date_var.get() if self.due_date_var.get() else None
-        }
-        self.destroy()
+            error_msg = str(e)
+            messagebox.showerror("Error", f"Failed to export data: {error_msg}")

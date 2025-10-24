@@ -431,3 +431,67 @@ class CalculationEditDialog(BaseEditDialog):
             "comments": comments
         }
         self.destroy()
+
+
+class TaskEditDialog(BaseEditDialog):
+    """Dialog for adding/editing tasks"""
+
+    def __init__(self, parent, task=None, deals_list: List[Dict[str, Any]] = None):
+        super().__init__(parent, "Edit Task" if task else "Add Task", task)
+        self.deals_list = deals_list or []
+        self.deal_dict = {f"{d.get('title', '')} (ID: {d.get('id', '')[:8]}...)": d.get('id')
+                         for d in self.deals_list}
+
+        # Initialize variables
+        self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
+        self.description_var = tk.StringVar(value=task.get("description", "") if task else "")
+        self.status_var = tk.StringVar(value=task.get("status", "open") if task else "open")
+        self.priority_var = tk.StringVar(value=task.get("priority", "normal") if task else "normal")
+        self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
+
+        # Title field
+        self.create_field(0, "Title", self.title_var, "entry")
+
+        # Description field
+        self.create_field(1, "Description", self.description_var, "text")
+
+        # Status field
+        self.create_field(2, "Status", self.status_var, "combobox",
+                         values=["open", "in_progress", "completed", "closed"])
+
+        # Priority field
+        self.create_field(3, "Priority", self.priority_var, "combobox",
+                         values=["low", "normal", "high", "urgent"])
+
+        # Due Date field
+        self.create_field(4, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
+
+        # Buttons
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=5, columnspan=2, pady=10)
+
+        ttk.Button(button_frame, text="OK", command=self.on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
+
+        self.geometry("500x450")
+        self.grab_set()
+        self.wait_window(self)
+
+    def on_ok(self):
+        """Handle OK button"""
+        title = self.title_var.get().strip()
+        if not title:
+            messagebox.showerror("Error", "Title cannot be empty.", parent=self)
+            return
+
+        description = self.get_text_value(self.description_var)
+        due_date = self.due_date_var.get().strip()
+
+        self.result = {
+            "title": title,
+            "description": description,
+            "status": self.status_var.get(),
+            "priority": self.priority_var.get(),
+            "due_date": due_date if due_date else None
+        }
+        self.destroy()

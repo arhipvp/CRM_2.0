@@ -279,7 +279,8 @@ class PoliciesTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Policy deleted successfully"))
         except Exception as e:
             logger.error(f"Failed to delete policy: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete policy: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete policy: {error_msg}"))
 
     def _on_tree_double_click(self, event):
         """Handle double-click on policy row to open detail dialog"""
