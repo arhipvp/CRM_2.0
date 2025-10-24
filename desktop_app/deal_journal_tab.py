@@ -64,6 +64,8 @@ class DealJournalTab:
 
         tk.Button(button_frame, text="Add Note", command=self.add_note).pack(side="left", padx=5)
         tk.Button(button_frame, text="View Full Note", command=self.view_note).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Delete Note", command=self.delete_note).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Refresh", command=self.refresh_journal).pack(side="left", padx=5)
 
         # Load deals on init
         self._load_deals()
@@ -102,13 +104,41 @@ class DealJournalTab:
             try:
                 deal = self.crm_service.get_deal(self.current_deal_id)
                 if deal:
-                    # Parse journal entries from deal description if available
-                    # In standard CRM, deal has a journal field with notes
-                    journal_entry = {
-                        "date": deal.get("created_at", "N/A")[:10],
-                        "note": deal.get("description", "No notes yet")
-                    }
-                    self.parent.after(0, self._update_tree_ui, [journal_entry])
+                    # Parse journal entries from deal description
+                    # Format: "date time: note" separated by "---"
+                    description = deal.get("description", "")
+                    entries = []
+
+                    if description:
+                        # Split entries by separator
+                        parts = description.split("\n---\n")
+                        for part in parts:
+                            part = part.strip()
+                            if part:
+                                # Try to extract date and note
+                                if ":" in part:
+                                    date_part, note_part = part.split(":", 1)
+                                    entries.append({
+                                        "date": date_part.strip(),
+                                        "note": note_part.strip(),
+                                        "is_deleted": False
+                                    })
+                                else:
+                                    entries.append({
+                                        "date": deal.get("created_at", "N/A")[:10],
+                                        "note": part,
+                                        "is_deleted": False
+                                    })
+
+                    # If no entries, add created_at info
+                    if not entries:
+                        entries = [{
+                            "date": deal.get("created_at", "N/A")[:10],
+                            "note": "No notes yet",
+                            "is_deleted": False
+                        }]
+
+                    self.parent.after(0, self._update_tree_ui, entries)
                 else:
                     self.parent.after(0, self._update_tree_ui, [])
             except Exception as e:
@@ -201,3 +231,49 @@ class DealJournalTab:
             text_widget.pack(padx=10, pady=10, fill="both", expand=True)
 
             tk.Button(view_window, text="Close", command=view_window.destroy).pack(pady=5)
+
+    def delete_note(self):
+        """Delete selected note from deal journal"""
+        if not self.current_deal_id:
+            messagebox.showwarning("Warning", "Please select a deal first.")
+            return
+
+        if not self.tree:
+            return
+
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a note to delete.")
+            return
+
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this note?"):
+            item_values = self.tree.item(selected_item)["values"]
+            if len(item_values) > 1:
+                note_to_delete = item_values[1]
+
+                def worker():
+                    try:
+                        # Get current deal
+                        deal = self.crm_service.get_deal(self.current_deal_id)
+                        if deal:
+                            current_desc = deal.get("description", "")
+                            # Remove the note from description
+                            lines = current_desc.split("\n---\n")
+                            filtered_lines = [line.strip() for line in lines if line.strip() and note_to_delete not in line]
+
+                            # Reconstruct description without the deleted note
+                            new_desc = "\n---\n".join(filtered_lines) if filtered_lines else ""
+
+                            self.crm_service.update_deal(
+                                self.current_deal_id,
+                                description=new_desc
+                            )
+                            logger.info(f"Deleted note from deal {self.current_deal_id}")
+                            self.parent.after(0, self.refresh_journal)
+                            self.parent.after(0, lambda: messagebox.showinfo("Success", "Note deleted successfully"))
+                    except Exception as e:
+                        logger.error(f"Failed to delete note: {e}")
+                        error_msg = str(e)
+                        self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to delete note: {error_msg}"))
+
+                Thread(target=worker, daemon=True).start()

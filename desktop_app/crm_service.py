@@ -327,6 +327,16 @@ class CRMService:
             logger.error(f"Failed to update calculation {calc_id}: {e}")
             raise
 
+    def delete_calculation(self, deal_id: str, calc_id: str) -> None:
+        """Delete calculation"""
+        try:
+            url = f"{CRM_DEALS_URL}/{deal_id}/calculations/{calc_id}"
+            self.api_client.delete(url)
+            logger.info(f"Deleted calculation: {calc_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete calculation {calc_id}: {e}")
+            raise
+
     # --- Deal Journal Operations ---
 
     def get_deal_journal(self, deal_id: str) -> List[Dict[str, Any]]:

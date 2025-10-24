@@ -305,8 +305,7 @@ class CalculationsTab(ttk.Frame):
     def _remove_calculation(self, calc_id: str):
         """Remove calculation from API"""
         try:
-            # Delete calculation endpoint - we need to implement this in the service
-            # For now, we'll just refresh
+            self.crm_service.delete_calculation(self.selected_deal_id, calc_id)
             self.after(0, self.refresh_calculations)
             self.after(0, lambda: messagebox.showinfo("Success", "Calculation deleted successfully"))
         except Exception as e:
