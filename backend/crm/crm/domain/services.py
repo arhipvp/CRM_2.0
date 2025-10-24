@@ -728,12 +728,24 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency")
+        if requested_currency is not None:
+            currency_value: str | None = str(requested_currency)
+        elif income.currency is not None:
+            currency_value = str(income.currency)
+        else:
+            currency_value = None
+
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(income.currency) if income.currency is not None else None,
+            currency=currency_value,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(income.currency) != normalized_currency:
+        if requested_currency is not None:
+            if normalized_currency is None:  # pragma: no cover - defensive guard
+                raise repositories.RepositoryError("currency_mismatch")
+            update_data["currency"] = normalized_currency
+        elif normalized_currency is not None and str(income.currency) != normalized_currency:
             income.currency = normalized_currency
         income = await self.incomes.update_income(income, update_data)
         payment = await self._finalize_payment(payment)
@@ -818,12 +830,24 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency")
+        if requested_currency is not None:
+            currency_value: str | None = str(requested_currency)
+        elif expense.currency is not None:
+            currency_value = str(expense.currency)
+        else:
+            currency_value = None
+
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(expense.currency) if expense.currency is not None else None,
+            currency=currency_value,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(expense.currency) != normalized_currency:
+        if requested_currency is not None:
+            if normalized_currency is None:  # pragma: no cover - defensive guard
+                raise repositories.RepositoryError("currency_mismatch")
+            update_data["currency"] = normalized_currency
+        elif normalized_currency is not None and str(expense.currency) != normalized_currency:
             expense.currency = normalized_currency
         expense = await self.expenses.update_expense(expense, update_data)
         payment = await self._finalize_payment(payment)
