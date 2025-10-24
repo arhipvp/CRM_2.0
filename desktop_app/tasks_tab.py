@@ -19,6 +19,10 @@ class TasksTab:
         self.crm_service = crm_service
         self.tree: Optional[ttk.Treeview] = None
         self.search_filter: Optional[SearchFilter] = None
+        self.deals = []  # Store deals for dialog dropdown
+        self.all_deals = []  # Store all deals for filtering
+        self.clients: List[Dict[str, Any]] = []  # Store clients for dialog dropdown
+        self.all_clients: List[Dict[str, Any]] = []  # Store all clients for potential reuse
         self.all_tasks: List[Dict[str, Any]] = []  # Store all tasks for filtering
         self.all_deals: List[Dict[str, Any]] = []  # Store all deals for dropdowns
 
@@ -92,6 +96,23 @@ class TasksTab:
 
         Thread(target=worker, daemon=True).start()
 
+    def _fetch_tasks(self):
+        """Fetch tasks in background"""
+        try:
+            self.tasks = self.crm_service.get_tasks()
+            self.all_tasks = self.tasks  # Store all tasks for filtering
+            # Also fetch deals for dropdown
+            self.deals = self.crm_service.get_deals()
+            self.all_deals = self.deals
+            # Fetch clients for dropdowns
+            self.clients = self.crm_service.get_clients()
+            self.all_clients = self.clients
+            self.after(0, self._update_tree)
+            logger.info(f"Fetched {len(self.tasks)} tasks")
+        except Exception as e:
+            logger.error(f"Failed to fetch tasks: {e}")
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
     def _update_tree_ui(self, tasks, deals=None):
         """Update tree UI on main thread"""
         if not self.tree:
@@ -126,6 +147,7 @@ class TasksTab:
 
     def add_task(self):
         """Add new task"""
+        dialog = TaskEditDialog(self, deals_list=self.deals, clients_list=self.clients)
         dialog = TaskEditDialog(self.parent, task=None, deals_list=self.all_deals)
         if dialog.result:
             def worker():
@@ -161,6 +183,8 @@ class TasksTab:
                 error_msg = str(e)
                 self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch task: {error_msg}"))
 
+        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals,
+                                clients_list=self.clients)
         Thread(target=fetch_and_edit, daemon=True).start()
 
     def _show_edit_dialog(self, task_id, current_task):
