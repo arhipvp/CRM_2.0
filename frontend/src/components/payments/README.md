@@ -127,9 +127,9 @@ Payment progress through 4 stages:
 | Stage | Status | Condition |
 |-------|--------|-----------|
 | Documents | completed | Always |
-| Awaiting | waiting / completed | planned/expected = waiting |
-| Received | completed / pending | received/paid_out = completed |
-| Distributed | completed / pending | paid_out = completed |
+| Awaiting | waiting / completed / failed | `scheduled` = waiting, `cancelled` = failed, otherwise completed |
+| Received | completed / waiting / pending / failed | `paid` = completed, `partially_paid` = waiting, `cancelled` = failed, otherwise pending |
+| Distributed | completed / pending / failed | `paid` = completed, `cancelled` = failed, otherwise pending |
 
 ## Types
 

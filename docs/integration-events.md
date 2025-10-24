@@ -28,6 +28,8 @@
 
 > Payload событий `deal.payment.*` повторяет структуру объектов Payments API; см. [docs/api/payments.md](api/payments.md) для полного описания REST-контрактов.
 
+> Все события `deal.payment.*` содержат поле `tenant_id`, позволяющее потребителям маршрутизировать уведомления в контексте нужного арендатора.
+
 > Routing key `deal.payment.income.*` и `deal.payment.expense.*` отражают операции по доходам и расходам одного платежа. Приёмники должны хранить пары (`income_id`, `event_id`) и (`expense_id`, `event_id`) в собственных журналах идемпотентности и синхронизировать агрегаты с учётом вложенных массивов в событии `deal.payment.updated`.
 
 ## События Tasks

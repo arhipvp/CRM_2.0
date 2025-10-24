@@ -271,14 +271,18 @@ async def test_payments_flow(api_client, configure_environment):
         grouped_events.setdefault(routing, []).append(payload)
 
     created_event = grouped_events["deal.payment.created"][0]
+    assert created_event["tenant_id"] == str(tenant_id)
     created_payment = created_event["payment"]
     assert created_payment["id"] == str(payment.id)
     assert created_payment["net_total"] == "0.00"
 
-    updated_payment = grouped_events["deal.payment.updated"][-1]["payment"]
+    updated_event = grouped_events["deal.payment.updated"][-1]
+    assert updated_event["tenant_id"] == str(tenant_id)
+    updated_payment = updated_event["payment"]
     assert updated_payment["net_total"] == "1100.00"
 
     deleted_event = grouped_events["deal.payment.deleted"][0]
+    assert deleted_event["tenant_id"] == str(tenant_id)
     assert deleted_event["payment_id"] == str(payment.id)
     assert "deleted_at" in deleted_event
 
@@ -323,6 +327,7 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
     assert deleted_events, events
 
     deleted_event = deleted_events[0]
+    assert deleted_event["tenant_id"] == str(tenant_id)
     deleted_income_payload = deleted_event["income"]
     assert deleted_income_payload["income_id"] == str(income.id)
     assert deleted_income_payload["deleted_by_id"] == str(deleted_by_id)
