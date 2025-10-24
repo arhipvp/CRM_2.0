@@ -85,6 +85,12 @@ def _build_expense_schema(payment_id) -> schemas.PaymentExpenseRead:
     )
 
 
+def test_payment_income_update_normalizes_currency() -> None:
+    payload = schemas.PaymentIncomeUpdate(currency="usd")
+
+    assert payload.currency == "USD"
+
+
 def test_validate_transaction_allows_same_local_day(monkeypatch: pytest.MonkeyPatch) -> None:
     service = _build_service()
     payment = SimpleNamespace(currency="RUB")
@@ -402,6 +408,146 @@ async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.Mon
 
     assert result.currency == "USD"
     assert payments_repo.update_calls == [{"currency": "USD"}]
+
+
+@pytest.mark.asyncio()
+async def test_update_income_allows_currency_change(monkeypatch: pytest.MonkeyPatch) -> None:
+    tenant_id = uuid4()
+    payment = SimpleNamespace(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        deal_id=uuid4(),
+        policy_id=uuid4(),
+        sequence=1,
+        status="scheduled",
+        planned_date=date(2024, 1, 15),
+        planned_amount=Decimal("100.00"),
+        currency="USD",
+        comment=None,
+        actual_date=None,
+        recorded_by_id=None,
+        created_by_id=None,
+        updated_by_id=None,
+        incomes_total=Decimal("0.00"),
+        expenses_total=Decimal("0.00"),
+        net_total=Decimal("0.00"),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        incomes=[],
+        expenses=[],
+    )
+    income = SimpleNamespace(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        payment_id=payment.id,
+        amount=Decimal("10.00"),
+        currency="USD",
+        category="wire",
+        posted_at=date(2024, 1, 20),
+        note=None,
+        created_by_id=None,
+        updated_by_id=None,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    class DummyPaymentsRepository:
+        async def get_payment(
+            self,
+            tenant_id: UUID,
+            deal_id: UUID,
+            policy_id: UUID,
+            payment_id: UUID,
+            *,
+            include_incomes: bool = False,
+            include_expenses: bool = False,
+        ) -> SimpleNamespace:
+            return payment
+
+    class DummyIncomeRepository:
+        def __init__(self, entity: SimpleNamespace) -> None:
+            self.entity = entity
+            self.update_calls: list[dict[str, object]] = []
+
+        async def get_income(self, tenant_id: UUID, payment_id: UUID, income_id: UUID) -> SimpleNamespace:
+            return self.entity
+
+        async def update_income(
+            self, entity: SimpleNamespace, data: dict[str, object]
+        ) -> SimpleNamespace:
+            self.update_calls.append(data.copy())
+            for key, value in data.items():
+                setattr(entity, key, value)
+            return entity
+
+    payments_repo = DummyPaymentsRepository()
+    incomes_repo = DummyIncomeRepository(income)
+    service = services.PaymentService(payments_repo, incomes_repo, SimpleNamespace(), _EventRecorder())
+
+    async def fake_finalize(
+        self,
+        payment_obj: SimpleNamespace,
+        *,
+        forced_status: str | None = None,
+    ) -> schemas.PaymentRead:
+        return schemas.PaymentRead(
+            id=payment_obj.id,
+            tenant_id=payment_obj.tenant_id,
+            deal_id=payment_obj.deal_id,
+            policy_id=payment_obj.policy_id,
+            sequence=payment_obj.sequence,
+            status=payment_obj.status,
+            planned_date=payment_obj.planned_date,
+            planned_amount=Decimal(payment_obj.planned_amount),
+            currency=payment_obj.currency,
+            comment=payment_obj.comment,
+            actual_date=payment_obj.actual_date,
+            recorded_by_id=payment_obj.recorded_by_id,
+            created_by_id=payment_obj.created_by_id,
+            updated_by_id=payment_obj.updated_by_id,
+            incomes_total=Decimal(payment_obj.incomes_total),
+            expenses_total=Decimal(payment_obj.expenses_total),
+            net_total=Decimal(payment_obj.net_total),
+            created_at=payment_obj.created_at,
+            updated_at=payment_obj.updated_at,
+            incomes=[],
+            expenses=[],
+        )
+
+    async def fake_publish(self, *args, **kwargs) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(
+        service,
+        "_finalize_payment",
+        fake_finalize.__get__(service, services.PaymentService),
+    )
+    monkeypatch.setattr(
+        service,
+        "_publish_income_event",
+        fake_publish.__get__(service, services.PaymentService),
+    )
+    monkeypatch.setattr(
+        service,
+        "_publish_payment_event",
+        fake_publish.__get__(service, services.PaymentService),
+    )
+
+    payload = schemas.PaymentIncomeUpdate(currency="usd")
+
+    payment_result, income_result = await service.update_income(
+        tenant_id,
+        payment.deal_id,
+        payment.policy_id,
+        payment.id,
+        income.id,
+        payload,
+    )
+
+    assert income_result is not None
+    assert income_result.currency == "USD"
+    assert incomes_repo.update_calls == [{"currency": "USD"}]
+    assert payment_result.currency == "USD"
 
 
 @pytest.mark.asyncio()

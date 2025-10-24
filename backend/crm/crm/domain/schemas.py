@@ -456,6 +456,7 @@ class PaymentIncomeCreate(PaymentIncomeBase):
 
 class PaymentIncomeUpdate(BaseModel):
     amount: Optional[Decimal] = Field(default=None, decimal_places=2, max_digits=14)
+    currency: Optional[str] = Field(default=None, min_length=1, max_length=12)
     category: Optional[str] = Field(default=None, min_length=1, max_length=64)
     posted_at: Optional[date] = None
     note: Optional[str] = Field(default=None, max_length=300)
@@ -469,6 +470,11 @@ class PaymentIncomeUpdate(BaseModel):
         if value <= 0:
             raise ValueError("amount must be greater than zero")
         return value
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: Optional[str]) -> Optional[str]:
+        return _normalize_currency(value)
 
     @field_serializer("amount", when_used="json")
     def serialize_amount(self, value: Optional[Decimal]) -> Optional[str]:
