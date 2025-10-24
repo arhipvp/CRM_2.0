@@ -335,6 +335,17 @@ class TaskRead(ORMModel, TaskBase):
     updated_at: datetime
 
 
+def _normalize_currency(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("currency cannot be blank")
+    return normalized.upper()
+
+
 class PaymentBase(BaseModel):
     planned_date: Optional[date] = None
     planned_amount: Decimal = Field(decimal_places=2, max_digits=14)
@@ -349,6 +360,14 @@ class PaymentBase(BaseModel):
         if value <= 0:
             raise ValueError("planned_amount must be greater than zero")
         return value
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        normalized = _normalize_currency(value)
+        if normalized is None:
+            raise ValueError("currency is required")
+        return normalized
 
     @field_serializer("planned_amount", when_used="json")
     def serialize_planned_amount(self, value: Decimal) -> str:
@@ -383,6 +402,11 @@ class PaymentUpdate(BaseModel):
             return None
         return f"{value:.2f}"
 
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_update_currency(cls, value: Optional[str]) -> Optional[str]:
+        return _normalize_currency(value)
+
 
 class PaymentIncomeBase(BaseModel):
     amount: Decimal = Field(decimal_places=2, max_digits=14)
@@ -397,6 +421,14 @@ class PaymentIncomeBase(BaseModel):
         if value <= 0:
             raise ValueError("amount must be greater than zero")
         return value
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        normalized = _normalize_currency(value)
+        if normalized is None:
+            raise ValueError("currency is required")
+        return normalized
 
     @field_serializer("amount", when_used="json")
     def serialize_amount(self, value: Decimal) -> str:

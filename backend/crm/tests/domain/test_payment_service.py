@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import date, timezone, timedelta
+from datetime import date, timedelta, timezone
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
 
-from crm.domain import services
+from crm.domain import schemas, services
 
 
 def _build_service() -> services.PaymentService:
@@ -99,3 +100,24 @@ def test_validate_transaction_rejects_future_local_day(monkeypatch: pytest.Monke
         )
 
     assert str(excinfo.value) == "posted_at_in_future"
+
+
+def test_payment_create_normalizes_currency() -> None:
+    payload = schemas.PaymentCreate(
+        planned_amount=Decimal("100.00"),
+        currency=" rub ",
+        planned_date=date(2024, 1, 10),
+    )
+
+    assert payload.currency == "RUB"
+
+
+def test_payment_income_create_normalizes_currency() -> None:
+    payload = schemas.PaymentIncomeCreate(
+        amount=Decimal("50.00"),
+        currency=" usd ",
+        category="wire",
+        posted_at=date(2024, 1, 10),
+    )
+
+    assert payload.currency == "USD"
