@@ -228,7 +228,8 @@ class PoliciesTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Policy created successfully"))
         except Exception as e:
             logger.error(f"Failed to create policy: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create policy: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create policy: {error_msg}"))
 
     def edit_policy(self):
         """Edit selected policy"""
@@ -253,7 +254,8 @@ class PoliciesTab(ttk.Frame):
             self.after(0, lambda: messagebox.showinfo("Success", "Policy updated successfully"))
         except Exception as e:
             logger.error(f"Failed to update policy: {e}")
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update policy: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update policy: {error_msg}"))
 
     def delete_policy(self):
         """Delete selected policy"""

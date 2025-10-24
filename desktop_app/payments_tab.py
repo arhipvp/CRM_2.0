@@ -165,7 +165,8 @@ class PaymentsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment created successfully"))
                 except Exception as e:
                     logger.error(f"Failed to create payment: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create payment: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create payment: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -194,7 +195,8 @@ class PaymentsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment updated successfully"))
                 except Exception as e:
                     logger.error(f"Failed to update payment: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update payment: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update payment: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -217,7 +219,8 @@ class PaymentsTab:
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment deleted successfully"))
                 except Exception as e:
                     logger.error(f"Failed to delete payment: {e}")
-                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete payment: {e}"))
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete payment: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 

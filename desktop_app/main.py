@@ -330,7 +330,8 @@ class App(tk.Tk):
                 self.after(0, lambda: self._show_edit_dialog(client_id, current_customer))
             except Exception as e:
                 logger.error(f"Failed to fetch client for editing: {e}")
-                self.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch client: {e}"))
+                error_msg = str(e)
+                self.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch client: {error_msg}"))
 
         Thread(target=fetch_and_edit, daemon=True).start()
 
@@ -350,7 +351,8 @@ class App(tk.Tk):
                     self.after(0, self.refresh_tree)
                 except Exception as e:
                     logger.error(f"Failed to update client: {e}")
-                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to update client: {e}"))
+                    error_msg = str(e)
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to update client: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
@@ -372,7 +374,8 @@ class App(tk.Tk):
                     self.after(0, self.refresh_tree)
                 except Exception as e:
                     logger.error(f"Failed to delete client: {e}")
-                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete client: {e}"))
+                    error_msg = str(e)
+                    self.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete client: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
 
