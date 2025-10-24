@@ -208,7 +208,26 @@ function joinUrl(baseUrl: string, path: string): string {
     // noop — путь относительный.
   }
 
-  const base = new URL(trimmedBase);
+  let relativeBase = false;
+  let base: URL;
+
+  try {
+    base = new URL(trimmedBase);
+  } catch {
+    relativeBase = true;
+
+    let normalizedBase = trimmedBase;
+    if (!normalizedBase) {
+      normalizedBase = "/";
+    } else if (normalizedBase.startsWith("//")) {
+      normalizedBase = `http:${normalizedBase}`;
+      relativeBase = false;
+    } else if (!normalizedBase.startsWith("/")) {
+      normalizedBase = `/${normalizedBase}`;
+    }
+
+    base = new URL(relativeBase ? `http://placeholder${normalizedBase}` : normalizedBase);
+  }
 
   let hash = "";
   let rest = trimmedPath;
@@ -244,6 +263,10 @@ function joinUrl(baseUrl: string, path: string): string {
   base.pathname = joinedPath;
   base.search = search;
   base.hash = hash;
+
+  if (relativeBase) {
+    return `${base.pathname}${base.search}${base.hash}`;
+  }
 
   return base.toString();
 }

@@ -61,6 +61,34 @@ describe("ApiClient при работе с HTTP API", () => {
     expect(deals.map((deal) => deal.id)).toEqual(sortDealsByNextReview(apiResponse).map((deal) => deal.id));
   });
 
+  it("корректно объединяет относительный базовый путь и конечный маршрут", async () => {
+    const previousBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    process.env.NEXT_PUBLIC_API_BASE_URL = "/api";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    try {
+      const { createApiClient } = await importClient();
+      const client = createApiClient({ baseUrl: "/api" });
+
+      await client.getDeals();
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      const [firstRequestUrl] = fetchSpy.mock.calls[0];
+      const [secondRequestUrl] = fetchSpy.mock.calls[1];
+      expect(firstRequestUrl).toBe("/api/crm/deals");
+      expect(secondRequestUrl).toBe("/api/crm/clients");
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.NEXT_PUBLIC_API_BASE_URL = previousBaseUrl;
+    }
+  });
+
   it("передает фильтры в запросе метрик стадий", async () => {
     let requestedUrl: URL | undefined;
 

@@ -634,13 +634,16 @@ class PaymentService:
                 normalized_currency = self._normalize_currency(str(new_currency_raw))
                 if not normalized_currency:
                     raise repositories.RepositoryError("currency_mismatch")
-                current_currency = self._normalize_currency(payment.currency)
-                if normalized_currency == current_currency:
-                    update_data.pop("currency", None)
-                else:
+                current_currency_raw = payment.currency
+                current_currency = self._normalize_currency(current_currency_raw)
+                if normalized_currency != current_currency:
                     if payment.incomes_total or payment.expenses_total:
                         raise repositories.RepositoryError("payment_has_transactions")
                     update_data["currency"] = normalized_currency
+                elif current_currency_raw != normalized_currency:
+                    update_data["currency"] = normalized_currency
+                else:
+                    update_data.pop("currency", None)
 
         if "actual_date" in update_data and update_data["actual_date"] is not None:
             actual_date = update_data["actual_date"]
