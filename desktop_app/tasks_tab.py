@@ -24,6 +24,8 @@ class TasksTab(ttk.Frame):
         self.search_filter: Optional[SearchFilter] = None
         self.deals = []  # Store deals for dialog dropdown
         self.all_deals = []  # Store all deals for filtering
+        self.clients: List[Dict[str, Any]] = []  # Store clients for dialog dropdown
+        self.all_clients: List[Dict[str, Any]] = []  # Store all clients for potential reuse
 
         self.create_widgets()
         self.refresh_data()
@@ -136,6 +138,9 @@ class TasksTab(ttk.Frame):
             # Also fetch deals for dropdown
             self.deals = self.crm_service.get_deals()
             self.all_deals = self.deals
+            # Fetch clients for dropdowns
+            self.clients = self.crm_service.get_clients()
+            self.all_clients = self.clients
             self.after(0, self._update_tree)
             logger.info(f"Fetched {len(self.tasks)} tasks")
         except Exception as e:
@@ -216,7 +221,7 @@ class TasksTab(ttk.Frame):
 
     def add_task(self):
         """Add new task"""
-        dialog = TaskEditDialog(self, deals_list=self.deals)
+        dialog = TaskEditDialog(self, deals_list=self.deals, clients_list=self.clients)
         if dialog.result:
             thread = Thread(
                 target=self._create_task,
@@ -242,7 +247,8 @@ class TasksTab(ttk.Frame):
             messagebox.showwarning("Warning", "Please select a task to edit")
             return
 
-        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals)
+        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals,
+                                clients_list=self.clients)
         if dialog.result:
             thread = Thread(
                 target=self._update_task,

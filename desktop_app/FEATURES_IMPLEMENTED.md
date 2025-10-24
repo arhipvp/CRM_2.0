@@ -133,6 +133,20 @@ if dialog.result:
 Валидация:
 - Insurance Company не может быть пустым
 
+#### TaskEditDialog
+Поля:
+- Title (обязательное)
+- Description (многострочный текст)
+- Deal (выпадающий список, связывает задачу со сделкой, опционально)
+- Client (выпадающий список, связывает задачу с клиентом, опционально)
+- Status (выпадающий список: open, in_progress, completed, closed)
+- Priority (выпадающий список: low, normal, high, urgent)
+- Due Date (дата в формате YYYY-MM-DD)
+
+Валидация:
+- Title не может быть пустым
+- Проверка валидности выбранных Deal и Client
+
 ### 2. CRUD операции по вкладкам
 
 #### Clients (main.py)
