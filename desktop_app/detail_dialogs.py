@@ -314,33 +314,33 @@ class DealDetailDialog(tk.Toplevel):
 
     def _add_policy(self):
         """Add policy to deal"""
-        from messagebox import showinfo
-        showinfo(i18n("Info"), "Add policy feature coming soon")
+        from tkinter import messagebox
+        messagebox.showinfo(i18n("Info"), "Add policy feature coming soon")
 
     def _delete_policy(self):
         """Delete policy from deal"""
-        from messagebox import showwarning
-        showwarning(i18n("Warning"), "Delete policy feature coming soon")
+        from tkinter import messagebox
+        messagebox.showwarning(i18n("Warning"), "Delete policy feature coming soon")
 
     def _add_calculation(self):
         """Add calculation to deal"""
-        from messagebox import showinfo
-        showinfo(i18n("Info"), "Add calculation feature coming soon")
+        from tkinter import messagebox
+        messagebox.showinfo(i18n("Info"), "Add calculation feature coming soon")
 
     def _delete_calculation(self):
         """Delete calculation from deal"""
-        from messagebox import showwarning
-        showwarning(i18n("Warning"), "Delete calculation feature coming soon")
+        from tkinter import messagebox
+        messagebox.showwarning(i18n("Warning"), "Delete calculation feature coming soon")
 
     def _add_payment(self):
         """Add payment to deal"""
-        from messagebox import showinfo
-        showinfo(i18n("Info"), "Add payment feature coming soon")
+        from tkinter import messagebox
+        messagebox.showinfo(i18n("Info"), "Add payment feature coming soon")
 
     def _delete_payment(self):
         """Delete payment from deal"""
-        from messagebox import showwarning
-        showwarning(i18n("Warning"), "Delete payment feature coming soon")
+        from tkinter import messagebox
+        messagebox.showwarning(i18n("Warning"), "Delete payment feature coming soon")
 
 
 class PolicyDetailDialog(tk.Toplevel):
