@@ -103,6 +103,7 @@ _STAGE_TO_STATUS: dict[DealStage, str] = {
 def _normalize_status(value: str) -> str:
     normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
     normalized = normalized.replace("-", "_")
+    normalized = re.sub(r"\s+", "_", normalized)
     normalized = normalized.strip().lower()
     synonyms = {
         "inprogress": "in_progress",
