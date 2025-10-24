@@ -986,6 +986,18 @@ class PaymentService:
             }
         await self.events.publish(routing_key, payload)
 
+    @staticmethod
+    def _build_income_event_payload(
+        income: schemas.PaymentIncomeRead,
+        *,
+        include_identifier: bool,
+    ) -> dict[str, Any]:
+        payload = income.model_dump(mode="json")
+        identifier = payload.pop("id", None)
+        if include_identifier and identifier is not None:
+            payload["income_id"] = identifier
+        return payload
+
     async def _publish_income_event(
         self,
         routing_key: str,
@@ -995,16 +1007,16 @@ class PaymentService:
         previous: schemas.PaymentIncomeRead | None = None,
         deleted_id: UUID | None = None,
         deleted_by_id: UUID | None = None,
-    ) -> None:
+        ) -> None:
         payload: dict[str, Any] = {
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
         }
         if income is not None:
-            payload["income"] = income.model_dump(mode="json")
+            payload["income"] = self._build_income_event_payload(income, include_identifier=True)
         if previous is not None:
-            payload["previous"] = previous.model_dump(mode="json")
+            payload["previous"] = self._build_income_event_payload(previous, include_identifier=False)
         if deleted_id is not None:
             payload["income"] = {
                 "income_id": str(deleted_id),
@@ -1012,6 +1024,18 @@ class PaymentService:
                 "deleted_by_id": str(deleted_by_id) if deleted_by_id else None,
             }
         await self.events.publish(routing_key, payload)
+
+    @staticmethod
+    def _build_expense_event_payload(
+        expense: schemas.PaymentExpenseRead,
+        *,
+        include_identifier: bool,
+    ) -> dict[str, Any]:
+        payload = expense.model_dump(mode="json")
+        identifier = payload.pop("id", None)
+        if include_identifier and identifier is not None:
+            payload["expense_id"] = identifier
+        return payload
 
     async def _publish_expense_event(
         self,
@@ -1022,16 +1046,16 @@ class PaymentService:
         previous: schemas.PaymentExpenseRead | None = None,
         deleted_id: UUID | None = None,
         deleted_by_id: UUID | None = None,
-    ) -> None:
+        ) -> None:
         payload: dict[str, Any] = {
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
         }
         if expense is not None:
-            payload["expense"] = expense.model_dump(mode="json")
+            payload["expense"] = self._build_expense_event_payload(expense, include_identifier=True)
         if previous is not None:
-            payload["previous"] = previous.model_dump(mode="json")
+            payload["previous"] = self._build_expense_event_payload(previous, include_identifier=False)
         if deleted_id is not None:
             payload["expense"] = {
                 "expense_id": str(deleted_id),
