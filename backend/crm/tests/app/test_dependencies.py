@@ -158,6 +158,26 @@ async def test_get_current_user_accepts_cookie():
 
 
 @pytest.mark.asyncio()
+async def test_get_current_user_falls_back_to_cookie_for_invalid_header():
+    from crm.app.dependencies import get_current_user
+
+    token_payload = {
+        "sub": str(uuid4()),
+        "email": "cookie@example.com",
+        "roles": ["manager"],
+        "aud": settings.jwt_audience,
+        "iss": settings.jwt_issuer,
+        "exp": datetime.utcnow() + timedelta(minutes=5),
+    }
+    token = jwt.encode(token_payload, settings.jwt_access_secret, algorithm="HS256")
+
+    user = await get_current_user("Basic invalid", token)
+
+    assert user.email == "cookie@example.com"
+    assert "manager" in user.roles
+
+
+@pytest.mark.asyncio()
 async def test_get_current_user_rejects_invalid_token():
     from crm.app.dependencies import get_current_user
 
