@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 from typing import Optional, Dict, Any
 from datetime import datetime
 from i18n import i18n
+from table_sort_utils import treeview_sort_column
 
 
 class ClientDetailDialog(tk.Toplevel):
@@ -164,11 +165,8 @@ class DealDetailDialog(tk.Toplevel):
             height=12
         )
 
-        self.policies_tree.heading("Number", text=i18n("Policy Number"))
-        self.policies_tree.heading("Status", text=i18n("Status"))
-        self.policies_tree.heading("Premium", text=i18n("Premium"))
-        self.policies_tree.heading("From", text=i18n("Effective From"))
-        self.policies_tree.heading("To", text=i18n("Effective To"))
+        for col in ("Number", "Status", "Premium", "From", "To"):
+            self.policies_tree.heading(col, text=i18n(col), command=lambda c=col: self._on_policies_tree_sort(c))
 
         self.policies_tree.column("Number", width=100)
         self.policies_tree.column("Status", width=80)
@@ -188,6 +186,16 @@ class DealDetailDialog(tk.Toplevel):
         ttk.Button(button_frame, text=i18n("Add"), command=self._add_policy).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_policy).pack(side="left", padx=5)
 
+    def _on_policies_tree_sort(self, col):
+        display_map = {
+            "Number": "policy_number",
+            "Status": "status",
+            "Premium": "premium",
+            "From": "effective_from",
+            "To": "effective_to",
+        }
+        treeview_sort_column(self.policies_tree, col, False, self.policies, display_map)
+
     def _create_calculations_tab(self, parent):
         """Create calculations management tab"""
         # Treeview for calculations
@@ -201,10 +209,8 @@ class DealDetailDialog(tk.Toplevel):
             height=12
         )
 
-        self.calculations_tree.heading("Company", text=i18n("Insurance Company"))
-        self.calculations_tree.heading("Program", text=i18n("Program Name"))
-        self.calculations_tree.heading("Amount", text=i18n("Premium Amount"))
-        self.calculations_tree.heading("Coverage", text=i18n("Coverage Sum"))
+        for col in ("Company", "Program", "Amount", "Coverage"):
+            self.calculations_tree.heading(col, text=i18n(col), command=lambda c=col: self._on_calculations_tree_sort(c))
 
         self.calculations_tree.column("Company", width=120)
         self.calculations_tree.column("Program", width=150)
@@ -223,6 +229,15 @@ class DealDetailDialog(tk.Toplevel):
         ttk.Button(button_frame, text=i18n("Add"), command=self._add_calculation).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_calculation).pack(side="left", padx=5)
 
+    def _on_calculations_tree_sort(self, col):
+        display_map = {
+            "Company": "insurance_company",
+            "Program": "program_name",
+            "Amount": "premium_amount",
+            "Coverage": "coverage_sum",
+        }
+        treeview_sort_column(self.calculations_tree, col, False, self.calculations, display_map)
+
     def _create_payments_tab(self, parent):
         """Create payments management tab"""
         # Treeview for payments
@@ -236,10 +251,8 @@ class DealDetailDialog(tk.Toplevel):
             height=12
         )
 
-        self.payments_tree.heading("Date", text="Date")
-        self.payments_tree.heading("Amount", text=i18n("Amount"))
-        self.payments_tree.heading("Status", text=i18n("Status"))
-        self.payments_tree.heading("Planned", text="Planned Amount")
+        for col in ("Date", "Amount", "Status", "Planned"):
+            self.payments_tree.heading(col, text=col, command=lambda c=col: self._on_payments_tree_sort(c))
 
         self.payments_tree.column("Date", width=120)
         self.payments_tree.column("Amount", width=100)
@@ -257,6 +270,15 @@ class DealDetailDialog(tk.Toplevel):
         button_frame.pack(pady=5)
         ttk.Button(button_frame, text=i18n("Add"), command=self._add_payment).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_payment).pack(side="left", padx=5)
+
+    def _on_payments_tree_sort(self, col):
+        display_map = {
+            "Date": "actual_date",
+            "Amount": "incomes_total",
+            "Status": "status",
+            "Planned": "planned_amount",
+        }
+        treeview_sort_column(self.payments_tree, col, False, self.payments, display_map)
 
     def _create_finances_tab(self, parent):
         """Create income/expenses summary tab"""
@@ -305,7 +327,7 @@ class DealDetailDialog(tk.Toplevel):
     def _add_policy(self):
         """Add policy to deal"""
         from edit_dialogs import PolicyEditDialog
-        dialog = PolicyEditDialog(self, self.crm_service, clients_list=self.all_clients, policy=None)
+        dialog = PolicyEditDialog(self, clients_list=self.all_clients, deals_list=[self.deal_data], policy=None)
         if dialog.result:
             def worker():
                 try:

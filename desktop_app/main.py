@@ -18,6 +18,7 @@ from policies_tab import PoliciesTab
 from calculations_tab import CalculationsTab
 from detail_dialogs import ClientDetailDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
+from table_sort_utils import treeview_sort_column
 
 
 class CustomerDialog(tk.Toplevel):
@@ -165,24 +166,29 @@ class App(tk.Tk):
 
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("ID", "Name", "Email", "Phone", "Status", "Deleted", "Created"),
+            columns=(
+                "ID", "Tenant ID", "Owner ID", "Deleted", "Name", "Email",
+                "Phone", "Status", "Created At", "Updated At"
+            ),
             show="headings"
         )
-        self.tree.heading("ID", text=i18n("ID"))
-        self.tree.heading("Name", text=i18n("Name"))
-        self.tree.heading("Email", text=i18n("Email"))
-        self.tree.heading("Phone", text=i18n("Phone"))
-        self.tree.heading("Status", text=i18n("Status"))
-        self.tree.heading("Deleted", text=i18n("Deleted"))
-        self.tree.heading("Created", text=i18n("Created"))
 
-        self.tree.column("ID", width=40)
+        for col in (
+            "ID", "Tenant ID", "Owner ID", "Deleted", "Name", "Email",
+            "Phone", "Status", "Created At", "Updated At"
+        ):
+            self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
+
+        self.tree.column("ID", width=50)
+        self.tree.column("Tenant ID", width=100)
+        self.tree.column("Owner ID", width=100)
+        self.tree.column("Deleted", width=60)
         self.tree.column("Name", width=140)
         self.tree.column("Email", width=180)
         self.tree.column("Phone", width=100)
         self.tree.column("Status", width=70)
-        self.tree.column("Deleted", width=60)
-        self.tree.column("Created", width=100)
+        self.tree.column("Created At", width=150)
+        self.tree.column("Updated At", width=150)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -203,6 +209,21 @@ class App(tk.Tk):
         tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Owner ID": "owner_id",
+            "Deleted": "is_deleted",
+            "Name": "name",
+            "Email": "email",
+            "Phone": "phone",
+            "Status": "status",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_clients, display_map)
 
         # --- Deals Tab ---
         deals_frame = ttk.Frame(self.notebook)
@@ -275,12 +296,15 @@ class App(tk.Tk):
             is_deleted = "Yes" if client.get("is_deleted", False) else "No"
             self.tree.insert("", "end", iid=client.get("id"), values=(
                 client_id,
-                client["name"],
+                client.get("tenant_id", "N/A")[:8],
+                client.get("owner_id", "N/A")[:8],
+                is_deleted,
+                client.get("name", "N/A"),
                 client.get("email", "N/A"),
                 client.get("phone", "N/A"),
                 client.get("status", "N/A"),
-                is_deleted,
-                client.get("created_at", "")[:10] if client.get("created_at") else "N/A"
+                client.get("created_at", "N/A"),
+                client.get("updated_at", "N/A"),
             ))
 
     def _handle_api_error(self, error_msg):
@@ -429,19 +453,27 @@ class App(tk.Tk):
             return
 
         try:
-            # Get current displayed clients from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Name"), i18n("Email"), i18n("Phone"), i18n("Status"), i18n("Deleted"), i18n("Created")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
+                i18n("Phone"), i18n("Status"), i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for client in self.all_clients:
+                is_deleted = i18n("Yes") if client.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    client.get("id", "N/A")[:8],
+                    client.get("tenant_id", "N/A")[:8],
+                    client.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    client.get("name", "N/A"),
+                    client.get("email", "N/A"),
+                    client.get("phone", "N/A"),
+                    client.get("status", "N/A"),
+                    client.get("created_at", "N/A"),
+                    client.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
@@ -470,19 +502,27 @@ class App(tk.Tk):
             return
 
         try:
-            # Get current displayed clients from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Name"), i18n("Email"), i18n("Phone"), i18n("Status"), i18n("Deleted"), i18n("Created")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
+                i18n("Phone"), i18n("Status"), i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for client in self.all_clients:
+                is_deleted = i18n("Yes") if client.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    client.get("id", "N/A")[:8],
+                    client.get("tenant_id", "N/A")[:8],
+                    client.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    client.get("name", "N/A"),
+                    client.get("email", "N/A"),
+                    client.get("phone", "N/A"),
+                    client.get("status", "N/A"),
+                    client.get("created_at", "N/A"),
+                    client.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):

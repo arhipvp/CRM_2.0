@@ -10,6 +10,7 @@ from detail_dialogs import TaskDetailDialog
 from edit_dialogs import TaskEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 from i18n import i18n
+from table_sort_utils import treeview_sort_column
 
 
 class TasksTab:
@@ -45,22 +46,34 @@ class TasksTab:
 
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("ID", "Title", "Status", "Priority", "Due Date", "Deleted"),
+            columns=(
+                "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+                "Title", "Description", "Status", "Priority", "Due Date",
+                "Created At", "Updated At"
+            ),
             show="headings"
         )
-        self.tree.heading("ID", text=i18n("ID"))
-        self.tree.heading("Title", text=i18n("Task Title"))
-        self.tree.heading("Status", text=i18n("Status"))
-        self.tree.heading("Priority", text=i18n("Priority"))
-        self.tree.heading("Due Date", text=i18n("Due Date"))
-        self.tree.heading("Deleted", text=i18n("Deleted"))
+
+        for col in (
+            "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+            "Title", "Description", "Status", "Priority", "Due Date",
+            "Created At", "Updated At"
+        ):
+            self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
+        self.tree.column("Tenant ID", width=100)
+        self.tree.column("Owner ID", width=100)
+        self.tree.column("Deleted", width=60)
+        self.tree.column("Deal ID", width=100)
+        self.tree.column("Client ID", width=100)
         self.tree.column("Title", width=250)
+        self.tree.column("Description", width=200)
         self.tree.column("Status", width=100)
         self.tree.column("Priority", width=100)
         self.tree.column("Due Date", width=100)
-        self.tree.column("Deleted", width=60)
+        self.tree.column("Created At", width=150)
+        self.tree.column("Updated At", width=150)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -81,6 +94,24 @@ class TasksTab:
         tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Owner ID": "owner_id",
+            "Deleted": "is_deleted",
+            "Deal ID": "deal_id",
+            "Client ID": "client_id",
+            "Title": "title",
+            "Description": "description",
+            "Status": "status",
+            "Priority": "priority",
+            "Due Date": "due_date",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_tasks, display_map)
 
     def refresh_tree(self):
         """Refresh tasks list asynchronously"""
@@ -138,12 +169,19 @@ class TasksTab:
         for task in tasks_to_display:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
-                task.get("id", "")[:8] + "...",  # Show first 8 chars of ID
+                task.get("id", "N/A")[:8],
+                task.get("tenant_id", "N/A")[:8],
+                task.get("owner_id", "N/A")[:8],
+                is_deleted,
+                task.get("deal_id", "N/A")[:8],
+                task.get("client_id", "N/A")[:8],
                 task.get("title", "N/A"),
+                task.get("description", "N/A"),
                 task.get("status", "N/A"),
                 task.get("priority", "N/A"),
                 task.get("due_date", "N/A"),
-                is_deleted
+                task.get("created_at", "N/A"),
+                task.get("updated_at", "N/A"),
             ))
 
     def add_task(self):
@@ -256,19 +294,31 @@ class TasksTab:
             return
 
         try:
-            # Get current displayed tasks from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Title"), i18n("Status"), i18n("Priority"), i18n("Due Date"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for task in self.all_tasks:
+                is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    task.get("id", "N/A")[:8],
+                    task.get("tenant_id", "N/A")[:8],
+                    task.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    task.get("deal_id", "N/A")[:8],
+                    task.get("client_id", "N/A")[:8],
+                    task.get("title", "N/A"),
+                    task.get("description", "N/A"),
+                    task.get("status", "N/A"),
+                    task.get("priority", "N/A"),
+                    task.get("due_date", "N/A"),
+                    task.get("created_at", "N/A"),
+                    task.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
@@ -297,19 +347,31 @@ class TasksTab:
             return
 
         try:
-            # Get current displayed tasks from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Title"), i18n("Status"), i18n("Priority"), i18n("Due Date"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("Created At"), i18n("Updated At")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for task in self.all_tasks:
+                is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
+                rows.append([
+                    task.get("id", "N/A")[:8],
+                    task.get("tenant_id", "N/A")[:8],
+                    task.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    task.get("deal_id", "N/A")[:8],
+                    task.get("client_id", "N/A")[:8],
+                    task.get("title", "N/A"),
+                    task.get("description", "N/A"),
+                    task.get("status", "N/A"),
+                    task.get("priority", "N/A"),
+                    task.get("due_date", "N/A"),
+                    task.get("created_at", "N/A"),
+                    task.get("updated_at", "N/A"),
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):

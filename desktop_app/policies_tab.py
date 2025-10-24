@@ -43,24 +43,35 @@ class PoliciesTab:
 
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("ID", "Policy Number", "Status", "Premium", "Effective From", "Effective To", "Deleted"),
+            columns=(
+                "ID", "Tenant ID", "Owner ID", "Deleted", "Client ID", "Deal ID",
+                "Policy Number", "Status", "Premium", "Effective From", "Effective To",
+                "Created At", "Updated At", "Calculation ID"
+            ),
             show="headings"
         )
-        self.tree.heading("ID", text=i18n("ID"))
-        self.tree.heading("Policy Number", text=i18n("Policy Number"))
-        self.tree.heading("Status", text=i18n("Status"))
-        self.tree.heading("Premium", text=i18n("Premium"))
-        self.tree.heading("Effective From", text=i18n("Effective From"))
-        self.tree.heading("Effective To", text=i18n("Effective To"))
-        self.tree.heading("Deleted", text=i18n("Deleted"))
+
+        for col in (
+            "ID", "Tenant ID", "Owner ID", "Deleted", "Client ID", "Deal ID",
+            "Policy Number", "Status", "Premium", "Effective From", "Effective To",
+            "Created At", "Updated At", "Calculation ID"
+        ):
+            self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
+        self.tree.column("Tenant ID", width=100)
+        self.tree.column("Owner ID", width=100)
+        self.tree.column("Deleted", width=60)
+        self.tree.column("Client ID", width=100)
+        self.tree.column("Deal ID", width=100)
         self.tree.column("Policy Number", width=150)
         self.tree.column("Status", width=100)
         self.tree.column("Premium", width=100)
         self.tree.column("Effective From", width=120)
         self.tree.column("Effective To", width=120)
-        self.tree.column("Deleted", width=60)
+        self.tree.column("Created At", width=150)
+        self.tree.column("Updated At", width=150)
+        self.tree.column("Calculation ID", width=100)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -81,6 +92,25 @@ class PoliciesTab:
         tk.Button(button_frame, text=i18n("Refresh"), command=self.refresh_tree).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(button_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
+
+    def _on_tree_sort(self, col):
+        display_map = {
+            "ID": "id",
+            "Tenant ID": "tenant_id",
+            "Owner ID": "owner_id",
+            "Deleted": "is_deleted",
+            "Client ID": "client_id",
+            "Deal ID": "deal_id",
+            "Policy Number": "policy_number",
+            "Status": "status",
+            "Premium": "premium",
+            "Effective From": "effective_from",
+            "Effective To": "effective_to",
+            "Created At": "created_at",
+            "Updated At": "updated_at",
+            "Calculation ID": "calculation_id",
+        }
+        treeview_sort_column(self.tree, col, False, self.all_policies, display_map)
 
     def refresh_tree(self):
         """Refresh policies list asynchronously"""
@@ -124,19 +154,23 @@ class PoliciesTab:
         for policy in policies_to_display:
             is_deleted = i18n("Yes") if policy.get("is_deleted", False) else i18n("No")
             premium = policy.get("premium", 0)
-            if premium:
-                premium_str = f"{float(premium):.2f}"
-            else:
-                premium_str = "N/A"
+            premium_str = f"{float(premium):.2f}" if premium else "0.00"
 
             self.tree.insert("", "end", iid=policy.get("id"), values=(
-                policy.get("id", "")[:8] + "...",  # Show first 8 chars of ID
+                policy.get("id", "N/A")[:8],
+                policy.get("tenant_id", "N/A")[:8],
+                policy.get("owner_id", "N/A")[:8],
+                is_deleted,
+                policy.get("client_id", "N/A")[:8],
+                policy.get("deal_id", "N/A")[:8],
                 policy.get("policy_number", "N/A"),
                 policy.get("status", "N/A"),
                 premium_str,
                 policy.get("effective_from", "N/A"),
                 policy.get("effective_to", "N/A"),
-                is_deleted
+                policy.get("created_at", "N/A"),
+                policy.get("updated_at", "N/A"),
+                policy.get("calculation_id", "N/A")[:8],
             ))
 
     def add_policy(self):
@@ -246,19 +280,34 @@ class PoliciesTab:
             return
 
         try:
-            # Get current displayed policies from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Client ID"), i18n("Deal ID"),
+                i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"),
+                i18n("Created At"), i18n("Updated At"), i18n("Calculation ID")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for policy in self.all_policies:
+                is_deleted = i18n("Yes") if policy.get("is_deleted", False) else i18n("No")
+                premium = policy.get("premium", 0)
+                premium_str = f"{float(premium):.2f}" if premium else "0.00"
+                rows.append([
+                    policy.get("id", "N/A")[:8],
+                    policy.get("tenant_id", "N/A")[:8],
+                    policy.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    policy.get("client_id", "N/A")[:8],
+                    policy.get("deal_id", "N/A")[:8],
+                    policy.get("policy_number", "N/A"),
+                    policy.get("status", "N/A"),
+                    premium_str,
+                    policy.get("effective_from", "N/A"),
+                    policy.get("effective_to", "N/A"),
+                    policy.get("created_at", "N/A"),
+                    policy.get("updated_at", "N/A"),
+                    policy.get("calculation_id", "N/A")[:8],
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_csv(filename, columns, rows):
@@ -287,19 +336,34 @@ class PoliciesTab:
             return
 
         try:
-            # Get current displayed policies from tree
-            displayed_items = self.tree.get_children()
-            if not displayed_items:
-                messagebox.showwarning(i18n("Warning"), i18n("No data to export"))
-                return
-
             # Prepare data
-            columns = [i18n("ID"), i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"), i18n("Deleted")]
+            columns = [
+                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Client ID"), i18n("Deal ID"),
+                i18n("Policy Number"), i18n("Status"), i18n("Premium"), i18n("Effective From"), i18n("Effective To"),
+                i18n("Created At"), i18n("Updated At"), i18n("Calculation ID")
+            ]
             rows = []
 
-            for item in displayed_items:
-                values = self.tree.item(item)["values"]
-                rows.append(list(values))
+            for policy in self.all_policies:
+                is_deleted = i18n("Yes") if policy.get("is_deleted", False) else i18n("No")
+                premium = policy.get("premium", 0)
+                premium_str = f"{float(premium):.2f}" if premium else "0.00"
+                rows.append([
+                    policy.get("id", "N/A")[:8],
+                    policy.get("tenant_id", "N/A")[:8],
+                    policy.get("owner_id", "N/A")[:8],
+                    is_deleted,
+                    policy.get("client_id", "N/A")[:8],
+                    policy.get("deal_id", "N/A")[:8],
+                    policy.get("policy_number", "N/A"),
+                    policy.get("status", "N/A"),
+                    premium_str,
+                    policy.get("effective_from", "N/A"),
+                    policy.get("effective_to", "N/A"),
+                    policy.get("created_at", "N/A"),
+                    policy.get("updated_at", "N/A"),
+                    policy.get("calculation_id", "N/A")[:8],
+                ])
 
             # Export using DataExporter
             if DataExporter.export_to_excel(filename, columns, rows):
