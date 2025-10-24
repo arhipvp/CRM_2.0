@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import AsyncGenerator
+from importlib import import_module
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.engine import URL, make_url
-
-from crm.app.config import settings
 
 
 def _build_async_url(raw_url: str) -> tuple[URL, dict[str, Any]]:
@@ -69,7 +68,8 @@ def _build_async_url(raw_url: str) -> tuple[URL, dict[str, Any]]:
 
 
 def get_async_database_config() -> tuple[URL, dict[str, Any]]:
-    return _build_async_url(str(settings.database_url))
+    settings_module = import_module("crm.app.config")
+    return _build_async_url(str(settings_module.settings.database_url))
 
 
 _engine: AsyncEngine | None = None
