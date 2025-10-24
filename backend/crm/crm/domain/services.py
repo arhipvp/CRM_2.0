@@ -857,7 +857,9 @@ class PaymentService:
         if currency is not None and currency != payment.currency:
             raise repositories.RepositoryError("currency_mismatch")
         if posted_at is not None:
-            today = datetime.now(timezone.utc).date()
+            # Используем локальную дату сервера, чтобы не отклонять операции,
+            # введённые в тот же календарный день в регионах, опережающих UTC.
+            today = datetime.now(timezone.utc).astimezone().date()
             if posted_at > today:
                 raise repositories.RepositoryError("posted_at_in_future")
 
