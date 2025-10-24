@@ -77,8 +77,7 @@ async def get_current_user(
     access_token_cookie: AccessTokenCookie = None,
 ) -> AuthenticatedUser:
     # If auth is disabled, return a mock admin user
-    if settings.auth_disabled:
-        from uuid import UUID
+    if getattr(settings, "auth_disabled", False):
         return AuthenticatedUser(
             id=UUID("00000000-0000-0000-0000-000000000001"),
             email="admin@local.dev",
