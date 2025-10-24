@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import date, datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import aio_pika
 import pytest
@@ -327,6 +327,7 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
     assert deleted_events, events
 
     deleted_event = deleted_events[0]
+    tenant_id = UUID(headers["X-Tenant-ID"])
     assert deleted_event["tenant_id"] == str(tenant_id)
     deleted_income_payload = deleted_event["income"]
     assert deleted_income_payload["income_id"] == str(income.id)
