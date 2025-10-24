@@ -182,23 +182,30 @@ class CalculationsTab(ttk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        logger.info(f"_update_tree called with {len(self.calculations)} calculations")
+
         # Add calculations
         for calc in self.calculations:
             is_deleted = "Yes" if calc.get("is_deleted", False) else "No"
-            self.tree.insert(
-                "",
-                "end",
-                iid=calc.get("id"),
-                values=(
-                    calc.get("insurance_company", ""),
-                    calc.get("program_name", ""),
-                    f"{calc.get('premium_amount', 0):.2f}" if calc.get('premium_amount') else "0.00",
-                    f"{calc.get('coverage_sum', 0):.2f}" if calc.get('coverage_sum') else "0.00",
-                    calc.get("status", ""),
-                    calc.get("created_at", "")[:10] if calc.get("created_at") else "",
-                    is_deleted
+            try:
+                self.tree.insert(
+                    "",
+                    "end",
+                    iid=calc.get("id"),
+                    values=(
+                        calc.get("insurance_company", ""),
+                        calc.get("program_name", ""),
+                        f"{calc.get('premium_amount', 0):.2f}" if calc.get('premium_amount') else "0.00",
+                        f"{calc.get('coverage_sum', 0):.2f}" if calc.get('coverage_sum') else "0.00",
+                        calc.get("status", ""),
+                        calc.get("created_at", "")[:10] if calc.get("created_at") else "",
+                        is_deleted
+                    )
                 )
-            )
+            except Exception as e:
+                logger.error(f"Failed to insert calculation row: {e}")
+
+        logger.info(f"Tree now has {len(self.tree.get_children())} rows")
 
     def apply_filters(self):
         """Apply filter to calculations"""

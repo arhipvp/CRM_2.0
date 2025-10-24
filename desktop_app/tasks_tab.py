@@ -149,22 +149,29 @@ class TasksTab(ttk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        logger.info(f"_update_tree called with {len(self.tasks)} tasks")
+
         # Add tasks
         for task in self.tasks:
             is_deleted = "Yes" if task.get("is_deleted", False) else "No"
-            self.tree.insert(
-                "",
-                "end",
-                iid=task.get("id"),
-                values=(
-                    task.get("title", ""),
-                    task.get("status", ""),
-                    task.get("priority", ""),
-                    task.get("due_date", ""),
-                    task.get("created_at", "")[:10] if task.get("created_at") else "",
-                    is_deleted
+            try:
+                self.tree.insert(
+                    "",
+                    "end",
+                    iid=task.get("id"),
+                    values=(
+                        task.get("title", ""),
+                        task.get("status", ""),
+                        task.get("priority", ""),
+                        task.get("due_date", ""),
+                        task.get("created_at", "")[:10] if task.get("created_at") else "",
+                        is_deleted
+                    )
                 )
-            )
+            except Exception as e:
+                logger.error(f"Failed to insert task row: {e}")
+
+        logger.info(f"Tree now has {len(self.tree.get_children())} rows")
 
     def apply_filters(self):
         """Apply filter to tasks"""

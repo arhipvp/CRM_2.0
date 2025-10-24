@@ -144,6 +144,9 @@ class App(tk.Tk):
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(pady=10, padx=10, fill="both", expand=True)
 
+        # Bind tab change event to refresh data
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+
         # --- Clients Tab ---
         clients_frame = ttk.Frame(self.notebook)
         self.notebook.add(clients_frame, text="Clients")
@@ -490,6 +493,25 @@ class App(tk.Tk):
         except Exception as e:
             logger.error(f"Export error: {e}")
             messagebox.showerror("Error", f"Failed to export data: {e}")
+
+    def _on_tab_changed(self, event):
+        """Handle notebook tab change to refresh data"""
+        selected_tab_index = self.notebook.index(self.notebook.select())
+        selected_tab_name = self.notebook.tab(selected_tab_index, "text")
+
+        logger.info(f"Switched to tab: {selected_tab_name}")
+
+        # Refresh data for the selected tab
+        if selected_tab_name == "Tasks":
+            self.tasks_tab.refresh_data()
+        elif selected_tab_name == "Policies":
+            self.policies_tab.refresh_data()
+        elif selected_tab_name == "Calculations":
+            self.calculations_tab.refresh_deals()
+        elif selected_tab_name == "Deals":
+            self.deals_tab.refresh_data()
+        elif selected_tab_name == "Payments":
+            self.payments_tab.refresh_data()
 
 
 if __name__ == "__main__":

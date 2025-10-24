@@ -150,23 +150,30 @@ class PoliciesTab(ttk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        logger.info(f"_update_tree called with {len(self.policies)} policies")
+
         # Add policies
         for policy in self.policies:
             is_deleted = "Yes" if policy.get("is_deleted", False) else "No"
-            self.tree.insert(
-                "",
-                "end",
-                iid=policy.get("id"),
-                values=(
-                    policy.get("policy_number", ""),
-                    policy.get("status", ""),
-                    f"{policy.get('premium', 0):.2f}" if policy.get('premium') else "0.00",
-                    policy.get("effective_from", ""),
-                    policy.get("effective_to", ""),
-                    policy.get("created_at", "")[:10] if policy.get("created_at") else "",
-                    is_deleted
+            try:
+                self.tree.insert(
+                    "",
+                    "end",
+                    iid=policy.get("id"),
+                    values=(
+                        policy.get("policy_number", ""),
+                        policy.get("status", ""),
+                        f"{policy.get('premium', 0):.2f}" if policy.get('premium') else "0.00",
+                        policy.get("effective_from", ""),
+                        policy.get("effective_to", ""),
+                        policy.get("created_at", "")[:10] if policy.get("created_at") else "",
+                        is_deleted
+                    )
                 )
-            )
+            except Exception as e:
+                logger.error(f"Failed to insert policy row: {e}")
+
+        logger.info(f"Tree now has {len(self.tree.get_children())} rows")
 
     def apply_filters(self):
         """Apply filter to policies"""
