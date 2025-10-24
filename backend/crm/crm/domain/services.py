@@ -661,6 +661,7 @@ class PaymentService:
             "deal.payment.deleted",
             schemas.PaymentRead(
                 id=payment.id,
+                tenant_id=payment.tenant_id,
                 deal_id=payment.deal_id,
                 policy_id=payment.policy_id,
                 sequence=payment.sequence,
@@ -943,6 +944,7 @@ class PaymentService:
         expenses = payment.expenses if include_expenses else []
         return schemas.PaymentRead(
             id=payment.id,
+            tenant_id=payment.tenant_id,
             deal_id=payment.deal_id,
             policy_id=payment.policy_id,
             sequence=payment.sequence,
@@ -973,6 +975,7 @@ class PaymentService:
         payload: dict[str, Any]
         if event_type == "deleted":
             payload = {
+                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment_id": str(payment.id),
@@ -980,6 +983,7 @@ class PaymentService:
             }
         else:
             payload = {
+                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment": payment.model_dump(mode="json"),
@@ -997,6 +1001,7 @@ class PaymentService:
         deleted_by_id: UUID | None = None,
     ) -> None:
         payload: dict[str, Any] = {
+            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
@@ -1024,6 +1029,7 @@ class PaymentService:
         deleted_by_id: UUID | None = None,
     ) -> None:
         payload: dict[str, Any] = {
+            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
