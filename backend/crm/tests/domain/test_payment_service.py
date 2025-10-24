@@ -53,7 +53,16 @@ def test_validate_transaction_accepts_case_insensitive_currency() -> None:
     service = _build_service()
     payment = SimpleNamespace(currency="USD")
 
-    service._validate_transaction_input(payment, currency=" usd ", posted_at=None)
+    normalized = service._validate_transaction_input(payment, currency=" usd ", posted_at=None)
+    assert normalized == "USD"
+
+
+def test_validate_transaction_normalizes_payment_currency() -> None:
+    service = _build_service()
+    payment = SimpleNamespace(currency=" usd  ")
+
+    normalized = service._validate_transaction_input(payment, currency="USD", posted_at=None)
+    assert normalized == "USD"
 
 
 def test_validate_transaction_rejects_currency_mismatch() -> None:
