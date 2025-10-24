@@ -620,14 +620,21 @@ class PaymentService:
                 forced_status = status_value
             update_data.pop("status", None)
 
-        if "currency" in update_data and update_data["currency"] is not None:
-            normalized_currency = self._normalize_currency(str(update_data["currency"]))
-            if not normalized_currency:
-                raise repositories.RepositoryError("currency_mismatch")
-            update_data["currency"] = normalized_currency
-
-        if "currency" in update_data and (payment.incomes_total or payment.expenses_total):
-            raise repositories.RepositoryError("payment_has_transactions")
+        if "currency" in update_data:
+            new_currency_raw = update_data.get("currency")
+            if new_currency_raw is None:
+                update_data.pop("currency", None)
+            else:
+                normalized_currency = self._normalize_currency(str(new_currency_raw))
+                if not normalized_currency:
+                    raise repositories.RepositoryError("currency_mismatch")
+                current_currency = self._normalize_currency(payment.currency)
+                if normalized_currency == current_currency:
+                    update_data.pop("currency", None)
+                else:
+                    if payment.incomes_total or payment.expenses_total:
+                        raise repositories.RepositoryError("payment_has_transactions")
+                    update_data["currency"] = normalized_currency
 
         if "actual_date" in update_data and update_data["actual_date"] is not None:
             actual_date = update_data["actual_date"]
