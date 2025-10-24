@@ -508,7 +508,7 @@ class PaymentExpenseRead(ORMModel, PaymentExpenseBase):
 
 class PaymentRead(ORMModel, PaymentBase):
     id: UUID
-    tenant_id: UUID
+    tenant_id: UUID | None = None
     deal_id: UUID
     policy_id: UUID
     sequence: int
