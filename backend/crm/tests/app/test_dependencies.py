@@ -108,6 +108,20 @@ async def test_get_tenant_id_requires_scope_when_default_missing(monkeypatch: py
 
 
 @pytest.mark.asyncio()
+async def test_get_tenant_id_rejects_invalid_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_default = settings.default_tenant_id
+    monkeypatch.setattr(settings, "default_tenant_id", "not-a-uuid", raising=False)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await get_tenant_id()
+
+    assert excinfo.value.status_code == 500
+    assert excinfo.value.detail == "invalid_default_tenant_id"
+
+    monkeypatch.setattr(settings, "default_tenant_id", original_default, raising=False)
+
+
+@pytest.mark.asyncio()
 async def test_get_current_user_requires_token():
     from crm.app.dependencies import get_current_user
 

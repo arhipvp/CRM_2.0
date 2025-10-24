@@ -1,9 +1,9 @@
-"""Tasks tab module for CRM Desktop App"""
+"""Tasks management tab component"""
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, filedialog
-from typing import Optional, Dict, Any, Callable, List
+from tkinter import ttk, messagebox, filedialog
 from threading import Thread
-from datetime import datetime
+from typing import Optional, List, Dict, Any
+
 from crm_service import CRMService
 from logger import logger
 from detail_dialogs import TaskDetailDialog
@@ -11,292 +11,197 @@ from edit_dialogs import TaskEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 
 
-class TasksTab(ttk.Frame):
+class TasksTab:
     """Tab for managing tasks"""
 
-    def __init__(self, parent, crm_service: CRMService, on_refresh: Optional[Callable] = None):
-        super().__init__(parent)
+    def __init__(self, parent: ttk.Frame, crm_service: CRMService):
+        self.parent = parent
         self.crm_service = crm_service
-        self.on_refresh = on_refresh
-        self.tasks = []
-        self.all_tasks = []  # Store all tasks for filtering
-        self.current_task = None
+        self.tree: Optional[ttk.Treeview] = None
         self.search_filter: Optional[SearchFilter] = None
-        self.deals = []  # Store deals for dialog dropdown
-        self.all_deals = []  # Store all deals for filtering
+        self.all_tasks: List[Dict[str, Any]] = []  # Store all tasks for filtering
+        self.all_deals: List[Dict[str, Any]] = []  # Store all deals for dropdowns
 
-        self.create_widgets()
-        self.refresh_data()
+        self._setup_ui()
+        self.refresh_tree()
 
-    def create_widgets(self):
-        """Create UI elements"""
+    def _setup_ui(self):
+        """Setup Tasks tab UI"""
         # Search filter frame
-        search_frame = tk.Frame(self)
-        search_frame.pack(pady=5, padx=5, fill="x")
+        search_frame = tk.Frame(self.parent)
+        search_frame.pack(pady=5, padx=10, fill="x")
 
         self.search_filter = SearchFilter(search_frame, self._on_search_change)
         self.search_filter.pack(fill="x")
 
-        # Control frame
-        control_frame = ttk.Frame(self)
-        control_frame.pack(fill="x", padx=5, pady=5)
+        # Frame for Treeview and Scrollbar
+        tree_frame = tk.Frame(self.parent)
+        tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-        ttk.Button(control_frame, text="Add Task", command=self.add_task).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Edit", command=self.edit_task).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Delete", command=self.delete_task).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Refresh", command=self.refresh_data).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
-
-        # Filter frame
-        filter_frame = ttk.LabelFrame(self, text="Filters", padding=5)
-        filter_frame.pack(fill="x", padx=5, pady=5)
-
-        ttk.Label(filter_frame, text="Status:").pack(side="left", padx=5)
-        self.status_filter = ttk.Combobox(
-            filter_frame,
-            values=["All", "open", "in_progress", "completed", "closed"],
-            state="readonly",
-            width=15
-        )
-        self.status_filter.set("All")
-        self.status_filter.pack(side="left", padx=5)
-        self.status_filter.bind("<<ComboboxSelected>>", lambda e: self.apply_filters())
-
-        ttk.Label(filter_frame, text="Priority:").pack(side="left", padx=5)
-        self.priority_filter = ttk.Combobox(
-            filter_frame,
-            values=["All", "low", "normal", "high", "urgent"],
-            state="readonly",
-            width=15
-        )
-        self.priority_filter.set("All")
-        self.priority_filter.pack(side="left", padx=5)
-        self.priority_filter.bind("<<ComboboxSelected>>", lambda e: self.apply_filters())
-
-        # Treeview frame
-        tree_frame = ttk.Frame(self)
-        tree_frame.pack(fill="both", expand=True, padx=5, pady=5)
-
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(tree_frame)
-        scrollbar.pack(side="right", fill="y")
-
-        # Treeview
-        columns = ("title", "status", "priority", "due_date", "created_at", "deleted")
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=columns,
-            show="headings",
-            yscrollcommand=scrollbar.set,
-            height=20
+            columns=("ID", "Title", "Status", "Priority", "Due Date", "Deleted"),
+            show="headings"
         )
-        scrollbar.config(command=self.tree.yview)
+        self.tree.heading("ID", text="ID")
+        self.tree.heading("Title", text="Task Title")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Priority", text="Priority")
+        self.tree.heading("Due Date", text="Due Date")
+        self.tree.heading("Deleted", text="Deleted")
 
-        # Define column headings and widths
-        self.tree.column("title", width=300, anchor="w")
-        self.tree.column("status", width=100, anchor="w")
-        self.tree.column("priority", width=80, anchor="w")
-        self.tree.column("due_date", width=100, anchor="w")
-        self.tree.column("created_at", width=100, anchor="w")
-        self.tree.column("deleted", width=60, anchor="w")
+        self.tree.column("ID", width=50, anchor="center")
+        self.tree.column("Title", width=250)
+        self.tree.column("Status", width=100)
+        self.tree.column("Priority", width=100)
+        self.tree.column("Due Date", width=100)
+        self.tree.column("Deleted", width=60)
 
-        self.tree.heading("title", text="Title")
-        self.tree.heading("status", text="Status")
-        self.tree.heading("priority", text="Priority")
-        self.tree.heading("due_date", text="Due Date")
-        self.tree.heading("created_at", text="Created")
-        self.tree.heading("deleted", text="Deleted")
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Bind selection and double-click
-        self.tree.bind("<<TreeviewSelect>>", self.on_task_select)
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind double-click to open detail dialog
         self.tree.bind("<Double-1>", self._on_tree_double_click)
 
-        self.tree.pack(fill="both", expand=True)
+        # Frame for buttons
+        button_frame = tk.Frame(self.parent)
+        button_frame.pack(pady=10)
 
-        # Details frame
-        details_frame = ttk.LabelFrame(self, text="Task Details", padding=5)
-        details_frame.pack(fill="x", padx=5, pady=5)
+        tk.Button(button_frame, text="Add Task", command=self.add_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Edit", command=self.edit_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Delete", command=self.delete_task).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Refresh", command=self.refresh_tree).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Export CSV", command=self.export_to_csv).pack(side="left", padx=5)
+        tk.Button(button_frame, text="Export Excel", command=self.export_to_excel).pack(side="left", padx=5)
 
-        ttk.Label(details_frame, text="Description:").pack(anchor="w", padx=5, pady=2)
-        self.description_text = tk.Text(details_frame, height=3, width=80)
-        self.description_text.pack(fill="x", padx=5, pady=2)
-        self.description_text.config(state="disabled")
+    def refresh_tree(self):
+        """Refresh tasks list asynchronously"""
+        def worker():
+            try:
+                # Load both tasks and deals
+                tasks = self.crm_service.get_tasks()
+                deals = self.crm_service.get_deals()
+                self.parent.after(0, self._update_tree_ui, tasks, deals)
+            except Exception as e:
+                logger.error(f"Failed to fetch tasks: {e}")
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
 
-    def refresh_data(self):
-        """Refresh tasks data from API"""
-        thread = Thread(target=self._fetch_tasks, daemon=True)
-        thread.start()
+        Thread(target=worker, daemon=True).start()
 
-    def _fetch_tasks(self):
-        """Fetch tasks in background"""
-        try:
-            self.tasks = self.crm_service.get_tasks()
-            self.all_tasks = self.tasks  # Store all tasks for filtering
-            # Also fetch deals for dropdown
-            self.deals = self.crm_service.get_deals()
-            self.all_deals = self.deals
-            self.after(0, self._update_tree)
-            logger.info(f"Fetched {len(self.tasks)} tasks")
-        except Exception as e:
-            logger.error(f"Failed to fetch tasks: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
+    def _update_tree_ui(self, tasks, deals=None):
+        """Update tree UI on main thread"""
+        if not self.tree:
+            return
 
-    def _update_tree(self):
-        """Update tree with tasks data"""
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Store all data for filtering
+        self.all_tasks = tasks
+        if deals:
+            self.all_deals = deals
+        self._refresh_tree_display(tasks)
 
-        logger.info(f"_update_tree called with {len(self.tasks)} tasks")
+    def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
+        """Refresh tree display with given list of tasks"""
+        if not self.tree:
+            return
+
+        # Clear tree
+        for i in self.tree.get_children():
+            self.tree.delete(i)
 
         # Add tasks
-        for task in self.tasks:
+        for task in tasks_to_display:
             is_deleted = "Yes" if task.get("is_deleted", False) else "No"
-            try:
-                self.tree.insert(
-                    "",
-                    "end",
-                    iid=task.get("id"),
-                    values=(
-                        task.get("title", ""),
-                        task.get("status", ""),
-                        task.get("priority", ""),
-                        task.get("due_date", ""),
-                        task.get("created_at", "")[:10] if task.get("created_at") else "",
-                        is_deleted
-                    )
-                )
-            except Exception as e:
-                logger.error(f"Failed to insert task row: {e}")
-
-        logger.info(f"Tree now has {len(self.tree.get_children())} rows")
-
-    def apply_filters(self):
-        """Apply filter to tasks"""
-        status_filter = self.status_filter.get()
-        priority_filter = self.priority_filter.get()
-
-        # Clear and repopulate tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        for task in self.tasks:
-            status_match = (status_filter == "All" or task.get("status") == status_filter)
-            priority_match = (priority_filter == "All" or task.get("priority") == priority_filter)
-
-            if status_match and priority_match:
-                is_deleted = "Yes" if task.get("is_deleted", False) else "No"
-                self.tree.insert(
-                    "",
-                    "end",
-                    iid=task.get("id"),
-                    values=(
-                        task.get("title", ""),
-                        task.get("status", ""),
-                        task.get("priority", ""),
-                        task.get("due_date", ""),
-                        task.get("created_at", "")[:10] if task.get("created_at") else "",
-                        is_deleted
-                    )
-                )
-
-    def on_task_select(self, event):
-        """Handle task selection"""
-        selection = self.tree.selection()
-        if selection:
-            task_id = selection[0]
-            self.current_task = next((t for t in self.tasks if t.get("id") == task_id), None)
-            if self.current_task:
-                self.description_text.config(state="normal")
-                self.description_text.delete("1.0", "end")
-                self.description_text.insert("end", self.current_task.get("description", ""))
-                self.description_text.config(state="disabled")
+            self.tree.insert("", "end", iid=task.get("id"), values=(
+                task.get("id", "")[:8] + "...",  # Show first 8 chars of ID
+                task.get("title", "N/A"),
+                task.get("status", "N/A"),
+                task.get("priority", "N/A"),
+                task.get("due_date", "N/A"),
+                is_deleted
+            ))
 
     def add_task(self):
         """Add new task"""
-        dialog = TaskEditDialog(self, deals_list=self.deals)
+        dialog = TaskEditDialog(self.parent, task=None, deals_list=self.all_deals)
         if dialog.result:
-            thread = Thread(
-                target=self._create_task,
-                args=(dialog.result,),
-                daemon=True
-            )
-            thread.start()
+            def worker():
+                try:
+                    self.crm_service.create_task(**dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task created successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to create task: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to create task: {error_msg}"))
 
-    def _create_task(self, data):
-        """Create task in API"""
-        try:
-            self.crm_service.create_task(**data)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Task created successfully"))
-        except Exception as e:
-            logger.error(f"Failed to create task: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to create task: {error_msg}"))
+            Thread(target=worker, daemon=True).start()
 
     def edit_task(self):
         """Edit selected task"""
-        if not self.current_task:
-            messagebox.showwarning("Warning", "Please select a task to edit")
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a task to edit.")
             return
 
-        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals)
-        if dialog.result:
-            thread = Thread(
-                target=self._update_task,
-                args=(self.current_task["id"], dialog.result),
-                daemon=True
-            )
-            thread.start()
+        task_id = selected_item
 
-    def _update_task(self, task_id: str, data):
-        """Update task in API"""
-        try:
-            self.crm_service.update_task(task_id, **data)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Task updated successfully"))
-        except Exception as e:
-            logger.error(f"Failed to update task: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to update task: {error_msg}"))
+        # Fetch current task data asynchronously
+        def fetch_and_edit():
+            try:
+                current_task = self.crm_service.get_task(task_id)
+                self.parent.after(0, lambda: self._show_edit_dialog(task_id, current_task))
+            except Exception as e:
+                logger.error(f"Failed to fetch task for editing: {e}")
+                error_msg = str(e)
+                self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to fetch task: {error_msg}"))
+
+        Thread(target=fetch_and_edit, daemon=True).start()
+
+    def _show_edit_dialog(self, task_id, current_task):
+        """Show edit dialog on main thread"""
+        dialog = TaskEditDialog(self.parent, task=current_task, deals_list=self.all_deals)
+        if dialog.result:
+            def worker():
+                try:
+                    self.crm_service.update_task(task_id, **dialog.result)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task updated successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to update task: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to update task: {error_msg}"))
+
+            Thread(target=worker, daemon=True).start()
 
     def delete_task(self):
         """Delete selected task"""
-        if not self.current_task:
-            messagebox.showwarning("Warning", "Please select a task to delete")
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a task to delete.")
             return
 
-        if messagebox.askyesno("Confirm", "Are you sure you want to delete this task?"):
-            thread = Thread(
-                target=self._remove_task,
-                args=(self.current_task["id"],),
-                daemon=True
-            )
-            thread.start()
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this task?"):
+            task_id = selected_item
 
-    def _remove_task(self, task_id: str):
-        """Remove task from API"""
-        try:
-            self.crm_service.delete_task(task_id)
-            self.after(0, self.refresh_data)
-            self.after(0, lambda: messagebox.showinfo("Success", "Task deleted successfully"))
-        except Exception as e:
-            logger.error(f"Failed to delete task: {e}")
-            error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Error", f"Failed to delete task: {error_msg}"))
+            def worker():
+                try:
+                    self.crm_service.delete_task(task_id)
+                    self.parent.after(0, self.refresh_tree)
+                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Task deleted successfully"))
+                except Exception as e:
+                    logger.error(f"Failed to delete task: {e}")
+                    error_msg = str(e)
+                    self.parent.after(0, lambda: messagebox.showerror("API Error", f"Failed to delete task: {error_msg}"))
 
-    def _on_tree_double_click(self, event):
-        """Handle double-click on task row to open detail dialog"""
-        selection = self.tree.selection()
-        if not selection:
-            return
-
-        task_id = selection[0]
-        self.current_task = next((t for t in self.tasks if t.get("id") == task_id), None)
-        if self.current_task:
-            TaskDetailDialog(self, self.current_task)
+            Thread(target=worker, daemon=True).start()
 
     def _on_search_change(self, search_text: str):
         """Handle search filter change"""
@@ -309,32 +214,6 @@ class TasksTab(ttk.Frame):
 
         # Update tree display with filtered results
         self._refresh_tree_display(filtered_tasks)
-
-    def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
-        """Refresh tree display with given list of tasks"""
-        if not self.tree:
-            return
-
-        # Clear tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        # Add tasks
-        for task in tasks_to_display:
-            is_deleted = "Yes" if task.get("is_deleted", False) else "No"
-            self.tree.insert(
-                "",
-                "end",
-                iid=task.get("id"),
-                values=(
-                    task.get("title", ""),
-                    task.get("status", ""),
-                    task.get("priority", ""),
-                    task.get("due_date", ""),
-                    task.get("created_at", "")[:10] if task.get("created_at") else "",
-                    is_deleted
-                )
-            )
 
     def export_to_csv(self):
         """Export tasks to CSV file"""
@@ -359,7 +238,7 @@ class TasksTab(ttk.Frame):
                 return
 
             # Prepare data
-            columns = ["Title", "Status", "Priority", "Due Date", "Created", "Deleted"]
+            columns = ["ID", "Title", "Status", "Priority", "Due Date", "Deleted"]
             rows = []
 
             for item in displayed_items:
@@ -375,8 +254,7 @@ class TasksTab(ttk.Frame):
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            error_msg = str(e)
-            messagebox.showerror("Error", f"Failed to export data: {error_msg}")
+            messagebox.showerror("Error", f"Failed to export data: {e}")
 
     def export_to_excel(self):
         """Export tasks to Excel file"""
@@ -401,7 +279,7 @@ class TasksTab(ttk.Frame):
                 return
 
             # Prepare data
-            columns = ["Title", "Status", "Priority", "Due Date", "Created", "Deleted"]
+            columns = ["ID", "Title", "Status", "Priority", "Due Date", "Deleted"]
             rows = []
 
             for item in displayed_items:
@@ -417,5 +295,22 @@ class TasksTab(ttk.Frame):
 
         except Exception as e:
             logger.error(f"Export error: {e}")
-            error_msg = str(e)
-            messagebox.showerror("Error", f"Failed to export data: {error_msg}")
+            messagebox.showerror("Error", f"Failed to export data: {e}")
+
+    def _on_tree_double_click(self, event):
+        """Handle double-click on task row to open detail dialog"""
+        if not self.tree:
+            return
+        selected_item = self.tree.focus()
+        if not selected_item:
+            return
+
+        # Fetch full task data
+        task_id = selected_item
+        try:
+            task_data = self.crm_service.get_task(task_id)
+            if task_data:
+                TaskDetailDialog(self.parent, task_data)
+        except Exception as e:
+            logger.error(f"Failed to fetch task details: {e}")
+            messagebox.showerror("Error", f"Failed to fetch task details: {e}")

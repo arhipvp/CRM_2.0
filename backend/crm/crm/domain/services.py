@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
 from uuid import UUID
@@ -439,9 +439,15 @@ class CalculationService:
     def _date_range_from_pg(range_value: PgRange | None) -> schemas.DateRange | None:
         if range_value is None:
             return None
-        if getattr(range_value, "lower", None) is None and getattr(range_value, "upper", None) is None:
+        if getattr(range_value, "isempty", False):
             return None
-        return schemas.DateRange(start=range_value.lower, end=range_value.upper)
+        lower = getattr(range_value, "lower", None)
+        upper = getattr(range_value, "upper", None)
+        if lower is None and upper is None:
+            return None
+        if upper is not None and not getattr(range_value, "upper_inc", False):
+            upper = upper - timedelta(days=1)
+        return schemas.DateRange(start=lower, end=upper)
 
     def _to_schema(self, calculation: models.Calculation) -> schemas.CalculationRead:
         validity_period = self._date_range_from_pg(calculation.validity_period)
@@ -620,14 +626,21 @@ class PaymentService:
                 forced_status = status_value
             update_data.pop("status", None)
 
-        if "currency" in update_data and update_data["currency"] is not None:
-            normalized_currency = self._normalize_currency(str(update_data["currency"]))
-            if not normalized_currency:
-                raise repositories.RepositoryError("currency_mismatch")
-            update_data["currency"] = normalized_currency
-
-        if "currency" in update_data and (payment.incomes_total or payment.expenses_total):
-            raise repositories.RepositoryError("payment_has_transactions")
+        if "currency" in update_data:
+            new_currency_raw = update_data.get("currency")
+            if new_currency_raw is None:
+                update_data.pop("currency", None)
+            else:
+                normalized_currency = self._normalize_currency(str(new_currency_raw))
+                if not normalized_currency:
+                    raise repositories.RepositoryError("currency_mismatch")
+                current_currency = self._normalize_currency(payment.currency)
+                if normalized_currency == current_currency:
+                    update_data.pop("currency", None)
+                else:
+                    if payment.incomes_total or payment.expenses_total:
+                        raise repositories.RepositoryError("payment_has_transactions")
+                    update_data["currency"] = normalized_currency
 
         if "actual_date" in update_data and update_data["actual_date"] is not None:
             actual_date = update_data["actual_date"]
@@ -728,13 +741,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", income.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(income.currency) if income.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(income.currency) != normalized_currency:
-            income.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         income = await self.incomes.update_income(income, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentIncomeRead.model_validate(income)
@@ -818,13 +832,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", expense.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(expense.currency) if expense.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(expense.currency) != normalized_currency:
-            expense.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         expense = await self.expenses.update_expense(expense, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentExpenseRead.model_validate(expense)

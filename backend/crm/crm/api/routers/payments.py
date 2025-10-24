@@ -17,7 +17,12 @@ def _handle_repository_error(exc: RepositoryError) -> None:
     detail = str(exc)
     if detail == "policy_not_found":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found") from exc
-    if detail in {"actual_date_before_planned_date", "actual_date_in_future"}:
+    if detail in {
+        "actual_date_before_planned_date",
+        "actual_date_in_future",
+        "posted_at_in_future",
+        "currency_mismatch",
+    }:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
 
