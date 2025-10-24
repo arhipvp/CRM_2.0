@@ -1,5 +1,6 @@
 import importlib
 import sys
+from collections.abc import Iterator
 from types import ModuleType, SimpleNamespace
 
 import pytest
@@ -12,7 +13,17 @@ fake_config.settings = SimpleNamespace(
     rabbitmq_url="amqp://guest:guest@localhost:5672/",
 )
 
-sys.modules.setdefault("crm.app.config", fake_config)
+@pytest.fixture(autouse=True, scope="module")
+def _override_config_module() -> Iterator[None]:
+    original_module = sys.modules.get("crm.app.config")
+    sys.modules["crm.app.config"] = fake_config
+    try:
+        yield
+    finally:
+        if original_module is not None:
+            sys.modules["crm.app.config"] = original_module
+        else:
+            sys.modules.pop("crm.app.config", None)
 
 from crm.infrastructure import db
 
