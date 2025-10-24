@@ -36,7 +36,13 @@ async def get_tenant_id(header: TenantHeader = None) -> UUID:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid X-Tenant-ID header") from exc
     if settings.default_tenant_id:
-        return UUID(settings.default_tenant_id)
+        try:
+            return UUID(settings.default_tenant_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="invalid_default_tenant_id",
+            ) from exc
     raise HTTPException(status_code=400, detail="Tenant scope is required")
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
 from uuid import UUID
@@ -439,9 +439,15 @@ class CalculationService:
     def _date_range_from_pg(range_value: PgRange | None) -> schemas.DateRange | None:
         if range_value is None:
             return None
-        if getattr(range_value, "lower", None) is None and getattr(range_value, "upper", None) is None:
+        if getattr(range_value, "isempty", False):
             return None
-        return schemas.DateRange(start=range_value.lower, end=range_value.upper)
+        lower = getattr(range_value, "lower", None)
+        upper = getattr(range_value, "upper", None)
+        if lower is None and upper is None:
+            return None
+        if upper is not None and not getattr(range_value, "upper_inc", False):
+            upper = upper - timedelta(days=1)
+        return schemas.DateRange(start=lower, end=upper)
 
     def _to_schema(self, calculation: models.Calculation) -> schemas.CalculationRead:
         validity_period = self._date_range_from_pg(calculation.validity_period)
@@ -620,14 +626,21 @@ class PaymentService:
                 forced_status = status_value
             update_data.pop("status", None)
 
-        if "currency" in update_data and update_data["currency"] is not None:
-            normalized_currency = self._normalize_currency(str(update_data["currency"]))
-            if not normalized_currency:
-                raise repositories.RepositoryError("currency_mismatch")
-            update_data["currency"] = normalized_currency
-
-        if "currency" in update_data and (payment.incomes_total or payment.expenses_total):
-            raise repositories.RepositoryError("payment_has_transactions")
+        if "currency" in update_data:
+            new_currency_raw = update_data.get("currency")
+            if new_currency_raw is None:
+                update_data.pop("currency", None)
+            else:
+                normalized_currency = self._normalize_currency(str(new_currency_raw))
+                if not normalized_currency:
+                    raise repositories.RepositoryError("currency_mismatch")
+                current_currency = self._normalize_currency(payment.currency)
+                if normalized_currency == current_currency:
+                    update_data.pop("currency", None)
+                else:
+                    if payment.incomes_total or payment.expenses_total:
+                        raise repositories.RepositoryError("payment_has_transactions")
+                    update_data["currency"] = normalized_currency
 
         if "actual_date" in update_data and update_data["actual_date"] is not None:
             actual_date = update_data["actual_date"]
@@ -661,6 +674,7 @@ class PaymentService:
             "deal.payment.deleted",
             schemas.PaymentRead(
                 id=payment.id,
+                tenant_id=payment.tenant_id,
                 deal_id=payment.deal_id,
                 policy_id=payment.policy_id,
                 sequence=payment.sequence,
@@ -728,13 +742,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", income.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(income.currency) if income.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(income.currency) != normalized_currency:
-            income.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         income = await self.incomes.update_income(income, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentIncomeRead.model_validate(income)
@@ -818,13 +833,14 @@ class PaymentService:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
         update_data = payload.model_dump(exclude_unset=True)
+        requested_currency = update_data.get("currency", expense.currency)
         normalized_currency = self._validate_transaction_input(
             payment,
-            currency=str(expense.currency) if expense.currency is not None else None,
+            currency=str(requested_currency) if requested_currency is not None else None,
             posted_at=update_data.get("posted_at"),
         )
-        if normalized_currency is not None and str(expense.currency) != normalized_currency:
-            expense.currency = normalized_currency
+        if "currency" in update_data and normalized_currency is not None:
+            update_data["currency"] = normalized_currency
         expense = await self.expenses.update_expense(expense, update_data)
         payment = await self._finalize_payment(payment)
         updated = schemas.PaymentExpenseRead.model_validate(expense)
@@ -943,6 +959,7 @@ class PaymentService:
         expenses = payment.expenses if include_expenses else []
         return schemas.PaymentRead(
             id=payment.id,
+            tenant_id=payment.tenant_id,
             deal_id=payment.deal_id,
             policy_id=payment.policy_id,
             sequence=payment.sequence,
@@ -973,6 +990,7 @@ class PaymentService:
         payload: dict[str, Any]
         if event_type == "deleted":
             payload = {
+                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment_id": str(payment.id),
@@ -980,11 +998,24 @@ class PaymentService:
             }
         else:
             payload = {
+                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment": payment.model_dump(mode="json"),
             }
         await self.events.publish(routing_key, payload)
+
+    @staticmethod
+    def _build_income_event_payload(
+        income: schemas.PaymentIncomeRead,
+        *,
+        include_identifier: bool,
+    ) -> dict[str, Any]:
+        payload = income.model_dump(mode="json")
+        identifier = payload.pop("id", None)
+        if include_identifier and identifier is not None:
+            payload["income_id"] = identifier
+        return payload
 
     async def _publish_income_event(
         self,
@@ -995,16 +1026,17 @@ class PaymentService:
         previous: schemas.PaymentIncomeRead | None = None,
         deleted_id: UUID | None = None,
         deleted_by_id: UUID | None = None,
-    ) -> None:
+        ) -> None:
         payload: dict[str, Any] = {
+            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
         }
         if income is not None:
-            payload["income"] = income.model_dump(mode="json")
+            payload["income"] = self._build_income_event_payload(income, include_identifier=True)
         if previous is not None:
-            payload["previous"] = previous.model_dump(mode="json")
+            payload["previous"] = self._build_income_event_payload(previous, include_identifier=False)
         if deleted_id is not None:
             payload["income"] = {
                 "income_id": str(deleted_id),
@@ -1012,6 +1044,18 @@ class PaymentService:
                 "deleted_by_id": str(deleted_by_id) if deleted_by_id else None,
             }
         await self.events.publish(routing_key, payload)
+
+    @staticmethod
+    def _build_expense_event_payload(
+        expense: schemas.PaymentExpenseRead,
+        *,
+        include_identifier: bool,
+    ) -> dict[str, Any]:
+        payload = expense.model_dump(mode="json")
+        identifier = payload.pop("id", None)
+        if include_identifier and identifier is not None:
+            payload["expense_id"] = identifier
+        return payload
 
     async def _publish_expense_event(
         self,
@@ -1022,16 +1066,17 @@ class PaymentService:
         previous: schemas.PaymentExpenseRead | None = None,
         deleted_id: UUID | None = None,
         deleted_by_id: UUID | None = None,
-    ) -> None:
+        ) -> None:
         payload: dict[str, Any] = {
+            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
         }
         if expense is not None:
-            payload["expense"] = expense.model_dump(mode="json")
+            payload["expense"] = self._build_expense_event_payload(expense, include_identifier=True)
         if previous is not None:
-            payload["previous"] = previous.model_dump(mode="json")
+            payload["previous"] = self._build_expense_event_payload(previous, include_identifier=False)
         if deleted_id is not None:
             payload["expense"] = {
                 "expense_id": str(deleted_id),
