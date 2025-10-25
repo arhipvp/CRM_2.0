@@ -22,6 +22,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("UPDATE crm.alembic_version SET version_num = '2024031501'")
     op.alter_column(
         "alembic_version",
         "version_num",
