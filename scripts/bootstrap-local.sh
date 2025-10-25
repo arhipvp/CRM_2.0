@@ -992,16 +992,28 @@ main() {
   run_step "Миграции CRM/Auth" step_migrate
   run_step "Smoke-проверка BACKUP_*" step_check_backup_env
   run_step "Smoke-проверка backup без S3" step_smoke_backup_dummy_storage
+  local skip_backend=false
   if is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
+    skip_backend=true
+  fi
+
+  local skip_backend_wait=false
+  if is_truthy "${BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG}"; then
+    skip_backend_wait=true
+  fi
+
+  if [[ "${skip_backend}" == true ]]; then
     run_step_skip "Запуск backend-профиля" "передан флаг пропуска backend-профиля"
-    run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
   else
     run_step "Запуск backend-профиля" step_compose_backend_up
-    if is_truthy "${BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG}"; then
-      run_step_skip "Ожидание готовности backend-сервисов" "передан флаг пропуска ожидания backend-сервисов"
-    else
-      run_step "Ожидание готовности backend-сервисов" step_wait_backend
-    fi
+  fi
+
+  if [[ "${skip_backend}" == true ]]; then
+    run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
+  elif [[ "${skip_backend_wait}" == true ]]; then
+    run_step_skip "Ожидание готовности backend-сервисов" "передан флаг пропуска ожидания backend-сервисов"
+  else
+    run_step "Ожидание готовности backend-сервисов" step_wait_backend
   fi
   if is_truthy "${BOOTSTRAP_WITH_BACKEND_FLAG}"; then
     if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
