@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, List
 from api_client import APIClient
 from config import (
     CRM_CLIENTS_URL, CRM_DEALS_URL, CRM_PAYMENTS_URL,
-    CRM_POLICIES_URL, CRM_TASKS_URL
+    CRM_POLICIES_URL, CRM_TASKS_URL, CRM_USERS_URL
 )
 from logger import logger
 
@@ -237,6 +237,20 @@ class CRMService:
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             raise
+
+    def get_users(self) -> List[Dict[str, Any]]:
+        """Fetch all users/executors"""
+        try:
+            response = self.api_client.get(CRM_USERS_URL)
+            if isinstance(response, dict):
+                users = response.get("items", [])
+            else:
+                users = response or []
+            logger.info(f"Fetched {len(users)} users")
+            return users
+        except Exception as e:
+            logger.warning(f"Failed to fetch users: {e}")
+            return []
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch single task by ID"""
