@@ -368,7 +368,7 @@ class DealDetailDialog(tk.Toplevel):
     def _add_calculation(self):
         """Add calculation to deal"""
         from edit_dialogs import CalculationEditDialog
-        dialog = CalculationEditDialog(self, self.crm_service, deals_list=[self.deal_data], calculation=None)
+        dialog = CalculationEditDialog(self, calculation=None, deals_list=[self.deal_data])
         if dialog.result:
             def worker():
                 try:
@@ -416,7 +416,12 @@ class DealDetailDialog(tk.Toplevel):
     def _add_payment(self):
         """Add payment to deal"""
         from edit_dialogs import PaymentEditDialog
-        dialog = PaymentEditDialog(self, self.crm_service, deals_list=[self.deal_data], policies_list=self.policies, payment=None)
+        dialog = PaymentEditDialog(
+            self,
+            payment=None,
+            deals_list=[self.deal_data],
+            policies_list=self.policies,
+        )
         if dialog.result:
             def worker():
                 try:
