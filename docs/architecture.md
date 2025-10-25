@@ -16,7 +16,7 @@ CRM состоит из набора специализированных сер
 | Audit | Централизованный журнал действий пользователей и системных событий | PostgreSQL (схема `audit`), RabbitMQ (подписка на критичные события) |
 | Backup | Резервное копирование баз, политик и конфигураций | PostgreSQL (репликации и дампы), объектное хранилище |
 
-Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm` и REST API. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для Notifications, Reports и Audit.
+Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm`, предоставляет REST API и публикует доменные события `deal.payment.*`. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для Notifications, Reports и Audit. Каталог [`backend/payments`](../backend/payments/README.md) хранит только архивный код standalone-сервиса для анализа миграций.
 
 Детализация технологического стека сервисов Tasks и Notifications приведена в разделах [«Tasks»](tech-stack.md#tasks) и [«Notifications»](tech-stack.md#notifications) документа `docs/tech-stack.md`.
 
