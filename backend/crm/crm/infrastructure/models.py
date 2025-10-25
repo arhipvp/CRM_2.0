@@ -42,7 +42,6 @@ class TimestampMixin:
 
 
 class OwnershipMixin:
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -193,7 +192,6 @@ class Payment(CRMBase, TimestampMixin):
     __tablename__ = "payments"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     deal_id: Mapped[UUID] = mapped_column(
         ForeignKey("crm.deals.id", ondelete="RESTRICT", onupdate="CASCADE"),
         nullable=False,
@@ -239,7 +237,6 @@ class PaymentIncome(CRMBase, TimestampMixin):
     __tablename__ = "payment_incomes"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     payment_id: Mapped[UUID] = mapped_column(
         ForeignKey("crm.payments.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -258,7 +255,6 @@ class PaymentExpense(CRMBase, TimestampMixin):
     __tablename__ = "payment_expenses"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     payment_id: Mapped[UUID] = mapped_column(
         ForeignKey("crm.payments.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -277,7 +273,6 @@ class PolicyDocument(CRMBase):
     __tablename__ = "policy_documents"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     policy_id: Mapped[UUID] = mapped_column(
         ForeignKey("crm.policies.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -297,7 +292,6 @@ class PermissionSyncJob(CRMBase, TimestampMixin):
     __tablename__ = "permission_sync_jobs"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     owner_type: Mapped[str] = mapped_column(String(64), nullable=False)
     owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     queue_name: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -306,7 +300,6 @@ class PermissionSyncJob(CRMBase, TimestampMixin):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        Index("ix_permission_sync_jobs_tenant", "tenant_id"),
         Index("ix_permission_sync_jobs_status", "status"),
         Index("ix_permission_sync_jobs_owner", "owner_id"),
         Index("ix_permission_sync_jobs_owner_type", "owner_type"),

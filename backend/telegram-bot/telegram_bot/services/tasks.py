@@ -37,10 +37,8 @@ class TaskService:
         comment: str | None = None,
         trace_id: str | None = None,
     ) -> TaskConfirmationResult:
-        tenant_id = user.tenant_id
-        task = await self._crm.get_task(tenant_id, task_id)
+        task = await self._crm.get_task(task_id)
         await self._crm.update_task_status(
-            tenant_id,
             task_id,
             status="done",
             description=comment or task.description,

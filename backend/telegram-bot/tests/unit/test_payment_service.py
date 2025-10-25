@@ -16,7 +16,6 @@ class FakeCRMClient:
 
     async def update_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -55,7 +54,7 @@ async def test_payment_confirmation_publishes_update_event() -> None:
     notifications = FakeNotificationsClient()
     publisher = InMemoryPublisher(source="test")
     service = PaymentService(crm, notifications, publisher, exchange_crm="crm.domain")
-    user = AuthUser(id=uuid4(), telegram_id=777, tenant_id=uuid4(), roles=["agent"], active=True)
+    user = AuthUser(id=uuid4(), telegram_id=777, roles=["agent"], active=True)
     context = PaymentContext(deal_id=uuid4(), policy_id=uuid4(), payment_id=uuid4())
 
     await service.confirm_payment(user, context, actual_date=date(2024, 5, 1), trace_id="trace")

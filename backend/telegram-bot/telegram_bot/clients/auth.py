@@ -19,7 +19,6 @@ class AuthUserNotFound(AuthClientError):
 class AuthUser:
     id: UUID
     telegram_id: int
-    tenant_id: UUID
     roles: list[str]
     active: bool
 
@@ -50,7 +49,6 @@ class AuthClient:
         return AuthUser(
             id=UUID(payload["user_id"]),
             telegram_id=int(payload["telegram_id"]),
-            tenant_id=UUID(payload["tenant_id"]),
             roles=list(payload.get("roles", [])),
             active=bool(payload.get("active", True)),
         ).ensure_active()
@@ -67,12 +65,9 @@ class AuthClient:
             raise AuthClientError(f"auth_unavailable:{response.status_code}")
         response.raise_for_status()
         payload: dict[str, Any] = response.json()
-        if "tenant_id" not in payload:
-            raise AuthClientError("tenant_id_missing")
         return AuthUser(
             id=UUID(payload["user_id"]),
             telegram_id=int(payload["telegram_id"]),
-            tenant_id=UUID(payload["tenant_id"]),
             roles=list(payload.get("roles", [])),
             active=bool(payload.get("active", True)),
         ).ensure_active()

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
-from uuid import UUID
 
 from pydantic import AnyUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,10 +46,6 @@ class Settings(BaseSettings):
 
     crm_base_url: AnyUrl = Field(..., description="Базовый URL CRM API")
     crm_service_token: str = Field(..., description="Сервисный токен CRM/Deals")
-    default_tenant_id: UUID | None = Field(
-        default=None,
-        description="Тенант по умолчанию. Если не задан, ожидается tenant_id в ответе Auth",
-    )
 
     notifications_base_url: AnyUrl = Field(..., description="Базовый URL Notifications API")
     notifications_service_token: str = Field(..., description="Сервисный токен для Notifications")

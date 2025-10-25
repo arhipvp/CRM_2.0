@@ -14,7 +14,6 @@
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | id | UUID | Уникальный идентификатор платежа. |
-| tenant_id | UUID | Арендатор, которому принадлежит платёж. |
 | deal_id | UUID | Сделка, к которой относится полис. |
 | policy_id | UUID | Полис, к которому относится платёж. |
 | sequence | integer | Порядковый номер платежа внутри полиса (начиная с `1`). |
@@ -54,7 +53,7 @@
 
 ## Ресурс `/deals/{deal_id}/policies/{policy_id}/payments`
 
-> **Важно.** Все маршруты раздела возвращают `404 policy_not_found`, если указанный полис не принадлежит текущему арендатору, не связан со сделкой `deal_id` или был удалён.
+> **Важно.** Все маршруты раздела возвращают `404 policy_not_found`, если указанный полис не связан со сделкой `deal_id` или был удалён.
 
 ### GET `/deals/{deal_id}/policies/{policy_id}/payments`
 Возвращает список платежей полиса.
@@ -73,7 +72,6 @@
   "items": [
     {
       "id": "7a0b99f3-0d19-48db-b229-feb62ad633c7",
-      "tenant_id": "1c54c7ba-ea78-44ec-9f40-5861ab6b0107",
       "deal_id": "a6b3f3aa-2cb1-4a7d-8b23-45fe1cc0c4c0",
       "policy_id": "1d5c92c6-2ac6-4b1b-8f02-233ed4d744e0",
       "sequence": 1,
@@ -113,7 +111,7 @@
 }
 ```
 
-**Ошибки**: `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанного `tenant_id` или сделки).
+**Ошибки**: `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанной сделки).
 
 ### POST `/deals/{deal_id}/policies/{policy_id}/payments`
 Создаёт новую запись платежа.
@@ -128,7 +126,7 @@
 
 **Ответ 201** — объект платежа (см. выше). После создания CRM публикует событие `deal.payment.created` в exchange `crm.events`.
 
-**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанного `tenant_id` или сделки).
+**Ошибки**: `400 validation_error`, `401 invalid_token`, `403 forbidden`, `404 policy_not_found` (полис недоступен в рамках указанной сделки).
 
 ### GET `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}`
 Возвращает платёж вместе с агрегированными данными и, опционально, операциями.

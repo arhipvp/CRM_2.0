@@ -88,16 +88,15 @@ erDiagram
 
 #### Поля `crm.policy_documents`
 
-* `tenant_id` (`uuid`, NOT NULL) — контекст арендатора, используется для фильтрации и проверки прав.
 * `policy_id` (`uuid`, NOT NULL) — идентификатор полиса, к которому относится документ.
 * `document_id` (`uuid`, NOT NULL) — ссылка на запись в `documents.documents`.
 * `created_at` (`timestamptz`, NOT NULL, default `now()`) — время привязки документа к полису.
 
 ### Ключи и ограничения
 
-* `crm.clients`: `PRIMARY KEY (id)`, индексы по `tenant_id`, `owner_id`, `status`; мягкое удаление реализовано полем `is_deleted`.
+* `crm.clients`: `PRIMARY KEY (id)`, индексы по `owner_id`, `status`; мягкое удаление реализовано полем `is_deleted`.
 * `crm.client_contacts`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, индекс по `client_id`.
-* `crm.deals`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`. Индексы по `tenant_id`, `owner_id`, `status`, `ix_deals_next_review_at` (по `next_review_at`). Поле `owner_id` допускает `NULL`, чтобы фиксировать сделки без назначенного менеджера.
+* `crm.deals`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`. Индексы по `owner_id`, `status`, `ix_deals_next_review_at` (по `next_review_at`). Поле `owner_id` допускает `NULL`, чтобы фиксировать сделки без назначенного менеджера.
 * `crm.deal_journal`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)` с `ON DELETE CASCADE`. Индексы `ix_deal_journal_deal_id`, `ix_deal_journal_created_at`. Поле `author_id` хранит UUID автора записи (идентификатор пользователя CRM).
 * `crm.calculations`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индексы по `insurance_company`, `calculation_date`, а также `idx_calculations_status` (по `status`) для ускорения фильтрации в интерфейсе сделок.
 * `crm.policies`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, `FOREIGN KEY (calculation_id)` → `crm.calculations(id)`, `UNIQUE (policy_number)`, индексы по `status`, `(deal_id, effective_from)`.

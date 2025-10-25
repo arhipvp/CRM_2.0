@@ -31,24 +31,24 @@ class ClientService:
     def __init__(self, repository: repositories.ClientRepository):
         self.repository = repository
 
-    async def list_clients(self, tenant_id: UUID) -> Iterable[schemas.ClientRead]:
-        clients = await self.repository.list(tenant_id)
+    async def list_clients(self) -> Iterable[schemas.ClientRead]:
+        clients = await self.repository.list()
         return [schemas.ClientRead.model_validate(client) for client in clients]
 
-    async def create_client(self, tenant_id: UUID, payload: schemas.ClientCreate) -> schemas.ClientRead:
-        entity = await self.repository.create(tenant_id, payload.model_dump())
+    async def create_client(self, payload: schemas.ClientCreate) -> schemas.ClientRead:
+        entity = await self.repository.create(payload.model_dump())
         return schemas.ClientRead.model_validate(entity)
 
-    async def get_client(self, tenant_id: UUID, client_id: UUID) -> schemas.ClientRead | None:
-        entity = await self.repository.get(tenant_id, client_id)
+    async def get_client(self, client_id: UUID) -> schemas.ClientRead | None:
+        entity = await self.repository.get(client_id)
         if entity is None:
             return None
         return schemas.ClientRead.model_validate(entity)
 
     async def update_client(
-        self, tenant_id: UUID, client_id: UUID, payload: schemas.ClientUpdate
+        self, client_id: UUID, payload: schemas.ClientUpdate
     ) -> schemas.ClientRead | None:
-        entity = await self.repository.update(tenant_id, client_id, payload.model_dump(exclude_unset=True))
+        entity = await self.repository.update(client_id, payload.model_dump(exclude_unset=True))
         if entity is None:
             return None
         return schemas.ClientRead.model_validate(entity)
@@ -59,48 +59,48 @@ class DealService:
         self.repository = repository
 
     async def list_deals(
-        self, tenant_id: UUID, filters: schemas.DealFilters | None = None
+        self, filters: schemas.DealFilters | None = None
     ) -> Iterable[schemas.DealRead]:
-        deals = await self.repository.list(tenant_id, filters)
+        deals = await self.repository.list(filters)
         return [schemas.DealRead.model_validate(deal) for deal in deals]
 
-    async def create_deal(self, tenant_id: UUID, payload: schemas.DealCreate) -> schemas.DealRead:
-        entity = await self.repository.create(tenant_id, payload.model_dump())
+    async def create_deal(self, payload: schemas.DealCreate) -> schemas.DealRead:
+        entity = await self.repository.create(payload.model_dump())
         return schemas.DealRead.model_validate(entity)
 
-    async def get_deal(self, tenant_id: UUID, deal_id: UUID) -> schemas.DealRead | None:
-        entity = await self.repository.get(tenant_id, deal_id)
+    async def get_deal(self, deal_id: UUID) -> schemas.DealRead | None:
+        entity = await self.repository.get(deal_id)
         if entity is None:
             return None
         return schemas.DealRead.model_validate(entity)
 
     async def update_deal(
-        self, tenant_id: UUID, deal_id: UUID, payload: schemas.DealUpdate
+        self, deal_id: UUID, payload: schemas.DealUpdate
     ) -> schemas.DealRead | None:
-        entity = await self.repository.update(tenant_id, deal_id, payload.model_dump(exclude_unset=True))
+        entity = await self.repository.update(deal_id, payload.model_dump(exclude_unset=True))
         if entity is None:
             return None
         return schemas.DealRead.model_validate(entity)
 
-    async def mark_deal_won(self, tenant_id: UUID, deal_id: UUID) -> schemas.DealRead | None:
-        entity = await self.repository.mark_won(tenant_id, deal_id)
+    async def mark_deal_won(self, deal_id: UUID) -> schemas.DealRead | None:
+        entity = await self.repository.mark_won(deal_id)
         if entity is None:
             return None
         return schemas.DealRead.model_validate(entity)
 
     async def update_stage(
-        self, tenant_id: UUID, deal_id: UUID, stage: schemas.DealStage
+        self, deal_id: UUID, stage: schemas.DealStage
     ) -> schemas.DealRead | None:
         status = schemas.map_stage_to_deal_status(stage)
-        entity = await self.repository.update(tenant_id, deal_id, {"status": status})
+        entity = await self.repository.update(deal_id, {"status": status})
         if entity is None:
             return None
         return schemas.DealRead.model_validate(entity)
 
     async def get_stage_metrics(
-        self, tenant_id: UUID, filters: schemas.DealFilters | None = None
+        self, filters: schemas.DealFilters | None = None
     ) -> Iterable[schemas.DealStageMetric]:
-        metrics = await self.repository.stage_metrics(tenant_id, filters)
+        metrics = await self.repository.stage_metrics(filters)
         return [schemas.DealStageMetric(**item) for item in metrics]
 
 
@@ -115,14 +115,12 @@ class DealJournalService:
 
     async def list_entries(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         *,
         limit: int = 50,
         offset: int = 0,
     ) -> schemas.DealJournalEntryList:
         items, total = await self.repository.list_entries(
-            tenant_id,
             deal_id,
             limit=limit,
             offset=offset,
@@ -132,28 +130,24 @@ class DealJournalService:
 
     async def append_entry(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         payload: schemas.DealJournalEntryCreate,
     ) -> schemas.DealJournalEntryRead | None:
         entry = await self.repository.create_entry(
-            tenant_id,
             deal_id,
             payload.model_dump(),
         )
         if entry is None:
             return None
         dto = schemas.DealJournalEntryRead.model_validate(entry)
-        await self._publish_event(tenant_id, dto)
+        await self._publish_event(dto)
         return dto
 
     async def _publish_event(
         self,
-        tenant_id: UUID,
         entry: schemas.DealJournalEntryRead,
     ) -> None:
         payload = {
-            "tenant_id": str(tenant_id),
             "deal_id": str(entry.deal_id),
             "entry_id": str(entry.id),
             "author_id": str(entry.author_id),
@@ -172,58 +166,58 @@ class PolicyService:
         self.repository = repository
         self.policy_documents = policy_documents
 
-    async def list_policies(self, tenant_id: UUID) -> Iterable[schemas.PolicyRead]:
-        policies = await self.repository.list(tenant_id)
+    async def list_policies(self) -> Iterable[schemas.PolicyRead]:
+        policies = await self.repository.list()
         return [self._to_schema(policy) for policy in policies]
 
-    async def create_policy(self, tenant_id: UUID, payload: schemas.PolicyCreate) -> schemas.PolicyRead:
-        entity = await self.repository.create(tenant_id, payload.model_dump())
+    async def create_policy(self, payload: schemas.PolicyCreate) -> schemas.PolicyRead:
+        entity = await self.repository.create(payload.model_dump())
         return self._to_schema(entity)
 
-    async def get_policy(self, tenant_id: UUID, policy_id: UUID) -> schemas.PolicyRead | None:
-        entity = await self.repository.get(tenant_id, policy_id)
+    async def get_policy(self, policy_id: UUID) -> schemas.PolicyRead | None:
+        entity = await self.repository.get(policy_id)
         if entity is None:
             return None
         return self._to_schema(entity)
 
     async def update_policy(
-        self, tenant_id: UUID, policy_id: UUID, payload: schemas.PolicyUpdate
+        self, policy_id: UUID, payload: schemas.PolicyUpdate
     ) -> schemas.PolicyRead | None:
-        entity = await self.repository.update(tenant_id, policy_id, payload.model_dump(exclude_unset=True))
+        entity = await self.repository.update(policy_id, payload.model_dump(exclude_unset=True))
         if entity is None:
             return None
         return self._to_schema(entity)
 
     async def list_policy_documents(
-        self, tenant_id: UUID, policy_id: UUID
+        self, policy_id: UUID
     ) -> Iterable[schemas.PolicyDocumentRead] | None:
         if self.policy_documents is None:  # pragma: no cover - defensive
             raise RepositoryError("policy_documents_repository_not_configured")
-        policy = await self.repository.get(tenant_id, policy_id)
+        policy = await self.repository.get(policy_id)
         if policy is None:
             return None
-        items = await self.policy_documents.list(tenant_id, policy_id)
+        items = await self.policy_documents.list(policy_id)
         return [self._policy_document_to_schema(item) for item in items]
 
     async def attach_document(
-        self, tenant_id: UUID, policy_id: UUID, document_id: UUID
+        self, policy_id: UUID, document_id: UUID
     ) -> schemas.PolicyDocumentRead | None:
         if self.policy_documents is None:  # pragma: no cover - defensive
             raise RepositoryError("policy_documents_repository_not_configured")
-        entity = await self.policy_documents.attach(tenant_id, policy_id, document_id)
+        entity = await self.policy_documents.attach(policy_id, document_id)
         if entity is None:
             return None
         return self._policy_document_to_schema(entity)
 
     async def detach_document(
-        self, tenant_id: UUID, policy_id: UUID, document_id: UUID
+        self, policy_id: UUID, document_id: UUID
     ) -> bool | None:
         if self.policy_documents is None:  # pragma: no cover - defensive
             raise RepositoryError("policy_documents_repository_not_configured")
-        policy = await self.repository.get(tenant_id, policy_id)
+        policy = await self.repository.get(policy_id)
         if policy is None:
             return None
-        return await self.policy_documents.detach(tenant_id, policy_id, document_id)
+        return await self.policy_documents.detach(policy_id, document_id)
 
     @staticmethod
     def _to_schema(policy: models.Policy) -> schemas.PolicyRead:
@@ -250,7 +244,6 @@ class CalculationService:
 
     async def list_calculations(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         *,
         statuses: Sequence[str] | None = None,
@@ -259,7 +252,6 @@ class CalculationService:
         date_to: date | None = None,
     ) -> Iterable[schemas.CalculationRead]:
         items = await self.repository.list(
-            tenant_id,
             deal_id,
             statuses=statuses,
             insurance_company=insurance_company,
@@ -270,7 +262,6 @@ class CalculationService:
 
     async def create_calculation(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         payload: schemas.CalculationCreate,
     ) -> schemas.CalculationRead:
@@ -278,35 +269,33 @@ class CalculationService:
         data = payload.model_dump(exclude={"validity_period"})
         data["validity_period"] = self._date_range_to_pg(range_value)
         try:
-            calculation = await self.repository.create(tenant_id, deal_id, data)
+            calculation = await self.repository.create(deal_id, data)
         except repositories.RepositoryError as exc:
             if str(exc) == "deal_not_found":
                 raise
             raise
-        calculation = await self.repository.get(tenant_id, deal_id, calculation.id) or calculation
+        calculation = await self.repository.get(deal_id, calculation.id) or calculation
         result = self._to_schema(calculation)
         await self._publish_event("deal.calculation.created", calculation)
         return result
 
     async def get_calculation(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
     ) -> schemas.CalculationRead | None:
-        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        calculation = await self.repository.get(deal_id, calculation_id)
         if calculation is None:
             return None
         return self._to_schema(calculation)
 
     async def update_calculation(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
         payload: schemas.CalculationUpdate,
     ) -> schemas.CalculationRead | None:
-        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        calculation = await self.repository.get(deal_id, calculation_id)
         if calculation is None:
             return None
         if calculation.status in {"confirmed", "archived"}:
@@ -321,15 +310,14 @@ class CalculationService:
 
     async def delete_calculation(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
     ) -> bool:
-        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        calculation = await self.repository.get(deal_id, calculation_id)
         if calculation is None:
             return False
         if calculation.policy is not None:
-            await self.policies.assign_calculation(tenant_id, calculation.policy.id, None)
+            await self.policies.assign_calculation(calculation.policy.id, None)
             calculation.policy = None
         await self.repository.delete(calculation)
         await self._publish_event("deal.calculation.deleted", calculation)
@@ -337,12 +325,11 @@ class CalculationService:
 
     async def change_status(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
         payload: schemas.CalculationStatusChange,
     ) -> schemas.CalculationRead | None:
-        calculation = await self.repository.get(tenant_id, deal_id, calculation_id)
+        calculation = await self.repository.get(deal_id, calculation_id)
         if calculation is None:
             return None
 
@@ -357,7 +344,7 @@ class CalculationService:
         linked_policy = None
         detach_policy = False
         if new_status == "confirmed":
-            linked_policy = await self._resolve_policy(tenant_id, deal_id, calculation.id, payload.policy_id)
+            linked_policy = await self._resolve_policy(deal_id, calculation.id, payload.policy_id)
             if linked_policy is None and payload.policy_id is not None:
                 raise repositories.RepositoryError("policy_not_found")
             if linked_policy is not None:
@@ -366,19 +353,19 @@ class CalculationService:
                     and calculation.policy.id != linked_policy.id
                 ):
                     await self.policies.assign_calculation(
-                        tenant_id, calculation.policy.id, None
+                        calculation.policy.id, None
                     )
                     calculation.policy = None
-                await self.policies.assign_calculation(tenant_id, linked_policy.id, calculation.id)
+                await self.policies.assign_calculation(linked_policy.id, calculation.id)
         elif new_status == "archived" and calculation.policy is not None:
             detach_policy = True
 
         updated = await self.repository.update(calculation, {"status": new_status})
 
         if detach_policy and updated.policy is not None:
-            await self.policies.assign_calculation(tenant_id, updated.policy.id, None)
+            await self.policies.assign_calculation(updated.policy.id, None)
 
-        updated = await self.repository.get(tenant_id, deal_id, calculation_id) or updated
+        updated = await self.repository.get(deal_id, calculation_id) or updated
 
         await self._publish_event(f"deal.calculation.status.{new_status}", updated)
         return self._to_schema(updated)
@@ -399,14 +386,13 @@ class CalculationService:
 
     async def _resolve_policy(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
         policy_id: UUID | None,
     ) -> schemas.PolicyRead | None:
         if policy_id is None:
             return None
-        policy = await self.policy_service.get_policy(tenant_id, policy_id)
+        policy = await self.policy_service.get_policy(policy_id)
         if policy is None or policy.deal_id != deal_id:
             return None
         if policy.calculation_id and policy.calculation_id != calculation_id:
@@ -454,7 +440,6 @@ class CalculationService:
         linked_policy_id = calculation.policy.id if calculation.policy else None
         return schemas.CalculationRead(
             id=calculation.id,
-            tenant_id=calculation.tenant_id,
             deal_id=calculation.deal_id,
             owner_id=calculation.owner_id,
             insurance_company=calculation.insurance_company,
@@ -475,7 +460,6 @@ class CalculationService:
         payload = {
             "calculation_id": str(calculation.id),
             "deal_id": str(calculation.deal_id),
-            "tenant_id": str(calculation.tenant_id),
             "status": calculation.status,
             "insurance_company": calculation.insurance_company,
             "calculation_date": calculation.calculation_date.isoformat(),
@@ -492,24 +476,24 @@ class TaskService:
     def __init__(self, repository: repositories.TaskRepository):
         self.repository = repository
 
-    async def list_tasks(self, tenant_id: UUID) -> Iterable[schemas.TaskRead]:
-        tasks = await self.repository.list(tenant_id)
+    async def list_tasks(self) -> Iterable[schemas.TaskRead]:
+        tasks = await self.repository.list()
         return [schemas.TaskRead.model_validate(task) for task in tasks]
 
-    async def create_task(self, tenant_id: UUID, payload: schemas.TaskCreate) -> schemas.TaskRead:
-        entity = await self.repository.create(tenant_id, payload.model_dump())
+    async def create_task(self, payload: schemas.TaskCreate) -> schemas.TaskRead:
+        entity = await self.repository.create(payload.model_dump())
         return schemas.TaskRead.model_validate(entity)
 
-    async def get_task(self, tenant_id: UUID, task_id: UUID) -> schemas.TaskRead | None:
-        entity = await self.repository.get(tenant_id, task_id)
+    async def get_task(self, task_id: UUID) -> schemas.TaskRead | None:
+        entity = await self.repository.get(task_id)
         if entity is None:
             return None
         return schemas.TaskRead.model_validate(entity)
 
     async def update_task(
-        self, tenant_id: UUID, task_id: UUID, payload: schemas.TaskUpdate
+        self, task_id: UUID, payload: schemas.TaskUpdate
     ) -> schemas.TaskRead | None:
-        entity = await self.repository.update(tenant_id, task_id, payload.model_dump(exclude_unset=True))
+        entity = await self.repository.update(task_id, payload.model_dump(exclude_unset=True))
         if entity is None:
             return None
         return schemas.TaskRead.model_validate(entity)
@@ -535,7 +519,6 @@ class PaymentService:
 
     async def list_payments(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         *,
@@ -548,7 +531,6 @@ class PaymentService:
         include_incomes = "incomes" in include
         include_expenses = "expenses" in include
         items, total = await self.payments.list_payments(
-            tenant_id,
             deal_id,
             policy_id,
             statuses=statuses,
@@ -565,7 +547,6 @@ class PaymentService:
 
     async def create_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payload: schemas.PaymentCreate,
@@ -575,14 +556,13 @@ class PaymentService:
         if not normalized_currency:
             raise repositories.RepositoryError("currency_mismatch")
         data["currency"] = normalized_currency
-        payment = await self.payments.create_payment(tenant_id, deal_id, policy_id, data)
+        payment = await self.payments.create_payment(deal_id, policy_id, data)
         payment = await self._finalize_payment(payment)
         await self._publish_payment_event("deal.payment.created", payment)
         return payment
 
     async def get_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -591,7 +571,6 @@ class PaymentService:
     ) -> schemas.PaymentRead | None:
         include = include or []
         payment = await self.payments.get_payment(
-            tenant_id,
             deal_id,
             policy_id,
             payment_id,
@@ -608,13 +587,12 @@ class PaymentService:
 
     async def update_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
         payload: schemas.PaymentUpdate,
     ) -> schemas.PaymentRead | None:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None
 
@@ -661,12 +639,11 @@ class PaymentService:
 
     async def delete_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
     ) -> bool:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return False
         incomes_total = Decimal(payment.incomes_total or 0)
@@ -678,7 +655,6 @@ class PaymentService:
             "deal.payment.deleted",
             schemas.PaymentRead(
                 id=payment.id,
-                tenant_id=payment.tenant_id,
                 deal_id=payment.deal_id,
                 policy_id=payment.policy_id,
                 sequence=payment.sequence,
@@ -705,13 +681,12 @@ class PaymentService:
 
     async def create_income(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
         payload: schemas.PaymentIncomeCreate,
     ) -> tuple[schemas.PaymentRead | None, schemas.PaymentIncomeRead | None]:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None, None
         data = payload.model_dump(exclude_unset=True)
@@ -731,17 +706,16 @@ class PaymentService:
 
     async def update_income(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
         income_id: UUID,
         payload: schemas.PaymentIncomeUpdate,
     ) -> tuple[schemas.PaymentRead | None, schemas.PaymentIncomeRead | None]:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None, None
-        income = await self.incomes.get_income(tenant_id, payment_id, income_id)
+        income = await self.incomes.get_income(payment_id, income_id)
         if income is None:
             return None, None
         previous = schemas.PaymentIncomeRead.model_validate(income)
@@ -768,7 +742,6 @@ class PaymentService:
 
     async def delete_income(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -776,10 +749,10 @@ class PaymentService:
         *,
         deleted_by_id: UUID | None = None,
     ) -> schemas.PaymentRead | None:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None
-        income = await self.incomes.get_income(tenant_id, payment_id, income_id)
+        income = await self.incomes.get_income(payment_id, income_id)
         if income is None:
             return None
         await self.incomes.delete_income(income)
@@ -796,13 +769,12 @@ class PaymentService:
 
     async def create_expense(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
         payload: schemas.PaymentExpenseCreate,
     ) -> tuple[schemas.PaymentRead | None, schemas.PaymentExpenseRead | None]:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None, None
         data = payload.model_dump(exclude_unset=True)
@@ -822,17 +794,16 @@ class PaymentService:
 
     async def update_expense(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
         expense_id: UUID,
         payload: schemas.PaymentExpenseUpdate,
     ) -> tuple[schemas.PaymentRead | None, schemas.PaymentExpenseRead | None]:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None, None
-        expense = await self.expenses.get_expense(tenant_id, payment_id, expense_id)
+        expense = await self.expenses.get_expense(payment_id, expense_id)
         if expense is None:
             return None, None
         previous = schemas.PaymentExpenseRead.model_validate(expense)
@@ -859,7 +830,6 @@ class PaymentService:
 
     async def delete_expense(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -867,10 +837,10 @@ class PaymentService:
         *,
         deleted_by_id: UUID | None = None,
     ) -> schemas.PaymentRead | None:
-        payment = await self.payments.get_payment(tenant_id, deal_id, policy_id, payment_id)
+        payment = await self.payments.get_payment(deal_id, policy_id, payment_id)
         if payment is None:
             return None
-        expense = await self.expenses.get_expense(tenant_id, payment_id, expense_id)
+        expense = await self.expenses.get_expense(payment_id, expense_id)
         if expense is None:
             return None
         await self.expenses.delete_expense(expense)
@@ -927,7 +897,6 @@ class PaymentService:
         if payment.status != next_status:
             payment = await self.payments.update_payment(payment, {"status": next_status})
         reloaded = await self.payments.get_payment(
-            payment.tenant_id,
             payment.deal_id,
             payment.policy_id,
             payment.id,
@@ -963,7 +932,6 @@ class PaymentService:
         expenses = payment.expenses if include_expenses else []
         return schemas.PaymentRead(
             id=payment.id,
-            tenant_id=payment.tenant_id,
             deal_id=payment.deal_id,
             policy_id=payment.policy_id,
             sequence=payment.sequence,
@@ -994,7 +962,6 @@ class PaymentService:
         payload: dict[str, Any]
         if event_type == "deleted":
             payload = {
-                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment_id": str(payment.id),
@@ -1002,7 +969,6 @@ class PaymentService:
             }
         else:
             payload = {
-                "tenant_id": str(payment.tenant_id),
                 "deal_id": str(payment.deal_id),
                 "policy_id": str(payment.policy_id),
                 "payment": payment.model_dump(mode="json"),
@@ -1032,7 +998,6 @@ class PaymentService:
         deleted_by_id: UUID | None = None,
         ) -> None:
         payload: dict[str, Any] = {
-            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
@@ -1072,7 +1037,6 @@ class PaymentService:
         deleted_by_id: UUID | None = None,
         ) -> None:
         payload: dict[str, Any] = {
-            "tenant_id": str(payment.tenant_id),
             "deal_id": str(payment.deal_id),
             "policy_id": str(payment.policy_id),
             "payment_id": str(payment.id),
@@ -1111,11 +1075,10 @@ class PermissionSyncService:
         self.queue_name = queue_name
 
     async def sync_permissions(
-        self, tenant_id: UUID, payload: schemas.SyncPermissionsDto
+        self, payload: schemas.SyncPermissionsDto
     ) -> schemas.SyncPermissionsResponse:
-        job = await self.repository.create_job(tenant_id, payload, self.queue_name)
+        job = await self.repository.create_job(payload, self.queue_name)
         job_payload = {
-            "tenantId": str(tenant_id),
             "ownerType": payload.owner_type,
             "ownerId": str(payload.owner_id),
             "users": [user.model_dump(mode="json") for user in payload.users],

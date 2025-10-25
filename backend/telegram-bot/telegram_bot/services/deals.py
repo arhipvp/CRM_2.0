@@ -47,16 +47,13 @@ class DealService:
         *,
         trace_id: str | None = None,
     ) -> QuickDealResult:
-        tenant_id = user.tenant_id
         client = await self._crm.create_client(
-            tenant_id,
             name=payload.client_name,
             owner_id=user.id,
             email=payload.client_email,
             phone=payload.client_phone,
         )
         deal = await self._crm.create_deal(
-            tenant_id,
             client_id=client.id,
             owner_id=user.id,
             title=payload.title,

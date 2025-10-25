@@ -44,15 +44,13 @@ class CRMClient:
         self._base_url = base_url.rstrip("/")
         self._token = token
 
-    def _headers(self, tenant_id: UUID) -> dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {self._token}",
-            "X-Tenant-ID": str(tenant_id),
         }
 
     async def create_client(
         self,
-        tenant_id: UUID,
         *,
         name: str,
         owner_id: UUID,
@@ -68,7 +66,7 @@ class CRMClient:
         }
         response = await self._http.post(
             f"{self._base_url}/clients",
-            headers=self._headers(tenant_id),
+            headers=self._headers(),
             json=payload,
             timeout=10.0,
         )
@@ -85,7 +83,6 @@ class CRMClient:
 
     async def create_deal(
         self,
-        tenant_id: UUID,
         *,
         client_id: UUID,
         owner_id: UUID,
@@ -105,7 +102,7 @@ class CRMClient:
         }
         response = await self._http.post(
             f"{self._base_url}/deals",
-            headers=self._headers(tenant_id),
+            headers=self._headers(),
             json=payload,
             timeout=10.0,
         )
@@ -121,10 +118,10 @@ class CRMClient:
             next_review_at=date.fromisoformat(data["next_review_at"]),
         )
 
-    async def get_task(self, tenant_id: UUID, task_id: UUID) -> Task:
+    async def get_task(self, task_id: UUID) -> Task:
         response = await self._http.get(
             f"{self._base_url}/tasks/{task_id}",
-            headers=self._headers(tenant_id),
+            headers=self._headers(),
             timeout=10.0,
         )
         if response.status_code == httpx.codes.NOT_FOUND:
@@ -143,12 +140,12 @@ class CRMClient:
         )
 
     async def update_task_status(
-        self, tenant_id: UUID, task_id: UUID, *, status: str, description: str | None = None
+        self, task_id: UUID, *, status: str, description: str | None = None
     ) -> None:
         payload = {"status": status, "description": description}
         response = await self._http.patch(
             f"{self._base_url}/tasks/{task_id}",
-            headers=self._headers(tenant_id),
+            headers=self._headers(),
             json=payload,
             timeout=10.0,
         )
@@ -160,7 +157,6 @@ class CRMClient:
 
     async def update_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -176,7 +172,7 @@ class CRMClient:
         }
         response = await self._http.patch(
             f"{self._base_url}/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}",
-            headers=self._headers(tenant_id),
+            headers=self._headers(),
             json=payload,
             timeout=10.0,
         )

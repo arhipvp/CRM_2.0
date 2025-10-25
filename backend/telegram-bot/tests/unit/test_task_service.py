@@ -15,11 +15,11 @@ class FakeCRMClient:
     def __init__(self) -> None:
         self.updated: dict[str, object] | None = None
 
-    async def get_task(self, tenant_id: UUID, task_id: UUID) -> Task:
+    async def get_task(self, task_id: UUID) -> Task:
         return Task(id=task_id, title="Подготовить КП", status="in_progress", due_date=date.today(), description=None)
 
     async def update_task_status(
-        self, tenant_id: UUID, task_id: UUID, *, status: str, description: str | None = None
+        self, task_id: UUID, *, status: str, description: str | None = None
     ) -> None:
         self.updated = {"task_id": task_id, "status": status, "description": description}
 
@@ -46,7 +46,7 @@ async def test_task_confirmation_publishes_status_change() -> None:
     notifications = FakeNotificationsClient()
     publisher = InMemoryPublisher(source="test")
     service = TaskService(crm, notifications, publisher, exchange_tasks="tasks.events")
-    user = AuthUser(id=uuid4(), telegram_id=123, tenant_id=uuid4(), roles=["agent"], active=True)
+    user = AuthUser(id=uuid4(), telegram_id=123, roles=["agent"], active=True)
 
     result = await service.confirm_task(user, uuid4(), comment="Готово", trace_id="trace")
 

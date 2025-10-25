@@ -41,7 +41,6 @@ class ClientUpdate(BaseModel):
 
 class ClientRead(ORMModel, ClientBase):
     id: UUID
-    tenant_id: UUID
     owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
@@ -126,7 +125,6 @@ def map_stage_to_deal_status(stage: DealStage) -> str:
 
 class DealRead(ORMModel, DealBase):
     id: UUID
-    tenant_id: UUID
     client_id: UUID
     owner_id: UUID | None
     created_at: datetime
@@ -214,7 +212,6 @@ class PolicyUpdate(BaseModel):
 
 class PolicyRead(ORMModel, PolicyBase):
     id: UUID
-    tenant_id: UUID
     client_id: UUID
     deal_id: Optional[UUID]
     calculation_id: Optional[UUID]
@@ -229,7 +226,6 @@ class PolicyDocumentLink(BaseModel):
 
 class PolicyDocumentRead(ORMModel):
     id: UUID
-    tenant_id: UUID
     policy_id: UUID
     document_id: UUID
     created_at: datetime
@@ -295,7 +291,6 @@ class CalculationUpdate(BaseModel):
 
 class CalculationRead(ORMModel, CalculationBase):
     id: UUID
-    tenant_id: UUID
     deal_id: UUID
     owner_id: Optional[UUID]
     status: CalculationStatus
@@ -342,7 +337,6 @@ class TaskUpdate(BaseModel):
 
 class TaskRead(ORMModel, TaskBase):
     id: UUID
-    tenant_id: UUID
     owner_id: Optional[UUID]
     deal_id: Optional[UUID]
     client_id: Optional[UUID]
@@ -515,7 +509,6 @@ class PaymentExpenseRead(ORMModel, PaymentExpenseBase):
 
 class PaymentRead(ORMModel, PaymentBase):
     id: UUID
-    tenant_id: UUID | None = None
     deal_id: UUID
     policy_id: UUID
     sequence: int

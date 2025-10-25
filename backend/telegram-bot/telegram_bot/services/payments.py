@@ -40,10 +40,8 @@ class PaymentService:
         actual_date: date | None = None,
         trace_id: str | None = None,
     ) -> None:
-        tenant_id = user.tenant_id
         actual_date = actual_date or date.today()
         await self._crm.update_payment(
-            tenant_id,
             context.deal_id,
             context.policy_id,
             context.payment_id,

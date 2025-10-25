@@ -48,8 +48,6 @@ class Settings(BaseSettings):
     events_exchange: str = Field(default="crm.events")
     celery_retry_delay_seconds: int = Field(default=60)
 
-    default_tenant_id: Optional[str] = None
-
     documents_base_url: Optional[AnyUrl] = Field(default=None)
 
     auth_disabled: bool = Field(default=False)

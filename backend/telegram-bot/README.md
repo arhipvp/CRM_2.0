@@ -56,7 +56,6 @@ Webhook должен проксироваться через Gateway/BFF. Для
 | `TELEGRAM_BOT_AUTH_SERVICE_TOKEN` | Сервисный токен для Auth. |
 | `TELEGRAM_BOT_CRM_BASE_URL` | Базовый URL CRM API (`http://localhost:8082/api`). |
 | `TELEGRAM_BOT_CRM_SERVICE_TOKEN` | Сервисный токен CRM. |
-| `TELEGRAM_BOT_DEFAULT_TENANT_ID` | (опционально) Тенант по умолчанию. |
 | `TELEGRAM_BOT_NOTIFICATIONS_BASE_URL` | Базовый URL Notifications API (`http://localhost:8085/api/v1`). |
 | `TELEGRAM_BOT_NOTIFICATIONS_SERVICE_TOKEN` | Сервисный токен Notifications. |
 | `TELEGRAM_BOT_HEALTHCHECK_TOKEN` | Токен для `/health`. |
@@ -67,7 +66,7 @@ Auth должен предоставлять внутренние эндпоин
 - `GET /internal/telegram/users/{telegram_id}` — поиск пользователя по Telegram ID;
 - `GET /internal/telegram/bindings/{user_id}` — получение Telegram-привязки по ID пользователя.
 
-Обе операции возвращают `user_id`, `telegram_id`, `tenant_id`, `roles` и `active`.
+Обе операции возвращают `user_id`, `telegram_id`, `roles` и `active`.
 
 ## RabbitMQ
 

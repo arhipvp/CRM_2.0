@@ -45,22 +45,21 @@ class BaseRepository(Generic[ModelType]):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list(self, tenant_id: UUID) -> Iterable[ModelType]:
-        stmt = select(self.model).where(self.model.tenant_id == tenant_id, self.model.is_deleted.is_(False))
+    async def list(self) -> Iterable[ModelType]:
+        stmt = select(self.model).where(self.model.is_deleted.is_(False))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get(self, tenant_id: UUID, entity_id: UUID) -> ModelType | None:
+    async def get(self, entity_id: UUID) -> ModelType | None:
         stmt = select(self.model).where(
-            self.model.tenant_id == tenant_id,
             self.model.id == entity_id,
             self.model.is_deleted.is_(False),
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def create(self, tenant_id: UUID, data: dict) -> ModelType:
-        entity = self.model(tenant_id=tenant_id, **data)
+    async def create(self, data: dict) -> ModelType:
+        entity = self.model(**data)
         self.session.add(entity)
         try:
             await self.session.commit()
@@ -70,11 +69,10 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(entity)
         return entity
 
-    async def update(self, tenant_id: UUID, entity_id: UUID, data: dict) -> ModelType | None:
+    async def update(self, entity_id: UUID, data: dict) -> ModelType | None:
         stmt = (
             update(self.model)
             .where(
-                self.model.tenant_id == tenant_id,
                 self.model.id == entity_id,
                 self.model.is_deleted.is_(False),
             )
@@ -98,10 +96,9 @@ class DealRepository(BaseRepository[models.Deal]):
     model = models.Deal
 
     async def list(
-        self, tenant_id: UUID, filters: DealFilters | None = None
+        self, filters: DealFilters | None = None
     ) -> Iterable[models.Deal]:
         stmt = select(self.model).where(
-            self.model.tenant_id == tenant_id,
             self.model.is_deleted.is_(False),
         )
 
@@ -145,11 +142,10 @@ class DealRepository(BaseRepository[models.Deal]):
 
         return stmt
 
-    async def mark_won(self, tenant_id: UUID, deal_id: UUID) -> models.Deal | None:
+    async def mark_won(self, deal_id: UUID) -> models.Deal | None:
         stmt = (
             update(self.model)
             .where(
-                self.model.tenant_id == tenant_id,
                 self.model.id == deal_id,
                 self.model.is_deleted.is_(False),
             )
@@ -165,10 +161,9 @@ class DealRepository(BaseRepository[models.Deal]):
         return deal
 
     async def stage_metrics(
-        self, tenant_id: UUID, filters: DealFilters | None = None
+        self, filters: DealFilters | None = None
     ) -> list[dict[str, object]]:
         stmt = select(self.model).where(
-            self.model.tenant_id == tenant_id,
             self.model.is_deleted.is_(False),
         )
 
@@ -195,7 +190,6 @@ class DealRepository(BaseRepository[models.Deal]):
         payments_stmt = (
             select(models.Payment.deal_id, func.coalesce(func.sum(models.Payment.planned_amount), 0))
             .where(
-                models.Payment.tenant_id == tenant_id,
                 models.Payment.deal_id.in_(deal_ids),
                 models.Payment.status != "cancelled",
             )
@@ -265,7 +259,6 @@ class DealJournalRepository:
 
     async def list_entries(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         *,
         limit: int = 50,
@@ -273,7 +266,6 @@ class DealJournalRepository:
     ) -> tuple[list[models.DealJournalEntry], int]:
         filters = (
             models.DealJournalEntry.deal_id == deal_id,
-            models.Deal.tenant_id == tenant_id,
             models.Deal.is_deleted.is_(False),
         )
         stmt = (
@@ -290,14 +282,12 @@ class DealJournalRepository:
 
     async def create_entry(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         data: dict[str, object],
     ) -> models.DealJournalEntry | None:
         deal_exists = await self.session.scalar(
             select(models.Deal.id).where(
                 models.Deal.id == deal_id,
-                models.Deal.tenant_id == tenant_id,
                 models.Deal.is_deleted.is_(False),
             )
         )
@@ -315,14 +305,12 @@ class PolicyRepository(BaseRepository[models.Policy]):
 
     async def assign_calculation(
         self,
-        tenant_id: UUID,
         policy_id: UUID,
         calculation_id: UUID | None,
     ) -> models.Policy | None:
         stmt = (
             update(self.model)
             .where(
-                self.model.tenant_id == tenant_id,
                 self.model.id == policy_id,
                 self.model.is_deleted.is_(False),
             )
@@ -342,12 +330,11 @@ class PolicyDocumentRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list(self, tenant_id: UUID, policy_id: UUID) -> list[models.PolicyDocument]:
+    async def list(self, policy_id: UUID) -> list[models.PolicyDocument]:
         stmt = (
             select(models.PolicyDocument)
             .join(models.Policy, models.Policy.id == models.PolicyDocument.policy_id)
             .where(
-                models.Policy.tenant_id == tenant_id,
                 models.Policy.id == policy_id,
                 models.Policy.is_deleted.is_(False),
             )
@@ -358,13 +345,11 @@ class PolicyDocumentRepository:
 
     async def attach(
         self,
-        tenant_id: UUID,
         policy_id: UUID,
         document_id: UUID,
     ) -> models.PolicyDocument | None:
         policy_exists = await self.session.scalar(
             select(models.Policy.id).where(
-                models.Policy.tenant_id == tenant_id,
                 models.Policy.id == policy_id,
                 models.Policy.is_deleted.is_(False),
             )
@@ -372,7 +357,6 @@ class PolicyDocumentRepository:
         if policy_exists is None:
             return None
         entity = models.PolicyDocument(
-            tenant_id=tenant_id,
             policy_id=policy_id,
             document_id=document_id,
         )
@@ -387,14 +371,12 @@ class PolicyDocumentRepository:
 
     async def detach(
         self,
-        tenant_id: UUID,
         policy_id: UUID,
         document_id: UUID,
     ) -> bool:
         stmt = (
             delete(models.PolicyDocument)
             .where(
-                models.PolicyDocument.tenant_id == tenant_id,
                 models.PolicyDocument.policy_id == policy_id,
                 models.PolicyDocument.document_id == document_id,
             )
@@ -428,7 +410,6 @@ class CalculationRepository:
 
     async def list(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         *,
         statuses: Sequence[str] | None = None,
@@ -439,7 +420,6 @@ class CalculationRepository:
         stmt = (
             select(models.Calculation)
             .where(
-                models.Calculation.tenant_id == tenant_id,
                 models.Calculation.deal_id == deal_id,
                 models.Calculation.is_deleted.is_(False),
             )
@@ -462,14 +442,12 @@ class CalculationRepository:
 
     async def get(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         calculation_id: UUID,
     ) -> models.Calculation | None:
         stmt = (
             select(models.Calculation)
             .where(
-                models.Calculation.tenant_id == tenant_id,
                 models.Calculation.deal_id == deal_id,
                 models.Calculation.id == calculation_id,
                 models.Calculation.is_deleted.is_(False),
@@ -481,20 +459,18 @@ class CalculationRepository:
 
     async def create(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         data: dict[str, object],
     ) -> models.Calculation:
         deal_exists = await self.session.scalar(
             select(models.Deal.id).where(
                 models.Deal.id == deal_id,
-                models.Deal.tenant_id == tenant_id,
                 models.Deal.is_deleted.is_(False),
             )
         )
         if deal_exists is None:
             raise RepositoryError("deal_not_found")
-        calculation = models.Calculation(tenant_id=tenant_id, deal_id=deal_id, **data)
+        calculation = models.Calculation(deal_id=deal_id, **data)
         self.session.add(calculation)
         try:
             await self.session.commit()
@@ -525,7 +501,6 @@ class PaymentRepository:
 
     async def list_payments(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         *,
@@ -535,11 +510,10 @@ class PaymentRepository:
         include_incomes: bool = False,
         include_expenses: bool = False,
     ) -> tuple[list[models.Payment], int]:
-        await self._ensure_policy(tenant_id, deal_id, policy_id)
+        await self._ensure_policy(deal_id, policy_id)
         stmt = (
             select(models.Payment)
             .where(
-                models.Payment.tenant_id == tenant_id,
                 models.Payment.deal_id == deal_id,
                 models.Payment.policy_id == policy_id,
             )
@@ -555,7 +529,6 @@ class PaymentRepository:
             select(func.count())
             .select_from(models.Payment)
             .where(
-                models.Payment.tenant_id == tenant_id,
                 models.Payment.deal_id == deal_id,
                 models.Payment.policy_id == policy_id,
             )
@@ -569,7 +542,6 @@ class PaymentRepository:
 
     async def get_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         payment_id: UUID,
@@ -577,9 +549,8 @@ class PaymentRepository:
         include_incomes: bool = False,
         include_expenses: bool = False,
     ) -> models.Payment | None:
-        await self._ensure_policy(tenant_id, deal_id, policy_id)
+        await self._ensure_policy(deal_id, policy_id)
         stmt = select(models.Payment).where(
-            models.Payment.tenant_id == tenant_id,
             models.Payment.deal_id == deal_id,
             models.Payment.policy_id == policy_id,
             models.Payment.id == payment_id,
@@ -593,15 +564,13 @@ class PaymentRepository:
 
     async def create_payment(
         self,
-        tenant_id: UUID,
         deal_id: UUID,
         policy_id: UUID,
         data: dict[str, object],
     ) -> models.Payment:
-        await self._ensure_policy(tenant_id, deal_id, policy_id)
-        sequence = await self._next_sequence(tenant_id, policy_id)
+        await self._ensure_policy(deal_id, policy_id)
+        sequence = await self._next_sequence(policy_id)
         payment = models.Payment(
-            tenant_id=tenant_id,
             deal_id=deal_id,
             policy_id=policy_id,
             sequence=sequence,
@@ -647,9 +616,8 @@ class PaymentRepository:
         await self.session.refresh(payment)
         return payment
 
-    async def _next_sequence(self, tenant_id: UUID, policy_id: UUID) -> int:
+    async def _next_sequence(self, policy_id: UUID) -> int:
         stmt = select(func.max(models.Payment.sequence)).where(
-            models.Payment.tenant_id == tenant_id,
             models.Payment.policy_id == policy_id,
         )
         current = await self.session.scalar(stmt)
@@ -657,16 +625,14 @@ class PaymentRepository:
             return 1
         return int(current) + 1
 
-    async def _ensure_policy(self, tenant_id: UUID, deal_id: UUID, policy_id: UUID) -> None:
+    async def _ensure_policy(self, deal_id: UUID, policy_id: UUID) -> None:
         stmt = (
             select(models.Policy.id)
             .join(models.Deal, models.Policy.deal_id == models.Deal.id)
             .where(
                 models.Policy.id == policy_id,
-                models.Policy.tenant_id == tenant_id,
                 models.Policy.is_deleted.is_(False),
                 models.Policy.deal_id == deal_id,
-                models.Deal.tenant_id == tenant_id,
                 models.Deal.is_deleted.is_(False),
             )
         )
@@ -684,7 +650,7 @@ class PaymentIncomeRepository:
         payment: models.Payment,
         data: dict[str, object],
     ) -> models.PaymentIncome:
-        entity = models.PaymentIncome(tenant_id=payment.tenant_id, payment_id=payment.id, **data)
+        entity = models.PaymentIncome(payment_id=payment.id, **data)
         self.session.add(entity)
         await self.session.commit()
         await self.session.refresh(entity)
@@ -692,12 +658,10 @@ class PaymentIncomeRepository:
 
     async def get_income(
         self,
-        tenant_id: UUID,
         payment_id: UUID,
         income_id: UUID,
     ) -> models.PaymentIncome | None:
         stmt = select(models.PaymentIncome).where(
-            models.PaymentIncome.tenant_id == tenant_id,
             models.PaymentIncome.payment_id == payment_id,
             models.PaymentIncome.id == income_id,
         )
@@ -729,7 +693,7 @@ class PaymentExpenseRepository:
         payment: models.Payment,
         data: dict[str, object],
     ) -> models.PaymentExpense:
-        entity = models.PaymentExpense(tenant_id=payment.tenant_id, payment_id=payment.id, **data)
+        entity = models.PaymentExpense(payment_id=payment.id, **data)
         self.session.add(entity)
         await self.session.commit()
         await self.session.refresh(entity)
@@ -737,12 +701,10 @@ class PaymentExpenseRepository:
 
     async def get_expense(
         self,
-        tenant_id: UUID,
         payment_id: UUID,
         expense_id: UUID,
     ) -> models.PaymentExpense | None:
         stmt = select(models.PaymentExpense).where(
-            models.PaymentExpense.tenant_id == tenant_id,
             models.PaymentExpense.payment_id == payment_id,
             models.PaymentExpense.id == expense_id,
         )
@@ -771,12 +733,10 @@ class PermissionSyncJobRepository:
 
     async def create_job(
         self,
-        tenant_id: UUID,
         payload: schemas.SyncPermissionsDto,
         queue_name: str,
     ) -> models.PermissionSyncJob:
         entity = models.PermissionSyncJob(
-            tenant_id=tenant_id,
             owner_type=payload.owner_type,
             owner_id=payload.owner_id,
             queue_name=queue_name,

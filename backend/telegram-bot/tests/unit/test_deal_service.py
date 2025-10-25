@@ -12,12 +12,11 @@ from telegram_bot.services.deals import DealService, QuickDealData
 
 
 class FakeCRMClient:
-    async def create_client(self, tenant_id: UUID, *, name: str, owner_id: UUID, email: str | None, phone: str | None) -> Client:
+    async def create_client(self, *, name: str, owner_id: UUID, email: str | None, phone: str | None) -> Client:
         return Client(id=uuid4(), name=name, email=email, phone=phone)
 
     async def create_deal(
         self,
-        tenant_id: UUID,
         *,
         client_id: UUID,
         owner_id: UUID,
@@ -57,7 +56,7 @@ async def test_quick_deal_creates_entities_and_publishes_event() -> None:
     notifications = FakeNotificationsClient()
     publisher = InMemoryPublisher(source="test")
     service = DealService(crm, notifications, publisher, exchange_crm="crm.domain")
-    user = AuthUser(id=uuid4(), telegram_id=12345, tenant_id=uuid4(), roles=["agent"], active=True)
+    user = AuthUser(id=uuid4(), telegram_id=12345, roles=["agent"], active=True)
     payload = QuickDealData(
         client_name="ООО Ромашка",
         client_email="client@example.com",
