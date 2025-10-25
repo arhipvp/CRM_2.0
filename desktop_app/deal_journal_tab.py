@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from threading import Thread
-from typing import Optional, Dict, Any, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from config import DEFAULT_JOURNAL_AUTHOR_ID
