@@ -1,8 +1,36 @@
 import asyncio
+import importlib
+import os
 from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+
+
+@pytest_asyncio.fixture()
+async def api_client_telegram_disabled(apply_migrations):
+    from crm.app import config as app_config
+    from crm.app import dependencies as app_dependencies
+    from crm.app import main
+
+    original_enabled = os.environ.get("CRM_NOTIFICATIONS_TELEGRAM_ENABLED", "true")
+    os.environ["CRM_NOTIFICATIONS_TELEGRAM_ENABLED"] = "false"
+    app_config.get_settings.cache_clear()
+    app_config.settings = app_config.get_settings()
+    app_dependencies._telegram_service = None
+    importlib.reload(main)
+    app = main.create_app()
+
+    try:
+        async with AsyncClient(app=app, base_url="http://testserver") as client:
+            yield client
+    finally:
+        os.environ["CRM_NOTIFICATIONS_TELEGRAM_ENABLED"] = original_enabled
+        app_config.get_settings.cache_clear()
+        app_config.settings = app_config.get_settings()
+        app_dependencies._telegram_service = None
 
 
 @pytest.mark.asyncio
@@ -76,3 +104,32 @@ async def test_notifications_flow(api_client):
     updated_payload = updated_status.json()
     assert updated_payload["status"] in {"processed", "delivered"}
     assert updated_payload["attempts"] >= 3
+
+
+@pytest.mark.asyncio
+async def test_notifications_flow_telegram_disabled(api_client_telegram_disabled):
+    notification_payload = {
+        "eventKey": "deal.created",
+        "recipients": [
+            {
+                "userId": "user-1",
+                "telegramId": "123456",
+            }
+        ],
+        "payload": {"dealId": "deal-telegram-disabled", "title": "Test Deal"},
+        "channelOverrides": ["telegram"],
+        "deduplicationKey": "test-dedup-disabled",
+    }
+    response = await api_client_telegram_disabled.post(
+        "/api/v1/notifications", json=notification_payload
+    )
+    assert response.status_code == 202
+    data = response.json()
+    notification_id = data["notification_id"]
+
+    status_response = await api_client_telegram_disabled.get(
+        f"/api/v1/notifications/{notification_id}"
+    )
+    assert status_response.status_code == 200
+    status_payload = status_response.json()
+    assert status_payload["status"] == "processed"

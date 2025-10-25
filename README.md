@@ -127,7 +127,7 @@ Documents. Связывает сделки и полисы с каталогам
 
 Tasks (модуль CRM). Планирование и исполнение задач, напоминания назначенным пользователям, REST API и очереди задержек описаны в [`docs/api/tasks.md`](docs/api/tasks.md); SLA и автоматические сценарии появятся после [Этапа 1.1](docs/delivery-plan.md#2-приоритизация-последующих-этапов).【F:docs/api/tasks.md†L1-L39】
 
-Notifications (модуль CRM). Отправка уведомлений по событиям (Telegram, внутренние SSE-потоки), интеграция с ботом и подтверждения доставки описаны в [`docs/api/notifications.md`](docs/api/notifications.md); Gateway проксирует канал `GET /api/v1/streams/notifications`.【F:docs/api/notifications.md†L1-L33】
+Notifications (модуль CRM). Отправка уведомлений по событиям (Telegram, внутренние SSE-потоки), интеграция с ботом и подтверждения доставки описаны в [`docs/api/notifications.md`](docs/api/notifications.md); Gateway проксирует канал `GET /api/v1/streams/notifications`.【F:docs/api/notifications.md†L1-L33】 Если Telegram-интеграция отключена (`CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`), модуль фиксирует служебное событие `notifications.telegram.skipped` и считает уведомление обработанным без попытки отправки.
 
 Telegram Bot. Отдельный сервис, обеспечивающий персональные уведомления продавцов и исполнителей, а также быстрые сценарии: создание сделки из чат-команды, запуск напоминаний, подтверждение ключевых этапов. Архитектура и чек-листы на реализацию — в [`docs/architecture/bot.md`](docs/architecture/bot.md).
 
