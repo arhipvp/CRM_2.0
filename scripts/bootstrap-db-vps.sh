@@ -135,6 +135,7 @@ create_extension() {
   log INFO "Создание расширений в базе $dbname"
   run_psql "$dbname" <<'SQL'
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 SQL
 }
 

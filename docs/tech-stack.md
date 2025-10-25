@@ -212,7 +212,7 @@ API: REST (CRUD метаданных, health-check), отдельный ворк
 
 Зависимости:
 
-PostgreSQL-схема `documents` (не забудьте включить `pgcrypto` для `gen_random_uuid()`).
+PostgreSQL-схема `documents` (расширение `pgcrypto` для `gen_random_uuid()` автоматически создаётся `scripts/bootstrap-db-vps.sh`).
 
 Redis (`DOCUMENTS_REDIS_URL`, `DOCUMENTS_REDIS_PREFIX`).
 
