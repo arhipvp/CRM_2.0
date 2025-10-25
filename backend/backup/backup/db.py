@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncIterator, Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, quote
 
 from psycopg import AsyncConnection, AsyncCursor
 from psycopg.rows import dict_row
@@ -224,7 +225,8 @@ class RepositoryFactory:
 
     async def create(self) -> BackupRepository:
         if self._pool is None:
-            self._pool = AsyncConnectionPool(self._settings.database_url, open=False)
+            database_dsn = self._prepare_database_dsn(self._settings.database_url)
+            self._pool = AsyncConnectionPool(database_dsn, open=False)
             await self._pool.open()
         repo = BackupRepository(self._pool)
         await repo.ensure_schema()
@@ -240,6 +242,45 @@ class RepositoryFactory:
         if not self._pool:
             raise RuntimeError("Пул соединений не инициализирован")
         return self._pool
+
+    @staticmethod
+    def _prepare_database_dsn(dsn: str) -> str:
+        """Переносит search_path в libpq options."""
+
+        parts = urlsplit(dsn)
+        query_items = parse_qsl(parts.query, keep_blank_values=True)
+
+        search_path_value: Optional[str] = None
+        options_values: list[str] = []
+        preserved_items: list[tuple[str, str]] = []
+
+        for key, value in query_items:
+            if key == "search_path" and search_path_value is None:
+                search_path_value = value
+                continue
+            if key == "options":
+                options_values.append(value)
+                continue
+            preserved_items.append((key, value))
+
+        combined_options: list[str] = []
+        for option in options_values:
+            stripped = option.strip()
+            if stripped:
+                combined_options.append(stripped)
+
+        if search_path_value:
+            search_path_option = f"-csearch_path={search_path_value}"
+            if search_path_option not in combined_options:
+                combined_options.append(search_path_option)
+
+        if combined_options:
+            preserved_items.append(("options", " ".join(combined_options)))
+
+        new_query = urlencode(preserved_items, doseq=True, quote_via=quote)
+        return urlunsplit(
+            (parts.scheme, parts.netloc, parts.path, new_query, parts.fragment)
+        )
 
 
 async def check_database_health(pool: AsyncConnectionPool) -> None:
