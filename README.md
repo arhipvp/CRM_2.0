@@ -1,5 +1,7 @@
 > ℹ️ GitHub Actions полностью удалены из репозитория: автоматические пайплайны недоступны. Интеграционные проверки выполняются только локально согласно инструкции из [`docs/local-setup.md`](docs/local-setup.md).
 
+> ℹ️ Легаси-контейнер `payments` удалён из Docker Compose; архивный код сохранён в [`backend/payments`](backend/payments/README.md) и запускается только вручную при необходимости.
+
 **Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Технологический стек](docs/tech-stack.md), [API](docs/api/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md), [Бэкапы](backups/README.md)
 
 ## Быстрый старт
