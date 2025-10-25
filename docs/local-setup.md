@@ -22,6 +22,17 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 Чтобы изменить расположение артефактов, воспользуйтесь `--log-dir <путь>` или установите переменную окружения `BOOTSTRAP_LOG_DIR`. Если сохранение логов не нужно, добавьте `--discard-logs` (аналог — `BOOTSTRAP_SAVE_LOGS=false`), тогда по завершении запуска каталог будет удалён.
 
+#### `dev-up`: обёртка с дополнительными флагами
+
+`./scripts/dev-up.sh` вызывает `bootstrap-local.sh`, переиспользуя те же шаги и добавляя централизованное логирование через `tee`. Основные опции совпадают с README, полный список флагов:
+
+- `--skip-backend` — пропускает запуск compose-профиля backend в bootstrap, оставляя только инфраструктуру;
+- `--skip-backend-wait` — отменяет ожидание готовности профиля backend (`DEV_UP_SKIP_BACKEND_WAIT=true`) для ручной проверки healthcheck;
+- `--with-backend` — запускает `scripts/start-backend.sh` после bootstrap (`DEV_UP_WITH_BACKEND=true`) и предупреждает о дублировании процессов;
+- `--log-file PATH` — сохраняет журнал `dev-up` в выбранный путь (`DEV_UP_LOG_FILE`, по умолчанию `.local/logs/dev-up.log`).
+
+Остальные опции (`--service`, переменные `START_BACKEND_*`) передаются в helper `scripts/start-backend.sh` и описаны в разделах про bootstrap и ручной запуск сервисов.
+
 Профиль `backend` включает Gateway, Auth, CRM и Documents. Скрипт запускает его отдельной командой, ждёт успешных healthcheck-ов (`docker compose --profile backend wait` либо ручной опрос `/api/v1/health`, `/healthz`, `/health`) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если необходимо перейти к ручной проверке без ожидания healthcheck, передайте `--skip-backend-wait` или `BOOTSTRAP_SKIP_BACKEND_WAIT=true` — шаг попадёт в отчёт как `SKIP`. Если параллельно включён флаг `--with-backend`, helper предупредит о возможном дублировании и предложит отключить compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up -d` / `down` в каталоге `infra/`.
 
 ### Конфликты портов из `.env`
