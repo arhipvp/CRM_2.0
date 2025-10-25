@@ -42,10 +42,9 @@ async def test_create_rolls_back_on_integrity_error():
         IntegrityError("stmt", "params", Exception("boom"))
     )
     repo = FakeRepository(session)
-    tenant_id = uuid4()
 
     with pytest.raises(RepositoryError):
-        await repo.create(tenant_id, {"field": "value"})
+        await repo.create({"field": "value"})
 
     session.add.assert_called_once()
     session.commit.assert_awaited_once()
@@ -57,15 +56,13 @@ async def test_create_rolls_back_on_integrity_error():
 async def test_create_successful():
     session = make_fake_session()
     repo = FakeRepository(session)
-    tenant_id = uuid4()
 
-    result = await repo.create(tenant_id, {"field": "value"})
+    result = await repo.create({"field": "value"})
 
     session.add.assert_called_once()
     session.commit.assert_awaited_once()
     session.rollback.assert_not_called()
     session.refresh.assert_awaited_once_with(result)
-    assert result.tenant_id == tenant_id
     assert result.field == "value"
 
 
@@ -77,7 +74,7 @@ async def test_update_returns_none_and_rolls_back():
     repo = ClientRepository(session)
     entity_id = uuid4()
 
-    result = await repo.update(uuid4(), entity_id, {"field": "updated"})
+    result = await repo.update(entity_id, {"field": "updated"})
 
     assert result is None
     session.execute.assert_awaited_once()
@@ -88,14 +85,13 @@ async def test_update_returns_none_and_rolls_back():
 @pytest.mark.asyncio
 async def test_update_commits_when_entity_found():
     entity_id = uuid4()
-    tenant_id = uuid4()
-    entity = SimpleNamespace(id=entity_id, tenant_id=tenant_id, field="updated")
+    entity = SimpleNamespace(id=entity_id, field="updated")
     execute_result = Mock()
     execute_result.scalar_one_or_none = Mock(return_value=entity)
     session = make_fake_session(execute_result=execute_result)
     repo = ClientRepository(session)
 
-    result = await repo.update(tenant_id, entity_id, {"field": "updated"})
+    result = await repo.update(entity_id, {"field": "updated"})
 
     assert result is entity
     session.execute.assert_awaited_once()
@@ -112,7 +108,7 @@ async def test_mark_won_commits_and_returns_deal():
     repo = DealRepository(session)
     deal_id = uuid4()
 
-    result = await repo.mark_won(uuid4(), deal_id)
+    result = await repo.mark_won(deal_id)
 
     assert result is deal
     assert result.status == "won"
@@ -129,7 +125,7 @@ async def test_mark_won_rolls_back_when_missing():
     repo = DealRepository(session)
     deal_id = uuid4()
 
-    result = await repo.mark_won(uuid4(), deal_id)
+    result = await repo.mark_won(deal_id)
 
     assert result is None
     session.execute.assert_awaited_once()
@@ -139,13 +135,11 @@ async def test_mark_won_rolls_back_when_missing():
 
 @pytest.mark.asyncio
 async def test_deal_repository_include_unassigned(db_session):
-    tenant_id = uuid4()
     owner_id = uuid4()
     client_repo = ClientRepository(db_session)
     deal_repo = DealRepository(db_session)
 
     client = await client_repo.create(
-        tenant_id,
         {
             "name": "Test Client",
             "email": "client@example.com",
@@ -157,7 +151,6 @@ async def test_deal_repository_include_unassigned(db_session):
 
     assigned_owner = uuid4()
     await deal_repo.create(
-        tenant_id,
         {
             "client_id": client.id,
             "title": "Assigned Deal",
@@ -169,7 +162,6 @@ async def test_deal_repository_include_unassigned(db_session):
     )
 
     await deal_repo.create(
-        tenant_id,
         {
             "client_id": client.id,
             "title": "Unassigned Deal",
@@ -180,23 +172,20 @@ async def test_deal_repository_include_unassigned(db_session):
         },
     )
 
-    all_deals = await deal_repo.list(tenant_id)
+    all_deals = await deal_repo.list()
     assert len(all_deals) == 2
 
     unassigned_only = await deal_repo.list(
-        tenant_id,
         schemas.DealFilters(include_unassigned=True),
     )
     assert [deal.owner_id for deal in unassigned_only] == [None]
 
     assigned_only = await deal_repo.list(
-        tenant_id,
         schemas.DealFilters(managers=[assigned_owner]),
     )
     assert [deal.owner_id for deal in assigned_only] == [assigned_owner]
 
     combined = await deal_repo.list(
-        tenant_id,
         schemas.DealFilters(managers=[assigned_owner], include_unassigned=True),
     )
     assert {deal.owner_id for deal in combined} == {None, assigned_owner}

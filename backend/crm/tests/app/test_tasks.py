@@ -72,14 +72,13 @@ async def test_update_deal_status_uses_repository(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(tasks, "DealRepository", repo_factory)
 
-    tenant_id = uuid4()
     deal_id = uuid4()
     status = "won"
 
-    await tasks._update_deal_status(tenant_id, deal_id, status)
+    await tasks._update_deal_status(deal_id, status)
 
     assert captured_session is session
-    repo.update.assert_awaited_once_with(tenant_id, deal_id, {"status": status})
+    repo.update.assert_awaited_once_with(deal_id, {"status": status})
 
 
 @pytest.mark.asyncio()
@@ -105,14 +104,13 @@ async def test_refresh_policy_status_uses_repository(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(tasks, "PolicyRepository", repo_factory)
 
-    tenant_id = uuid4()
     policy_id = uuid4()
     status = "active"
 
-    await tasks._refresh_policy_status(tenant_id, policy_id, status)
+    await tasks._refresh_policy_status(policy_id, status)
 
     assert captured_session is session
-    repo.update.assert_awaited_once_with(tenant_id, policy_id, {"status": status})
+    repo.update.assert_awaited_once_with(policy_id, {"status": status})
 
 
 def test_sync_deal_status_converts_identifiers_to_uuid(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -122,17 +120,14 @@ def test_sync_deal_status_converts_identifiers_to_uuid(monkeypatch: pytest.Monke
     update_mock = AsyncMock()
     monkeypatch.setattr(tasks, "_update_deal_status", update_mock)
 
-    tenant_id = uuid4()
     deal_id = uuid4()
     status = "won"
 
-    tasks.sync_deal_status(str(tenant_id), str(deal_id), status)
+    tasks.sync_deal_status(str(deal_id), status)
 
     update_mock.assert_called_once()
-    called_tenant, called_deal, called_status = update_mock.call_args.args
-    assert isinstance(called_tenant, UUID)
+    called_deal, called_status = update_mock.call_args.args
     assert isinstance(called_deal, UUID)
-    assert called_tenant == tenant_id
     assert called_deal == deal_id
     assert called_status == status
 
@@ -141,7 +136,6 @@ def test_sync_deal_status_converts_identifiers_to_uuid(monkeypatch: pytest.Monke
     assert inspect.iscoroutine(coroutine_arg)
     frame_locals = coroutine_arg.cr_frame.f_locals
     assert isinstance(frame_locals["args"][0], UUID)
-    assert isinstance(frame_locals["args"][1], UUID)
     coroutine_arg.close()
 
 
@@ -152,17 +146,14 @@ def test_refresh_policy_state_converts_identifiers_to_uuid(monkeypatch: pytest.M
     refresh_mock = AsyncMock()
     monkeypatch.setattr(tasks, "_refresh_policy_status", refresh_mock)
 
-    tenant_id = uuid4()
     policy_id = uuid4()
     status = "active"
 
-    tasks.refresh_policy_state(str(tenant_id), str(policy_id), status)
+    tasks.refresh_policy_state(str(policy_id), status)
 
     refresh_mock.assert_called_once()
-    called_tenant, called_policy, called_status = refresh_mock.call_args.args
-    assert isinstance(called_tenant, UUID)
+    called_policy, called_status = refresh_mock.call_args.args
     assert isinstance(called_policy, UUID)
-    assert called_tenant == tenant_id
     assert called_policy == policy_id
     assert called_status == status
 
@@ -171,5 +162,4 @@ def test_refresh_policy_state_converts_identifiers_to_uuid(monkeypatch: pytest.M
     assert inspect.iscoroutine(coroutine_arg)
     frame_locals = coroutine_arg.cr_frame.f_locals
     assert isinstance(frame_locals["args"][0], UUID)
-    assert isinstance(frame_locals["args"][1], UUID)
     coroutine_arg.close()

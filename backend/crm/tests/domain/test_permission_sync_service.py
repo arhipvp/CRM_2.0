@@ -30,8 +30,7 @@ async def test_sync_permissions_enqueues_job(permissions_payload):
     queue.enqueue = AsyncMock()
     service = PermissionSyncService(repository, queue, "permissions:sync")
 
-    tenant_id = uuid4()
-    result = await service.sync_permissions(tenant_id, permissions_payload)
+    result = await service.sync_permissions(permissions_payload)
 
     assert result.job_id == job_id
     assert result.status == "queued"
@@ -50,7 +49,7 @@ async def test_sync_permissions_mark_failed_on_error(permissions_payload):
     service = PermissionSyncService(repository, queue, "permissions:sync")
 
     with pytest.raises(PermissionSyncError):
-        await service.sync_permissions(uuid4(), permissions_payload)
+        await service.sync_permissions(permissions_payload)
 
     repository.mark_failed.assert_awaited_once_with(job_id, "redis_down")
 

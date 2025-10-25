@@ -12,7 +12,6 @@ INSERT_PAYMENT_SQL = text(
     """
     INSERT INTO crm.payments (
         id,
-        tenant_id,
         deal_id,
         policy_id,
         sequence,
@@ -21,7 +20,6 @@ INSERT_PAYMENT_SQL = text(
     )
     VALUES (
         :id,
-        :tenant_id,
         :deal_id,
         :policy_id,
         :sequence,
@@ -34,7 +32,6 @@ INSERT_PAYMENT_SQL = text(
 
 @pytest.mark.asyncio()
 async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession) -> None:
-    tenant_id = uuid4()
     owner_id = uuid4()
     client_id = uuid4()
     deal_id = uuid4()
@@ -43,13 +40,12 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
     await db_session.execute(
         text(
             """
-            INSERT INTO crm.clients (id, tenant_id, owner_id, name)
-            VALUES (:id, :tenant_id, :owner_id, :name)
+            INSERT INTO crm.clients (id, owner_id, name)
+            VALUES (:id, :owner_id, :name)
             """
         ),
         {
             "id": client_id,
-            "tenant_id": tenant_id,
             "owner_id": owner_id,
             "name": "Test client",
         },
@@ -57,13 +53,12 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
     await db_session.execute(
         text(
             """
-            INSERT INTO crm.deals (id, tenant_id, owner_id, client_id, title)
-            VALUES (:id, :tenant_id, :owner_id, :client_id, :title)
+            INSERT INTO crm.deals (id, owner_id, client_id, title)
+            VALUES (:id, :owner_id, :client_id, :title)
             """
         ),
         {
             "id": deal_id,
-            "tenant_id": tenant_id,
             "owner_id": owner_id,
             "client_id": client_id,
             "title": "Test deal",
@@ -74,7 +69,6 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
             """
             INSERT INTO crm.policies (
                 id,
-                tenant_id,
                 owner_id,
                 client_id,
                 deal_id,
@@ -82,7 +76,6 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
             )
             VALUES (
                 :id,
-                :tenant_id,
                 :owner_id,
                 :client_id,
                 :deal_id,
@@ -92,7 +85,6 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
         ),
         {
             "id": policy_id,
-            "tenant_id": tenant_id,
             "owner_id": owner_id,
             "client_id": client_id,
             "deal_id": deal_id,
@@ -106,7 +98,6 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
             INSERT_PAYMENT_SQL,
             {
                 "id": uuid4(),
-                "tenant_id": tenant_id,
                 "deal_id": uuid4(),
                 "policy_id": policy_id,
                 "sequence": 1,
@@ -122,7 +113,6 @@ async def test_payments_rejects_unknown_deal_or_policy(db_session: AsyncSession)
             INSERT_PAYMENT_SQL,
             {
                 "id": uuid4(),
-                "tenant_id": tenant_id,
                 "deal_id": deal_id,
                 "policy_id": uuid4(),
                 "sequence": 2,

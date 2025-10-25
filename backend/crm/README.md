@@ -19,7 +19,6 @@ crm/
 ## Требования к окружению
 - Python 3.11 (Poetry рекомендуем устанавливать глобально: https://python-poetry.org/docs/).
 - PostgreSQL (схема `crm`), Redis и RabbitMQ — URL подключений настраиваются через переменные `CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL` и дополнительные параметры очередей (см. `env.example`).【F:env.example†L78-L118】
-- Для указания тенанта по умолчанию задайте `CRM_DEFAULT_TENANT_ID` (UUID) или оставьте переменную пустой, чтобы требовать заголовок `X-Tenant-ID`.【F:env.example†L118-L120】
 - Для фоновых задач Celery используется Redis (по умолчанию `CRM_CELERY_BROKER_URL=${REDIS_CELERY_URL}`).
 - BullMQ-очередь синхронизации прав настраивается переменными `CRM_PERMISSIONS_QUEUE_NAME`, `CRM_PERMISSIONS_QUEUE_PREFIX`, `CRM_PERMISSIONS_JOB_NAME`; при отсутствии `CRM_PERMISSIONS_REDIS_URL` используется общий Redis (`CRM_REDIS_URL`).
 - Класс настроек `crm.app.config.Settings` считывает только переменные с префиксом `CRM_` и игнорирует любые глобальные ключи в `.env`. Это позволяет хранить общие параметры для других сервисов в одном файле без риска падения CRM.
@@ -70,7 +69,7 @@ crm/
 Описание контрактов с примерами приведено в [`docs/api/crm-deals.md`](../../docs/api/crm-deals.md).
 
 ## Миграции
-Alembic настроен на схему `crm`, baseline (`2024031501_baseline.py`) создаёт таблицы с колонками `tenant_id`/`owner_id` для RLS. Команды:
+Alembic настроен на схему `crm`, baseline (`2024031501_baseline.py`) создаёт основные таблицы CRM с полями `owner_id` для управления правами доступа. Команды:
 ```bash
 poetry run alembic revision -m "feature"  # создаёт новую ревизию
 poetry run alembic upgrade head           # применяет миграции
