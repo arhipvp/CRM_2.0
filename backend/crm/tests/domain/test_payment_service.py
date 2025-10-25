@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -183,7 +182,6 @@ def test_validate_transaction_rejects_future_local_day(monkeypatch: pytest.Monke
 
 @pytest.mark.asyncio()
 async def test_update_payment_ignores_redundant_currency(monkeypatch: pytest.MonkeyPatch) -> None:
-    tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
         deal_id=uuid4(),
@@ -212,10 +210,9 @@ async def test_update_payment_ignores_redundant_currency(monkeypatch: pytest.Mon
 
         async def get_payment(
             self,
-            tenant_id: UUID,
-            deal_id: UUID,
-            policy_id: UUID,
-            payment_id: UUID,
+            deal_id,
+            policy_id,
+            payment_id,
             *,
             include_incomes: bool = False,
             include_expenses: bool = False,
@@ -280,7 +277,6 @@ async def test_update_payment_ignores_redundant_currency(monkeypatch: pytest.Mon
     payload = schemas.PaymentUpdate(currency="usd", comment="Updated comment")
 
     result = await service.update_payment(
-        tenant_id,
         payment.deal_id,
         payment.policy_id,
         payment.id,
@@ -294,7 +290,6 @@ async def test_update_payment_ignores_redundant_currency(monkeypatch: pytest.Mon
 
 @pytest.mark.asyncio()
 async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.MonkeyPatch) -> None:
-    tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
         deal_id=uuid4(),
@@ -323,10 +318,9 @@ async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.Mon
 
         async def get_payment(
             self,
-            tenant_id: UUID,
-            deal_id: UUID,
-            policy_id: UUID,
-            payment_id: UUID,
+            deal_id,
+            policy_id,
+            payment_id,
             *,
             include_incomes: bool = False,
             include_expenses: bool = False,
@@ -391,7 +385,6 @@ async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.Mon
     payload = schemas.PaymentUpdate(currency="USD")
 
     result = await service.update_payment(
-        tenant_id,
         payment.deal_id,
         payment.policy_id,
         payment.id,
@@ -406,7 +399,6 @@ async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.Mon
 async def test_update_payment_allows_actual_date_on_local_today(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tenant_id = uuid4()
     local_today = date(2024, 3, 2)
     utc_today = local_today - timedelta(days=1)
     payment = SimpleNamespace(
@@ -437,10 +429,9 @@ async def test_update_payment_allows_actual_date_on_local_today(
 
         async def get_payment(
             self,
-            tenant_id: UUID,
-            deal_id: UUID,
-            policy_id: UUID,
-            payment_id: UUID,
+            deal_id,
+            policy_id,
+            payment_id,
             *,
             include_incomes: bool = False,
             include_expenses: bool = False,
@@ -524,7 +515,6 @@ async def test_update_payment_allows_actual_date_on_local_today(
     payload = schemas.PaymentUpdate(actual_date=local_today)
 
     result = await service.update_payment(
-        tenant_id,
         payment.deal_id,
         payment.policy_id,
         payment.id,
@@ -560,7 +550,6 @@ def test_payment_income_create_normalizes_currency() -> None:
 async def test_update_income_accepts_currency_field(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
         deal_id=uuid4(),
@@ -601,10 +590,9 @@ async def test_update_income_accepts_currency_field(
 
         async def get_payment(
             self,
-            tenant_id: UUID,
-            deal_id: UUID,
-            policy_id: UUID,
-            payment_id: UUID,
+            deal_id,
+            policy_id,
+            payment_id,
             *,
             include_incomes: bool = False,
             include_expenses: bool = False,
@@ -618,9 +606,8 @@ async def test_update_income_accepts_currency_field(
 
         async def get_income(
             self,
-            tenant_id: UUID,
-            payment_id: UUID,
-            income_id: UUID,
+            payment_id,
+            income_id,
         ) -> SimpleNamespace:
             return self.entity
 
@@ -694,7 +681,6 @@ async def test_update_income_accepts_currency_field(
     payload = schemas.PaymentIncomeUpdate(currency="usd")
 
     payment_schema, income_schema = await service.update_income(
-        tenant_id,
         payment.deal_id,
         payment.policy_id,
         payment.id,
