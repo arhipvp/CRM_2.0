@@ -116,10 +116,8 @@ python main.py
 ```
 
 ### Login
-1. Application opens with login dialog
-2. Enter username and password
-3. Click "Login" button
-4. On success, main window opens with tabs
+1. Текущая сборка пропускает диалог авторизации и сразу открывает главное окно с вкладками.
+2. Компоненты `LoginDialog` и `AuthService` остаются в коде на будущее, но не используются при запуске.
 
 ### Client Management
 1. Navigate to "Clients" tab
@@ -152,7 +150,7 @@ python main.py
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `http://localhost:8082/api/v1/auth/token` | User authentication |
+| POST | `http://localhost:8082/api/v1/auth/token` | Зарезервировано под будущую авторизацию (не используется в текущей сборке) |
 | GET | `http://localhost:8082/api/v1/clients` | List all clients |
 | GET | `http://localhost:8082/api/v1/clients/{id}` | Get specific client |
 | POST | `http://localhost:8082/api/v1/clients` | Create client |
@@ -167,15 +165,9 @@ python main.py
 
 ### Authentication
 
-All API requests (except login) include Bearer token:
-```
-Authorization: Bearer <access_token>
-```
+В текущей сборке запросы к CRM API выполняются без Bearer-токена: `show_login_dialog` из `main.py` напрямую создаёт `APIClient()` без передачи учётных данных и немедленно возвращает управление приложению.
 
-Token expires based on server configuration. On 401 response:
-- User sees "Session Expired" message
-- Application closes
-- User must restart and login again
+Механизм аутентификации сохранён в кодовой базе для будущей интеграции с CRM API. После включения проверки токенов достаточно восстановить обработку диалога входа и выдачу JWT на сервере авторизации.
 
 ## Configuration
 
@@ -208,7 +200,7 @@ Configure level in `.env`:
 Отдельного каталога `tests/` пока нет. Для проверки работы API и представлений используйте диагностические скрипты в корне приложения:
 
 ```bash
-# Проверка API и авторизации (требуется запущенный backend)
+# Проверка API без авторизации (требуется запущенный backend)
 python test_api.py
 
 # Диагностика получения задач из API
@@ -250,10 +242,10 @@ mypy desktop_app/
 - Check firewall settings
 - Review logs for detailed error messages
 
-### Authentication Failures
-- Verify username and password are correct
-- Check if user has required permissions
-- Ensure token is not expired
+### Authentication Issues
+- В актуальной сборке авторизация отключена; убедитесь, что backend действительно не требует токенов.
+- Если сервер CRM переведён в режим проверки JWT, восстановите показ `LoginDialog` и передайте полученный токен в `APIClient`.
+- При возникновении ответов 401 проверьте конфигурацию API и действительность выданного токена.
 
 ### UI Freezing
 - Application uses threading for API calls
@@ -278,7 +270,7 @@ mypy desktop_app/
 
 ## Security
 
-- Tokens never stored to disk (in-memory only)
+- При повторном включении авторизации токены будут храниться только в памяти; текущая сборка не сохраняет и не использует токены.
 - HTTPS support via requests library
 - No credentials logged to console
 - Environment variables for sensitive config
