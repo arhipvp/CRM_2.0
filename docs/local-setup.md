@@ -423,7 +423,6 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ./scripts/check-local-infra.sh
 ```
 
-### Ручные проверки (fallback)
 ### Автоматизированный smoke-check
 
 1. Убедитесь, что в корне репозитория лежит актуальный `.env` (обновлён через `./scripts/sync-env.sh`, при необходимости с флагом `--non-interactive`).
@@ -439,6 +438,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
    ```
 
 4. Ожидаемый вывод при успешном запуске (значения в колонке «Комментарий» могут отличаться, но статус должен быть `OK`):
+
 ### Fallback: локальные CLI без Docker
 
 Если инфраструктура запущена через системные сервисы или Docker недоступен, скрипт автоматически переключается на локальные CLI. Убедитесь, что `psql`, `redis-cli` и `curl` находятся в `PATH` — эти же утилиты требуются и для fallback-ветки bootstrap.
