@@ -159,7 +159,7 @@ def test_build_storage_handles_docker_compose_defaults(monkeypatch) -> None:
     monkeypatch.setattr(boto3.session, "Session", _fail_session)
 
     env_values = {
-        "BACKUP_DATABASE_URL": "postgresql://backup:backup@postgres:5432/crm?search_path=backup",
+        "BACKUP_DATABASE_URL": "postgresql://backup:backup@postgres:5432/crm?options=-csearch_path%3Dbackup",
         "BACKUP_RABBITMQ_URL": "amqp://crm:crm@rabbitmq:5672/crm",
         "BACKUP_POSTGRES_BACKUP_DSN": "postgresql://postgres:postgres@postgres:5432/crm",
         "BACKUP_CONSUL_HTTP_ADDR": "http://consul:8500",
