@@ -192,6 +192,7 @@ class PaymentsTab:
             def update_ui():
                 payments_to_display = payments if payment_error is None else []
                 policies_to_use = policies if policies_error is None else []
+                self.current_policies = list(policies_to_use)
                 self._update_tree_ui(payments_to_display, policies_to_use)
 
                 if payment_error is not None:
@@ -287,6 +288,7 @@ class PaymentsTab:
         """Update tree UI on main thread"""
         if not self.tree:
             return
+        self.current_policies = list(policies or [])
         normalized = [self._normalize_payment(payment) for payment in payments]
         self.payments = normalized
         self.all_payments = list(normalized)  # Store all payments for filtering
