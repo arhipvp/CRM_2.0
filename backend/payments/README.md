@@ -33,4 +33,4 @@
 
 ## Docker Compose и переменные окружения
 
-В `infra/docker-compose.yml` добавлен сервис `payments` под профилем `legacy`. Он использует общий образ Spring Boot (`infra/docker/spring-boot-service.Dockerfile`) и автоматически получает `PAYMENTS_RABBITMQ_URL` из `.env`. Остальные параметры (`PAYMENTS_DATABASE_URL`, `PAYMENTS_DB_USER` и т.д.) остаются опциональными и должны задаваться вручную при необходимости — шаблон окружения их не восстанавливает.
+В `infra/docker-compose.yml` добавлен сервис `payments` под профилем `legacy`. Он использует общий образ Spring Boot (`infra/docker/spring-boot-service.Dockerfile`) и автоматически получает `PAYMENTS_RABBITMQ_URL` из `.env`. Остальные параметры подключения к базе данных (JDBC/R2DBC URL, логины, пароли) остаются опциональными и должны задаваться вручную при необходимости — шаблон окружения их не восстанавливает.
