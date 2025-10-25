@@ -10,7 +10,6 @@ DEFAULT_TARGETS=(
   "backend/gateway"
   "backend/auth"
   "backend/crm"
-  "backend/payments"
   "backend/documents"
   "backend/notifications"
   "backend/tasks"
