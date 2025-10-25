@@ -266,34 +266,4 @@ for file in "${seed_files[@]}"; do
 
 done
 
-run_tasks_seed() {
-  local tasks_dir="$REPO_ROOT/backend/tasks"
-  if [[ ! -d "$tasks_dir" ]]; then
-    return 0
-  fi
-  if ! command -v pnpm >/dev/null 2>&1; then
-    log WARN "pnpm не найден, seed Tasks пропущен"
-    return 0
-  fi
-  pushd "$tasks_dir" >/dev/null
-  if [[ ! -d node_modules ]]; then
-    log INFO "Устанавливаем зависимости Tasks (pnpm install)..."
-    pnpm install --frozen-lockfile || {
-      popd >/dev/null
-      log ERROR "Не удалось установить зависимости Tasks"
-      return 1
-    }
-  fi
-  log INFO "Запуск pnpm seed:statuses для Tasks"
-  if ! pnpm seed:statuses; then
-    popd >/dev/null
-    log ERROR "Ошибка при выполнении seed:statuses Tasks"
-    return 1
-  fi
-  popd >/dev/null
-  log INFO "Seed Tasks успешно выполнен"
-}
-
-run_tasks_seed || exit 1
-
 log INFO "Готово."
