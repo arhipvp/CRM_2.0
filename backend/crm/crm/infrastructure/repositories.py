@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-from typing import Generic, Iterable, Sequence, TypeVar
+from typing import Any, Generic, Iterable, Sequence, TypeVar
 from uuid import UUID
 
 from sqlalchemy import delete, func, or_, select, update
@@ -400,8 +400,158 @@ class PolicyDocumentRepository:
         return "policy_document_integrity_error"
 
 
-class TaskRepository(BaseRepository[models.Task]):
-    model = models.Task
+class TaskStatusRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get(self, code: str) -> models.TaskStatus | None:
+        stmt = select(models.TaskStatus).where(models.TaskStatus.code == code)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list(self) -> list[models.TaskStatus]:
+        stmt = select(models.TaskStatus)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+
+class TaskRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list(self, filters: schemas.TaskFilters | None = None) -> list[models.Task]:
+        stmt = (
+            select(models.Task)
+            .options(selectinload(models.Task.status))
+            .order_by(
+                models.Task.due_at.asc().nulls_last(),
+                models.Task.created_at.asc(),
+            )
+        )
+
+        if filters is not None:
+            stmt = self._apply_filters(stmt, filters)
+            stmt = stmt.limit(filters.limit).offset(filters.offset)
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    def _apply_filters(self, stmt, filters: schemas.TaskFilters):
+        if filters.assignee_id is not None:
+            assignee = str(filters.assignee_id)
+            payload = models.Task.payload
+            stmt = stmt.where(
+                or_(
+                    payload["assigneeId"].astext == assignee,
+                    payload["assignee_id"].astext == assignee,
+                )
+            )
+
+        if filters.statuses:
+            stmt = stmt.where(
+                models.Task.status_code.in_([status.value for status in filters.statuses])
+            )
+
+        if filters.priorities:
+            priority_filters = [
+                models.Task.payload["priority"].astext == priority.value
+                for priority in filters.priorities
+            ]
+            if priority_filters:
+                stmt = stmt.where(or_(*priority_filters))
+
+        if filters.due_before is not None:
+            boundary = datetime.combine(
+                filters.due_before, time.min, tzinfo=timezone.utc
+            )
+            stmt = stmt.where(models.Task.due_at < boundary)
+
+        if filters.due_after is not None:
+            boundary = datetime.combine(
+                filters.due_after, time.max.replace(microsecond=999999), tzinfo=timezone.utc
+            )
+            stmt = stmt.where(models.Task.due_at > boundary)
+
+        return stmt
+
+    async def get(self, task_id: UUID) -> models.Task | None:
+        stmt = (
+            select(models.Task)
+            .where(models.Task.id == task_id)
+            .options(selectinload(models.Task.status))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create(self, data: dict[str, Any]) -> models.Task:
+        entity = models.Task(**data)
+        self.session.add(entity)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:  # pragma: no cover - defensive guard
+            await self.session.rollback()
+            raise RepositoryError(self._map_task_integrity_error(exc)) from exc
+        return await self.get(entity.id)
+
+    async def save(self, task: models.Task) -> models.Task:
+        self.session.add(task)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:  # pragma: no cover - defensive guard
+            await self.session.rollback()
+            raise RepositoryError(self._map_task_integrity_error(exc)) from exc
+        return await self.get(task.id)
+
+    @staticmethod
+    def _map_task_integrity_error(exc: IntegrityError) -> str:
+        message = str(exc.orig)
+        if "fk_tasks_status_code" in message:
+            return "task_status_not_found"
+        return "task_integrity_error"
+
+
+class TaskReminderRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, data: dict[str, Any]) -> models.TaskReminder:
+        entity = models.TaskReminder(**data)
+        self.session.add(entity)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:  # pragma: no cover - defensive guard
+            await self.session.rollback()
+            raise RepositoryError(self._map_reminder_integrity_error(exc)) from exc
+        await self.session.refresh(entity)
+        return entity
+
+    async def get(self, reminder_id: UUID) -> models.TaskReminder | None:
+        stmt = select(models.TaskReminder).where(models.TaskReminder.id == reminder_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete(self, reminder_id: UUID) -> bool:
+        stmt = (
+            delete(models.TaskReminder)
+            .where(models.TaskReminder.id == reminder_id)
+            .returning(models.TaskReminder.id)
+        )
+        result = await self.session.execute(stmt)
+        deleted = result.scalar_one_or_none()
+        if deleted is None:
+            await self.session.rollback()
+            return False
+        await self.session.commit()
+        return True
+
+    @staticmethod
+    def _map_reminder_integrity_error(exc: IntegrityError) -> str:
+        message = str(exc.orig)
+        if "idx_task_reminders_unique" in message:
+            return "task_reminder_conflict"
+        if "fk_task_reminders_task_id" in message:
+            return "task_not_found"
+        return "task_reminder_integrity_error"
 
 
 class CalculationRepository:

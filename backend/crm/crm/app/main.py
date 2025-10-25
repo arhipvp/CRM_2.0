@@ -11,8 +11,9 @@ from sse_starlette.sse import EventSourceResponse
 from crm.api.router import get_api_router
 from crm.api.streams import streams_endpoint
 from crm.app.config import settings
-from crm.app.dependencies import close_permissions_queue
+from crm.app.dependencies import close_permissions_queue, close_task_queues
 from crm.app.events import EventsPublisher
+from crm.infrastructure.task_events import TaskEventsPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     publisher = EventsPublisher(settings)
+    task_publisher = TaskEventsPublisher(settings)
     try:
         await publisher.connect()
         app.state.events_publisher = publisher
@@ -28,13 +30,25 @@ async def lifespan(app: FastAPI):
         logger.exception("Failed to start events publisher: %s", exc)
         app.state.events_publisher = None
     try:
+        await task_publisher.connect()
+        app.state.task_events_publisher = task_publisher
+        logger.info("Task events publisher connected")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to start task events publisher: %s", exc)
+        app.state.task_events_publisher = None
+    try:
         yield {"events_publisher": app.state.events_publisher}
     finally:
         publisher_instance = app.state.events_publisher
         if isinstance(publisher_instance, EventsPublisher):
             await publisher_instance.close()
             logger.info("Events publisher disconnected")
+        task_publisher_instance = getattr(app.state, "task_events_publisher", None)
+        if isinstance(task_publisher_instance, TaskEventsPublisher):
+            await task_publisher_instance.close()
+            logger.info("Task events publisher disconnected")
         await close_permissions_queue()
+        await close_task_queues()
 
 
 def create_app() -> FastAPI:

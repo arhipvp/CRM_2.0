@@ -14,8 +14,9 @@ from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
 from crm.app.events import EventsPublisher
-from crm.infrastructure.queues import PermissionsQueue
+from crm.infrastructure.queues import DelayedTaskQueue, PermissionsQueue, TaskReminderQueue
 from crm.infrastructure.db import AsyncSessionFactory
+from crm.infrastructure.task_events import TaskEventsPublisher
 
 
 AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
@@ -188,8 +189,89 @@ async def get_calculation_service(
     )
 
 
-async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> services.TaskService:
-    return services.TaskService(repositories.TaskRepository(session))
+_task_queue_redis: Redis | None = None
+_task_reminder_queue: TaskReminderQueue | None = None
+_task_delayed_queue: DelayedTaskQueue | None = None
+
+
+def _get_task_queue_redis() -> Redis:
+    global _task_queue_redis
+    if _task_queue_redis is None:
+        _task_queue_redis = Redis.from_url(
+            settings.redis_url, encoding="utf-8", decode_responses=True
+        )
+    return _task_queue_redis
+
+
+def get_task_reminder_queue() -> TaskReminderQueue:
+    global _task_reminder_queue
+    if _task_reminder_queue is None:
+        redis = _get_task_queue_redis()
+        _task_reminder_queue = TaskReminderQueue(
+            redis=redis,
+            queue_key=settings.tasks_reminders_queue_key,
+        )
+    return _task_reminder_queue
+
+
+def get_delayed_task_queue() -> DelayedTaskQueue:
+    global _task_delayed_queue
+    if _task_delayed_queue is None:
+        redis = _get_task_queue_redis()
+        _task_delayed_queue = DelayedTaskQueue(
+            redis=redis,
+            queue_key=settings.tasks_delayed_queue_key,
+        )
+    return _task_delayed_queue
+
+
+async def close_task_queues() -> None:
+    global _task_queue_redis, _task_reminder_queue, _task_delayed_queue
+    _task_reminder_queue = None
+    _task_delayed_queue = None
+    if _task_queue_redis is not None:
+        await _task_queue_redis.aclose()
+        _task_queue_redis = None
+
+
+class _NullTaskEventsPublisher:
+    async def task_created(self, task: object) -> None:  # pragma: no cover - noop
+        return None
+
+    async def task_status_changed(self, task: object, previous_status: object) -> None:  # pragma: no cover - noop
+        return None
+
+    async def task_reminder(self, reminder: object) -> None:  # pragma: no cover - noop
+        return None
+
+
+async def get_task_events_publisher(
+    request: Request,
+) -> TaskEventsPublisher | _NullTaskEventsPublisher:
+    publisher = getattr(request.app.state, "task_events_publisher", None)
+    if isinstance(publisher, TaskEventsPublisher):
+        return publisher
+    return _NullTaskEventsPublisher()
+
+
+async def get_task_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> services.TaskService:
+    repository = repositories.TaskRepository(session)
+    status_repository = repositories.TaskStatusRepository(session)
+    reminder_repository = repositories.TaskReminderRepository(session)
+    delayed_queue = get_delayed_task_queue()
+    reminder_queue = get_task_reminder_queue()
+    events = await get_task_events_publisher(request)
+    return services.TaskService(
+        repository,
+        status_repository,
+        reminder_repository,
+        delayed_queue,
+        reminder_queue,
+        events,
+    )
 
 
 class _NullEventsPublisher:

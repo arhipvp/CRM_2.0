@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, date
+from datetime import datetime, date, time, timezone
 from decimal import Decimal
-from typing import Literal, Optional
+from enum import Enum
+from typing import Any, Literal, Optional, Sequence
 from uuid import UUID
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
+    ConfigDict,
     Field,
     computed_field,
     field_validator,
@@ -304,44 +307,348 @@ class CalculationStatusChange(BaseModel):
     policy_id: Optional[UUID] = None
 
 
-class TaskBase(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
-    description: Optional[str] = None
-    status: str = Field(default="open")
-    priority: str = Field(default="normal")
-    due_date: Optional[date] = None
+class TaskStatusCode(str, Enum):
+    PENDING = "pending"
+    SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
 
-    @field_validator("due_date", mode="before")
+
+class TaskPriority(str, Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+
+
+def _to_camel_case(value: str) -> str:
+    segments = re.split(r"[_\-\s]+", value.strip())
+    if not segments:
+        return value
+    first, *rest = segments
+    return first.lower() + "".join(part.capitalize() for part in rest)
+
+
+def _extract_string(payload: dict[str, Any], keys: Sequence[str]) -> str | None:
+    for key in keys:
+        raw = payload.get(key)
+        if isinstance(raw, str):
+            stripped = raw.strip()
+            if stripped:
+                return stripped
+    return None
+
+
+def _parse_uuid(value: Any) -> UUID | None:
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_context(context: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for key, value in context.items():
+        if not isinstance(key, str):
+            continue
+        camel_key = _to_camel_case(key)
+        normalized[camel_key] = value
+    return normalized
+
+
+class TaskCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    subject: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1)
+    assignee_id: UUID = Field(validation_alias=AliasChoices("assignee_id", "assigneeId"))
+    author_id: UUID = Field(validation_alias=AliasChoices("author_id", "authorId"))
+    due_at: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("due_date", "dueDate", "due_at", "dueAt"),
+        serialization_alias="dueAt",
+    )
+    priority: TaskPriority | None = Field(
+        default=None, validation_alias=AliasChoices("priority")
+    )
+    context: dict[str, Any] | None = Field(default=None)
+    payload: dict[str, Any] | None = Field(default=None)
+    scheduled_for: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("scheduled_for", "scheduledFor"),
+        serialization_alias="scheduledFor",
+    )
+    initial_status: TaskStatusCode = Field(
+        default=TaskStatusCode.PENDING,
+        validation_alias=AliasChoices("initial_status", "initialStatus"),
+        serialization_alias="initialStatus",
+    )
+
+    @field_validator("subject", "description")
     @classmethod
-    def _convert_datetime_to_date(cls, value: date | datetime | None) -> date | None:
+    def _strip_required(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must_not_be_blank")
+        return stripped
+
+    @field_validator("due_at", "scheduled_for", mode="before")
+    @classmethod
+    def _ensure_datetime(cls, value: Any) -> Any:
+        if value is None or value is PydanticUndefined:
+            return None if value is None else PydanticUndefined
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, date):
+            return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return value
+
+
+class TaskUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    status: TaskStatusCode | None = Field(
+        default=None, validation_alias=AliasChoices("status", "statusCode")
+    )
+    due_at: datetime | None = Field(
+        default=PydanticUndefined,
+        validation_alias=AliasChoices("due_date", "dueDate", "due_at", "dueAt"),
+        serialization_alias="dueAt",
+    )
+    scheduled_for: datetime | None = Field(
+        default=PydanticUndefined,
+        validation_alias=AliasChoices("scheduled_for", "scheduledFor"),
+        serialization_alias="scheduledFor",
+    )
+    completed_at: datetime | None = Field(
+        default=PydanticUndefined,
+        validation_alias=AliasChoices("completed_at", "completedAt"),
+        serialization_alias="completedAt",
+    )
+    cancelled_reason: str | None = Field(
+        default=PydanticUndefined,
+        validation_alias=AliasChoices("cancelled_reason", "cancelledReason"),
+        serialization_alias="cancelledReason",
+        max_length=5000,
+    )
+
+    @field_validator("due_at", "scheduled_for", "completed_at", mode="before")
+    @classmethod
+    def _ensure_optional_datetime(cls, value: Any) -> Any:
+        if value is PydanticUndefined:
+            return value
         if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, date):
+            return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return value
+
+    @field_validator("cancelled_reason", mode="before")
+    @classmethod
+    def _strip_cancelled_reason(cls, value: Any) -> Any:
+        if value is PydanticUndefined or value is None:
+            return value
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+
+class TaskScheduleRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    scheduled_for: datetime = Field(
+        validation_alias=AliasChoices("scheduled_for", "scheduledFor"),
+        serialization_alias="scheduledFor",
+    )
+
+    @field_validator("scheduled_for", mode="before")
+    @classmethod
+    def _ensure_scheduled_datetime(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, date):
+            return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return value
+
+
+class TaskCompleteRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    completed_at: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("completed_at", "completedAt"),
+        serialization_alias="completedAt",
+    )
+
+    @field_validator("completed_at", mode="before")
+    @classmethod
+    def _ensure_completed_datetime(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, date):
+            return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return value
+
+
+class TaskFilters(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    assignee_id: UUID | None = Field(default=None)
+    statuses: list[TaskStatusCode] = Field(default_factory=list)
+    due_before: date | None = Field(default=None)
+    due_after: date | None = Field(default=None)
+    priorities: list[TaskPriority] = Field(default_factory=list)
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+    @field_validator("statuses", "priorities", mode="before")
+    @classmethod
+    def _ensure_list(cls, value: Any) -> list[Any]:
+        if value is None or value is PydanticUndefined:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            return list(value)
+        return [value]
+
+    @field_validator("due_before", "due_after", mode="before")
+    @classmethod
+    def _ensure_date(cls, value: Any) -> Any:
+        if value is None or value is PydanticUndefined:
             return None
         if isinstance(value, datetime):
             return value.date()
         return value
 
 
-class TaskCreate(TaskBase):
-    owner_id: UUID
-    deal_id: Optional[UUID] = None
-    client_id: Optional[UUID] = None
+class TaskReminderChannel(str, Enum):
+    SSE = "sse"
+    TELEGRAM = "telegram"
 
 
-class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    due_date: Optional[date] = None
+class TaskReminderCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    remind_at: datetime = Field(
+        validation_alias=AliasChoices("remind_at", "remindAt"),
+        serialization_alias="remindAt",
+    )
+    channel: TaskReminderChannel = Field(
+        default=TaskReminderChannel.SSE, validation_alias=AliasChoices("channel")
+    )
+
+    @field_validator("remind_at", mode="before")
+    @classmethod
+    def _ensure_remind_datetime(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, date):
+            return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return value
 
 
-class TaskRead(ORMModel, TaskBase):
+class TaskRead(ORMModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     id: UUID
-    owner_id: Optional[UUID]
-    deal_id: Optional[UUID]
-    client_id: Optional[UUID]
-    created_at: datetime
-    updated_at: datetime
+    title: str
+    description: str | None = None
+    status_code: TaskStatusCode = Field(serialization_alias="statusCode")
+    status_name: str | None = Field(default=None, serialization_alias="statusName")
+    due_at: datetime | None = Field(default=None, serialization_alias="dueAt")
+    scheduled_for: datetime | None = Field(
+        default=None, serialization_alias="scheduledFor"
+    )
+    completed_at: datetime | None = Field(
+        default=None, serialization_alias="completedAt"
+    )
+    cancelled_reason: str | None = Field(
+        default=None, serialization_alias="cancelledReason"
+    )
+    created_at: datetime = Field(serialization_alias="createdAt")
+    updated_at: datetime = Field(serialization_alias="updatedAt")
+    payload: dict[str, Any] | None = None
+    assignee_id: UUID | None = Field(default=None, serialization_alias="assigneeId")
+    priority: TaskPriority | None = Field(
+        default=None, serialization_alias="priority"
+    )
+    deal_id: UUID | None = Field(default=None, serialization_alias="dealId")
+    client_id: UUID | None = Field(default=None, serialization_alias="clientId")
+    context: dict[str, Any] | None = Field(default=None, serialization_alias="context")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _prepare(cls, value: Any):
+        if isinstance(value, dict):
+            return value
+        data = {
+            "id": getattr(value, "id", None),
+            "title": getattr(value, "title", None),
+            "description": getattr(value, "description", None),
+            "status_code": getattr(value, "status_code", None),
+            "status_name": getattr(getattr(value, "status", None), "name", None),
+            "due_at": getattr(value, "due_at", None),
+            "scheduled_for": getattr(value, "scheduled_for", None),
+            "completed_at": getattr(value, "completed_at", None),
+            "cancelled_reason": getattr(value, "cancelled_reason", None),
+            "created_at": getattr(value, "created_at", None),
+            "updated_at": getattr(value, "updated_at", None),
+            "payload": getattr(value, "payload", None),
+        }
+        return data
+
+    @model_validator(mode="after")
+    def _post_process(self) -> "TaskRead":
+        payload = self.payload or {}
+
+        assignee = _extract_string(payload, ["assigneeId", "assignee_id"])
+        if assignee:
+            parsed = _parse_uuid(assignee)
+            if parsed:
+                self.assignee_id = parsed
+
+        author = _extract_string(payload, ["authorId", "author_id"])
+        if author and "payload" in self.model_fields:
+            payload.setdefault("authorId", author)
+
+        priority_value = _extract_string(payload, ["priority"])
+        if priority_value:
+            try:
+                self.priority = TaskPriority(priority_value)
+            except ValueError:
+                self.priority = None
+
+        deal = _extract_string(payload, ["dealId", "deal_id"])
+        if deal:
+            parsed_deal = _parse_uuid(deal)
+            if parsed_deal:
+                self.deal_id = parsed_deal
+
+        client = _extract_string(payload, ["clientId", "client_id"])
+        if client:
+            parsed_client = _parse_uuid(client)
+            if parsed_client:
+                self.client_id = parsed_client
+
+        context_value = payload.get("context")
+        if isinstance(context_value, dict):
+            normalized_context = _normalize_context(context_value)
+            self.context = normalized_context or None
+
+        return self
+
+
+class TaskReminderRead(ORMModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: UUID
+    task_id: UUID = Field(serialization_alias="taskId")
+    remind_at: datetime = Field(serialization_alias="remindAt")
+    channel: TaskReminderChannel
+    created_at: datetime = Field(serialization_alias="createdAt")
 
 
 def _normalize_currency(value: str | None) -> str | None:
