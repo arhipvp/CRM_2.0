@@ -28,8 +28,11 @@ export class TaskResponseDto {
   updatedAt!: string;
   payload?: Record<string, unknown> | null;
   assigneeId?: NullableString;
+  authorId?: NullableString;
   priority?: NullableString;
   dealId?: NullableString;
+  policyId?: NullableString;
+  paymentId?: NullableString;
   clientId?: NullableString;
   context?: Record<string, string> | null;
 
@@ -47,17 +50,41 @@ export class TaskResponseDto {
     dto.createdAt = entity.createdAt.toISOString();
     dto.updatedAt = entity.updatedAt.toISOString();
     dto.payload = entity.payload ?? null;
+    dto.assigneeId = entity.assigneeId ?? null;
+    dto.authorId = entity.authorId ?? null;
+    dto.dealId = entity.dealId ?? null;
+    dto.policyId = entity.policyId ?? null;
+    dto.paymentId = entity.paymentId ?? null;
 
     const payload = entity.payload;
     if (isRecord(payload)) {
-      const assigneeId = extractString(payload.assigneeId ?? payload['assignee_id']);
-      dto.assigneeId = assigneeId;
+      if (!dto.assigneeId) {
+        const assigneeId = extractString(payload.assigneeId ?? payload['assignee_id']);
+        dto.assigneeId = assigneeId;
+      }
+
+      if (!dto.authorId) {
+        const authorId = extractString(payload.authorId ?? payload['author_id']);
+        dto.authorId = authorId;
+      }
 
       const priority = extractString(payload.priority);
       dto.priority = priority;
 
-      const dealId = extractString(payload.dealId ?? payload['deal_id']);
-      dto.dealId = dealId;
+      if (!dto.dealId) {
+        const dealId = extractString(payload.dealId ?? payload['deal_id']);
+        dto.dealId = dealId;
+      }
+
+      if (!dto.policyId) {
+        const policyId = extractString(payload.policyId ?? payload['policy_id']);
+        dto.policyId = policyId;
+      }
+
+      if (!dto.paymentId) {
+        const paymentId = extractString(payload.paymentId ?? payload['payment_id']);
+        dto.paymentId = paymentId;
+      }
 
       const clientId = extractString(payload.clientId ?? payload['client_id']);
       dto.clientId = clientId;

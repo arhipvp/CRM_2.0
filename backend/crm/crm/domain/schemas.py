@@ -572,10 +572,13 @@ class TaskRead(ORMModel):
     updated_at: datetime = Field(serialization_alias="updatedAt")
     payload: dict[str, Any] | None = None
     assignee_id: UUID | None = Field(default=None, serialization_alias="assigneeId")
+    author_id: UUID | None = Field(default=None, serialization_alias="authorId")
     priority: TaskPriority | None = Field(
         default=None, serialization_alias="priority"
     )
     deal_id: UUID | None = Field(default=None, serialization_alias="dealId")
+    policy_id: UUID | None = Field(default=None, serialization_alias="policyId")
+    payment_id: UUID | None = Field(default=None, serialization_alias="paymentId")
     client_id: UUID | None = Field(default=None, serialization_alias="clientId")
     context: dict[str, Any] | None = Field(default=None, serialization_alias="context")
 
@@ -597,6 +600,11 @@ class TaskRead(ORMModel):
             "created_at": getattr(value, "created_at", None),
             "updated_at": getattr(value, "updated_at", None),
             "payload": getattr(value, "payload", None),
+            "assignee_id": getattr(value, "assignee_id", None),
+            "author_id": getattr(value, "author_id", None),
+            "deal_id": getattr(value, "deal_id", None),
+            "policy_id": getattr(value, "policy_id", None),
+            "payment_id": getattr(value, "payment_id", None),
         }
         return data
 
@@ -604,15 +612,22 @@ class TaskRead(ORMModel):
     def _post_process(self) -> "TaskRead":
         payload = self.payload or {}
 
-        assignee = _extract_string(payload, ["assigneeId", "assignee_id"])
-        if assignee:
-            parsed = _parse_uuid(assignee)
-            if parsed:
-                self.assignee_id = parsed
+        if self.assignee_id is None:
+            assignee = _extract_string(payload, ["assigneeId", "assignee_id"])
+            if assignee:
+                parsed = _parse_uuid(assignee)
+                if parsed:
+                    self.assignee_id = parsed
 
-        author = _extract_string(payload, ["authorId", "author_id"])
-        if author and "payload" in self.model_fields:
-            payload.setdefault("authorId", author)
+        if self.author_id is None:
+            author = _extract_string(payload, ["authorId", "author_id"])
+            if author:
+                parsed_author = _parse_uuid(author)
+                if parsed_author:
+                    self.author_id = parsed_author
+        author_value = _extract_string(payload, ["authorId", "author_id"])
+        if author_value and "payload" in self.model_fields:
+            payload.setdefault("authorId", author_value)
 
         priority_value = _extract_string(payload, ["priority"])
         if priority_value:
@@ -621,11 +636,26 @@ class TaskRead(ORMModel):
             except ValueError:
                 self.priority = None
 
-        deal = _extract_string(payload, ["dealId", "deal_id"])
-        if deal:
-            parsed_deal = _parse_uuid(deal)
-            if parsed_deal:
-                self.deal_id = parsed_deal
+        if self.deal_id is None:
+            deal = _extract_string(payload, ["dealId", "deal_id"])
+            if deal:
+                parsed_deal = _parse_uuid(deal)
+                if parsed_deal:
+                    self.deal_id = parsed_deal
+
+        if self.policy_id is None:
+            policy = _extract_string(payload, ["policyId", "policy_id"])
+            if policy:
+                parsed_policy = _parse_uuid(policy)
+                if parsed_policy:
+                    self.policy_id = parsed_policy
+
+        if self.payment_id is None:
+            payment = _extract_string(payload, ["paymentId", "payment_id"])
+            if payment:
+                parsed_payment = _parse_uuid(payment)
+                if parsed_payment:
+                    self.payment_id = parsed_payment
 
         client = _extract_string(payload, ["clientId", "client_id"])
         if client:

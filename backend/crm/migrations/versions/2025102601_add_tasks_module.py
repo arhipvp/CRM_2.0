@@ -46,6 +46,61 @@ def upgrade() -> None:
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scheduled_for", sa.DateTime(timezone=True), nullable=True),
         sa.Column("payload", postgresql.JSONB(), nullable=True),
+        sa.Column(
+            "assignee_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "auth.users.id",
+                ondelete="RESTRICT",
+                onupdate="CASCADE",
+                name="fk_tasks_assignee_id",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "author_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "auth.users.id",
+                ondelete="RESTRICT",
+                onupdate="CASCADE",
+                name="fk_tasks_author_id",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "deal_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "crm.deals.id",
+                ondelete="SET NULL",
+                onupdate="CASCADE",
+                name="fk_tasks_deal_id",
+            ),
+            nullable=True,
+        ),
+        sa.Column(
+            "policy_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "crm.policies.id",
+                ondelete="SET NULL",
+                onupdate="CASCADE",
+                name="fk_tasks_policy_id",
+            ),
+            nullable=True,
+        ),
+        sa.Column(
+            "payment_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "crm.payments.id",
+                ondelete="SET NULL",
+                onupdate="CASCADE",
+                name="fk_tasks_payment_id",
+            ),
+            nullable=True,
+        ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("cancelled_reason", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -61,6 +116,14 @@ def upgrade() -> None:
 
     op.create_index("ix_tasks_status_code", "tasks", ["status_code"], schema="tasks")
     op.create_index(
+        "ix_tasks_status_code_due_at",
+        "tasks",
+        ["status_code", "due_at"],
+        schema="tasks",
+    )
+    op.create_index("ix_tasks_assignee_id", "tasks", ["assignee_id"], schema="tasks")
+    op.create_index("ix_tasks_deal_id", "tasks", ["deal_id"], schema="tasks")
+    op.create_index(
         "ix_tasks_scheduled_for",
         "tasks",
         ["scheduled_for"],
@@ -73,6 +136,47 @@ def upgrade() -> None:
         ["due_at"],
         schema="tasks",
         postgresql_where=sa.text("due_at IS NOT NULL"),
+    )
+
+    op.create_table(
+        "task_activity",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "task_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "tasks.tasks.id",
+                ondelete="CASCADE",
+                onupdate="CASCADE",
+                name="fk_task_activity_task_id",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "author_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey(
+                "auth.users.id",
+                ondelete="RESTRICT",
+                onupdate="CASCADE",
+                name="fk_task_activity_author_id",
+            ),
+            nullable=False,
+        ),
+        sa.Column("event_type", sa.String(length=64), nullable=False),
+        sa.Column("body", sa.Text(), nullable=True),
+        sa.Column("payload", postgresql.JSONB(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        schema="tasks",
+    )
+
+    op.create_index(
+        "ix_task_activity_created_at", "task_activity", ["created_at"], schema="tasks"
     )
 
     op.create_table(
@@ -117,10 +221,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "ix_task_activity_created_at", table_name="task_activity", schema="tasks"
+    )
+    op.drop_table("task_activity", schema="tasks")
+
     op.drop_index("idx_task_reminders_unique", table_name="task_reminders", schema="tasks")
     op.drop_index("ix_task_reminders_due", table_name="task_reminders", schema="tasks")
     op.drop_table("task_reminders", schema="tasks")
 
+    op.drop_index("ix_tasks_deal_id", table_name="tasks", schema="tasks")
+    op.drop_index("ix_tasks_assignee_id", table_name="tasks", schema="tasks")
+    op.drop_index("ix_tasks_status_code_due_at", table_name="tasks", schema="tasks")
     op.drop_index("ix_tasks_due_at", table_name="tasks", schema="tasks")
     op.drop_index("ix_tasks_scheduled_for", table_name="tasks", schema="tasks")
     op.drop_index("ix_tasks_status_code", table_name="tasks", schema="tasks")
