@@ -11,8 +11,6 @@ DEFAULT_TARGETS=(
   "backend/auth"
   "backend/crm"
   "backend/documents"
-  "backend/notifications"
-  "backend/tasks"
   "backend/reports"
   "backend/audit"
 )

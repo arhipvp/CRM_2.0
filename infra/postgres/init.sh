@@ -52,8 +52,6 @@ SQL
 create_role AUTH_DB_USER AUTH_DB_PASSWORD auth
 create_role CRM_DB_USER CRM_DB_PASSWORD crm
 create_role DOCUMENTS_DB_USER DOCUMENTS_DB_PASSWORD documents
-create_role TASKS_DB_USER TASKS_DB_PASSWORD tasks
-create_role NOTIFICATIONS_DB_USER NOTIFICATIONS_DB_PASSWORD notifications
 create_role AUDIT_DB_USER AUDIT_DB_PASSWORD audit
 create_role BACKUP_DB_USER BACKUP_DB_PASSWORD backup
 create_role REPORTS_DB_USER REPORTS_DB_PASSWORD reports
@@ -66,7 +64,7 @@ DO $$
 DECLARE
   role_name text;
   roles text[] := ARRAY[
-    'auth', 'crm', 'documents', 'tasks', 'notifications', 'audit', 'backup', 'reports'
+    'auth', 'crm', 'documents', 'audit', 'backup', 'reports'
   ];
 BEGIN
   FOREACH role_name IN ARRAY roles LOOP

@@ -193,9 +193,7 @@ export class RestProxyService {
     const internalServiceMap: Record<string, string> = {
       'crm:8082': 'localhost:8080',
       'auth:8081': 'localhost:8080',
-      'notifications:8085': 'localhost:8080',
       'documents:8084': 'localhost:8080',
-      'tasks:8086': 'localhost:8080',
       'payments:8083': 'localhost:8080',
     };
 

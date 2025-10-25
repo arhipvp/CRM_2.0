@@ -2,6 +2,8 @@
 
 > ⚠️ Сервис переведён на Python и встроен в CRM (`backend/crm`). Этот каталог сохранён для справки и не используется в актуальной поставке. Эндпоинты `/api/v1/templates`, `/api/v1/notifications`, `/api/notifications/events`, `/api/notifications/stream` реализованы в FastAPI-приложении CRM. См. [`backend/crm/README.md`](../crm/README.md#notifications) и переменные `CRM_NOTIFICATIONS_*` в [`env.example`](../../env.example).
 
+> ⚠️ **Легаси-сервис.** Функциональность уведомлений перенесена в CRM: активные REST/SSE эндпоинты и события описаны в [`docs/api/notifications.md`](../../docs/api/notifications.md). Этот README оставлен для справки по прежнему standalone-приложению; актуальные переменные окружения используют блоки `CRM_EVENTS_EXCHANGE` и `CRM_TASKS_*`, а Gateway направляет REST/SSE-запросы на CRM через `GATEWAY_UPSTREAM_NOTIFICATIONS_*` вместо отдельного сервиса уведомлений.【F:docs/api/notifications.md†L1-L33】【F:env.example†L162-L176】【F:env.example†L317-L323】【F:backend/gateway/src/config/upstreams.config.ts†L1-L66】
+
 ## Назначение
 Notifications доставляет события и уведомления во внутренний интерфейс (SSE) и Telegram-бот, принимая события из очередей RabbitMQ и публикуя их по минимальному сценарию первой поставки.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
 
@@ -10,11 +12,11 @@ Notifications доставляет события и уведомления во
 ## Требования к окружению
 - Node.js LTS (18+) и pnpm 9 (через Corepack) для запуска NestJS и фоновых воркеров.【F:docs/local-setup.md†L43-L69】
 - PostgreSQL (схема `notifications`), RabbitMQ (`notifications.events`) и Redis с namespace `notifications:` для хранения статуса доставки и управления подписками.【F:docs/tech-stack.md†L287-L339】
-- Переменные окружения `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_DISPATCH_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` (включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_*`) и `NOTIFICATIONS_SSE_RETRY_MS` (см. [`env.example`](../../env.example)).
+- Исторический список переменных `NOTIFICATIONS_*` включает `NOTIFICATIONS_HTTP_HOST`, `NOTIFICATIONS_HTTP_PORT`, `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_DISPATCH_*`, `NOTIFICATIONS_REDIS_*`, `NOTIFICATIONS_TELEGRAM_*` и `NOTIFICATIONS_SSE_RETRY_MS`; в текущем [`env.example`](../../env.example) они отсутствуют, потому что заменены CRM-параметрами (`CRM_EVENTS_EXCHANGE`, `CRM_TASKS_*`).
 
 ## Локальный запуск
 1. Перейдите в каталог `backend/notifications` и установите зависимости: `pnpm install`.
-2. Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications --non-interactive` (или без флага для ручного режима). Проверьте блок `NOTIFICATIONS_*` и заполните токен/чат Telegram, если планируете реальную отправку.
+2. Синхронизируйте `.env`: исторический скрипт `../../scripts/sync-env.sh backend/notifications` оставлен только для архивных копий; актуальные окружения используют CRM-переменные (`CRM_EVENTS_EXCHANGE`, `CRM_TASKS_*`, `TELEGRAM_BOT_*`).
 3. Запустите HTTP-приложение с live reload: `pnpm start:api:dev`. Проверьте основные маршруты:
    - `GET /api/notifications/health` — проверка готовности сервиса.
    - `GET /api/notifications/stream` — SSE-канал для клиентских интерфейсов и внутренних слушателей.
