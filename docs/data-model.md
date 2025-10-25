@@ -16,29 +16,21 @@
 erDiagram
     AUTH_USERS ||--o{ AUTH_USER_ROLES : ""
     AUTH_ROLES ||--o{ AUTH_USER_ROLES : ""
-    AUTH_USERS ||--o{ AUTH_OAUTH_SESSIONS : ""
-    AUTH_USERS ||--o{ AUTH_TOKENS : ""
 ```
 
 ### Таблицы
 
 | Таблица | Назначение |
 | --- | --- |
-| `auth.users` | Пользователи, участвующие в системе, включая внутренних сотрудников и интеграционных ботов. |
-| `auth.roles` | Роли доступа, отражающие доменные обязанности. Базовый перечень ограничен тремя позициями: продавец, исполнитель, главный админ. |
+| `auth.users` | Пользователи, участвующие в системе, включая внутренних сотрудников и технические интеграции. |
+| `auth.roles` | Роли доступа, отражающие доменные обязанности. Базовый перечень включает базовую роль пользователя и административную роль. |
 | `auth.user_roles` | Связь многие-ко-многим между пользователями и ролями. |
-| `auth.oauth_clients` | Регистрация внешних клиентов OAuth/OIDC. |
-| `auth.oauth_sessions` | Активные авторизационные сессии, включая одноразовые коды и refresh-токены. |
-| `auth.tokens` | Журнал выданных access/refresh-токенов для контроля отзывов. |
 
 ### Ключи и ограничения
 
-* `auth.users`: `PRIMARY KEY (id)`, `UNIQUE (email)`, `UNIQUE (telegram_username)`. Индексы по `status`, `created_at`.
-* `auth.roles`: `PRIMARY KEY (id)`, `UNIQUE (code)`.
-* `auth.user_roles`: составной первичный ключ `(user_id, role_id)`, внешние ключи на `auth.users(id)` и `auth.roles(id)`, индекс по `role_id`.
-* `auth.oauth_clients`: `PRIMARY KEY (id)`, `UNIQUE (client_id)`.
-* `auth.oauth_sessions`: `PRIMARY KEY (id)`, `FOREIGN KEY (user_id)` → `auth.users(id)`, `FOREIGN KEY (client_id)` → `auth.oauth_clients(id)`, индексы по `client_id`, `created_at`, `expires_at`.
-* `auth.tokens`: `PRIMARY KEY (id)`, `FOREIGN KEY (user_id)` → `auth.users(id)`, `UNIQUE (token_hash)`.
+* `auth.users`: `PRIMARY KEY (id)`, `UNIQUE (email)`. Поля `created_at` и `updated_at` сохраняются с временными метками изменений.
+* `auth.roles`: `PRIMARY KEY (id)`, `UNIQUE (name)`.
+* `auth.user_roles`: `PRIMARY KEY (id)`, уникальное ограничение `(user_id, role_id)`, внешние ключи на `auth.users(id)` и `auth.roles(id)` с каскадным удалением.
 
 ## Схема `crm`
 
@@ -226,7 +218,7 @@ erDiagram
 
 | Схема | Обязательные записи |
 | --- | --- |
-| `auth` | Справочник базовых ролей (продавец, исполнитель, главный админ). Системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. OAuth-клиенты для веб-приложений. |
+| `auth` | Справочник базовых ролей (`ROLE_USER`, `ROLE_ADMIN`) и системный пользователь для фоновых процессов. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 
 | `crm.payments` | Платёжные записи полиса: агрегированные суммы, даты фактических движений и пользователи, создавшие/обновившие запись; направления задаются позициями доходов/расходов. |
