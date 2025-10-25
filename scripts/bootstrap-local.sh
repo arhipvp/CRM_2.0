@@ -89,7 +89,7 @@ SUMMARY_MARKDOWN_FILE=""
 BOOTSTRAP_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 BOOTSTRAP_FINISHED_AT=""
 
-BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
+BACKEND_PROFILE_SERVICES=(gateway auth crm documents)
 
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
@@ -396,9 +396,7 @@ usage() {
   cat <<USAGE
 Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
-  --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
-  --skip-backend-wait
-                   не ждать готовности сервисов из профиля backend после запуска
+  --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents)
   --with-backend   запустить scripts/start-backend.sh после миграций
   --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
   --discard-logs   удалить каталоги логов и отчётов после завершения работы
