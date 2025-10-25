@@ -879,7 +879,10 @@ class NotificationTemplateBase(BaseModel):
     key: str = Field(min_length=1, max_length=255)
     channel: NotificationTemplateChannel
     body: str = Field(min_length=1)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("metadata", "template_metadata"),
+    )
     status: NotificationTemplateStatus = Field(default=NotificationTemplateStatus.ACTIVE)
 
 

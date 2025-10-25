@@ -1495,6 +1495,8 @@ class NotificationTemplateService:
         data = payload.model_dump()
         locale = payload.locale or self.default_locale
         data["locale"] = locale
+        if "metadata" in data:
+            data["template_metadata"] = data.pop("metadata")
         try:
             entity = await self.repository.create(data)
         except RepositoryError as exc:

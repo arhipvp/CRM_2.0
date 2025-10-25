@@ -381,7 +381,9 @@ class NotificationTemplate(CRMBase, TimestampMixin):
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
     locale: Mapped[str] = mapped_column(String(16), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    template_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata", JSONB, default=dict, nullable=False
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 
     __table_args__ = (
