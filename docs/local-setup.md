@@ -291,8 +291,8 @@ services:
 #### Локальные заглушки и тестовые значения
 
 - **Документы.** Для разработки достаточно локального каталога в репозитории (`./var/documents`). Убедитесь, что он исключён из VCS (`.gitignore`) и доступен процессу `node`. Значения `DOCUMENTS_STORAGE_DRIVER=local` и `DOCUMENTS_STORAGE_ROOT=./var/documents` подходят для одиночного стенда.
-- **Telegram.** Для интеграции Telegram включите mock, который идёт вместе с сервисом уведомлений: `TELEGRAM_MOCK_ENABLED=true`, `TELEGRAM_MOCK_SERVER_URL=http://localhost:8085/telegram`. Токен `TELEGRAM_BOT_TOKEN` допустимо временно заполнить значением `dev-mock-token`, пока нет боевого доступа. Webhook URL можно оставить пустым — mock читает локальные запросы напрямую.
-- **Ротация.** После получения реальных ключей отключите заглушки (`TELEGRAM_MOCK_ENABLED=false`) и перенесите секреты в управляемый Vault. Для stage/prod использование mock-значений запрещено.
+- **Telegram.** Для интеграции Telegram используйте mock, встроенный в Notifications: оставьте `NOTIFICATIONS_TELEGRAM_ENABLED=false`, включите `NOTIFICATIONS_TELEGRAM_MOCK=true` и пропишите тестовые значения для связанных переменных (`NOTIFICATIONS_TELEGRAM_BOT_TOKEN=dev-mock-token`, `NOTIFICATIONS_TELEGRAM_CHAT_ID=`, `NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED=false`, `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET=`). Webhook URL можно не указывать — mock принимает локальные запросы напрямую через API Notifications.
+- **Ротация.** После получения реальных ключей отключите заглушки (`NOTIFICATIONS_TELEGRAM_MOCK=false`, при необходимости включите `NOTIFICATIONS_TELEGRAM_ENABLED=true`) и перенесите секреты в управляемый Vault. Для stage/prod использование mock-значений запрещено.
 
 ## 2. Запустите инфраструктурные контейнеры
 

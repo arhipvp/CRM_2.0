@@ -26,7 +26,7 @@ TELEGRAM_BOT_SERVICE_PORT=8090 poetry run telegram-bot-main  # при необх
 poetry run uvicorn telegram_bot.app:create_app --factory --host 0.0.0.0 --port ${TELEGRAM_BOT_SERVICE_PORT}
 ```
 
-Webhook должен проксироваться через Gateway/BFF. Для тестирования используйте mock из Notifications (`TELEGRAM_MOCK_ENABLED=true`)
+Webhook должен проксироваться через Gateway/BFF. Для тестирования используйте mock из Notifications (`NOTIFICATIONS_TELEGRAM_MOCK=true`)
 или локальный туннель.
 
 ## Команды бота
