@@ -15,7 +15,7 @@
 
 ## Требования к окружению
 - Node.js 20 LTS, pnpm 9+ (`corepack prepare pnpm@9 --activate`).
-- PostgreSQL (схема `documents`) с включённой функцией `gen_random_uuid()` (`CREATE EXTENSION IF NOT EXISTS pgcrypto`).
+- PostgreSQL (схема `documents`) с включённой функцией `gen_random_uuid()` (`CREATE EXTENSION IF NOT EXISTS pgcrypto` создаётся `scripts/bootstrap-db-vps.sh`).
 - Redis 6+ для очередей BullMQ.
 - POSIX-совместимое хранилище (ext4/xfs/зашифрованный том), примонтированное в путь `DOCUMENTS_STORAGE_ROOT` и доступное для пользователя сервиса.
 - Установленные утилиты `acl` (для `setfacl/getfacl`), `attr` и инструмент бэкапа (`rsync`, `restic`, `rclone` — зависит от выбранной стратегии).
