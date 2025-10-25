@@ -8,9 +8,8 @@
 
 ## Доступные субагенты
 
-### Frontend & Desktop
+### Клиентские приложения
 
-- **`frontend`** — Frontend Application (Next.js/React/TypeScript) - веб-интерфейс, SSR, React компоненты, UI/UX
 - **`desktop-app`** — Desktop Application (Python/Tkinter) - десктопное приложение, GUI, работа с API
 
 ### Микросервисы (Backend)
@@ -71,26 +70,6 @@ Claude: [использует субагента auth]
 
 ## Примеры использования
 
-### Работа с фронтендом
-
-```
-Вы: "Фронтенд показывает React Hydration Error, разберись"
-
-Claude использует:
-1. frontend - анализирует ошибки в браузере, проверяет SSR/CSR
-2. gateway - проверяет доступность API
-3. crm - проверяет корректность данных от API
-```
-
-```
-Вы: "Нужно добавить новую страницу для просмотра аналитики"
-
-Claude использует:
-1. frontend - создаёт Next.js страницу, компоненты, стили
-2. crm - проверяет доступность API для аналитики
-3. reports - при необходимости добавляет новые endpoints
-```
-
 ### Работа с десктопным приложением
 
 ```
@@ -115,11 +94,10 @@ Claude использует:
 ```
 Вы: "Нужно добавить возможность прикреплять документы к сделкам"
 
-Claude использует несколько субагентов:
 1. crm - для добавления связи с документами в модели сделки
 2. documents - для API загрузки и хранения файлов
 3. gateway - для проксирования запросов загрузки
-4. frontend - для UI загрузки файлов
+4. desktop-app - для UI загрузки файлов
 ```
 
 ### Отладка проблемы
@@ -161,7 +139,6 @@ Claude использует:
 - Расходы: `crm.payment_expenses`
 
 ### Технологический стек
-- **Frontend**: Next.js 15 (React 18, TypeScript) — использует **pnpm**
 - **Desktop**: Python 3.8+ (Tkinter) — использует **pip** с requirements.txt
 - **NestJS сервисы**: Gateway, Documents, Notifications, Tasks, Audit — используют **pnpm**
 - **Python сервисы**: CRM, Reports, Telegram Bot — используют **Poetry**

@@ -27,7 +27,7 @@ color: "#DC2626"
 **Главный скрипт**: `./scripts/bootstrap-local.sh`
 
 ```bash
-# Полный запуск (инфраструктура + backend + frontend в Docker)
+# Полный запуск (инфраструктура + backend в Docker)
 ./scripts/bootstrap-local.sh
 
 # Запуск с backend на хосте (для отладки)
@@ -35,9 +35,6 @@ color: "#DC2626"
 
 # Только инфраструктура (без backend сервисов)
 ./scripts/bootstrap-local.sh --skip-backend
-
-# Без frontend
-./scripts/bootstrap-local.sh --skip-frontend
 ```
 
 **Логи**: `.local/logs/bootstrap/run-<timestamp>/`
