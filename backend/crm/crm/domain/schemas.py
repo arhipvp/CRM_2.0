@@ -932,7 +932,11 @@ class NotificationAttemptRead(ORMModel):
     attempt_number: int
     channel: str
     status: str
-    metadata: dict[str, Any] | None
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("delivery_metadata", "metadata"),
+        serialization_alias="metadata",
+    )
     error: str | None
     created_at: datetime
 
