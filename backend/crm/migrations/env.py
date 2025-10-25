@@ -56,6 +56,7 @@ def run_migrations(connection: Connection) -> None:
         include_schemas=True,
         include_object=include_object,
         version_table_schema="crm",
+        version_table_column_length=128,
     )
 
     with context.begin_transaction():
