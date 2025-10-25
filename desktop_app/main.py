@@ -167,20 +167,19 @@ class App(tk.Tk):
         self.tree = ttk.Treeview(
             tree_frame,
             columns=(
-                "ID", "Tenant ID", "Owner ID", "Deleted", "Name", "Email",
+                "ID", "Owner ID", "Deleted", "Name", "Email",
                 "Phone", "Status", "Created At", "Updated At"
             ),
             show="headings"
         )
 
         for col in (
-            "ID", "Tenant ID", "Owner ID", "Deleted", "Name", "Email",
+            "ID", "Owner ID", "Deleted", "Name", "Email",
             "Phone", "Status", "Created At", "Updated At"
         ):
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50)
-        self.tree.column("Tenant ID", width=100)
         self.tree.column("Owner ID", width=100)
         self.tree.column("Deleted", width=60)
         self.tree.column("Name", width=140)
@@ -248,7 +247,6 @@ class App(tk.Tk):
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Tenant ID": "tenant_id",
             "Owner ID": "owner_id",
             "Deleted": "is_deleted",
             "Name": "name",
@@ -293,12 +291,10 @@ class App(tk.Tk):
         # Add clients
         for client in clients_to_display:
             client_id = str(client.get("id", "N/A"))[:8]  # Show first 8 chars of UUID
-            tenant_id = str(client.get("tenant_id", "N/A"))[:8]
             owner_id = str(client.get("owner_id", "N/A"))[:8]
             is_deleted = "Yes" if client.get("is_deleted", False) else "No"
             self.tree.insert("", "end", iid=client.get("id"), values=(
                 client_id,
-                tenant_id,
                 owner_id,
                 is_deleted,
                 client.get("name", "N/A"),
@@ -457,7 +453,7 @@ class App(tk.Tk):
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
                 i18n("Phone"), i18n("Status"), i18n("Created At"), i18n("Updated At")
             ]
             rows = []
@@ -466,7 +462,6 @@ class App(tk.Tk):
                 is_deleted = i18n("Yes") if client.get("is_deleted", False) else i18n("No")
                 rows.append([
                     client.get("id", "N/A")[:8],
-                    client.get("tenant_id", "N/A")[:8],
                     client.get("owner_id", "N/A")[:8],
                     is_deleted,
                     client.get("name", "N/A"),
@@ -506,7 +501,7 @@ class App(tk.Tk):
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Name"), i18n("Email"),
                 i18n("Phone"), i18n("Status"), i18n("Created At"), i18n("Updated At")
             ]
             rows = []
@@ -515,7 +510,6 @@ class App(tk.Tk):
                 is_deleted = i18n("Yes") if client.get("is_deleted", False) else i18n("No")
                 rows.append([
                     client.get("id", "N/A")[:8],
-                    client.get("tenant_id", "N/A")[:8],
                     client.get("owner_id", "N/A")[:8],
                     is_deleted,
                     client.get("name", "N/A"),

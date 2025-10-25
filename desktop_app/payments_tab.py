@@ -55,7 +55,7 @@ class PaymentsTab:
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         columns = (
-            "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+            "ID", "Deal ID", "Policy ID", "Sequence", "Status",
             "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
             "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
             "Expenses Total", "Net Total", "Created At", "Updated At"
@@ -70,7 +70,6 @@ class PaymentsTab:
             self.tree.heading(col, text=col, command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=100)
-        self.tree.column("Tenant ID", width=100)
         self.tree.column("Deal ID", width=100)
         self.tree.column("Policy ID", width=100)
         self.tree.column("Sequence", width=80)
@@ -115,7 +114,6 @@ class PaymentsTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Tenant ID": "tenant_id",
             "Deal ID": "deal_id",
             "Policy ID": "policy_id",
             "Sequence": "sequence",
@@ -288,7 +286,6 @@ class PaymentsTab:
         for payment in payments_to_display:
             self.tree.insert("", "end", iid=payment.get("id"), values=(
                 str(payment.get("id", "N/A"))[:8],
-                str(payment.get("tenant_id", "N/A"))[:8],
                 str(payment.get("deal_id", "N/A"))[:8],
                 str(payment.get("policy_id", "N/A"))[:8],
                 payment.get("sequence", "N/A"),
@@ -338,7 +335,7 @@ class PaymentsTab:
         try:
             # Prepare data
             columns = [
-                "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+                "ID", "Deal ID", "Policy ID", "Sequence", "Status",
                 "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
                 "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
                 "Expenses Total", "Net Total", "Created At", "Updated At"
@@ -348,7 +345,6 @@ class PaymentsTab:
             for payment in self.all_payments:
                 rows.append([
                     payment.get("id", "N/A")[:8],
-                    payment.get("tenant_id", "N/A")[:8],
                     payment.get("deal_id", "N/A")[:8],
                     payment.get("policy_id", "N/A")[:8],
                     payment.get("sequence", "N/A"),
@@ -397,7 +393,7 @@ class PaymentsTab:
         try:
             # Prepare data
             columns = [
-                "ID", "Tenant ID", "Deal ID", "Policy ID", "Sequence", "Status",
+                "ID", "Deal ID", "Policy ID", "Sequence", "Status",
                 "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment",
                 "Recorded By ID", "Created By ID", "Updated By ID", "Incomes Total",
                 "Expenses Total", "Net Total", "Created At", "Updated At"
@@ -407,7 +403,6 @@ class PaymentsTab:
             for payment in self.all_payments:
                 rows.append([
                     payment.get("id", "N/A")[:8],
-                    payment.get("tenant_id", "N/A")[:8],
                     payment.get("deal_id", "N/A")[:8],
                     payment.get("policy_id", "N/A")[:8],
                     payment.get("sequence", "N/A"),
