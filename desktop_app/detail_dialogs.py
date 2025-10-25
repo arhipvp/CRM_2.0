@@ -244,16 +244,18 @@ class DealDetailDialog(tk.Toplevel):
 
         self.payments_tree = ttk.Treeview(
             tree_frame,
-            columns=("Date", "Amount", "Status", "Planned"),
+            columns=("Date", "Incomes", "Expenses", "Net", "Status", "Planned"),
             show="headings",
             height=12
         )
 
-        for col in ("Date", "Amount", "Status", "Planned"):
+        for col in ("Date", "Incomes", "Expenses", "Net", "Status", "Planned"):
             self.payments_tree.heading(col, text=col, command=lambda c=col: self._on_payments_tree_sort(c))
 
         self.payments_tree.column("Date", width=120)
-        self.payments_tree.column("Amount", width=100)
+        self.payments_tree.column("Incomes", width=100)
+        self.payments_tree.column("Expenses", width=100)
+        self.payments_tree.column("Net", width=100)
         self.payments_tree.column("Status", width=100)
         self.payments_tree.column("Planned", width=100)
 
@@ -272,7 +274,9 @@ class DealDetailDialog(tk.Toplevel):
     def _on_payments_tree_sort(self, col):
         display_map = {
             "Date": "actual_date",
-            "Amount": "incomes_total",
+            "Incomes": "incomes_total",
+            "Expenses": "expenses_total",
+            "Net": "net_total",
             "Status": "status",
             "Planned": "planned_amount",
         }
@@ -307,7 +311,8 @@ class DealDetailDialog(tk.Toplevel):
                 self.all_clients = self.crm_service.get_clients()
                 self.policies = self.crm_service.get_deal_policies(deal_id)
                 self.calculations = self.crm_service.get_calculations(deal_id)
-                self.payments = self.crm_service.get_payments(deal_id)
+                payments = self.crm_service.get_payments(deal_id)
+                self.payments = [self._normalize_payment(payment) for payment in payments]
                 self.after(0, self._update_dependent_data)
             except Exception as e:
                 from logger import logger
@@ -505,14 +510,12 @@ class DealDetailDialog(tk.Toplevel):
     def _add_payment(self):
         """Add payment to deal"""
         from edit_dialogs import PaymentEditDialog
-        dialog = PaymentEditDialog(self, self.crm_service, deals_list=[self.deal_data], policies_list=self.policies, payment=None)
+        dialog = PaymentEditDialog(self, payment=None, deals_list=[self.deal_data], policies_list=self.policies)
         if dialog.result:
             def worker():
                 try:
-                    deal_id = self.deal_data.get("id", "")
-                    self.crm_service.create_payment(deal_id, **dialog.result)
-                    self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Payment created successfully")))
-                    self.after(0, self._reload_payments)
+                    payment = self.crm_service.create_payment(**dialog.result)
+                    self.after(0, lambda: self._handle_payment_saved(payment, i18n("Payment created successfully")))
                 except Exception as e:
                     from logger import logger
                     logger.error(f"Failed to create payment: {e}")
@@ -582,7 +585,8 @@ class DealDetailDialog(tk.Toplevel):
         def worker():
             try:
                 deal_id = self.deal_data.get("id", "")
-                self.payments = self.crm_service.get_payments(deal_id)
+                payments = self.crm_service.get_payments(deal_id)
+                self.payments = [self._normalize_payment(payment) for payment in payments]
                 self.after(0, self._update_payments_tree)
                 self.after(0, self._update_finances)
             except Exception as e:
@@ -641,21 +645,74 @@ class DealDetailDialog(tk.Toplevel):
         for payment in self.payments:
             item_id = self.payments_tree.insert("", "end", values=(
                 payment.get("actual_date", payment.get("planned_date", "N/A")),
-                payment.get("incomes_total", "N/A"),
+                self._format_amount(payment.get("incomes_total")),
+                self._format_amount(payment.get("expenses_total")),
+                self._format_amount(payment.get("net_total")),
                 payment.get("status", "N/A"),
-                payment.get("planned_amount", "N/A"),
+                self._format_amount(payment.get("planned_amount")),
             ))
             self.payment_id_map[item_id] = payment.get("id")
 
     def _update_finances(self):
         """Update financial summary"""
-        total_income = sum(float(p.get("incomes_total", 0) or 0) for p in self.payments)
-        total_expenses = sum(float(p.get("expenses_total", 0) or 0) for p in self.payments)
+        total_income = sum(self._coerce_numeric(p.get("incomes_total")) for p in self.payments)
+        total_expenses = sum(self._coerce_numeric(p.get("expenses_total")) for p in self.payments)
         net = total_income - total_expenses
 
         self.income_label.config(text=f"{total_income:,.2f}")
         self.expenses_label.config(text=f"{total_expenses:,.2f}")
         self.net_label.config(text=f"{net:,.2f}")
+
+    def _handle_payment_saved(self, payment: Optional[Dict[str, Any]], success_message: Optional[str] = None):
+        """Handle payment creation/update feedback"""
+        if payment:
+            normalized = self._normalize_payment(payment)
+            self._upsert_payment(normalized)
+        if success_message:
+            messagebox.showinfo(i18n("Success"), success_message)
+        self._reload_payments()
+
+    def _normalize_payment(self, payment: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize numeric fields for display"""
+        normalized = dict(payment or {})
+        for field in ("planned_amount", "incomes_total", "expenses_total", "net_total"):
+            normalized[field] = self._coerce_numeric(normalized.get(field))
+        return normalized
+
+    def _upsert_payment(self, payment: Dict[str, Any]):
+        """Insert or update payment locally"""
+        payment_id = payment.get("id")
+        if not payment_id:
+            return
+        updated = False
+        for index, existing in enumerate(self.payments):
+            if existing.get("id") == payment_id:
+                merged = existing.copy()
+                merged.update(payment)
+                self.payments[index] = merged
+                updated = True
+                break
+        if not updated:
+            self.payments.append(payment)
+        self._update_payments_tree()
+        self._update_finances()
+
+    @staticmethod
+    def _coerce_numeric(value: Any) -> float:
+        """Convert provided value to float"""
+        if value is None or value == "":
+            return 0.0
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        try:
+            return float(str(value).replace(",", "."))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _format_amount(value: Any) -> str:
+        """Format numeric values for tree display"""
+        return f"{DealDetailDialog._coerce_numeric(value):.2f}"
 
 
 class PolicyDetailDialog(tk.Toplevel):

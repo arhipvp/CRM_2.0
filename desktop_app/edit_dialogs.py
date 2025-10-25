@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from i18n import i18n
 from document_utils import copy_files_to_deal_folder, open_deal_folder
 
@@ -204,6 +205,11 @@ class PaymentEditDialog(BaseEditDialog):
         self.planned_amount_var = tk.StringVar(value=str(payment.get("planned_amount", "")) if payment else "")
         self.currency_var = tk.StringVar(value=payment.get("currency", "RUB") if payment else "RUB")
         self.comment_var = tk.StringVar(value=payment.get("comment", "") if payment else "")
+        incomes_initial = self._format_decimal_value(payment.get("incomes_total")) if payment else "0.00"
+        expenses_initial = self._format_decimal_value(payment.get("expenses_total")) if payment else "0.00"
+        self.incomes_total_var = tk.StringVar(value=incomes_initial)
+        self.expenses_total_var = tk.StringVar(value=expenses_initial)
+        self.net_total_var = tk.StringVar()
 
         # Set dropdowns to current values
         if payment:
@@ -230,30 +236,47 @@ class PaymentEditDialog(BaseEditDialog):
         # Planned Amount
         self.create_field(3, "Planned Amount", self.planned_amount_var, "entry")
 
+        # Incomes Total
+        self.create_field(4, "Incomes Total", self.incomes_total_var, "entry")
+
+        # Expenses Total
+        self.create_field(5, "Expenses Total", self.expenses_total_var, "entry")
+
+        # Net Total (calculated)
+        ttk.Label(self, text="Net Total:").grid(row=6, column=0, sticky="w", padx=10, pady=5)
+        ttk.Label(self, textvariable=self.net_total_var).grid(row=6, column=1, sticky="w", padx=10, pady=5)
+
         # Currency
-        self.create_field(4, "Currency", self.currency_var, "entry")
+        self.create_field(7, "Currency", self.currency_var, "entry")
 
         # Status
-        self.create_field(5, "Status", self.status_var, "combobox",
+        self.create_field(8, "Status", self.status_var, "combobox",
                          ["scheduled", "completed", "failed", "cancelled"])
 
         # Planned Date
-        self.create_field(6, "Planned Date", self.planned_date_var, "date")
+        self.create_field(9, "Planned Date", self.planned_date_var, "date")
 
         # Actual Date
-        self.create_field(7, "Actual Date", self.actual_date_var, "date")
+        self.create_field(10, "Actual Date", self.actual_date_var, "date")
 
         # Comment
-        self.create_field(8, "Comment", self.comment_var, "text")
+        self.create_field(11, "Comment", self.comment_var, "text")
+
+        # Setup total change tracking
+        self.incomes_total_var.trace_add("write", self._on_totals_changed)
+        self.expenses_total_var.trace_add("write", self._on_totals_changed)
+        self._update_net_total()
 
         # Buttons
-        self.setup_buttons(9)
+        self.setup_buttons(12)
 
     def on_ok(self) -> None:
         """Handle OK button"""
         deal_name = self.deal_id_var.get().strip()
         policy_name = self.policy_id_var.get().strip()
         planned_amount = self.planned_amount_var.get().strip()
+        incomes_total_raw = self.incomes_total_var.get().strip()
+        expenses_total_raw = self.expenses_total_var.get().strip()
 
         if not deal_name:
             messagebox.showerror(i18n("Error"), "Deal must be selected.", parent=self)
@@ -274,6 +297,20 @@ class PaymentEditDialog(BaseEditDialog):
             messagebox.showerror(i18n("Error"), "Invalid deal or policy selected.", parent=self)
             return
 
+        incomes_total = self._parse_decimal(incomes_total_raw)
+        if incomes_total is None:
+            messagebox.showerror(i18n("Error"), "Incomes Total must be a valid number.", parent=self)
+            return
+
+        expenses_total = self._parse_decimal(expenses_total_raw)
+        if expenses_total is None:
+            messagebox.showerror(i18n("Error"), "Expenses Total must be a valid number.", parent=self)
+            return
+
+        incomes_total = incomes_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        expenses_total = expenses_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net_total = (incomes_total - expenses_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
         comment = self.get_text_value(self.comment_var)
 
         self.result = {
@@ -285,9 +322,56 @@ class PaymentEditDialog(BaseEditDialog):
             "actual_date": self.actual_date_var.get() if self.actual_date_var.get() else None,
             "planned_amount": float(planned_amount),
             "currency": self.currency_var.get(),
-            "comment": comment
+            "comment": comment,
+            "incomes_total": f"{incomes_total:.2f}",
+            "expenses_total": f"{expenses_total:.2f}",
+            "net_total": f"{net_total:.2f}"
         }
         self.destroy()
+
+    def _format_decimal_value(self, value: Any) -> str:
+        """Format decimal-like values for entry fields"""
+        if value is None:
+            return "0.00"
+        if isinstance(value, (int, float, Decimal)):
+            return f"{Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
+        string_value = str(value).strip()
+        if not string_value:
+            return "0.00"
+        string_value = string_value.replace(",", ".")
+        try:
+            decimal_value = Decimal(string_value)
+        except InvalidOperation:
+            return "0.00"
+        return f"{decimal_value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
+
+    def _parse_decimal(self, value: str) -> Optional[Decimal]:
+        """Parse user input into Decimal"""
+        normalized = (value or "").strip().replace(",", ".")
+        if not normalized:
+            return Decimal("0")
+        try:
+            return Decimal(normalized)
+        except InvalidOperation:
+            return None
+
+    def _on_totals_changed(self, *_):
+        """Update net total when incomes or expenses change"""
+        self._update_net_total()
+
+    def _update_net_total(self):
+        """Recalculate net total value"""
+        incomes = self._parse_decimal(self.incomes_total_var.get())
+        expenses = self._parse_decimal(self.expenses_total_var.get())
+        if incomes is None or expenses is None:
+            self.net_total_var.set("")
+            return
+        try:
+            net_total = (incomes - expenses).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except InvalidOperation:
+            self.net_total_var.set("")
+            return
+        self.net_total_var.set(f"{net_total:.2f}")
 
 
 # --- Policy Edit Dialog ---

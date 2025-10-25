@@ -125,6 +125,9 @@
 | planned_amount | string (decimal) | Да | Плановая сумма платежа. |
 | currency | string | Да | Код валюты. |
 | comment | string | Нет | Комментарий до 500 символов. |
+| incomes_total | string (decimal) | Нет | Фактическая сумма поступлений при ручном занесении данных. |
+| expenses_total | string (decimal) | Нет | Фактическая сумма расходов, связанных с записью. |
+| net_total | string (decimal) | Нет | Разница `incomes_total - expenses_total`; если опущено, CRM заполнит значение автоматически. |
 
 **Ответ 201** — объект платежа (см. выше). После создания CRM публикует событие `deal.payment.created` в exchange `crm.events`.
 
@@ -150,6 +153,9 @@
 | actual_date | date | Дата закрытия платежа. Должна быть не раньше `planned_date` (если задана) и не позже текущего дня. |
 | status | string | Принудительная установка статуса (`cancelled`). Доступна пользователям с ролью `admin` («главный админ»). |
 | recorded_by_id | UUID | Пользователь, который вручную подтвердил платёж; передавайте вместе с `actual_date`, если закрытие фиксирует конкретный сотрудник. |
+| incomes_total | string (decimal) | Новое агрегированное значение поступлений. Для согласованности укажите и `net_total`. |
+| expenses_total | string (decimal) | Новое агрегированное значение расходов. |
+| net_total | string (decimal) | Чистый результат; если не передан, CRM рассчитает его как `incomes_total - expenses_total`. |
 
 **Ответ 200** — обновлённый объект платежа.
 
