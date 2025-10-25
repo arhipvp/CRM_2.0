@@ -64,7 +64,7 @@ export default (): DocumentsConfiguration => ({
     prefix: process.env.DOCUMENTS_REDIS_PREFIX ?? 'documents',
   },
   queues: {
-    documents: process.env.DOCUMENTS_QUEUE_NAME ?? 'documents:tasks',
+    documents: process.env.DOCUMENTS_QUEUE_NAME ?? 'documents_tasks',
     permissionsSync: {
       name: process.env.DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME ?? 'documents.permissions.sync',
       jobTtlSeconds: Number(process.env.DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL ?? 300),

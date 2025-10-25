@@ -49,7 +49,7 @@ pnpm install
 | `DOCUMENTS_RUN_MIGRATIONS` | Автоматически применять миграции при старте (false по умолчанию). |
 | `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
-| `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents:tasks`). |
+| `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents_tasks`). |
 | `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME` | Имя очереди синхронизации прав (по умолчанию `documents.permissions.sync`). |
 | `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` | TTL задания синхронизации прав в очереди (секунды, по умолчанию 300). |
 | `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL файлового шлюза для формирования подписанной ссылки. |
@@ -180,7 +180,7 @@ rsync -a --delete /var/lib/crm/documents/ /srv/backup/crm-docs-$(date +%Y%m%d)
 Настройте cron/systemd timer в соответствии с политикой бэкапов. Значения `DOCUMENTS_BACKUP_STRATEGY` и `DOCUMENTS_BACKUP_TARGET` отражают выбранный сценарий и синхронизируются с Backup-сервисом.
 ## Проверка хранилища
 - `GET /health` возвращает статус `storage.ok=true`, если каталог из `DOCUMENTS_STORAGE_ROOT` доступен для записи.
-- `pnpm start:worker:dev` пишет диагностические события в очередь `documents:tasks`. При ошибках прав доступа воркер выводит код `EACCES` — проверьте UID/GID и параметры монтирования.
+- `pnpm start:worker:dev` пишет диагностические события в очередь `documents_tasks`. При ошибках прав доступа воркер выводит код `EACCES` — проверьте UID/GID и параметры монтирования.
 - Для анализа свободного места используйте `docker compose exec documents df -h /var/lib/crm/documents` или аналогичную команду в Kubernetes (`kubectl exec`).
 ### Коды ошибок Documents API
 

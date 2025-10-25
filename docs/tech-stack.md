@@ -202,7 +202,7 @@ Documents
 
 Фреймворк: NestJS 10 (`@nestjs/config`, `@nestjs/typeorm`, `@nestjs/bullmq`), файловые операции реализованы через стандартный модуль `fs/promises` и утилиты для управления правами.
 
-БД и очереди: TypeORM (PostgreSQL, схема `documents`), BullMQ (Redis), очередь `documents:tasks` с заданиями `documents.upload` и `documents.sync`.
+БД и очереди: TypeORM (PostgreSQL, схема `documents`), BullMQ (Redis), очередь `documents_tasks` с заданиями `documents.upload` и `documents.sync`.
 
 API: REST (CRUD метаданных, health-check), отдельный воркер BullMQ.
 
