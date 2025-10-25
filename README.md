@@ -16,6 +16,11 @@
 
 1. создание отсутствующих `.env` через `scripts/sync-env.sh --non-interactive` (существующие файлы пропускаются; для обновления значений запустите `scripts/sync-env.sh --non-interactive=overwrite` либо проверьте их вручную);
 2. запуск инфраструктуры `docker compose --env-file .env up -d` в каталоге `infra/`;
+   ⚠️ Без отдельного запуска профиля backend прикладные сервисы не поднимутся. Выполните:
+
+   ```bash
+   docker compose --env-file .env --profile backend up -d
+   ```
 3. ожидание готовности инфраструктурных контейнеров (`docker compose wait` либо резервный цикл с проверкой healthcheck);
 4. автоматическую настройку RabbitMQ (`infra/rabbitmq/bootstrap.sh`) — обмены и очереди появляются до старта прикладных сервисов;
 5. миграции CRM/Auth через `scripts/migrate-local.sh`, пока инфраструктура готова, а backend-профиль ещё не поднят;
