@@ -736,7 +736,7 @@ step_compose_backend_up() {
   load_env || return 1
   (
     cd "${INFRA_DIR}" || return 1
-    "${COMPOSE_CMD[@]}" --profile backend up -d "${BACKEND_PROFILE_SERVICES[@]}"
+    "${COMPOSE_CMD[@]}" --profile backend up -d
   )
 }
 
