@@ -510,7 +510,12 @@ class DealDetailDialog(tk.Toplevel):
     def _add_payment(self):
         """Add payment to deal"""
         from edit_dialogs import PaymentEditDialog
-        dialog = PaymentEditDialog(self, payment=None, deals_list=[self.deal_data], policies_list=self.policies)
+        dialog = PaymentEditDialog(
+            self,
+            payment=None,
+            deals_list=[self.deal_data],
+            policies_list=self.policies,
+        )
         if dialog.result:
             def worker():
                 try:
