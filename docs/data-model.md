@@ -16,29 +16,42 @@
 erDiagram
     AUTH_USERS ||--o{ AUTH_USER_ROLES : ""
     AUTH_ROLES ||--o{ AUTH_USER_ROLES : ""
-    AUTH_USERS ||--o{ AUTH_OAUTH_SESSIONS : ""
-    AUTH_USERS ||--o{ AUTH_TOKENS : ""
 ```
 
 ### Таблицы
 
 | Таблица | Назначение |
 | --- | --- |
-| `auth.users` | Пользователи, участвующие в системе, включая внутренних сотрудников и интеграционных ботов. |
-| `auth.roles` | Роли доступа, отражающие доменные обязанности. Базовый перечень ограничен тремя позициями: продавец, исполнитель, главный админ. |
-| `auth.user_roles` | Связь многие-ко-многим между пользователями и ролями. |
-| `auth.oauth_clients` | Регистрация внешних клиентов OAuth/OIDC. |
-| `auth.oauth_sessions` | Активные авторизационные сессии, включая одноразовые коды и refresh-токены. |
-| `auth.tokens` | Журнал выданных access/refresh-токенов для контроля отзывов. |
+| `auth.users` | Пользователи CRM с реквизитами входа: `email`, `password_hash`, флаг активности `enabled`, временные метки `created_at`/`updated_at`. |
+| `auth.roles` | Роли доступа с полями `name` и `description`. Базовый набор включает `ROLE_USER` (базовые привилегии) и `ROLE_ADMIN` (администрирование). |
+| `auth.user_roles` | Связующая таблица между пользователями и ролями, фиксирует назначения ролей конкретным пользователям. |
+
+#### Поля `auth.users`
+
+* `id` (`uuid`, PK) — идентификатор пользователя.
+* `email` (`varchar(255)`, NOT NULL, UNIQUE) — логин пользователя, используется как основной идентификатор при входе.
+* `password_hash` (`varchar(255)`, NOT NULL) — хэш пароля (bcrypt).
+* `enabled` (`boolean`, NOT NULL, default `true`) — признак активной учётной записи.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`) — дата создания.
+* `updated_at` (`timestamptz`, NOT NULL, default `now()`) — дата последнего обновления.
+
+#### Поля `auth.roles`
+
+* `id` (`uuid`, PK) — идентификатор роли.
+* `name` (`varchar(64)`, NOT NULL, UNIQUE) — машинное имя роли (`ROLE_*`).
+* `description` (`varchar(255)`, NULL) — текстовое описание назначения роли.
+
+#### Поля `auth.user_roles`
+
+* `id` (`bigserial`, PK) — уникальный идентификатор записи назначения.
+* `user_id` (`uuid`, NOT NULL) — ссылка на пользователя (`auth.users.id`).
+* `role_id` (`uuid`, NOT NULL) — ссылка на роль (`auth.roles.id`).
 
 ### Ключи и ограничения
 
-* `auth.users`: `PRIMARY KEY (id)`, `UNIQUE (email)`, `UNIQUE (telegram_username)`. Индексы по `status`, `created_at`.
-* `auth.roles`: `PRIMARY KEY (id)`, `UNIQUE (code)`.
-* `auth.user_roles`: составной первичный ключ `(user_id, role_id)`, внешние ключи на `auth.users(id)` и `auth.roles(id)`, индекс по `role_id`.
-* `auth.oauth_clients`: `PRIMARY KEY (id)`, `UNIQUE (client_id)`.
-* `auth.oauth_sessions`: `PRIMARY KEY (id)`, `FOREIGN KEY (user_id)` → `auth.users(id)`, `FOREIGN KEY (client_id)` → `auth.oauth_clients(id)`, индексы по `client_id`, `created_at`, `expires_at`.
-* `auth.tokens`: `PRIMARY KEY (id)`, `FOREIGN KEY (user_id)` → `auth.users(id)`, `UNIQUE (token_hash)`.
+* `auth.users`: `PRIMARY KEY (id)`, `UNIQUE (email)`. Временные метки используются для аудита (`created_at`, `updated_at`).
+* `auth.roles`: `PRIMARY KEY (id)`, `UNIQUE (name)`.
+* `auth.user_roles`: `PRIMARY KEY (id)`, `UNIQUE (user_id, role_id)`, `FOREIGN KEY (user_id)` → `auth.users(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (role_id)` → `auth.roles(id)` с `ON DELETE CASCADE`.
 
 ## Схема `crm`
 
@@ -226,7 +239,7 @@ erDiagram
 
 | Схема | Обязательные записи |
 | --- | --- |
-| `auth` | Справочник базовых ролей (продавец, исполнитель, главный админ). Системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. OAuth-клиенты для веб-приложений. |
+| `auth` | Справочник базовых ролей (`ROLE_USER`, `ROLE_ADMIN`), системный пользователь `system` для фоновых процессов и технический аккаунт бота для интеграций. |
 | `crm` | Начальные статусы сделок (`draft`, `quotation`, `client_decision`, `policy_issue`, `won`, `lost`), статусы полисов (`active`, `expired`, `cancelled`) и типов клиентов (`individual`, `company`). |
 
 | `crm.payments` | Платёжные записи полиса: агрегированные суммы, даты фактических движений и пользователи, создавшие/обновившие запись; направления задаются позициями доходов/расходов. |
@@ -234,9 +247,9 @@ erDiagram
 | `crm.payment_expenses` | Расходные позиции (скидки, выплаты коллегам, удержания) с суммой, типом и датой наступления. |
 | `tasks` | Справочник статусов задач (`new` — «Новая», `in_progress` — «В работе», `waiting` — «Ожидание внешнего действия», `done` — «Выполнена», `cancelled` — «Отменена»). |
 | `documents` | Типы документов (`policy`, `calculation`, `act`, `other`) и настройки корневого каталога локального хранилища. |
-| `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для роли `sales_agent`. |
+| `notifications` | Шаблоны для ключевых событий (создание сделки, просрочка задачи, подтверждение платежа), настройки канала Telegram для получателей с ролью `ROLE_USER`. |
 
-Отдельные роли финменеджера или руководителя в seed-набор не входят: базовые сценарии закрываются тремя ролями (`sales_agent`, `executor`, `root_admin`). Внешние схемы платежей не используются — факт оплаты фиксируется исключительно в `crm.payments` и связанных позициях доходов/расходов.
+Отдельные специализированные роли в seed-набор не входят: базовые сценарии закрываются ролями `ROLE_USER` и `ROLE_ADMIN`. Внешние схемы платежей не используются — факт оплаты фиксируется исключительно в `crm.payments` и связанных позициях доходов/расходов.
 
 Связи между схемами обеспечиваются внешними ключами:
 
