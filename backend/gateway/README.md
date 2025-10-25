@@ -1,11 +1,11 @@
 # Gateway / BFF Service
 
 ## Назначение
-Gateway — единая точка входа для клиентских приложений (CRM UI через BFF, Telegram-бот, внешние интеграции). Он оркестрирует синхронные запросы, управляет сессиями, проксирует REST и SSE каналы к внутренним сервисам и маршрутизирует внешние вебхуки.【F:docs/architecture.md†L9-L66】【F:docs/tech-stack.md†L120-L142】
+Gateway — единая точка входа для клиентских приложений (CRM UI через BFF, Telegram-бот, внешние интеграции). Он проксирует REST-запросы в сервисы Auth и CRM/Deals, ретранслирует SSE-потоки и маршрутизирует внешние вебхуки без собственной бизнес-логики.【F:docs/architecture.md†L9-L66】【F:docs/tech-stack.md†L120-L142】
 
 ## Требования к окружению
 - Node.js LTS (18+) и NestJS, менеджер пакетов pnpm/npm.【F:docs/tech-stack.md†L120-L138】
-- Redis для хранения сессий и кеша, Consul для service discovery (по мере интеграции).【F:docs/tech-stack.md†L126-L136】
+- Redis для служебных ключей SSE, Consul для service discovery (по мере интеграции).【F:docs/tech-stack.md†L126-L136】
 - Настроенные переменные `GATEWAY_SERVICE_PORT`, `GATEWAY_BASE_URL`, `REDIS_URL`, `CONSUL_HTTP_ADDR` и `GATEWAY_UPSTREAM_*` согласно [`env.example`](../../env.example).
 
 ## Локальный запуск
