@@ -90,8 +90,56 @@ if [[ -z "${RABBITMQ_DEFAULT_USER:-}" || -z "${RABBITMQ_DEFAULT_PASS:-}" || -z "
   exit 1
 fi
 
-compose_rabbitmqctl() {
+format_rabbitmqctl_cmd() {
+  local arg
+  local formatted=""
+  for arg in "$@"; do
+    if [[ -n "${formatted}" ]]; then
+      formatted+=" "
+    fi
+    formatted+="$(printf '%q' "${arg}")"
+  done
+  printf '%s' "${formatted}"
+}
+
+compose_rabbitmqctl_exec() {
   "${DOCKER_COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" exec -T rabbitmq rabbitmqctl "$@"
+}
+
+compose_rabbitmqctl_retry() {
+  local max_attempts="$1"
+  shift
+  local delay_seconds="$1"
+  shift
+
+  local attempt=0
+  local exit_code=0
+  local cmd_display
+  cmd_display="$(format_rabbitmqctl_cmd "$@")"
+
+  while (( attempt < max_attempts )); do
+    ((attempt++))
+    if compose_rabbitmqctl_exec "$@"; then
+      return 0
+    fi
+    exit_code=$?
+
+    if (( attempt >= max_attempts )); then
+      echo "[Ошибка] Команда 'rabbitmqctl ${cmd_display}' не удалась после ${max_attempts} попыток." >&2
+      return "${exit_code}"
+    fi
+
+    echo "[Предупреждение] Команда 'rabbitmqctl ${cmd_display}' не удалась (попытка ${attempt}/${max_attempts}). Повтор через ${delay_seconds} с." >&2
+    sleep "${delay_seconds}"
+  done
+
+  return "${exit_code}"
+}
+
+compose_rabbitmqctl() {
+  local max_attempts="${COMPOSE_RABBITMQCTL_MAX_ATTEMPTS:-5}"
+  local delay_seconds="${COMPOSE_RABBITMQCTL_RETRY_DELAY_SECONDS:-2}"
+  compose_rabbitmqctl_retry "${max_attempts}" "${delay_seconds}" "$@"
 }
 
 rabbitmq_status() {
@@ -179,6 +227,18 @@ ensure_rabbitmq_ready() {
 
   if ! wait_for_rabbitmq_ready; then
     echo "[Ошибка] RabbitMQ не готов к выполнению команд rabbitmqctl. Проверьте логи: ${DOCKER_COMPOSE_DISPLAY} -f '${COMPOSE_FILE}' logs -f rabbitmq" >&2
+    exit 1
+  fi
+}
+
+await_rabbitmq_startup() {
+  echo "[Инфо] Проверяем запуск узла RabbitMQ (rabbitmqctl await_startup)..."
+  local max_attempts="${RABBITMQ_AWAIT_STARTUP_ATTEMPTS:-10}"
+  local delay_seconds="${RABBITMQ_AWAIT_STARTUP_DELAY_SECONDS:-3}"
+  if compose_rabbitmqctl_retry "${max_attempts}" "${delay_seconds}" await_startup --timeout 60; then
+    echo "[Инфо] Узел RabbitMQ готов к выполнению команд rabbitmqctl (await_startup)."
+  else
+    echo "[Ошибка] Не удалось дождаться запуска узла RabbitMQ через rabbitmqctl await_startup." >&2
     exit 1
   fi
 }
@@ -283,6 +343,8 @@ for combo_key in "${!USER_COMBOS[@]}"; do
 done
 
 ensure_rabbitmq_ready
+
+await_rabbitmq_startup
 
 for key in "${!USER_COMBOS[@]}"; do
   user="${key%@*}"
