@@ -22,7 +22,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 Чтобы изменить расположение артефактов, воспользуйтесь `--log-dir <путь>` или установите переменную окружения `BOOTSTRAP_LOG_DIR`. Если сохранение логов не нужно, добавьте `--discard-logs` (аналог — `BOOTSTRAP_SAVE_LOGS=false`), тогда по завершении запуска каталог будет удалён.
 
-Профиль `backend` включает Gateway, Auth, CRM, Documents, Notifications и Tasks. Скрипт запускает его отдельной командой, ждёт успешных healthcheck-ов (`docker compose --profile backend wait` либо ручной опрос `/api/v1/health`, `/healthz`, `/api/notifications/health`, `/api/health`) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если параллельно включён флаг `--with-backend`, helper предупредит о возможном дублировании и предложит отключить compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up -d` / `down` в каталоге `infra/`.
+Профиль `backend` включает Gateway, Auth, CRM и Documents. Скрипт запускает его отдельной командой, ждёт успешных healthcheck-ов (`docker compose --profile backend wait` либо ручной опрос `/api/v1/health`, `/healthz`, `/health`) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если параллельно включён флаг `--with-backend`, helper предупредит о возможном дублировании и предложит отключить compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up -d` / `down` в каталоге `infra/`.
 
 ### Конфликты портов из `.env`
 
@@ -37,12 +37,12 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен.
 6. Smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливает bootstrap при обнаружении пустых значений.
 7. Дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты.
-8. `docker compose --env-file .env --profile backend up -d gateway auth crm documents notifications tasks` — старт профильных API после применения миграций. Скрипт поддерживает флаг `--skip-backend` (или переменную `BOOTSTRAP_SKIP_BACKEND=true`), если требуется ограничиться инфраструктурой без прикладных сервисов.
+8. `docker compose --env-file .env --profile backend up -d gateway auth crm documents` — старт профильных API после применения миграций. Скрипт поддерживает флаг `--skip-backend` (или переменную `BOOTSTRAP_SKIP_BACKEND=true`), если требуется ограничиться инфраструктурой без прикладных сервисов.
 9. Ожидание готовности backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`/`/healthz`).
 10. `scripts/start-backend.sh` — запуск прикладных сервисов на хосте (Auth `./gradlew bootRun`, CRM API `poetry run crm-api`, CRM worker `poetry run crm-worker worker -l info`, Gateway `pnpm start:dev`). Шаг выполняется только при флаге `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`; PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`, повторный запуск проверяет наличие активных процессов. Опция `--service NAME` позволяет стартовать только выбранные сервисы (можно перечислять имена через запятую или повторять опцию для добавления новых значений).
 11. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
 12. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
-13. Проверку REST/SSE API backend-профиля: Gateway (`/api/v1/health`, `/api/v1/streams/heartbeat`), Auth (`/actuator/health`), CRM (`/healthz`), Documents (`/health`), Notifications (`/api/notifications/health`, `/api/notifications/stream`) и Tasks (`/api/health`).
+13. Проверку REST/SSE API backend-профиля: Gateway (`/api/v1/health`, `/api/v1/streams/heartbeat`), Auth (`/actuator/health`), CRM (`/healthz`) и Documents (`/health`).
 
 Для ручного выполнения шагов bootstrap (например, для отладки) используйте `./scripts/bootstrap-local.sh`. Для профиля backend используйте `docker compose --env-file .env --profile backend up -d` либо `down` для отключения. После ручного редактирования `.env` обязательно перезапустите bootstrap, чтобы переменные снова экспортировались и попали в Docker Compose.
 
@@ -69,15 +69,13 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 ## Сводная таблица сервисов
 | Сервис | Назначение | Порт по умолчанию | README |
 | --- | --- | --- | --- |
-| 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L9-L66】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
-| 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L9-L18】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
-| 3. CRM / Deals | Клиенты, сделки, расчёты, полисы и доменные события CRM.【F:docs/architecture.md†L11-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
-| 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
-| 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота (модуль CRM).【F:docs/architecture.md†L13-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md#notifications) |
-| 6. Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
-| 7. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture/bot.md†L1-L36】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
-| 8. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
-| 9. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
+| 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
+| 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
+| 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
+| 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
+| 5. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
+| 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
+| 7. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L5-L97】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
@@ -124,20 +122,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
   ```
   После отправки запросов убедитесь, что `net_total` в ответе платежа равен сумме поступлений минус расходы.
 
-### Notifications: быстрый старт
-
-- Модуль уведомлений теперь входит в сервис CRM и запускается вместе с FastAPI-приложением; отдельный NestJS-сервис не требуется.【F:backend/crm/README.md†L88-L140】
-- Синхронизируйте `.env` (см. `CRM_NOTIFICATIONS_*` в `env.example`) и укажите параметры RabbitMQ/Redis/Telegram для доставки сообщений и публикации в SSE.【F:env.example†L118-L157】
-- После запуска CRM (`poetry run crm-api` / `crm-workers`) эндпоинты `POST /api/v1/notifications`, `GET /api/v1/notifications/{id}`, `POST /api/notifications/events` и поток `GET /api/notifications/stream` становятся доступны на `http://localhost:${CRM_SERVICE_PORT:-8082}`.
-### Tasks: быстрый старт
-
-- Перейдите в `backend/tasks` и установите зависимости `pnpm install`.
-- Выполните `../../scripts/sync-env.sh backend/tasks` (добавьте `--non-interactive` при запуске из bootstrap/CI). После синхронизации проверьте блок переменных `TASKS_*` (PostgreSQL, RabbitMQ, Redis, worker-настройки).
-- Примените миграции и сиды: `pnpm migration:run` и `pnpm seed:statuses`. Команды используют `TASKS_DATABASE_URL` и `TASKS_REDIS_URL` из `.env`.
-- Запустите API: `pnpm start:dev` (по умолчанию порт `TASKS_SERVICE_PORT`, маршрут `GET /api/health`).
-- Для prod-сборки выполните `pnpm run build` — NestJS компилирует код из `src/` в `dist/` и формирует `dist/main.js`. Команды `pnpm start` и `pnpm start:prod` теперь используют единый entrypoint, а `typeorm.config.ts` вместе с миграциями остаётся вне `src` и вызывается через `ts-node`.
-- Для обработки отложенных задач поднимите отдельный процесс: `TASKS_WORKER_ENABLED=true pnpm start:workers`. Worker читает Redis-очередь `TASKS_DELAYED_QUEUE_KEY` и переводит задачи в статус `pending`.
-
+  > ℹ️ Модули задач и уведомлений работают внутри CRM: события публикуются в `CRM_EVENTS_EXCHANGE`, а параметры очередей управляются переменными `CRM_TASKS_*`. SSE-канал `notifications` и Telegram-уведомления используют те же настройки RabbitMQ, поэтому отдельного сервиса Notifications не требуется.
 
 ### Reports: быстрый старт
 
@@ -182,7 +167,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
    1. Откройте `.env` в корне и замените заглушки у всех `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_API_KEY` на значения из секретного хранилища.
    2. Сверьте `*_RABBITMQ_URL`, `*_REDIS_URL`, `POSTGRES_*` с локальными инстансами и обновите пароли, если они отличаются от шаблона.
    3. Проверьте блоки `AUTH_JWT_*`, `GATEWAY_UPSTREAM_*`, параметры webhook-ов и OAuth — убедитесь, что они соответствуют вашей среде разработки.
-   4. Для Notifications заполните `NOTIFICATIONS_DB_*`, `NOTIFICATIONS_RABBITMQ_*`, `NOTIFICATIONS_REDIS_*` и параметры Telegram (`NOTIFICATIONS_TELEGRAM_*`, включая `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`), чтобы worker мог публиковать события в SSE и бот.
+   4. Для модулей задач и уведомлений внутри CRM настройте блок `CRM_TASKS_*` (exchange, routing key, очереди напоминаний) и проверьте параметры `CRM_EVENTS_EXCHANGE`, `CRM_PERMISSIONS_*`, `CRM_CELERY_*`. SSE-канал `notifications` и Telegram-уведомления используют эти же значения, поэтому дополнительные `NOTIFICATIONS_*` переменные не требуются.
       > ⚠️ Значения, содержащие пробелы или плейсхолдеры в фигурных скобках (например, `Client {ownerId}`), заключайте в двойные кавычки: так `.env` можно безопасно импортировать через `set -a && source .env`.
    3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
       > ℹ️ Скрипт использует актуальный [`env.example`](../env.example). Запускайте его после любых изменений шаблона (например, обновления `RABBITMQ_URL` или перехода `AUTH_DATABASE_URL` на `r2dbc:`), чтобы подтянуть новые переменные. Локальные секреты обязательно перепроверьте после синхронизации.

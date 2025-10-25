@@ -52,7 +52,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
   );
   const notificationsBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL ?? '',
-    'http://localhost:8085/api'
+    'http://localhost:8082/api/v1'
   );
 
   const crmSseUrl = normalizeUrl(
@@ -82,11 +82,11 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
       notifications: {
         baseUrl: notificationsBase,
         timeout: parseNumber(process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_TIMEOUT, defaultTimeout),
-        serviceName: process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_SERVICE_NAME ?? 'notifications-service',
+        serviceName: process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_SERVICE_NAME ?? 'crm-service',
         sse: {
           url:
             process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL ??
-            normalizeUrl(`${notificationsBase}/streams`, 'http://localhost:8085/streams')
+            normalizeUrl(`${notificationsBase}/streams`, 'http://localhost:8082/streams')
         }
       }
     }

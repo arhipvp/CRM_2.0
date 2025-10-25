@@ -1,12 +1,14 @@
 # Tasks Service
 
+> ⚠️ **Легаси-сервис.** Отдельное приложение Tasks больше не используется: модуль задач встроен в CRM и предоставляет REST/SSE API, описанные в [`docs/api/tasks.md`](../../docs/api/tasks.md). README сохранён для справки по миграции; актуальные окружения используют блок `CRM_TASKS_*` в `env.example`, а инфраструктурные скрипты больше не синхронизируют `.env` для `backend/tasks` по умолчанию.【F:docs/api/tasks.md†L1-L39】【F:env.example†L166-L176】【F:scripts/sync-env.sh†L8-L16】
+
 ## Назначение
 Tasks отвечает за планирование и исполнение задач, SLA и напоминания, обрабатывая команды и события из CRM/Deals, Payments и Notifications через RabbitMQ и Redis таймеры.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L261-L285】
 
 ## Требования к окружению
 - Node.js LTS (18+) и pnpm 9 для запуска NestJS приложения.
 - PostgreSQL (схема `tasks`), RabbitMQ и Redis для очереди отложенных задач.
-- Переменные `TASKS_*` в [`env.example`](../../env.example) описывают подключение к БД, брокеру и Redis.
+- Исторически использовались переменные `TASKS_*`, но в актуальном [`env.example`](../../env.example) их заменил блок `CRM_TASKS_*` внутри CRM-модуля; значения приведены для обратной совместимости и ручного анализа легаси-конфигурации.
 
 ## Локальный запуск
 ```bash

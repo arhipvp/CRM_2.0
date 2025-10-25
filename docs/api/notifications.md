@@ -1,150 +1,29 @@
-# Notifications API
+# CRM Notifications
 
 ## Общая информация
-- **Базовый URL:** `https://notifications.internal/api/v1`
-- **Аутентификация:** сервисный JWT + HMAC-подписи для внешних вебхуков
-- **Назначение:** управление шаблонами уведомлений, постановка сообщений в очереди, подтверждение доставки.
+- **Базовый URL:** `https://crm.internal/api/v1`
+- **Аутентификация:** JWT CRM.
+- **Назначение:** доставка внутренних уведомлений и интеграция с Telegram-ботом; публичные события транслируются через SSE-канал `notifications`.
+- **Ограничения первой поставки:** управление шаблонами и настройками каналов выполняется административными инструментами CRM, отдельного REST API для шаблонов нет.
 
-## Шаблоны и каналы
+## SSE `GET /streams/notifications`
+Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
-### GET `/templates`
-Список шаблонов уведомлений.
+### Формат событий
+- Поле `event` соответствует типу уведомления (`notification.created`, `notification.delivered`, `notification.failed`).
+- Поле `data` содержит сериализованный JSON с полезной нагрузкой (идентификаторы уведомления, получателя и связанные сущности CRM).
+- При наличии `id` значение используется для `Last-Event-ID`, чтобы Gateway мог восстановить поток после обрыва соединения.
 
-**Параметры запроса**
-| Имя | Тип | Описание |
-| --- | --- | --- |
-| channel | string | Фильтр по каналу (`sse`, `telegram`). |
-| active | boolean | `true` — только активные, `false` — только выключенные. |
+## RabbitMQ события
+Встроенный модуль уведомлений CRM публикует и потребляет события из exchange `crm.events`:
+- `notification.created` — новое уведомление поставлено в очередь доставки.
+- `notification.delivered` — получено подтверждение доставки (например, от Telegram-бота).
+- `notification.failed` — доставка не удалась после исчерпания повторов.
 
-**Ответ 200** — список шаблонов.
+Используйте переменные `CRM_EVENTS_EXCHANGE`, `CRM_TASKS_EVENTS_*` и `CRM_CELERY_*` из [`env.example`](../env.example), чтобы настроить публикацию и обработку уведомлений во всех окружениях.
 
-```json
-[
-  {
-    "id": "6a5f9e46-262a-4b3e-bc92-9732bb0c027e",
-    "key": "deal.status.changed",
-    "channel": "telegram",
-    "locale": "ru-RU",
-    "body": "Здравствуйте, {{name}}!",
-    "metadata": { "preview": "Статус изменён" },
-    "status": "active",
-    "createdAt": "2024-05-10T08:00:00.000Z",
-    "updatedAt": "2024-05-10T08:00:00.000Z"
-  }
-]
-```
+## Интеграция с Telegram-ботом
+CRM публикует события в очередь `telegram.bot.notifications`, которую обслуживает бот (`backend/telegram-bot`). Ответы (успешная доставка, ошибки) возвращаются в CRM по REST-вебхуку и транслируются в SSE.
 
-### POST `/templates`
-Создание шаблона.
-
-**Тело запроса**
-| Поле | Тип | Обязательное | Описание |
-| --- | --- | --- | --- |
-| key | string | Да | Уникальный идентификатор (`deal.status.changed`). |
-| channel | string | Да | Канал (`sse` или `telegram`). |
-| locale | string | Нет | Код локали. Если не передан — используется значение из `NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE`. |
-| body | string | Да | Тело шаблона (Mustache или plain text). |
-| metadata | object | Нет | Дополнительные параметры для рендера или описания. |
-| status | string | Нет | `active` (по умолчанию) или `inactive`. |
-
-**Ответ 201** — созданный шаблон с полями, перечисленными выше.
-
-**Ошибки:** `400 validation_error`, `409 template_conflict` (конфликт по паре `key` + `channel`).
-
-## Постановка уведомлений
-
-### POST `/notifications`
-Формирует уведомление и ставит его в очередь доставки.
-
-**Тело запроса**
-| Поле | Тип | Обязательное | Описание |
-| --- | --- | --- | --- |
-| eventKey | string | Да | Ключ события, выбирает шаблон. |
-| recipients | array<object> | Да | Каждый объект содержит `userId`, опционально `telegramId`. |
-| payload | object | Да | Данные для подстановки. |
-| channelOverrides | array<string> | Нет | Список каналов (`sse`, `telegram`), если нужно переопределить шаблон. |
-| deduplicationKey | string | Нет | Используется для идемпотентности (например, `task:uuid`). |
-
-**Ответ 202** — уведомление поставлено в очередь, тело содержит `notification_id` (UUID записи в таблице `notifications`).
-
-**Ошибки:** `400 validation_error`, `409 duplicate_notification` (повтор по `deduplicationKey`), `500 notification_dispatch_failed` (ошибка синхронной отправки в Telegram/SSE).
-
-> ⚙️ Постановка идемпотентна: если указать `deduplicationKey` и повторить запрос, сервис вернёт `409 duplicate_notification`, не создавая дублирующих записей и попыток доставки.
-
-#### Внутренний пайплайн
-
-1. **Сохранение записи.** Запрос создаёт строку в таблице `notifications` со статусом `pending`.
-2. **RabbitMQ.** Событие публикуется в `NOTIFICATIONS_DISPATCH_EXCHANGE` с ключом `NOTIFICATIONS_DISPATCH_ROUTING_KEY` (по умолчанию `notifications.dispatch`). Сообщение персистентное, что позволяет восстанавливать очередь после рестарта брокера.
-3. **Redis.** В канал `NOTIFICATIONS_DISPATCH_REDIS_CHANNEL` отправляется то же сообщение — используется для локальных слушателей и отладки.
-4. **Внутренний обработчик.** Сервис синхронно вызывает текущий `NotificationEventsService`, который создаёт записи в `notification_events` и транслирует событие в SSE/Telegram.
-5. **Повторы.** RabbitMQ, Redis и внутренний обработчик используют единый механизм повторов. При ошибке попытка фиксируется как `failure`, сервис ждёт `NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS` миллисекунд и повторяет публикацию до `NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS` раз.
-6. **Статусы и попытки.** Каждое действие записывается в `notification_delivery_attempts` (канал, статус, метаданные, ошибка). Итоговый статус уведомления (`processed`, `failed`) отражается в таблице `notifications`, поле `attemptsCount` содержит общее число записанных попыток.
-
-Параметры повторов управляются переменными окружения:
-
-- `NOTIFICATIONS_DISPATCH_RETRY_ATTEMPTS` — максимальное количество повторных публикаций на асинхронных каналах (по умолчанию 3).
-- `NOTIFICATIONS_DISPATCH_RETRY_DELAY_MS` — задержка между повторными публикациями в миллисекундах (по умолчанию 60000). Значения применяются ко всем каналам; если после исчерпания попыток ошибка сохраняется, уведомление получает статус `failed`.
-
-Брокеру Redis требуется префикс `NOTIFICATIONS_REDIS_PREFIX`, по умолчанию `notifications:`.
-
-### GET `/notifications/{notification_id}`
-Проверка статуса доставки.
-
-**Ответ 200**
-```json
-{
-  "id": "uuid",
-  "status": "delivered",
-  "attempts": 1,
-  "channels": ["telegram"],
-  "delivered_at": "2024-02-18T08:30:00Z"
-}
-```
-
-Поле `status` соответствует статусу записи (`pending`, `queued`, `processed`, `failed`) и дополняется значением `delivered`,
-когда Telegram подтверждает доставку. `attempts` отображает количество записанных попыток доставки, `channels` — уникальные
-каналы, задействованные при публикации, а `delivered_at` возвращает временную метку успешной доставки (если доступна).
-
-**Ошибки:** `404 notification_not_found`.
-
-## Telegram webhook
-
-### POST `/telegram/delivery`
-Принимает обратные вызовы от Telegram-бота (доставлено, ошибка). Эндпоинт доступен по адресу
-`POST https://notifications.internal/api/v1/telegram/delivery` и требует HMAC-подпись запроса.
-
-**Заголовки**
-
-| Имя | Тип | Описание |
-| --- | --- | --- |
-| `X-Telegram-Signature` | string | HMAC-SHA256 хеш тела запроса в шестнадцатеричном виде. Секрет задаётся через `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`. |
-
-**Тело запроса**
-| Поле | Тип | Обязательное | Описание |
-| --- | --- | --- | --- |
-| messageId | string | Да | Идентификатор сообщения Telegram. |
-| status | string | Да | `delivered` или `failed`. |
-| reason | string | Нет | Текст ошибки доставки. |
-| occurredAt | datetime | Да | Время события в формате ISO 8601. |
-
-**Ответ 200**
-```json
-{ "status": "ok" }
-```
-
-**Ошибки:** `400 validation_error`, `401 invalid_signature`, `403 telegram_webhook_disabled`.
-
-> TODO: дополнить спецификацию эндпоинтами для экспорта журнала и управления автоподписками после реализации (см. `docs/delivery-plan.md`, раздел «Этап 1.1»).
-
-## Стандартные ошибки Notifications API
-
-| Код | Сообщение | Описание |
-| --- | --- | --- |
-| 400 | `validation_error` | Ошибка входных данных. |
-| 401 | `unauthorized` | Неверный токен. |
-| 403 | `forbidden` | Нет прав на управление шаблонами. |
-| 404 | `not_found` | Шаблон/уведомление не найден. |
-| 409 | `conflict` | Конфликт по ключу или дублирование. |
-| 429 | `rate_limited` | Превышена квота отправки. |
-| 500 | `internal_error` | Внутренняя ошибка сервиса. |
-| 500 | `notification_dispatch_failed` | Ошибка синхронной отправки, уведомление переведено в статус `failed`. |
+## Ошибки
+SSE канал возвращает стандартные ошибки Gateway (см. [docs/api/streams.md](streams.md#управление-соединением)). REST-эндоинты модуля задач/уведомлений CRM используют общий список ошибок CRM (см. [docs/api/crm-deals.md](crm-deals.md#стандартные-ошибки)).
