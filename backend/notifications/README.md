@@ -15,7 +15,7 @@ Notifications доставляет события и уведомления во
 2. Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications --non-interactive` (или без флага для ручного режима). Проверьте блок `NOTIFICATIONS_*` и заполните токен/чат Telegram, если планируете реальную отправку.
 3. Запустите HTTP-приложение с live reload: `pnpm start:api:dev`. Проверьте основные маршруты:
    - `GET /api/notifications/health` — проверка готовности сервиса.
-   - `GET /api/notifications/stream` — SSE-канал для фронтенда и внутренних слушателей.
+   - `GET /api/notifications/stream` — SSE-канал для клиентских интерфейсов и внутренних слушателей.
    - `POST /api/notifications/events` — приём входящих событий вручную (дублирует обработку из RabbitMQ).
    - `GET /api/v1/notifications/{id}` — сводный статус доставки (статус, попытки, каналы, `delivered_at`).
    - `GET /api/v1/templates` — чтение шаблонов уведомлений с фильтрами по каналу и активности.
