@@ -25,22 +25,18 @@ def upgrade() -> None:
     op.drop_index("ix_policy_documents_tenant_id", table_name="policy_documents", schema="crm", if_exists=True)
     op.drop_index("ix_permission_sync_jobs_tenant", table_name="permission_sync_jobs", schema="crm", if_exists=True)
 
-    # Remove tenant_id columns from all tables
-    tables_with_tenant_id = [
-        "clients",
-        "deals",
-        "policies",
-        "calculations",
-        "tasks",
-        "payments",
-        "payment_incomes",
-        "payment_expenses",
-        "policy_documents",
-        "permission_sync_jobs",
-    ]
-
-    for table in tables_with_tenant_id:
-        op.drop_column(table, "tenant_id", schema="crm")
+    # Remove tenant_id columns from tables where it may still exist.
+    # Using raw SQL with IF EXISTS keeps the migration idempotent even if
+    # some tables (e.g. policies) never had the column.
+    op.execute("ALTER TABLE crm.clients DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.deals DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.calculations DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.tasks DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.payments DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.payment_incomes DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.payment_expenses DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.policy_documents DROP COLUMN IF EXISTS tenant_id")
+    op.execute("ALTER TABLE crm.permission_sync_jobs DROP COLUMN IF EXISTS tenant_id")
 
 
 def downgrade() -> None:
