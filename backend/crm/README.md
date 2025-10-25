@@ -80,7 +80,7 @@ crm/
   - `NotificationQueueConsumer` подключается к `notifications.exchange` и обрабатывает очередь `CRM_NOTIFICATIONS_QUEUE_NAME`, используя настройки `CRM_NOTIFICATIONS_*` (RabbitMQ/Redis/Telegram). Консьюмер запускается вместе с FastAPI-приложением и повторяет обработку при сбоях.
   - Публикация уведомлений в RabbitMQ и Redis выполняется через `NotificationDispatcher` (реализация на `aio-pika` и `redis.asyncio`).
 - Telegram интеграция управляется переменными `CRM_NOTIFICATIONS_TELEGRAM_*`; для разработки поддерживается mock-режим (`CRM_NOTIFICATIONS_TELEGRAM_MOCK=true`).
-- База данных: миграция `2024072801_add_notifications.py` создаёт таблицы `crm.notification_templates`, `crm.notifications`, `crm.notification_delivery_attempts`, `crm.notification_events`.
+- База данных: миграция с ревизией `2024072801` создаёт таблицы `crm.notification_templates`, `crm.notifications`, `crm.notification_delivery_attempts`, `crm.notification_events`.
 - SSE-поток построен на `sse-starlette` и переиспользуется консюмером и REST-эндпоинтами через `NotificationStreamService`.
 
 ## Миграции
