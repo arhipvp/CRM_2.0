@@ -101,6 +101,8 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 5. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
 | 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 
+> ℹ️ `bootstrap-local.sh` не генерирует `.env` с нуля и не запускает сервисы [`backend/telegram-bot`](../backend/telegram-bot/README.md#локальный-запуск) и [`backend/reports`](../backend/reports/README.md#локальный-запуск). Подготовьте окружение заранее через `scripts/sync-env.sh` и следуйте разделам [«Telegram Bot: быстрый старт»](#telegram-bot-быстрый-старт) и [«Reports: быстрый старт»](#reports-быстрый-старт), если требуется их локальный запуск.
+
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
 2. Синхронизируйте переменные окружения через [`scripts/sync-env.sh`](../scripts/sync-env.sh), чтобы в каждом сервисе появился свежий `.env` из корневого [`env.example`](../env.example). По умолчанию скрипт работает в интерактивном режиме: при обнаружении существующего файла он спрашивает, перезаписывать ли его, или позволяет пропустить каталог. Для автоматического запуска (например, в CI или bootstrap) добавьте флаг `--non-interactive`, который по умолчанию пропускает существующие файлы или, с вариантом `--non-interactive=overwrite`, перезаписывает их без вопросов. После копирования обязательно обновите секреты и уникальные значения вручную.
@@ -147,6 +149,13 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
   После отправки запросов убедитесь, что `net_total` в ответе платежа равен сумме поступлений минус расходы.
 
   > ℹ️ Модули задач и уведомлений работают внутри CRM: события публикуются в `CRM_EVENTS_EXCHANGE`, а параметры очередей управляются переменными `CRM_TASKS_*`. SSE-канал `notifications` и Telegram-уведомления используют те же настройки RabbitMQ, поэтому отдельного сервиса Notifications не требуется.
+
+### Telegram Bot: быстрый старт
+
+- Перейдите в `backend/telegram-bot` и установите зависимости: `poetry install`.
+- Создайте или обновите `.env` по шаблону корневого [`env.example`](../env.example), воспользовавшись `../../scripts/sync-env.sh backend/telegram-bot` (при необходимости добавьте `--non-interactive`). Проверьте блок переменных `TELEGRAM_BOT_*`, сервисные токены и параметры RabbitMQ/Redis.
+- Запустите сервис командой `poetry run telegram-bot-main` (порт можно переопределить переменной `TELEGRAM_BOT_SERVICE_PORT`). Для альтернативного запуска через Uvicorn используйте `poetry run uvicorn telegram_bot.app:create_app --factory --host 0.0.0.0 --port ${TELEGRAM_BOT_SERVICE_PORT:-8089}`.
+- Настройте проксирование webhook-а через Gateway: добавьте публичный URL, защитите его секретом `TELEGRAM_BOT_WEBHOOK_SECRET` и убедитесь, что CRM/Auth доступны по адресам из `.env`.
 
 ### Reports: быстрый старт
 
