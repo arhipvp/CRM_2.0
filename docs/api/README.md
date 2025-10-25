@@ -7,8 +7,8 @@
 - [Auth](auth.md)
 - [CRM / Deals](crm-deals.md)
 - [Платежи (CRM)](payments.md) — график платежей полиса, операции поступлений и расходов; API обслуживается модулем CRM/Deals, а каталог `backend/payments` используется только как архив.
-- [Tasks](tasks.md)
-- [Notifications](notifications.md)
+- [CRM Tasks](tasks.md)
+- [CRM Notifications](notifications.md)
 - [Documents](documents.md)
 - [SSE-каналы](streams.md)
 

@@ -13,6 +13,7 @@ describe('RestProxyService', () => {
   let service: RestProxyService;
   let req: Request;
   let res: Response;
+  let upstreams: UpstreamsConfig;
 
   const createResponseMock = (): Response => {
     const status = jest.fn().mockReturnThis();
@@ -37,7 +38,7 @@ describe('RestProxyService', () => {
       }
     } as unknown as HttpService;
 
-    const upstreams: UpstreamsConfig = {
+    upstreams = {
       defaultTimeout: 5000,
       reconnectDelay: 3000,
       heartbeatInterval: 15000,
@@ -54,9 +55,9 @@ describe('RestProxyService', () => {
           serviceName: 'auth-service'
         },
         notifications: {
-          baseUrl: '',
+          baseUrl: 'http://crm.local/api/v1',
           timeout: 1000,
-          serviceName: 'notifications-service'
+          serviceName: 'crm-service'
         }
       }
     };
@@ -137,9 +138,11 @@ describe('RestProxyService', () => {
       port: 9000
     });
 
+    upstreams.services.notifications.baseUrl = '';
+
     await service.forward('notifications', '/updates', req, res);
 
-    expect(consulService.resolveService).toHaveBeenCalledWith('notifications-service');
+    expect(consulService.resolveService).toHaveBeenCalledWith('crm-service');
     expect(axiosRequest).toHaveBeenCalledWith({
       method: 'GET',
       url: 'http://10.0.0.10:9000/updates',

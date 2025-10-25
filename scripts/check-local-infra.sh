@@ -444,21 +444,6 @@ function check_documents_api() {
   http_health_check "Documents API" "http://localhost:${port}/health" "documents"
 }
 
-function check_notifications_api() {
-  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
-  http_health_check "Notifications REST" "http://localhost:${port}/api/notifications/health" "notifications"
-}
-
-function check_notifications_sse() {
-  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
-  sse_health_check "Notifications SSE" "http://localhost:${port}/api/notifications/stream" "notifications"
-}
-
-function check_tasks_api() {
-  local port="${TASKS_SERVICE_PORT:-8086}"
-  http_health_check "Tasks API" "http://localhost:${port}/api/health" "tasks"
-}
-
 function print_mode_message() {
   if [[ "$CHECK_MODE" == "docker" ]]; then
     return
@@ -556,9 +541,6 @@ check_gateway_sse
 check_auth_api
 check_crm_api
 check_documents_api
-check_notifications_api
-check_notifications_sse
-check_tasks_api
 check_reports_api
 check_backup_api
 check_backup_env_vars

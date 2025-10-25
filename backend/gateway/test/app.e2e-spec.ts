@@ -98,7 +98,7 @@ describe('Gateway bootstrap', () => {
 
     process.env.GATEWAY_UPSTREAM_CRM_BASE_URL = `${upstreamUrl}/crm`;
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL = `${upstreamUrl}/auth`;
-    process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL = `${upstreamUrl}/notifications`;
+    process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL = `${upstreamUrl}/crm/api/v1`;
     process.env.CONSUL_ENABLED = 'false';
     process.env.REDIS_URL = 'mock://gateway';
 
@@ -297,10 +297,10 @@ describe('UpstreamSseService', () => {
           serviceName: 'auth-service'
         },
         notifications: {
-          baseUrl: 'http://notifications',
+          baseUrl: 'http://crm/api/v1',
           timeout: 5000,
-          serviceName: 'notifications-service',
-          sse: { url: 'http://notifications/streams' }
+          serviceName: 'crm-service',
+          sse: { url: 'http://crm/streams' }
         }
       }
     };

@@ -40,25 +40,10 @@ Gateway публикует события через Server-Sent Events (SSE) д
 - `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
 - `event: heartbeat` каждые 30 секунд для проверки соединения (payload пустой). Сообщение формируется upstream CRM через `sse-starlette`.
 
-## Запланированные каналы (после первой поставки)
-
-### Канал `tasks`
-- **Статус:** отложен до последующих релизов; первая поставка ограничивается потоками сделок и внутренних уведомлений.
-- **Назначение:** публикация обновлений задач и напоминаний из сервиса Tasks после расширения сценариев напоминаний.
-- **Текущее состояние:** спецификация сохранена для ориентира, реализация появится после запуска первой версии.
-
-| Тип события | Описание | Payload |
-| --- | --- | --- |
-| `task.created` | Создана новая задача. | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid", "due_date": "date", "status": "new" }` |
-| `task.updated` | Изменения по задаче. | `{ "task_id": "uuid", "changes": { "status": "waiting" }, "updated_at": "datetime" }` |
-| `task.reminder` | Напоминание по задаче. | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` |
-
-> Поле `channel` и перечень статусов задач остаются справочными и будут актуализированы перед реализацией канала.
-
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
-- **Назначение:** ретрансляция внутренних уведомлений из Notifications API (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
-- **Upstream:** Notifications API предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8085/api/notifications/stream`).
+- **Назначение:** ретрансляция внутренних уведомлений CRM и откликов Telegram-бота (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
+- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/streams`).
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
 
 ## Канал `heartbeat`
