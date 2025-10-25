@@ -1965,7 +1965,7 @@ class NotificationService:
                 "attempt_number": attempt_number,
                 "channel": channel,
                 "status": status,
-                "metadata": metadata,
+                "delivery_metadata": metadata,
                 "error": error,
             }
         )
