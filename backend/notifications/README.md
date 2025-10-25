@@ -61,15 +61,3 @@ Notifications доставляет события и уведомления во
 ## Полезные ссылки
 - Архитектурный обзор уведомлений: [`docs/architecture.md`](../../docs/architecture.md#2-взаимодействия-и-потоки-данных).【F:docs/architecture.md†L63-L65】
 - Стек и зависимости сервиса: [`docs/tech-stack.md`](../../docs/tech-stack.md#notifications).【F:docs/tech-stack.md†L287-L311】
-# Notifications service
-
-Сервис рассылает уведомления и управляет Telegram-ботом.
-
-## Локальная разработка
-
-* Для отладки webhook и Bot API включите mock-сервер, описанный в [docs/local-setup.md#интеграции](../../docs/local-setup.md#интеграции).
-* Переменная `NOTIFICATIONS_TELEGRAM_MOCK=true` разрешает безопасно логировать сообщения вместо фактических запросов в Bot API. Для реальных рассылок установите `NOTIFICATIONS_TELEGRAM_ENABLED=true`, заполните `NOTIFICATIONS_TELEGRAM_BOT_TOKEN` и `NOTIFICATIONS_TELEGRAM_CHAT_ID`, затем переведите `NOTIFICATIONS_TELEGRAM_MOCK=false`.
-* Webhook доставки Telegram (`POST /api/v1/telegram/delivery`) проверяет подпись `X-Telegram-Signature` (HMAC-SHA256 по телу запроса). Чтобы включить валидацию, установите `NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED=true` и задайте `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`.
-* Mock не проверяет квоты Telegram — массовые рассылки и работу с медиа перепроверьте в dev/stage.
-
-Архитектурные детали сервиса см. в [`docs/tech-stack.md`](../../docs/tech-stack.md).
