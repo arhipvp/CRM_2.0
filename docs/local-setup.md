@@ -34,7 +34,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 2. `docker compose --env-file .env up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов с подстановкой значений из актуального корневого `.env`.
 3. Ожидание готовности инфраструктуры через healthcheck (`docker compose wait` либо резервный цикл при отсутствии команды).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
-5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth и Audit (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен.
+5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен. Сервис Audit исключён из локального цикла миграций.
 6. Smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливает bootstrap при обнаружении пустых значений.
 7. Дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты.
 8. `docker compose --env-file .env --profile backend up -d gateway auth crm documents` — старт профильных API после применения миграций. Скрипт поддерживает флаг `--skip-backend` (или переменную `BOOTSTRAP_SKIP_BACKEND=true`), если требуется ограничиться инфраструктурой без прикладных сервисов.
@@ -74,10 +74,10 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
 | 5. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
-| 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
-| 7. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L5-L97】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
+| 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 
 ## Как использовать таблицу
+> ℹ️ Сервис Audit исключён из локального набора: инфраструктура не создаёт схему `audit`, переменные `AUDIT_*` удалены из `env.example`, а инструкции по запуску сервиса остаются в репозитории только как архивная документация.
 1. Выберите сервис и перейдите по ссылке README.
 2. Синхронизируйте переменные окружения через [`scripts/sync-env.sh`](../scripts/sync-env.sh), чтобы в каждом сервисе появился свежий `.env` из корневого [`env.example`](../env.example). По умолчанию скрипт работает в интерактивном режиме: при обнаружении существующего файла он спрашивает, перезаписывать ли его, или позволяет пропустить каталог. Для автоматического запуска (например, в CI или bootstrap) добавьте флаг `--non-interactive`, который по умолчанию пропускает существующие файлы или, с вариантом `--non-interactive=overwrite`, перезаписывает их без вопросов. После копирования обязательно обновите секреты и уникальные значения вручную.
 3. Настройте базы данных и очереди (см. [«Инфраструктура» в tech-stack](tech-stack.md#инфраструктура)) и запускайте сервис локально или в Docker согласно инструкции.
@@ -127,7 +127,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 ### Reports: быстрый старт
 
 - Перейдите в `backend/reports` и установите зависимости `poetry install`.
-- Выполните `../../scripts/sync-env.sh backend/reports` (при необходимости добавьте `--non-interactive`). Проверьте значения `REPORTS_DATABASE_URL`, `REPORTS_SCHEMA`, `REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA` и `REPORTS_SERVICE_PORT`.
+- Выполните `../../scripts/sync-env.sh backend/reports` (при необходимости добавьте `--non-interactive`). Проверьте значения `REPORTS_DATABASE_URL`, `REPORTS_SCHEMA`, `REPORTS_CRM_SCHEMA`, `REPORTS_SOURCE_SCHEMAS` и `REPORTS_SERVICE_PORT`.
 - Примените миграции: запустите `../../scripts/migrate-local.sh` (bootstrap делает это автоматически) или выполните `psql "$REPORTS_DATABASE_URL" -v reports_schema=${REPORTS_SCHEMA} -v crm_schema=${REPORTS_CRM_SCHEMA} -f migrations/001_create_deal_pipeline_summary.sql`.
 - Запустите API: `poetry run reports-api`.
 - Для обновления материализованных представлений запустите `poetry run reports-refresh-views`.

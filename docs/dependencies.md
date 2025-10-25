@@ -12,8 +12,8 @@
 
 Общие сервисы запускаются единым docker-compose стеком и разделяются по схемам/очередям между сервисами.
 
-- **PostgreSQL 14+** — единый кластер со схемами `auth`, `crm`, `documents`, `tasks`, `audit`, `backup`, `reports`; параметры подключения перечислены в `env.example`.【F:env.example†L7-L70】
-- **RabbitMQ** — базовый vhost `crm` и выделенные очереди/пользователи для доменных сервисов CRM (модули задач и уведомлений), Audit и Backup.【F:env.example†L83-L174】
+- **PostgreSQL 14+** — единый кластер со схемами `auth`, `crm`, `documents`, `tasks`, `backup`, `reports`; параметры подключения перечислены в `env.example`. Схема `audit` в локальном профиле не создаётся.【F:env.example†L7-L85】【F:infra/postgres/init.sh†L1-L74】
+- **RabbitMQ** — базовый vhost `crm` и выделенные очереди/пользователи для доменных сервисов CRM (модули задач и уведомлений) и Backup. Пользователи Audit удалены из локального bootstrap.【F:env.example†L87-L196】
 - **Redis** — пулы для сессий, кешей, Celery, BullMQ и rate limiting, как указано в шаблоне окружения.【F:env.example†L114-L177】
 - **Consul** — используется Gateway для service discovery и распределённой конфигурации (будет расширяться по мере интеграции).【F:backend/gateway/README.md†L9-L34】【F:env.example†L120-L165】
 - **Серверное файловое хранилище** — каталог `DOCUMENTS_STORAGE_ROOT`, системный пользователь `crm-docs`, утилиты `setfacl/getfacl`, механизм бэкапа (`rsync`/`restic`).【F:backend/documents/README.md†L6-L134】【F:env.example†L185-L264】
@@ -28,8 +28,8 @@
 | **Auth** | Spring Boot WebFlux (JDK 17) | PostgreSQL `auth`, Redis | OAuth/OIDC конфигурация, Liquibase миграции.【F:backend/auth/README.md†L6-L28】【F:env.example†L38-L148】 |
 | **CRM / Deals** | Python 3.11, FastAPI + Celery | PostgreSQL `crm`, `tasks`, Redis, RabbitMQ `crm.events` | Alembic миграции, Celery beat/worker, встроенные модули задач и уведомлений (`CRM_TASKS_*`, `CRM_EVENTS_EXCHANGE`).【F:backend/crm/README.md†L6-L66】【F:env.example†L162-L217】 |
 | **Documents** | NestJS (Node.js 20) | PostgreSQL `documents`, Redis BullMQ | Локальное/self-hosted хранилище (`DOCUMENTS_STORAGE_*`), POSIX ACL, стратегия бэкапов и отдельный воркер BullMQ.【F:backend/documents/README.md†L16-L24】【F:backend/documents/README.md†L38-L43】【F:backend/documents/README.md†L101-L114】【F:env.example†L210-L247】 |
-| **Reports** | Python 3.11, FastAPI + SQLAlchemy Async | PostgreSQL (`crm`, `audit`, `reports` схемы) | Poetry-скрипты `reports-api`/`reports-refresh-views`, переменные `REPORTS_DATABASE_URL`, `REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA`, `REPORTS_SCHEMA`.【F:backend/reports/README.md†L6-L47】 |
-| **Audit** | Spring Boot WebFlux (JDK 17) | PostgreSQL `audit`, RabbitMQ (`audit.events`, `audit.core`, `audit.dlq`) | Liquibase миграции, persistent volume для write-ahead журнала.【F:backend/audit/README.md†L6-L27】【F:env.example†L61-L138】 |
+| **Reports** | Python 3.11, FastAPI + SQLAlchemy Async | PostgreSQL (`crm`, `reports` схемы) | Poetry-скрипты `reports-api`/`reports-refresh-views`, переменные `REPORTS_DATABASE_URL`, `REPORTS_CRM_SCHEMA`, `REPORTS_SOURCE_SCHEMAS`, `REPORTS_SCHEMA`.【F:backend/reports/README.md†L6-L57】【F:env.example†L70-L115】 |
+| **Audit** (архив) | Spring Boot WebFlux (JDK 17) | PostgreSQL `audit`, RabbitMQ (`audit.events`, `audit.core`, `audit.dlq`) | Сервис исключён из локального профиля; документация сохранена для исторической справки.【F:backend/audit/README.md†L6-L32】 |
 
 ## Как пользоваться
 
