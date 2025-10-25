@@ -68,6 +68,20 @@ crm/
 - `PATCH`-эндпоинты поддерживают частичные обновления для всех сущностей.
 Описание контрактов с примерами приведено в [`docs/api/crm-deals.md`](../../docs/api/crm-deals.md).
 
+## Notifications
+- REST-эндпоинты:
+  - `GET /api/v1/templates` и `POST /api/v1/templates` — управление шаблонами уведомлений (`crm.notification_templates`).
+  - `POST /api/v1/notifications` — постановка уведомления в доставку с публикацией в RabbitMQ/Redis и записью попыток (`crm.notifications`, `crm.notification_delivery_attempts`).
+  - `GET /api/v1/notifications/{id}` — получение статуса, количества попыток и списка каналов.
+  - `POST /api/notifications/events` — приём внешних событий с идемпотентной обработкой (RabbitMQ, Telegram, SSE).
+  - `GET /api/notifications/stream` и `GET /api/notifications/health` — SSE-канал и health-check для Gateway/клиентов.
+- Фоновые процессы:
+  - `NotificationQueueConsumer` подключается к `notifications.exchange` и обрабатывает очередь `CRM_NOTIFICATIONS_QUEUE_NAME`, используя настройки `CRM_NOTIFICATIONS_*` (RabbitMQ/Redis/Telegram). Консьюмер запускается вместе с FastAPI-приложением и повторяет обработку при сбоях.
+  - Публикация уведомлений в RabbitMQ и Redis выполняется через `NotificationDispatcher` (реализация на `aio-pika` и `redis.asyncio`).
+- Telegram интеграция управляется переменными `CRM_NOTIFICATIONS_TELEGRAM_*`; для разработки поддерживается mock-режим (`CRM_NOTIFICATIONS_TELEGRAM_MOCK=true`).
+- База данных: миграция `2024072801_add_notifications.py` создаёт таблицы `crm.notification_templates`, `crm.notifications`, `crm.notification_delivery_attempts`, `crm.notification_events`.
+- SSE-поток построен на `sse-starlette` и переиспользуется консюмером и REST-эндпоинтами через `NotificationStreamService`.
+
 ## Миграции
 Alembic настроен на схему `crm`, baseline (`2024031501_baseline.py`) создаёт основные таблицы CRM с полями `owner_id` для управления правами доступа. Команды:
 ```bash

@@ -101,7 +101,8 @@ Notifications работает с Telegram Bot для отправки увед�
 ## Конфигурация
 
 Основные переменные окружения:
-- `NOTIFICATIONS_DATABASE_URL`: Connection string с схемой `notifications`
-- `NOTIFICATIONS_RABBITMQ_URL`: Подключение к RabbitMQ
-- `TELEGRAM_BOT_URL`: URL Telegram Bot сервиса
-- Проверяйте `backend/notifications/.env` для актуальных настроек
+- `NOTIFICATIONS_DB_HOST`, `NOTIFICATIONS_DB_PORT`, `NOTIFICATIONS_DB_NAME`, `NOTIFICATIONS_DB_USER`, `NOTIFICATIONS_DB_PASSWORD`, `NOTIFICATIONS_DB_SSL`: параметры подключения к PostgreSQL (схема `notifications`).
+- `NOTIFICATIONS_REDIS_HOST`, `NOTIFICATIONS_REDIS_PORT`, `NOTIFICATIONS_REDIS_DB`, `NOTIFICATIONS_REDIS_USERNAME`, `NOTIFICATIONS_REDIS_PASSWORD`, `NOTIFICATIONS_REDIS_PREFIX`: настройки клиента Redis.
+- `NOTIFICATIONS_RABBITMQ_URL`, `NOTIFICATIONS_RABBITMQ_URI`, `NOTIFICATIONS_RABBITMQ_EXCHANGE`, `NOTIFICATIONS_RABBITMQ_QUEUE`, `NOTIFICATIONS_RABBITMQ_ROUTING_KEY`: параметры интеграции с RabbitMQ.
+- `TELEGRAM_BOT_URL`: URL Telegram Bot сервиса.
+- Проверяйте `backend/notifications/.env` для актуальных настроек.

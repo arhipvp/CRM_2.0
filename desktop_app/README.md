@@ -43,8 +43,8 @@ desktop_app/
 ├── deals_tab.py         # Deals management tab component
 ├── payments_tab.py      # Payments viewing tab component
 ├── requirements.txt     # Python dependencies
-├── .env.example         # Environment variables template
-└── README.md            # This file
+├── README.md            # This file
+└── *.py                 # Таблицы, диалоги, сервисы и диагностические скрипты
 ```
 
 ### Design Patterns
@@ -92,17 +92,14 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file from template:
-```bash
-cp .env.example .env
-```
-
-5. Update `.env` with your API configuration:
+4. (Optional) Create `.env` with your API configuration:
 ```
 DESKTOP_API_BASE_URL=http://localhost:8080/api/v1
 DESKTOP_API_TIMEOUT=10
 DESKTOP_LOG_LEVEL=INFO
 ```
+
+> Значения по умолчанию заданы в `config.py`. Добавляйте `.env` только если требуется переопределить базовый URL, таймауты или уровень логирования.
 
 ## Usage
 
@@ -191,13 +188,20 @@ Configure level in `.env`:
 
 ### Running Tests
 
-```bash
-# Unit tests (when added)
-pytest tests/unit/
+Отдельного каталога `tests/` пока нет. Для проверки работы API и представлений используйте диагностические скрипты в корне приложения:
 
-# E2E tests (when added)
-pytest tests/e2e/
+```bash
+# Проверка API и авторизации (требуется запущенный backend)
+python test_api.py
+
+# Диагностика получения задач из API
+python test_tasks_display.py
+
+# Имитация отображения задач в Treeview без запуска GUI
+python test_treeview_display.py
 ```
+
+> Скрипт `test_treeview_ui.py` открывает окно Tkinter с тестовыми данными и пригоден для ручной проверки отображения кириллицы.
 
 ### Code Style
 
@@ -215,7 +219,7 @@ mypy desktop_app/
 
 ### Adding New Features
 
-1. Create new service in `services/` if needed
+1. Create new service module (например, `*_service.py`) в корне `desktop_app/` при необходимости
 2. Create new tab component if adding UI
 3. Add methods to `CRMService` for API calls
 4. Update main.py to integrate new feature

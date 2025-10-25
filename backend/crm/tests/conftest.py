@@ -88,6 +88,10 @@ def configure_environment(postgres: PostgresContainer, redis: RedisContainer, ra
     os.environ.setdefault("CRM_CELERY_BROKER_URL", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_CELERY_RESULT_BACKEND", os.environ["CRM_REDIS_URL"])
     os.environ.setdefault("CRM_DEFAULT_TENANT_ID", str(uuid4()))
+    os.environ.setdefault("CRM_NOTIFICATIONS_TELEGRAM_ENABLED", "true")
+    os.environ.setdefault("CRM_NOTIFICATIONS_TELEGRAM_MOCK", "true")
+    os.environ.setdefault("CRM_NOTIFICATIONS_TELEGRAM_BOT_TOKEN", "mock-token")
+    os.environ.setdefault("CRM_NOTIFICATIONS_TELEGRAM_DEFAULT_CHAT_ID", "123456")
 
     from crm.app import config as app_config
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import date, datetime, timedelta, timezone
 import logging
 import re
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
-from uuid import UUID
+from uuid import UUID, uuid4
 
 try:  # pragma: no cover - optional dependency guard
     from asyncpg.pgproto.pgproto import Range as PgRange
@@ -25,6 +27,7 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - lightweight fal
             self.upper_inc = upper_inc
 
 from pydantic_core import PydanticUndefined
+from sqlalchemy.exc import IntegrityError
 
 from crm.domain import schemas
 from crm.infrastructure import models, repositories
@@ -1445,3 +1448,546 @@ class PermissionSyncService:
             await self.repository.mark_failed(job.id, str(exc))
             raise PermissionSyncError("failed_to_enqueue_permissions_sync_job") from exc
         return schemas.SyncPermissionsResponse(job_id=job.id, status=job.status)
+
+
+class NotificationError(RuntimeError):
+    pass
+
+
+class NotificationTemplateConflictError(NotificationError):
+    pass
+
+
+class DuplicateNotificationError(NotificationError):
+    pass
+
+
+class NotificationDispatchError(NotificationError):
+    pass
+
+
+class NotificationDispatcherProtocol(Protocol):
+    async def publish_rabbit(self, exchange: str, routing_key: str, message: dict[str, Any]) -> None:  # pragma: no cover - protocol definition
+        ...
+
+    async def publish_redis(self, channel: str, message: dict[str, Any]) -> None:  # pragma: no cover - protocol definition
+        ...
+
+
+class NotificationTemplateService:
+    def __init__(
+        self,
+        repository: repositories.NotificationTemplateRepository,
+        default_locale: str,
+    ) -> None:
+        self.repository = repository
+        self.default_locale = default_locale
+
+    async def list_templates(
+        self, filters: schemas.NotificationTemplateListFilters | None = None
+    ) -> list[schemas.NotificationTemplateRead]:
+        entities = await self.repository.list(filters)
+        return [schemas.NotificationTemplateRead.model_validate(entity) for entity in entities]
+
+    async def create_template(
+        self, payload: schemas.NotificationTemplateCreate
+    ) -> schemas.NotificationTemplateRead:
+        data = payload.model_dump()
+        locale = payload.locale or self.default_locale
+        data["locale"] = locale
+        try:
+            entity = await self.repository.create(data)
+        except RepositoryError as exc:
+            raise NotificationTemplateConflictError("template_conflict") from exc
+        return schemas.NotificationTemplateRead.model_validate(entity)
+
+
+class NotificationStreamService:
+    def __init__(self, retry_interval_ms: int) -> None:
+        self._retry_interval_ms = retry_interval_ms
+        self._subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
+        self._lock = asyncio.Lock()
+
+    async def publish(self, event_type: str, payload: dict[str, Any]) -> None:
+        message = {
+            "event": event_type,
+            "data": {"eventType": event_type, "payload": payload},
+            "retry": self._retry_interval_ms,
+        }
+        async with self._lock:
+            subscribers = list(self._subscribers)
+        for queue in subscribers:
+            await queue.put(message)
+
+    async def subscribe(self) -> asyncio.Queue[dict[str, Any]]:
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        async with self._lock:
+            self._subscribers.add(queue)
+        return queue
+
+    async def unsubscribe(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
+        async with self._lock:
+            self._subscribers.discard(queue)
+
+
+class TelegramSendResult(Protocol):
+    accepted: bool
+    message_id: str | None
+    error: str | None
+
+
+class TelegramService:
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        mock: bool,
+        bot_token: str | None,
+        default_chat_id: str | None,
+    ) -> None:
+        self.enabled = enabled
+        self.mock = mock
+        self.bot_token = bot_token
+        self.default_chat_id = default_chat_id
+
+    async def send(self, chat_id: str | None, message: str) -> dict[str, Any]:
+        if not self.enabled:
+            return {"accepted": False, "error": "telegram_disabled", "messageId": None}
+        target_chat = chat_id or self.default_chat_id
+        if not target_chat:
+            return {"accepted": False, "error": "missing_chat_id", "messageId": None}
+        if not self.bot_token:
+            return {"accepted": False, "error": "missing_bot_token", "messageId": None}
+        if self.mock:
+            message_id = f"mock-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+            return {"accepted": True, "messageId": message_id, "error": None}
+
+        import httpx
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        payload = {"chat_id": target_chat, "text": message}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, timeout=10)
+            if response.status_code >= 400:
+                return {
+                    "accepted": False,
+                    "error": f"telegram_http_{response.status_code}",
+                    "messageId": None,
+                }
+            data = response.json()
+            if not data.get("ok", False):
+                return {
+                    "accepted": False,
+                    "error": "telegram_response_not_ok",
+                    "messageId": None,
+                }
+            message_id = data.get("result", {}).get("message_id")
+            return {
+                "accepted": True,
+                "messageId": str(message_id) if message_id is not None else None,
+                "error": None,
+            }
+        except Exception:  # noqa: BLE001
+            return {"accepted": False, "error": "telegram_request_failed", "messageId": None}
+
+
+class NotificationEventsService:
+    def __init__(
+        self,
+        repository: repositories.NotificationEventRepository,
+        stream: NotificationStreamService,
+        telegram: TelegramService,
+    ) -> None:
+        self.repository = repository
+        self.stream = stream
+        self.telegram = telegram
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    async def handle_incoming(self, dto: schemas.NotificationEventIngest) -> schemas.NotificationEvent:
+        existing = await self.repository.get_by_event_id(dto.id)
+        if existing is not None:
+            self.logger.debug("Event %s (%s) already processed", dto.id, dto.type)
+            return schemas.NotificationEvent.model_validate(existing)
+
+        entity = await self.repository.create(
+            {
+                "event_id": dto.id,
+                "event_type": dto.type,
+                "payload": dto.data,
+            }
+        )
+
+        await self.stream.publish(dto.type, dto.data)
+
+        chat_id = dto.chat_id
+        if chat_id is None:
+            recipient = next(
+                (item for item in dto.data.get("recipients", []) if item.get("telegramId")),
+                None,
+            )
+            if recipient:
+                chat_id = str(recipient.get("telegramId"))
+
+        message_body = self._compose_telegram_message(dto)
+        send_result = await self.telegram.send(chat_id, message_body)
+        await self._handle_send_result(entity.id, send_result)
+
+        refreshed = await self.repository.get_by_event_id(dto.id)
+        return schemas.NotificationEvent.model_validate(refreshed or entity)
+
+    async def handle_telegram_delivery_update(
+        self, dto: schemas.TelegramDeliveryWebhook
+    ) -> schemas.NotificationEvent | None:
+        entity = await self.repository.get_by_telegram_message_id(dto.message_id)
+        if entity is None:
+            self.logger.warning(
+                "Received Telegram delivery status for unknown message %s", dto.message_id
+            )
+            return None
+
+        delivered = dto.status is schemas.TelegramDeliveryWebhookStatus.DELIVERED
+        updated = await self.repository.update(
+            entity.id,
+            {
+                "delivered_to_telegram": delivered,
+                "telegram_delivery_status": dto.status.value,
+                "telegram_delivery_reason": dto.reason,
+                "telegram_delivery_occurred_at": dto.occurred_at,
+            },
+        )
+
+        event_type = (
+            "notifications.telegram.delivery"
+            if delivered
+            else "notifications.telegram.error"
+        )
+        await self.stream.publish(
+            event_type,
+            {
+                "notificationId": str(entity.id),
+                "messageId": dto.message_id,
+                "status": dto.status.value,
+                "reason": dto.reason,
+                "occurredAt": dto.occurred_at.isoformat(),
+            },
+        )
+        return schemas.NotificationEvent.model_validate(updated or entity)
+
+    def _compose_telegram_message(self, dto: schemas.NotificationEventIngest) -> str:
+        payload_preview = json.dumps(dto.data, ensure_ascii=False, indent=2, default=str)
+        return f"{dto.type}\n{dto.time.isoformat()}\n\n{payload_preview}"
+
+    async def _handle_send_result(self, notification_id: UUID, send_result: dict[str, Any]) -> None:
+        accepted = bool(send_result.get("accepted"))
+        message_id = send_result.get("messageId")
+        error = send_result.get("error")
+        occurred_at = datetime.now(timezone.utc) if accepted else None
+        await self.repository.update(
+            notification_id,
+            {
+                "delivered_to_telegram": False,
+                "telegram_message_id": message_id,
+                "telegram_delivery_status": "sent" if accepted else "failed",
+                "telegram_delivery_reason": None if accepted else error,
+                "telegram_delivery_occurred_at": occurred_at,
+            },
+        )
+        event_type = (
+            "notifications.telegram.sent" if accepted else "notifications.telegram.error"
+        )
+        await self.stream.publish(
+            event_type,
+            {
+                "notificationId": str(notification_id),
+                "messageId": message_id,
+                "status": "sent" if accepted else "failed",
+                "reason": error,
+            },
+        )
+        if not accepted:
+            raise NotificationDispatchError("notification_dispatch_failed")
+
+
+class NotificationService:
+    def __init__(
+        self,
+        repository: repositories.NotificationRepository,
+        attempts: repositories.NotificationAttemptRepository,
+        events_repository: repositories.NotificationEventRepository,
+        dispatcher: NotificationDispatcherProtocol,
+        events_service: NotificationEventsService,
+        *,
+        rabbit_exchange: str,
+        rabbit_routing_key: str,
+        redis_channel: str,
+        retry_attempts: int,
+        retry_delay_ms: int,
+    ) -> None:
+        self.repository = repository
+        self.attempts = attempts
+        self.events_repository = events_repository
+        self.dispatcher = dispatcher
+        self.events_service = events_service
+        self.rabbit_exchange = rabbit_exchange
+        self.rabbit_routing_key = rabbit_routing_key
+        self.redis_channel = redis_channel
+        self.retry_attempts = retry_attempts
+        self.retry_delay_ms = retry_delay_ms
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    async def enqueue(self, payload: schemas.NotificationCreate) -> schemas.NotificationRead:
+        recipients = [recipient.model_dump(by_alias=True) for recipient in payload.recipients]
+        data = {
+            "event_key": payload.event_key,
+            "payload": payload.payload,
+            "recipients": recipients,
+            "channel_overrides": payload.channel_overrides or None,
+            "deduplication_key": payload.deduplication_key,
+        }
+        try:
+            entity = await self.repository.create(data)
+        except IntegrityError as exc:
+            raise DuplicateNotificationError("duplicate_notification") from exc
+
+        message = {
+            "notificationId": str(entity.id),
+            "eventKey": entity.event_key,
+            "payload": entity.payload,
+            "recipients": recipients,
+            "channelOverrides": entity.channel_overrides or [],
+            "deduplicationKey": entity.deduplication_key,
+        }
+
+        attempt_counter = {"value": 0}
+
+        try:
+            await self._execute_with_retry(
+                "rabbitmq",
+                lambda: self._publish_rabbit(entity.id, message, attempt_counter),
+            )
+            await self._execute_with_retry(
+                "redis",
+                lambda: self._publish_redis(entity.id, message, attempt_counter),
+            )
+            await self._execute_with_retry(
+                "events-service",
+                lambda: self._dispatch_internal(payload, entity.id, message, attempt_counter),
+            )
+            await self.repository.update(
+                entity.id,
+                {
+                    "status": schemas.NotificationStatus.PROCESSED.value,
+                    "last_error": None,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            error_message = str(exc)
+            await self.repository.update(
+                entity.id,
+                {
+                    "status": schemas.NotificationStatus.FAILED.value,
+                    "last_error": error_message,
+                },
+            )
+            self.logger.error("Failed to dispatch notification %s: %s", entity.id, error_message)
+            raise NotificationDispatchError("notification_dispatch_failed") from exc
+
+        refreshed = await self.repository.get_with_attempts(entity.id)
+        return schemas.NotificationRead.model_validate(refreshed or entity)
+
+    async def get_status(
+        self, notification_id: UUID
+    ) -> schemas.NotificationStatusResponse | None:
+        entity = await self.repository.get_with_attempts(notification_id)
+        if entity is None:
+            return None
+        events = await self.events_repository.list_for_notification(notification_id)
+        attempts = entity.attempts or []
+        channels = sorted({attempt.channel for attempt in attempts})
+        delivered_event = next(
+            (
+                event
+                for event in events
+                if event.delivered_to_telegram
+                or (event.telegram_delivery_status or "").lower() == "delivered"
+            ),
+            None,
+        )
+        delivered_at = (
+            delivered_event.telegram_delivery_occurred_at if delivered_event else None
+        )
+        status = "delivered" if delivered_event else entity.status
+        return schemas.NotificationStatusResponse(
+            id=entity.id,
+            status=status,
+            attempts=len(attempts),
+            channels=channels,
+            delivered_at=delivered_at,
+        )
+
+    async def _publish_rabbit(
+        self,
+        notification_id: UUID,
+        message: dict[str, Any],
+        counter: dict[str, int],
+    ) -> None:
+        counter["value"] += 1
+        attempt_number = counter["value"]
+        try:
+            await self.dispatcher.publish_rabbit(
+                self.rabbit_exchange, self.rabbit_routing_key, message
+            )
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "rabbitmq",
+                "success",
+                {"exchange": self.rabbit_exchange, "routingKey": self.rabbit_routing_key},
+            )
+            await self.repository.update(
+                notification_id,
+                {"status": schemas.NotificationStatus.QUEUED.value},
+            )
+        except Exception as exc:  # noqa: BLE001
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "rabbitmq",
+                "failure",
+                {"exchange": self.rabbit_exchange, "routingKey": self.rabbit_routing_key},
+                str(exc),
+            )
+            raise
+
+    async def _publish_redis(
+        self,
+        notification_id: UUID,
+        message: dict[str, Any],
+        counter: dict[str, int],
+    ) -> None:
+        counter["value"] += 1
+        attempt_number = counter["value"]
+        try:
+            await self.dispatcher.publish_redis(self.redis_channel, message)
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "redis",
+                "success",
+                {"channel": self.redis_channel},
+            )
+        except Exception as exc:  # noqa: BLE001
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "redis",
+                "failure",
+                {"channel": self.redis_channel},
+                str(exc),
+            )
+            raise
+
+    async def _dispatch_internal(
+        self,
+        payload: schemas.NotificationCreate,
+        notification_id: UUID,
+        message: dict[str, Any],
+        counter: dict[str, int],
+    ) -> None:
+        counter["value"] += 1
+        attempt_number = counter["value"]
+        chat_id = next(
+            (recipient.telegram_id for recipient in payload.recipients if recipient.telegram_id),
+            None,
+        )
+        event_payload = dict(message["payload"])
+        event_payload.update(
+            {
+                "notificationId": str(notification_id),
+                "recipients": [r.model_dump(by_alias=True) for r in payload.recipients],
+                "channelOverrides": payload.channel_overrides or [],
+            }
+        )
+        dto = schemas.NotificationEventIngest(
+            id=uuid4(),
+            source="crm.notifications",
+            type=payload.event_key,
+            time=datetime.now(timezone.utc),
+            data=event_payload,
+            chat_id=chat_id,
+        )
+        try:
+            await self.events_service.handle_incoming(dto)
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "events-service",
+                "success",
+                {"chatId": chat_id},
+            )
+        except Exception as exc:  # noqa: BLE001
+            await self._record_attempt(
+                notification_id,
+                attempt_number,
+                "events-service",
+                "failure",
+                {"chatId": chat_id},
+                str(exc),
+            )
+            raise
+
+    async def _record_attempt(
+        self,
+        notification_id: UUID,
+        attempt_number: int,
+        channel: str,
+        status: str,
+        metadata: dict[str, Any],
+        error: str | None = None,
+    ) -> None:
+        await self.attempts.create(
+            {
+                "notification_id": notification_id,
+                "attempt_number": attempt_number,
+                "channel": channel,
+                "status": status,
+                "metadata": metadata,
+                "error": error,
+            }
+        )
+        update_payload: dict[str, Any] = {
+            "attempts_count": attempt_number,
+            "last_attempt_at": datetime.now(timezone.utc),
+        }
+        if status == "failure":
+            update_payload["last_error"] = error
+        else:
+            update_payload["last_error"] = None
+        await self.repository.update(notification_id, update_payload)
+
+    async def _execute_with_retry(
+        self,
+        channel: str,
+        operation: callable,
+    ) -> None:
+        attempt = 0
+        last_error: Exception | None = None
+        while attempt < self.retry_attempts:
+            attempt += 1
+            try:
+                await operation()
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc if isinstance(exc, Exception) else Exception(str(exc))
+                if attempt >= self.retry_attempts:
+                    break
+                delay = max(self.retry_delay_ms, 0) / 1000.0
+                if delay:
+                    await asyncio.sleep(delay)
+                self.logger.warning(
+                    "Channel %s attempt %s failed: %s", channel, attempt, exc
+                )
+        if last_error is None:
+            last_error = NotificationDispatchError("operation_failed")
+        raise last_error

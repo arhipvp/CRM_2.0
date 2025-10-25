@@ -1,4 +1,6 @@
-# Notifications Service
+# Notifications Service (legacy)
+
+> ⚠️ Сервис переведён на Python и встроен в CRM (`backend/crm`). Этот каталог сохранён для справки и не используется в актуальной поставке. Эндпоинты `/api/v1/templates`, `/api/v1/notifications`, `/api/notifications/events`, `/api/notifications/stream` реализованы в FastAPI-приложении CRM. См. [`backend/crm/README.md`](../crm/README.md#notifications) и переменные `CRM_NOTIFICATIONS_*` в [`env.example`](../../env.example).
 
 > ⚠️ **Легаси-сервис.** Функциональность уведомлений перенесена в CRM: активные REST/SSE эндпоинты и события описаны в [`docs/api/notifications.md`](../../docs/api/notifications.md). Этот README оставлен для справки по прежнему standalone-приложению; актуальные переменные окружения используют блоки `CRM_EVENTS_EXCHANGE` и `CRM_TASKS_*`, а Gateway направляет REST/SSE-запросы на CRM через `GATEWAY_UPSTREAM_NOTIFICATIONS_*` вместо отдельного сервиса уведомлений.【F:docs/api/notifications.md†L1-L33】【F:env.example†L162-L176】【F:env.example†L317-L323】【F:backend/gateway/src/config/upstreams.config.ts†L1-L66】
 

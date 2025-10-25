@@ -68,6 +68,26 @@ class Settings(BaseSettings):
 
     auth_disabled: bool = Field(default=False)
 
+    notifications_dispatch_exchange: str = Field(default="notifications.exchange")
+    notifications_dispatch_routing_key: str = Field(default="notifications.dispatch")
+    notifications_dispatch_redis_channel: str = Field(default="notifications:dispatch")
+    notifications_dispatch_retry_attempts: int = Field(default=3)
+    notifications_dispatch_retry_delay_ms: int = Field(default=60_000)
+    notifications_queue_name: str = Field(default="notifications.events")
+    notifications_queue_routing_key: str = Field(default="notifications.*")
+    notifications_queue_durable: bool = Field(default=True)
+    notifications_sse_retry_ms: int = Field(default=5_000)
+    notifications_templates_default_locale: str = Field(default="ru-RU")
+    notifications_telegram_enabled: bool = Field(default=False)
+    notifications_telegram_mock: bool = Field(default=True)
+    notifications_telegram_bot_token: Optional[str] = Field(default=None)
+    notifications_telegram_default_chat_id: Optional[str] = Field(default=None)
+    notifications_telegram_webhook_enabled: bool = Field(default=False)
+    notifications_telegram_webhook_secret: Optional[str] = Field(default=None)
+    notifications_telegram_webhook_signature_header: str = Field(
+        default="x-telegram-signature"
+    )
+
     @property
     def resolved_celery_broker(self) -> str:
         return str(self.celery_broker_url or self.redis_url)

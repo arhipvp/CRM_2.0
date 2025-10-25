@@ -21,42 +21,6 @@ set +a
 
 ROOT_DIR=$(pwd)
 
-run_documents_migrations() {
-  echo "[migrate-local] ��������� �������� Documents (TypeORM)..."
-  if ! command -v pnpm >/dev/null 2>&1; then
-    echo "[migrate-local] pnpm �� ������. ���������� pnpm: https://pnpm.io/installation." >&2
-    return 1
-  fi
-
-  pushd "$ROOT_DIR/backend/documents" >/dev/null
-
-  local documents_db_url="${DOCUMENTS_DATABASE_URL:-postgresql://documents:documents@localhost:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-crm}?search_path=documents}"
-  local admin_db_url="${DATABASE_URL:-postgresql://postgres:postgres@localhost:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-crm}}"
-
-  pnpm install --frozen-lockfile >/dev/null
-
-  DOCUMENTS_DATABASE_URL="${documents_db_url}" \
-    DATABASE_URL="${admin_db_url}" \
-    node - <<'NODE'
-require('ts-node/register');
-const DocumentsDataSource = require('./typeorm.config.ts').default;
-
-(async () => {
-  const dataSource = await DocumentsDataSource.initialize();
-  try {
-    await dataSource.runMigrations();
-  } finally {
-    await dataSource.destroy();
-  }
-})().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
-NODE
-
-  popd >/dev/null
-}
-
 run_crm_migrations() {
   echo "[migrate-local] Применяем миграции CRM (Alembic)..."
   pushd "$ROOT_DIR/backend/crm" >/dev/null
@@ -137,9 +101,8 @@ run_reports_migrations() {
     -f "$migration_file"
 }
 
-# run_documents_migrations
 run_crm_migrations
 run_audit_migrations
 run_reports_migrations
 
-echo "[migrate-local] Миграции CRM, Auth, Audit и Reports применены."
+echo "[migrate-local] Миграции CRM, Audit и Reports применены."
