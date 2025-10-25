@@ -309,7 +309,9 @@ class CRMService:
         """Create new calculation"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/calculations"
-            calculation = self.api_client.post(url, kwargs)
+            payload = dict(kwargs)
+            payload.pop("deal_id", None)
+            calculation = self.api_client.post(url, payload)
             logger.info(f"Created calculation for deal: {deal_id}")
             return calculation
         except Exception as e:
@@ -320,7 +322,9 @@ class CRMService:
         """Update calculation"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/calculations/{calc_id}"
-            calculation = self.api_client.patch(url, kwargs)
+            payload = dict(kwargs)
+            payload.pop("deal_id", None)
+            calculation = self.api_client.patch(url, payload)
             logger.info(f"Updated calculation: {calc_id}")
             return calculation
         except Exception as e:

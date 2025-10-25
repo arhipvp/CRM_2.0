@@ -19,6 +19,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
   - Connection error handling with user-friendly messages
   - API timeout protection (10 seconds default)
 - **Logging**: Debug logging with configurable levels
+- **Deal Documents**: Attach files to deal folders and open them directly from the UI
 
 ### Planned Features
 - Deal creation and editing
@@ -97,6 +98,7 @@ pip install -r requirements.txt
 DESKTOP_API_BASE_URL=http://localhost:8080/api/v1
 DESKTOP_API_TIMEOUT=10
 DESKTOP_LOG_LEVEL=INFO
+DESKTOP_DEAL_DOCUMENTS_ROOT=./var/deal_documents
 ```
 
 > Значения по умолчанию заданы в `config.py`. Добавляйте `.env` только если требуется переопределить базовый URL, таймауты или уровень логирования.
@@ -126,6 +128,13 @@ python main.py
 1. Navigate to "Deals" tab
 2. View all deals in table format
 3. Features for editing/creating coming soon
+
+### Deal Documents
+1. Установите переменную `DESKTOP_DEAL_DOCUMENTS_ROOT` или используйте значение по умолчанию (`<repo>/deal_documents`).
+2. На вкладке **Calculations** выберите сделку и нажмите **Attach Document**, чтобы скопировать файлы в локальную папку сделки.
+3. Используйте **Open Document**, чтобы открыть прикреплённый файл (если расчёт содержит список файлов) или саму папку сделки.
+4. В диалоге расчёта (при создании или редактировании) добавляйте файлы кнопкой **Add** — выбранные документы копируются в папку сделки и сохраняются в поле `files` расчёта.
+5. Кнопка **Open** в диалоге расчёта открывает папку сделки для ручного управления файлами.
 
 ### Payments Viewing
 1. Navigate to "Payments" tab

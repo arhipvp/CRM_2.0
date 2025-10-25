@@ -1,10 +1,11 @@
 """Detail dialogs for viewing and editing CRM entities"""
 import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Optional, Dict, Any
+from tkinter import ttk, messagebox, filedialog
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from i18n import i18n
 from table_sort_utils import treeview_sort_column
+from document_utils import copy_files_to_deal_folder, open_deal_file, open_deal_folder
 
 
 class ClientDetailDialog(tk.Toplevel):
@@ -223,6 +224,8 @@ class DealDetailDialog(tk.Toplevel):
         button_frame.pack(pady=5)
         ttk.Button(button_frame, text=i18n("Add"), command=self._add_calculation).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_calculation).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Attach Document"), command=self._attach_document).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Open Document"), command=self._open_document).pack(side="left", padx=5)
 
     def _on_calculations_tree_sort(self, col):
         display_map = {
@@ -368,7 +371,7 @@ class DealDetailDialog(tk.Toplevel):
     def _add_calculation(self):
         """Add calculation to deal"""
         from edit_dialogs import CalculationEditDialog
-        dialog = CalculationEditDialog(self, self.crm_service, deals_list=[self.deal_data], calculation=None)
+        dialog = CalculationEditDialog(self, calculation=None, deals_list=[self.deal_data])
         if dialog.result:
             def worker():
                 try:
@@ -412,6 +415,92 @@ class DealDetailDialog(tk.Toplevel):
 
         from threading import Thread
         Thread(target=worker, daemon=True).start()
+
+    def _attach_document(self):
+        """Attach files to the deal folder."""
+        deal_id = self.deal_data.get("id")
+        if not deal_id:
+            messagebox.showerror(i18n("Error"), i18n("Deal ID not found"), parent=self)
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(deal_id, file_paths)
+        if not copied:
+            messagebox.showerror(i18n("Error"), i18n("No files were attached"), parent=self)
+            return
+
+        folder = open_deal_folder(deal_id)
+        messagebox.showinfo(i18n("Success"), i18n("Files attached to deal folder") + f"\n{folder}", parent=self)
+
+    def _open_document(self):
+        """Open a document or the deal folder."""
+        deal_id = self.deal_data.get("id")
+        if not deal_id:
+            messagebox.showerror(i18n("Error"), i18n("Deal ID not found"), parent=self)
+            return
+
+        selection = self.calculations_tree.selection()
+        files: List[str] = []
+        if selection:
+            calc_id = self.calculation_id_map.get(selection[0])
+            calculation = next((c for c in self.calculations if c.get("id") == calc_id), None)
+            if calculation:
+                files = list(calculation.get("files") or [])
+
+        if files:
+            file_to_open = self._choose_file_from_list(files)
+            if not file_to_open:
+                return
+            try:
+                open_deal_file(file_to_open)
+            except FileNotFoundError:
+                messagebox.showerror(
+                    i18n("Error"),
+                    i18n("File not found in deal folder. It may have been moved or deleted."),
+                    parent=self,
+                )
+        else:
+            open_deal_folder(deal_id)
+
+    def _choose_file_from_list(self, files: List[str]) -> Optional[str]:
+        if len(files) == 1:
+            return files[0]
+
+        dialog = tk.Toplevel(self)
+        dialog.transient(self)
+        dialog.title(i18n("Select file"))
+        result: Dict[str, Optional[str]] = {"value": None}
+
+        ttk.Label(dialog, text=i18n("Select a document to open")).pack(padx=10, pady=5)
+        listbox = tk.Listbox(dialog, height=min(10, len(files)))
+        listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        for path in files:
+            listbox.insert("end", path)
+
+        def on_ok():
+            selection = listbox.curselection()
+            if not selection:
+                return
+            result["value"] = listbox.get(selection[0])
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("OK"), command=on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Cancel"), command=on_cancel).pack(side="left", padx=5)
+
+        listbox.bind("<Double-1>", lambda _event: on_ok())
+        dialog.grab_set()
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        dialog.wait_window(dialog)
+
+        return result["value"]
 
     def _add_payment(self):
         """Add payment to deal"""
