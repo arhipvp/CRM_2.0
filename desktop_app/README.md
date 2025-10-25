@@ -13,6 +13,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
   - Delete clients with confirmation
 - **Deals Viewing**: List all deals with title, client, status, and amount
 - **Payments Viewing**: View payments for selected deals
+- **Deal Journal**: Просмотр и создание записей журнала сделки через CRM API (дата, автор, тип записи)
 - **Asynchronous Operations**: Non-blocking API calls using threading
 - **Error Handling**:
   - 401 Unauthorized (session expiration) detection
@@ -102,6 +103,7 @@ DESKTOP_DEAL_DOCUMENTS_ROOT=./var/deal_documents
 ```
 
 > Значения по умолчанию заданы в `config.py`. Добавляйте `.env` только если требуется переопределить базовый URL, таймауты или уровень логирования.
+> Для работы журнала сделок укажите `DESKTOP_JOURNAL_AUTHOR_ID` — UUID пользователя CRM, от имени которого создаются записи по умолчанию.
 
 ## Usage
 
@@ -156,6 +158,9 @@ python main.py
 | DELETE | `/crm/clients/{id}` | Delete client |
 | GET | `/crm/deals` | List all deals |
 | GET | `/crm/deals/{id}` | Get specific deal |
+| GET | `/crm/deals/{id}/journal` | List journal entries for deal |
+| POST | `/crm/deals/{id}/journal` | Create journal entry |
+| DELETE | `/crm/deals/{id}/journal/{entry_id}` | Delete journal entry |
 | GET | `/crm/deals/{id}/payments` | Get payments for deal |
 
 ### Authentication
@@ -179,6 +184,7 @@ Token expires based on server configuration. On 401 response:
 | `DESKTOP_API_BASE_URL` | `http://localhost:8080/api/v1` | API base URL |
 | `DESKTOP_API_TIMEOUT` | `10` | Request timeout in seconds |
 | `DESKTOP_LOG_LEVEL` | `INFO` | Logging level |
+| `DESKTOP_JOURNAL_AUTHOR_ID` | — | UUID пользователя CRM для записей журнала по умолчанию |
 
 ### Logging
 

@@ -108,6 +108,40 @@
 
 > Заголовок `X-Total-Count` содержит общее количество записей без учёта пагинации.
 
+### GET `/documents/{document_id}`
+Возвращает полные метаданные документа.
+
+**Ответ 200** — объект, соответствующий `DocumentEntity`:
+
+```json
+{
+  "id": "uuid",
+  "name": "Полис ОСАГО",
+  "description": "Скан от клиента",
+  "metadata": {
+    "ownerType": "deal",
+    "ownerId": "uuid",
+    "documentType": "policy",
+    "notes": "Срочно",
+    "tags": ["основной"]
+  },
+  "status": "synced",
+  "storagePath": "deal/uuid/<document_id>.pdf",
+  "publicUrl": "https://files.crm.local/deal/uuid/<document_id>.pdf",
+  "mimeType": "application/pdf",
+  "size": "524288",
+  "checksumMd5": "d41d8cd98f00b204e9800998ecf8427e",
+  "uploadedAt": "2024-05-12T09:32:11.231Z",
+  "syncedAt": "2024-05-12T09:32:15.011Z",
+  "createdAt": "2024-05-10T18:24:01.000Z",
+  "updatedAt": "2024-05-12T09:32:15.011Z"
+}
+```
+
+`metadata.ownerType` и `metadata.ownerId` определяют связь с сущностью CRM. Если документ не синхронизирован с хранилищем, `storagePath`, `publicUrl`, `size`, `checksumMd5`, `uploadedAt` и `syncedAt` могут быть `null`. В ответе не возвращаются документы, помеченные как удалённые.
+
+**Ошибки:** `404 document_not_found`, `409 already_deleted`.
+
 ### DELETE `/documents/{document_id}`
 Помечает документ удалённым (soft delete), отзывает доступ (удаляет ACL/группы, связанные симлинки) и ставит задачу на очистку бинарного файла из каталога.
 
@@ -117,10 +151,54 @@
 - `404 document_not_found` — запись не найдена (`{"statusCode":404,"code":"document_not_found","message":"Документ {document_id} не найден"}`).
 - `409 already_deleted` — документ был ранее удалён (`{"statusCode":409,"code":"already_deleted","message":"Документ {document_id} уже удалён"}`).
 
+### PATCH `/documents/{document_id}`
+Частично обновляет метаданные документа. Используется DTO `UpdateDocumentDto`, наследующий все поля из `CreateDocumentDto`, но делающий их необязательными.
+
+**Тело запроса**
+| Поле | Тип | Ограничения |
+| --- | --- | --- |
+| ownerType | string | Значение из набора `client`, `deal`, `policy`, `payment`. Поле переносится в `metadata.ownerType`. |
+| ownerId | UUID | Валидируется как `@IsUUID()`. Обновляет `metadata.ownerId`. |
+| title | string | Обязателен при создании, в PATCH необязателен. Максимум 255 символов. Записывается в `name`. |
+| documentType | string | Необязательное поле длиной до 255 символов. Передайте пустую строку, чтобы удалить тип из метаданных. |
+| notes | string | Необязательное описание. `null` не проходит валидацию; пустая строка очищает описание (в `description` и `metadata.notes` сохраняется пустое значение). |
+| tags | array[string] | Массив строк (до 50 элементов, каждый тег до 64 символов). Пустой массив очищает `metadata.tags`. |
+
+Все поля проходят стандартные преобразования из `CreateDocumentDto`: можно использовать синонимы в snake_case (`owner_type`, `document_type`, `owner_id`). Любое поле, отсутствующее в теле запроса, остаётся без изменений.
+
+**Ответ 200** — обновлённый документ в формате, идентичном `GET /documents/{document_id}`.
+
+**Ошибки:** `404 document_not_found`, `409 already_deleted`, `400 validation_error`.
+
+### POST `/documents/{document_id}/upload`
+Переотправляет документ на обработку в очередь загрузки (`documents.upload`). Воркер переводит документ в статус `uploading`, проверяет/создаёт путь в хранилище и копирует файл из источника (`storagePath` или `sourceUri`), затем устанавливает размер, контрольную сумму и публичный URL.
+
+**Ответ 201**
+```json
+{ "id": "uuid", "status": "queued" }
+```
+
+Используйте маршрут, если предыдущая загрузка завершилась ошибкой (`status = error`), документ был создан с `sourceUri` и ещё не перенесён в хранилище, либо необходимо повторно применить метаданные перед синхронизацией. Маршрут не формирует новую подписанную ссылку на загрузку — он только ставит задание в очередь.
+
+**Ошибки:** `404 document_not_found`, `409 already_deleted`.
+
+### POST `/documents/{document_id}/sync`
+Ставит задачу `documents.sync` для актуализации файла и метаданных из фактического хранилища. Воркер проверяет наличие файла по `storagePath`, пересчитывает размер и MD5, обновляет `publicUrl`, `syncedAt` и объединяет метаданные с результатами драйвера хранилища.
+
+**Ответ 201**
+```json
+{ "id": "uuid", "status": "queued" }
+```
+
+Ручной вызов полезен, когда файл обновили вручную (например, через SFTP или локальное монтирование) и нужно пересчитать хэш/размер, либо после восстановления файла из бэкапа. После `POST /documents/{document_id}/complete` синхронизация ставится автоматически, повторный ручной вызов требуется только при внешних изменениях или диагностике ошибок загрузки.
+
+**Ошибки:** `404 document_not_found`, `409 already_deleted`.
+
 ## Доступы
 
-### POST `/permissions/sync`
-Ставит задачу `documents.permissions.sync` на обновление прав каталога в файловом хранилище (POSIX-права, ACL, группы).
+### POST `/api/v1/permissions/sync`
+Ставит задачу `documents.permissions.sync` на обновление прав каталога в файловом хранилище (POSIX-права, ACL, группы). Эндпоинт
+возвращает только идентификаторы созданной задачи в очереди и соответствующей записи в БД.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
@@ -133,18 +211,11 @@
 ```json
 {
   "job_id": "bullmq-job-id",
-  "task_id": "permissions-task-id",
-  "effective_mode": "770",
-  "applied_acl": [
-    {
-      "principal": "crm-sales",
-      "permissions": ["r", "w", "x"]
-    }
-  ]
+  "task_id": "permissions-task-id"
 }
 ```
 
-`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. `effective_mode` отражает итоговый POSIX-режим каталога, `applied_acl` — список правил, применённых в ходе синхронизации. TTL задания в очереди регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
+`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. Дополнительные атрибуты синхронизации (режим каталога, применённые ACL и т.п.) сохраняются в БД задач и доступны через сервис очередей. TTL задания в очереди регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
