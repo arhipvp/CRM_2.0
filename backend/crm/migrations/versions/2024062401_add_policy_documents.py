@@ -7,6 +7,46 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
+def _table_exists(connection, schema: str, table_name: str) -> bool:
+    result = connection.execute(
+        sa.text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = :schema AND table_name = :table_name
+            )
+            """
+        ),
+        {"schema": schema, "table_name": table_name},
+    )
+    return bool(result.scalar())
+
+
+def _constraint_exists(
+    connection, schema: str, table_name: str, constraint_name: str
+) -> bool:
+    result = connection.execute(
+        sa.text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE table_schema = :schema
+                  AND table_name = :table_name
+                  AND constraint_name = :constraint_name
+            )
+            """
+        ),
+        {
+            "schema": schema,
+            "table_name": table_name,
+            "constraint_name": constraint_name,
+        },
+    )
+    return bool(result.scalar())
+
+
 revision = "2024062401_add_policy_documents"
 down_revision = "2024062001_add_deal_journal"
 branch_labels = None
@@ -62,25 +102,31 @@ def upgrade() -> None:
         referent_schema="crm",
         ondelete="CASCADE",
     )
-    op.create_foreign_key(
-        "fk_policy_documents_document_id",
-        "policy_documents",
-        "documents",
-        ["document_id"],
-        ["id"],
-        source_schema="crm",
-        referent_schema="documents",
-        ondelete="CASCADE",
-    )
+    bind = op.get_bind()
+    if _table_exists(bind, "documents", "documents"):
+        op.create_foreign_key(
+            "fk_policy_documents_document_id",
+            "policy_documents",
+            "documents",
+            ["document_id"],
+            ["id"],
+            source_schema="crm",
+            referent_schema="documents",
+            ondelete="CASCADE",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "fk_policy_documents_document_id",
-        "policy_documents",
-        schema="crm",
-        type_="foreignkey",
-    )
+    bind = op.get_bind()
+    if _constraint_exists(
+        bind, "crm", "policy_documents", "fk_policy_documents_document_id"
+    ):
+        op.drop_constraint(
+            "fk_policy_documents_document_id",
+            "policy_documents",
+            schema="crm",
+            type_="foreignkey",
+        )
     op.drop_constraint(
         "fk_policy_documents_policy_id",
         "policy_documents",
