@@ -231,6 +231,11 @@ class PaymentsTab:
                     payment_error = e
             else:
                 payments = []
+            def update_ui():
+                payments_to_display = payments if payment_error is None else []
+                policies_to_use = policies if policies_error is None else []
+                self.current_policies = list(policies_to_use)
+                self._update_tree_ui(payments_to_display, policies_to_use)
 
             def update_ui():
                 if policies_error is None:
@@ -264,9 +269,15 @@ class PaymentsTab:
 
         dialog = PaymentEditDialog(self.parent, payment=None, deals_list=self.all_deals, policies_list=self.current_policies)
         if dialog.result:
+            payload = {k: v for k, v in dialog.result.items() if k != "deal_id"}
+            deal_id = dialog.selected_deal_id or self.current_deal_id
+            if not deal_id:
+                messagebox.showerror("Error", "Please select a deal first.")
+                return
+
             def worker():
                 try:
-                    payment = self.crm_service.create_payment(**dialog.result)
+                    payment = self.crm_service.create_payment(deal_id, **payload)
                     self.parent.after(0, lambda: self._handle_payment_saved(payment, message="Payment created successfully"))
                 except Exception as e:
                     logger.error(f"Failed to create payment: {e}")
@@ -382,6 +393,7 @@ class PaymentsTab:
         """Update tree UI on main thread"""
         if not self.tree:
             return
+        self.current_policies = list(policies or [])
         normalized = [self._normalize_payment(payment) for payment in payments]
         self.payments = normalized
         self.all_payments = list(normalized)  # Store all payments for filtering

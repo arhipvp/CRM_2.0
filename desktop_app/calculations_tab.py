@@ -302,9 +302,15 @@ class CalculationsTab:
 
         dialog = CalculationEditDialog(self.parent, calculation=None, deals_list=self.deals)
         if dialog.result:
+            payload = {k: v for k, v in dialog.result.items() if k != "deal_id"}
+            deal_id = dialog.selected_deal_id or self.selected_deal_id
+            if not deal_id:
+                messagebox.showerror(i18n("Error"), i18n("Please select a deal first"))
+                return
+
             def worker():
                 try:
-                    self.crm_service.create_calculation(self.selected_deal_id, **dialog.result)
+                    self.crm_service.create_calculation(deal_id, **payload)
                     self.parent.after(0, self.refresh_calculations)
                     self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Add Calculation')} {i18n('created successfully')}"))
                 except Exception as e:
@@ -335,9 +341,15 @@ class CalculationsTab:
         """Show edit dialog on main thread"""
         dialog = CalculationEditDialog(self.parent, calculation=current_calculation, deals_list=self.deals)
         if dialog.result:
+            payload = {k: v for k, v in dialog.result.items() if k != "deal_id"}
+            deal_id = dialog.selected_deal_id or self.selected_deal_id
+            if not deal_id:
+                messagebox.showerror(i18n("Error"), i18n("Please select a deal first"))
+                return
+
             def worker():
                 try:
-                    self.crm_service.update_calculation(self.selected_deal_id, calc_id, **dialog.result)
+                    self.crm_service.update_calculation(deal_id, calc_id, **payload)
                     self.parent.after(0, self.refresh_calculations)
                     self.parent.after(0, lambda: messagebox.showinfo(i18n("Success"), f"{i18n('Add Calculation')} {i18n('updated successfully')}"))
                 except Exception as e:

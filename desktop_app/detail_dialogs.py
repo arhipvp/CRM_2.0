@@ -400,10 +400,15 @@ class DealDetailDialog(tk.Toplevel):
         from edit_dialogs import CalculationEditDialog
         dialog = CalculationEditDialog(self, calculation=None, deals_list=[self.deal_data])
         if dialog.result:
+            payload = {k: v for k, v in dialog.result.items() if k != "deal_id"}
+            deal_id = dialog.selected_deal_id or self.deal_data.get("id", "")
+            if not deal_id:
+                messagebox.showerror(i18n("Error"), i18n("Please select a deal first"), parent=self)
+                return
+
             def worker():
                 try:
-                    deal_id = self.deal_data.get("id", "")
-                    self.crm_service.create_calculation(deal_id, **dialog.result)
+                    self.crm_service.create_calculation(deal_id, **payload)
                     self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Calculation created successfully")))
                     self.after(0, self._reload_calculations)
                 except Exception as e:
@@ -539,9 +544,15 @@ class DealDetailDialog(tk.Toplevel):
             policies_list=self.policies,
         )
         if dialog.result:
+            payload = {k: v for k, v in dialog.result.items() if k != "deal_id"}
+            deal_id = dialog.selected_deal_id or self.deal_data.get("id", "")
+            if not deal_id:
+                messagebox.showerror(i18n("Error"), i18n("Please select a deal first"), parent=self)
+                return
+
             def worker():
                 try:
-                    payment = self.crm_service.create_payment(**dialog.result)
+                    payment = self.crm_service.create_payment(deal_id, **payload)
                     self.after(0, lambda: self._handle_payment_saved(payment, i18n("Payment created successfully")))
                 except Exception as e:
                     from logger import logger
