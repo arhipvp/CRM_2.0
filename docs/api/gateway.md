@@ -14,9 +14,8 @@
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| username | string | Да | Логин пользователя (email или телефон). |
+| email | string | Да | Email пользователя. |
 | password | string | Да | Пароль пользователя. |
-| totp_code | string | Нет | Одноразовый код, если для пользователя включён 2FA. |
 
 **Ответ 200**
 ```json
@@ -27,8 +26,13 @@
   "refresh_expires_in": 604800,
   "user": {
     "id": "uuid",
-    "full_name": "string",
-    "roles": ["agent"]
+    "email": "user@example.com",
+    "enabled": true,
+    "roles": [
+      { "id": "uuid", "name": "ROLE_USER", "description": "Базовая роль" }
+    ],
+    "createdAt": "2024-02-18T08:10:03Z",
+    "updatedAt": "2024-02-18T08:10:03Z"
   }
 }
 ```
@@ -37,8 +41,7 @@
 | Код | Сообщение | Условия |
 | --- | --- | --- |
 | 400 | `invalid_payload` | Отсутствуют обязательные поля. |
-| 401 | `invalid_credentials` | Неверный логин/пароль. |
-| 401 | `otp_required` | Требуется одноразовый код. |
+| 401 | `invalid_credentials` | Неверный email или пароль. |
 | 423 | `account_locked` | Аккаунт временно заблокирован после превышения числа попыток. |
 
 ### POST `/api/v1/session/refresh`
@@ -70,10 +73,13 @@
 {
   "user": {
     "id": "uuid",
-    "full_name": "string",
-    "roles": ["agent", "executor", "admin"],
-    "telegram_linked": true,
-    "last_login_at": "2024-02-18T08:11:23Z"
+    "email": "user@example.com",
+    "enabled": true,
+    "roles": [
+      { "id": "uuid", "name": "ROLE_USER", "description": "Базовая роль" }
+    ],
+    "createdAt": "2024-02-18T08:10:03Z",
+    "updatedAt": "2024-02-18T08:10:03Z"
   },
   "permissions": {
     "clients": "own",
