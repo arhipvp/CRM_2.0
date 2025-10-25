@@ -20,8 +20,8 @@ class PaymentsTab:
         self.crm_service = crm_service
         self.tree: Optional[ttk.Treeview] = None
         self.current_deal_id: Optional[str] = None
-        self.payments = []
-        self.all_payments = []  # Store all payments for filtering
+        self.payments: List[Dict[str, Any]] = []
+        self.all_payments: List[Dict[str, Any]] = []  # Store all payments for filtering
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []
         self.all_policies: List[Dict[str, Any]] = []
@@ -201,9 +201,8 @@ class PaymentsTab:
         if dialog.result:
             def worker():
                 try:
-                    self.crm_service.create_payment(**dialog.result)
-                    self.parent.after(0, self.refresh_payments)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment created successfully"))
+                    payment = self.crm_service.create_payment(**dialog.result)
+                    self.parent.after(0, lambda: self._handle_payment_saved(payment, message="Payment created successfully"))
                 except Exception as e:
                     logger.error(f"Failed to create payment: {e}")
                     error_msg = str(e)
@@ -231,9 +230,8 @@ class PaymentsTab:
         if dialog.result:
             def worker():
                 try:
-                    self.crm_service.update_payment(payment_id, **dialog.result)
-                    self.parent.after(0, self.refresh_payments)
-                    self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment updated successfully"))
+                    payment = self.crm_service.update_payment(payment_id, **dialog.result)
+                    self.parent.after(0, lambda: self._handle_payment_saved(payment, message="Payment updated successfully"))
                 except Exception as e:
                     logger.error(f"Failed to update payment: {e}")
                     error_msg = str(e)
@@ -269,9 +267,10 @@ class PaymentsTab:
         """Update tree UI on main thread"""
         if not self.tree:
             return
-        self.payments = payments
-        self.all_payments = payments  # Store all payments for filtering
-        self._refresh_tree_display(payments)
+        normalized = [self._normalize_payment(payment) for payment in payments]
+        self.payments = normalized
+        self.all_payments = list(normalized)  # Store all payments for filtering
+        self._refresh_tree_display(normalized)
 
     def _refresh_tree_display(self, payments_to_display: List[Dict[str, Any]]):
         """Refresh tree display with given list of payments"""
@@ -292,18 +291,72 @@ class PaymentsTab:
                 payment.get("status", "N/A"),
                 payment.get("planned_date", "N/A"),
                 payment.get("actual_date", "N/A"),
-                f"{payment.get('planned_amount', 0):.2f}" if payment.get('planned_amount') else "0.00",
+                self._format_amount(payment.get("planned_amount")),
                 payment.get("currency", "N/A"),
                 payment.get("comment", "N/A"),
                 str(payment.get("recorded_by_id", "N/A"))[:8],
                 str(payment.get("created_by_id", "N/A"))[:8],
                 str(payment.get("updated_by_id", "N/A"))[:8],
-                f"{payment.get('incomes_total', 0):.2f}" if payment.get('incomes_total') else "0.00",
-                f"{payment.get('expenses_total', 0):.2f}" if payment.get('expenses_total') else "0.00",
-                f"{payment.get('net_total', 0):.2f}" if payment.get('net_total') else "0.00",
+                self._format_amount(payment.get("incomes_total")),
+                self._format_amount(payment.get("expenses_total")),
+                self._format_amount(payment.get("net_total")),
                 payment.get("created_at", "N/A"),
                 payment.get("updated_at", "N/A"),
             ))
+
+    def _handle_payment_saved(self, payment: Optional[Dict[str, Any]], message: Optional[str] = None,
+                               refresh: bool = True):
+        """Update UI after payment creation/update"""
+        if payment:
+            normalized = self._normalize_payment(payment)
+            self._upsert_payment(normalized)
+        if message:
+            messagebox.showinfo("Success", message)
+        if refresh and self.current_deal_id:
+            self.refresh_payments()
+
+    def _normalize_payment(self, payment: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize numeric fields for consistent formatting"""
+        normalized = dict(payment or {})
+        for field in ("planned_amount", "incomes_total", "expenses_total", "net_total"):
+            normalized[field] = self._coerce_numeric(normalized.get(field))
+        return normalized
+
+    def _upsert_payment(self, payment: Dict[str, Any]):
+        """Insert or update payment in local collections"""
+        payment_id = payment.get("id")
+        if not payment_id:
+            return
+        updated = False
+        for index, existing in enumerate(self.payments):
+            if existing.get("id") == payment_id:
+                merged = existing.copy()
+                merged.update(payment)
+                self.payments[index] = merged
+                updated = True
+                break
+        if not updated:
+            self.payments.append(payment)
+        self.all_payments = list(self.payments)
+        self._refresh_tree_display(self.payments)
+
+    @staticmethod
+    def _coerce_numeric(value: Any) -> float:
+        """Convert value to float for formatting"""
+        if value is None or value == "":
+            return 0.0
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        try:
+            return float(str(value).replace(",", "."))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _format_amount(value: Any) -> str:
+        """Format numeric values for display"""
+        number = PaymentsTab._coerce_numeric(value)
+        return f"{number:.2f}"
 
     def _on_search_change(self, search_text: str):
         """Handle search filter change"""

@@ -142,7 +142,8 @@ class CRMService:
         """Create new payment"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/payments"
-            payment = self.api_client.post(url, kwargs)
+            payload = self._prepare_payment_payload(kwargs)
+            payment = self.api_client.post(url, payload)
             logger.info(f"Created payment for deal: {deal_id}")
             return payment
         except Exception as e:
@@ -154,7 +155,8 @@ class CRMService:
         try:
             # Note: Adjust URL if backend uses different structure
             url = f"{CRM_PAYMENTS_URL}/{payment_id}"
-            payment = self.api_client.patch(url, kwargs)
+            payload = self._prepare_payment_payload(kwargs, exclude_keys={"deal_id", "policy_id"})
+            payment = self.api_client.patch(url, payload)
             logger.info(f"Updated payment: {payment_id}")
             return payment
         except Exception as e:
@@ -170,6 +172,30 @@ class CRMService:
         except Exception as e:
             logger.error(f"Failed to delete payment {payment_id}: {e}")
             raise
+
+    @staticmethod
+    def _prepare_payment_payload(data: Dict[str, Any], *, exclude_keys: Optional[set[str]] = None) -> Dict[str, Any]:
+        """Prepare payload for payment operations"""
+        payload = dict(data or {})
+        if exclude_keys:
+            for key in exclude_keys:
+                payload.pop(key, None)
+        for field in ("incomes_total", "expenses_total", "net_total"):
+            if field in payload:
+                payload[field] = CRMService._format_decimal(payload.get(field))
+        return payload
+
+    @staticmethod
+    def _format_decimal(value: Any) -> str:
+        """Format decimal values to strings with two decimals"""
+        if value is None or value == "":
+            return "0.00"
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return f"{float(value):.2f}"
+        try:
+            return f"{float(str(value).replace(',', '.')):.2f}"
+        except (TypeError, ValueError):
+            return "0.00"
 
     # --- Policies Operations ---
 
