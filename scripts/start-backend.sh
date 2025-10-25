@@ -362,15 +362,6 @@ main() {
     log_info "Выбраны все доступные сервисы"
   fi
 
-  require_command pnpm
-  require_command poetry
-  require_command java "java (JDK 17+)"
-
-  local gradlew="${ROOT_DIR}/backend/auth/gradlew"
-  if [[ -f "${gradlew}" && ! -x "${gradlew}" ]]; then
-    chmod +x "${gradlew}"
-  fi
-
   local services_to_run=()
   if ((${#SELECTED_SERVICE_NAMES[@]} == 0)); then
     services_to_run=("${SERVICES[@]}")
@@ -380,6 +371,39 @@ main() {
       services_to_run+=("${SERVICE_ENTRY_BY_NAME["${selected_name}"]}")
     done
     log_info "Запускаем выбранные сервисы: $(join_by ', ' "${SELECTED_SERVICE_NAMES[@]}")"
+  fi
+
+  local need_pnpm=false
+  local need_poetry=false
+  local need_java=false
+  for entry in "${services_to_run[@]}"; do
+    IFS='|' read -r service_name _ _ <<<"${entry}"
+    case "${service_name}" in
+      gateway)
+        need_pnpm=true
+        ;;
+      crm-api|crm-worker)
+        need_poetry=true
+        ;;
+      auth)
+        need_java=true
+        ;;
+    esac
+  done
+
+  if [[ "${need_pnpm}" == true ]]; then
+    require_command pnpm
+  fi
+  if [[ "${need_poetry}" == true ]]; then
+    require_command poetry
+  fi
+  if [[ "${need_java}" == true ]]; then
+    require_command java "java (JDK 17+)"
+  fi
+
+  local gradlew="${ROOT_DIR}/backend/auth/gradlew"
+  if [[ -f "${gradlew}" && ! -x "${gradlew}" ]]; then
+    chmod +x "${gradlew}"
   fi
 
   for entry in "${services_to_run[@]}"; do
