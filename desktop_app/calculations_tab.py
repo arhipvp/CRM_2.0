@@ -90,7 +90,7 @@ class CalculationsTab:
 
         # Treeview
         columns = (
-            "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID",
+            "ID", "Owner ID", "Deleted", "Deal ID",
             "Insurance Company", "Program Name", "Premium Amount", "Coverage Sum",
             "Calculation Date", "Validity Period", "Status", "Files", "Comments",
             "Created At", "Updated At"
@@ -108,7 +108,6 @@ class CalculationsTab:
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=100, anchor="w")
-        self.tree.column("Tenant ID", width=100, anchor="w")
         self.tree.column("Owner ID", width=100, anchor="w")
         self.tree.column("Deleted", width=60, anchor="w")
         self.tree.column("Deal ID", width=100, anchor="w")
@@ -142,7 +141,6 @@ class CalculationsTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Tenant ID": "tenant_id",
             "Owner ID": "owner_id",
             "Deleted": "is_deleted",
             "Deal ID": "deal_id",
@@ -237,7 +235,6 @@ class CalculationsTab:
                 iid=calc.get("id"),
                 values=(
                     str(calc.get("id", "N/A"))[:8],
-                    str(calc.get("tenant_id", "N/A"))[:8],
                     str(calc.get("owner_id", "N/A"))[:8],
                     is_deleted,
                     str(calc.get("deal_id", "N/A"))[:8],
@@ -402,7 +399,7 @@ class CalculationsTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
                 i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"),
                 i18n("Calculation Date"), i18n("Validity Period"), i18n("Status"), i18n("Files"), i18n("Comments"),
                 i18n("Created At"), i18n("Updated At")
@@ -413,7 +410,6 @@ class CalculationsTab:
                 is_deleted = i18n("Yes") if calc.get("is_deleted", False) else i18n("No")
                 rows.append([
                     calc.get("id", "N/A")[:8],
-                    calc.get("tenant_id", "N/A")[:8],
                     calc.get("owner_id", "N/A")[:8],
                     is_deleted,
                     calc.get("deal_id", "N/A")[:8],
@@ -459,7 +455,7 @@ class CalculationsTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"),
                 i18n("Insurance Company"), i18n("Program Name"), i18n("Premium Amount"), i18n("Coverage Sum"),
                 i18n("Calculation Date"), i18n("Validity Period"), i18n("Status"), i18n("Files"), i18n("Comments"),
                 i18n("Created At"), i18n("Updated At")
@@ -470,7 +466,6 @@ class CalculationsTab:
                 is_deleted = i18n("Yes") if calc.get("is_deleted", False) else i18n("No")
                 rows.append([
                     calc.get("id", "N/A")[:8],
-                    calc.get("tenant_id", "N/A")[:8],
                     calc.get("owner_id", "N/A")[:8],
                     is_deleted,
                     calc.get("deal_id", "N/A")[:8],

@@ -43,12 +43,12 @@ class DealsTab:
         # Create table Treeview with columns
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Tenant ID", "Created At", "Updated At", "Next Review At"),
+            columns=("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Created At", "Updated At", "Next Review At"),
             show="headings"
         )
 
         # Define column headings and widths
-        for col in ("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Tenant ID", "Created At", "Updated At", "Next Review At"):
+        for col in ("ID", "Title", "Client ID", "Status", "Description", "Deleted", "Owner ID", "Created At", "Updated At", "Next Review At"):
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50)
@@ -58,7 +58,6 @@ class DealsTab:
         self.tree.column("Description", width=200)
         self.tree.column("Deleted", width=60)
         self.tree.column("Owner ID", width=120)
-        self.tree.column("Tenant ID", width=120)
         self.tree.column("Created At", width=150)
         self.tree.column("Updated At", width=150)
         self.tree.column("Next Review At", width=150)
@@ -98,7 +97,6 @@ class DealsTab:
             "Description": "description",
             "Deleted": "is_deleted",
             "Owner ID": "owner_id",
-            "Tenant ID": "tenant_id",
             "Created At": "created_at",
             "Updated At": "updated_at",
             "Next Review At": "next_review_at",
@@ -153,7 +151,6 @@ class DealsTab:
                 deal.get("description", "N/A"),
                 is_deleted,
                 str(deal.get("owner_id", "N/A"))[:8],
-                str(deal.get("tenant_id", "N/A"))[:8],
                 deal.get("created_at", "N/A"),
                 deal.get("updated_at", "N/A"),
                 deal.get("next_review_at", "N/A"),
@@ -270,7 +267,7 @@ class DealsTab:
 
         try:
             # Prepare data from all_deals
-            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Tenant ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
             rows = []
 
             for deal in self.all_deals:
@@ -283,7 +280,6 @@ class DealsTab:
                     deal.get("description", "N/A"),
                     is_deleted,
                     deal.get("owner_id", "N/A"),
-                    deal.get("tenant_id", "N/A"),
                     deal.get("created_at", "N/A"),
                     deal.get("updated_at", "N/A"),
                     deal.get("next_review_at", "N/A"),
@@ -317,7 +313,7 @@ class DealsTab:
 
         try:
             # Prepare data from all_deals
-            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Tenant ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
+            columns = [i18n("ID"), i18n("Title"), i18n("Client ID"), i18n("Status"), i18n("Description"), i18n("Deleted"), i18n("Owner ID"), i18n("Created At"), i18n("Updated At"), i18n("Next Review At")]
             rows = []
 
             for deal in self.all_deals:
@@ -330,7 +326,6 @@ class DealsTab:
                     deal.get("description", "N/A"),
                     is_deleted,
                     deal.get("owner_id", "N/A"),
-                    deal.get("tenant_id", "N/A"),
                     deal.get("created_at", "N/A"),
                     deal.get("updated_at", "N/A"),
                     deal.get("next_review_at", "N/A"),

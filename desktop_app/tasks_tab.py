@@ -47,7 +47,7 @@ class TasksTab:
         self.tree = ttk.Treeview(
             tree_frame,
             columns=(
-                "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+                "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
                 "Title", "Description", "Status", "Priority", "Due Date",
                 "Created At", "Updated At"
             ),
@@ -55,14 +55,13 @@ class TasksTab:
         )
 
         for col in (
-            "ID", "Tenant ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+            "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
             "Title", "Description", "Status", "Priority", "Due Date",
             "Created At", "Updated At"
         ):
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
-        self.tree.column("Tenant ID", width=100)
         self.tree.column("Owner ID", width=100)
         self.tree.column("Deleted", width=60)
         self.tree.column("Deal ID", width=100)
@@ -98,7 +97,6 @@ class TasksTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Tenant ID": "tenant_id",
             "Owner ID": "owner_id",
             "Deleted": "is_deleted",
             "Deal ID": "deal_id",
@@ -170,7 +168,6 @@ class TasksTab:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
                 str(task.get("id", "N/A"))[:8],
-                str(task.get("tenant_id", "N/A"))[:8],
                 str(task.get("owner_id", "N/A"))[:8],
                 is_deleted,
                 str(task.get("deal_id", "N/A"))[:8],
@@ -296,7 +293,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -306,7 +303,6 @@ class TasksTab:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
                     task.get("id", "N/A")[:8],
-                    task.get("tenant_id", "N/A")[:8],
                     task.get("owner_id", "N/A")[:8],
                     is_deleted,
                     task.get("deal_id", "N/A")[:8],
@@ -349,7 +345,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Tenant ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -359,7 +355,6 @@ class TasksTab:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
                     task.get("id", "N/A")[:8],
-                    task.get("tenant_id", "N/A")[:8],
                     task.get("owner_id", "N/A")[:8],
                     is_deleted,
                     task.get("deal_id", "N/A")[:8],
