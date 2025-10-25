@@ -863,3 +863,136 @@ class SyncPermissionsDto(BaseModel):
 class SyncPermissionsResponse(BaseModel):
     job_id: UUID
     status: str
+
+
+class NotificationTemplateChannel(str, Enum):
+    SSE = "sse"
+    TELEGRAM = "telegram"
+
+
+class NotificationTemplateStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class NotificationTemplateBase(BaseModel):
+    key: str = Field(min_length=1, max_length=255)
+    channel: NotificationTemplateChannel
+    body: str = Field(min_length=1)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    status: NotificationTemplateStatus = Field(default=NotificationTemplateStatus.ACTIVE)
+
+
+class NotificationTemplateCreate(NotificationTemplateBase):
+    locale: str | None = Field(default=None, min_length=2, max_length=16)
+
+
+class NotificationTemplateRead(ORMModel, NotificationTemplateBase):
+    id: UUID
+    locale: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class NotificationTemplateListFilters(BaseModel):
+    channel: NotificationTemplateChannel | None = None
+    active: bool | None = None
+
+
+class NotificationRecipient(BaseModel):
+    user_id: str = Field(min_length=1, max_length=255, serialization_alias="userId")
+    telegram_id: str | None = Field(default=None, max_length=255, serialization_alias="telegramId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    QUEUED = "queued"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+
+class NotificationCreate(BaseModel):
+    event_key: str = Field(min_length=1, max_length=255, serialization_alias="eventKey")
+    recipients: list[NotificationRecipient]
+    payload: dict[str, Any]
+    channel_overrides: list[str] | None = Field(default=None, serialization_alias="channelOverrides")
+    deduplication_key: str | None = Field(default=None, max_length=255, serialization_alias="deduplicationKey")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class NotificationAttemptRead(ORMModel):
+    id: UUID
+    notification_id: UUID
+    attempt_number: int
+    channel: str
+    status: str
+    metadata: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+
+
+class NotificationRead(ORMModel):
+    id: UUID
+    event_key: str
+    payload: dict[str, Any]
+    recipients: list[NotificationRecipient]
+    channel_overrides: list[str] | None
+    deduplication_key: str | None
+    status: NotificationStatus
+    attempts_count: int
+    last_attempt_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+    attempts: list[NotificationAttemptRead] = Field(default_factory=list)
+
+
+class NotificationStatusResponse(BaseModel):
+    id: UUID
+    status: str
+    attempts: int
+    channels: list[str]
+    delivered_at: datetime | None = Field(default=None, alias="delivered_at")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class NotificationEvent(BaseModel):
+    id: UUID
+    event_type: str
+    payload: dict[str, Any]
+    delivered_to_telegram: bool
+    telegram_message_id: str | None
+    telegram_delivery_status: str | None
+    telegram_delivery_reason: str | None
+    telegram_delivery_occurred_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class NotificationEventIngest(BaseModel):
+    id: UUID
+    source: str
+    type: str
+    time: datetime
+    data: dict[str, Any]
+    chat_id: str | None = Field(default=None, serialization_alias="chatId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class TelegramDeliveryWebhookStatus(str, Enum):
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
+class TelegramDeliveryWebhook(BaseModel):
+    message_id: str = Field(min_length=1, serialization_alias="messageId")
+    status: TelegramDeliveryWebhookStatus
+    reason: str | None = None
+    occurred_at: datetime = Field(serialization_alias="occurredAt")
+
+    model_config = ConfigDict(populate_by_name=True)

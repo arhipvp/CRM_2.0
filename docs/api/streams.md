@@ -58,7 +58,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** ретрансляция внутренних уведомлений из Notifications API (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
-- **Upstream:** Notifications API предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8085/api/notifications/stream`).
+- **Upstream:** Notifications API предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/api/notifications/stream`).
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
 
 ## Канал `heartbeat`

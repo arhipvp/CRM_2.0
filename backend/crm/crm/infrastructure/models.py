@@ -18,7 +18,7 @@ from sqlalchemy import (
     Integer,
     JSON,
 )
-from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, DATERANGE, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.schema import MetaData
 
@@ -370,4 +370,94 @@ class PermissionSyncJob(CRMBase, TimestampMixin):
         Index("ix_permission_sync_jobs_status", "status"),
         Index("ix_permission_sync_jobs_owner", "owner_id"),
         Index("ix_permission_sync_jobs_owner_type", "owner_type"),
+    )
+
+
+class NotificationTemplate(CRMBase, TimestampMixin):
+    __tablename__ = "notification_templates"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    key: Mapped[str] = mapped_column(String(255), nullable=False)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    locale: Mapped[str] = mapped_column(String(16), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    metadata: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+    __table_args__ = (
+        UniqueConstraint("key", "channel", name="uq_notification_templates_key_channel"),
+        Index("ix_notification_templates_channel", "channel"),
+        Index("ix_notification_templates_status", "status"),
+        Index("ix_notification_templates_locale", "locale"),
+    )
+
+
+class Notification(CRMBase, TimestampMixin):
+    __tablename__ = "notifications"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    event_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    recipients: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    channel_overrides: Mapped[list[str] | None] = mapped_column(ARRAY(String(64)), nullable=True)
+    deduplication_key: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    attempts_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    attempts: Mapped[list["NotificationDeliveryAttempt"]] = relationship(
+        back_populates="notification",
+        cascade="all, delete-orphan",
+        order_by="NotificationDeliveryAttempt.attempt_number.asc()",
+    )
+
+    __table_args__ = (
+        Index("ix_notifications_event_key", "event_key"),
+        Index("ix_notifications_status", "status"),
+    )
+
+
+class NotificationDeliveryAttempt(CRMBase):
+    __tablename__ = "notification_delivery_attempts"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    notification_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("crm.notifications.id", ondelete="CASCADE"), nullable=False
+    )
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    channel: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    metadata: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    notification: Mapped[Notification] = relationship(back_populates="attempts")
+
+    __table_args__ = (
+        Index("ix_notification_delivery_attempts_notification_id", "notification_id"),
+        Index("ix_notification_delivery_attempts_channel", "channel"),
+    )
+
+
+class NotificationEvent(CRMBase, TimestampMixin):
+    __tablename__ = "notification_events"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    event_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    event_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
+    delivered_to_telegram: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    telegram_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    telegram_delivery_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    telegram_delivery_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    telegram_delivery_occurred_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_notification_events_event_type", "event_type"),
+        Index("ix_notification_events_telegram_message_id", "telegram_message_id"),
     )

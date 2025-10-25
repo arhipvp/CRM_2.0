@@ -905,3 +905,147 @@ class PermissionSyncJobRepository:
         )
         await self.session.execute(stmt)
         await self.session.commit()
+
+
+class NotificationTemplateRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list(
+        self, filters: schemas.NotificationTemplateListFilters | None = None
+    ) -> list[models.NotificationTemplate]:
+        stmt = select(models.NotificationTemplate)
+        if filters is not None:
+            if filters.channel is not None:
+                stmt = stmt.where(models.NotificationTemplate.channel == filters.channel.value)
+            if filters.active is not None:
+                status = (
+                    schemas.NotificationTemplateStatus.ACTIVE.value
+                    if filters.active
+                    else schemas.NotificationTemplateStatus.INACTIVE.value
+                )
+                stmt = stmt.where(models.NotificationTemplate.status == status)
+        stmt = stmt.order_by(
+            models.NotificationTemplate.key.asc(),
+            models.NotificationTemplate.locale.asc(),
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def create(self, data: dict[str, Any]) -> models.NotificationTemplate:
+        entity = models.NotificationTemplate(**data)
+        self.session.add(entity)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise RepositoryError(str(exc)) from exc
+        await self.session.refresh(entity)
+        return entity
+
+
+class NotificationRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, data: dict[str, Any]) -> models.Notification:
+        entity = models.Notification(**data)
+        self.session.add(entity)
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise
+        await self.session.refresh(entity)
+        return entity
+
+    async def get(self, notification_id: UUID) -> models.Notification | None:
+        stmt = select(models.Notification).where(models.Notification.id == notification_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_with_attempts(self, notification_id: UUID) -> models.Notification | None:
+        stmt = (
+            select(models.Notification)
+            .where(models.Notification.id == notification_id)
+            .options(selectinload(models.Notification.attempts))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update(self, notification_id: UUID, data: dict[str, Any]) -> models.Notification | None:
+        stmt = (
+            update(models.Notification)
+            .where(models.Notification.id == notification_id)
+            .values(**data)
+            .returning(models.Notification)
+        )
+        result = await self.session.execute(stmt)
+        entity = result.scalar_one_or_none()
+        if entity is None:
+            await self.session.rollback()
+            return None
+        await self.session.commit()
+        return entity
+
+
+class NotificationAttemptRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, data: dict[str, Any]) -> models.NotificationDeliveryAttempt:
+        entity = models.NotificationDeliveryAttempt(**data)
+        self.session.add(entity)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
+
+
+class NotificationEventRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_event_id(self, event_id: UUID) -> models.NotificationEvent | None:
+        stmt = select(models.NotificationEvent).where(models.NotificationEvent.event_id == event_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create(self, data: dict[str, Any]) -> models.NotificationEvent:
+        entity = models.NotificationEvent(**data)
+        self.session.add(entity)
+        await self.session.commit()
+        await self.session.refresh(entity)
+        return entity
+
+    async def update(self, event_id: UUID, data: dict[str, Any]) -> models.NotificationEvent | None:
+        stmt = (
+            update(models.NotificationEvent)
+            .where(models.NotificationEvent.id == event_id)
+            .values(**data)
+            .returning(models.NotificationEvent)
+        )
+        result = await self.session.execute(stmt)
+        entity = result.scalar_one_or_none()
+        if entity is None:
+            await self.session.rollback()
+            return None
+        await self.session.commit()
+        return entity
+
+    async def list_for_notification(self, notification_id: UUID) -> list[models.NotificationEvent]:
+        stmt = (
+            select(models.NotificationEvent)
+            .where(models.NotificationEvent.payload["notificationId"].astext == str(notification_id))
+            .order_by(models.NotificationEvent.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_telegram_message_id(
+        self, message_id: str
+    ) -> models.NotificationEvent | None:
+        stmt = select(models.NotificationEvent).where(
+            models.NotificationEvent.telegram_message_id == message_id
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

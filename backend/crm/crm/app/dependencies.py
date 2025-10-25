@@ -14,6 +14,7 @@ from crm.app.config import settings
 from crm.domain import services
 from crm.infrastructure import repositories
 from crm.app.events import EventsPublisher
+from crm.infrastructure.notifications import NotificationDispatcher
 from crm.infrastructure.queues import DelayedTaskQueue, PermissionsQueue, TaskReminderQueue
 from crm.infrastructure.db import AsyncSessionFactory
 from crm.infrastructure.task_events import TaskEventsPublisher
@@ -193,6 +194,11 @@ _task_queue_redis: Redis | None = None
 _task_reminder_queue: TaskReminderQueue | None = None
 _task_delayed_queue: DelayedTaskQueue | None = None
 
+_notifications_redis: Redis | None = None
+_notification_dispatcher: NotificationDispatcher | None = None
+_notification_stream: services.NotificationStreamService | None = None
+_telegram_service: services.TelegramService | None = None
+
 
 def _get_task_queue_redis() -> Redis:
     global _task_queue_redis
@@ -232,6 +238,103 @@ async def close_task_queues() -> None:
     if _task_queue_redis is not None:
         await _task_queue_redis.aclose()
         _task_queue_redis = None
+
+
+def _get_notifications_redis() -> Redis:
+    global _notifications_redis
+    if _notifications_redis is None:
+        _notifications_redis = Redis.from_url(
+            settings.redis_url, encoding="utf-8", decode_responses=True
+        )
+    return _notifications_redis
+
+
+def get_notification_dispatcher() -> NotificationDispatcher:
+    global _notification_dispatcher
+    if _notification_dispatcher is None:
+        redis = _get_notifications_redis()
+        _notification_dispatcher = NotificationDispatcher(settings, redis)
+    return _notification_dispatcher
+
+
+def get_notification_stream() -> services.NotificationStreamService:
+    global _notification_stream
+    if _notification_stream is None:
+        _notification_stream = services.NotificationStreamService(
+            settings.notifications_sse_retry_ms
+        )
+    return _notification_stream
+
+
+def get_telegram_service() -> services.TelegramService:
+    global _telegram_service
+    if _telegram_service is None:
+        _telegram_service = services.TelegramService(
+            enabled=settings.notifications_telegram_enabled,
+            mock=settings.notifications_telegram_mock,
+            bot_token=settings.notifications_telegram_bot_token,
+            default_chat_id=settings.notifications_telegram_default_chat_id,
+        )
+    return _telegram_service
+
+
+async def close_notification_dependencies() -> None:
+    global _notification_dispatcher, _notifications_redis, _notification_stream
+    dispatcher = _notification_dispatcher
+    _notification_dispatcher = None
+    if dispatcher is not None:
+        await dispatcher.close()
+    if _notifications_redis is not None:
+        await _notifications_redis.aclose()
+        _notifications_redis = None
+    _notification_stream = None
+
+
+def _build_notification_events_service(
+    session: AsyncSession,
+) -> services.NotificationEventsService:
+    stream = get_notification_stream()
+    telegram = get_telegram_service()
+    repository = repositories.NotificationEventRepository(session)
+    return services.NotificationEventsService(repository, stream, telegram)
+
+
+async def get_notification_template_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.NotificationTemplateService:
+    repository = repositories.NotificationTemplateRepository(session)
+    return services.NotificationTemplateService(
+        repository,
+        settings.notifications_templates_default_locale,
+    )
+
+
+async def get_notification_events_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.NotificationEventsService:
+    return _build_notification_events_service(session)
+
+
+async def get_notification_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> services.NotificationService:
+    repository = repositories.NotificationRepository(session)
+    attempts = repositories.NotificationAttemptRepository(session)
+    events_repository = repositories.NotificationEventRepository(session)
+    dispatcher = get_notification_dispatcher()
+    events_service = _build_notification_events_service(session)
+    return services.NotificationService(
+        repository,
+        attempts,
+        events_repository,
+        dispatcher,
+        events_service,
+        rabbit_exchange=settings.notifications_dispatch_exchange,
+        rabbit_routing_key=settings.notifications_dispatch_routing_key,
+        redis_channel=settings.notifications_dispatch_redis_channel,
+        retry_attempts=settings.notifications_dispatch_retry_attempts,
+        retry_delay_ms=settings.notifications_dispatch_retry_delay_ms,
+    )
 
 
 class _NullTaskEventsPublisher:

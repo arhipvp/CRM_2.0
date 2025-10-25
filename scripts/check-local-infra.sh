@@ -445,12 +445,12 @@ function check_documents_api() {
 }
 
 function check_notifications_api() {
-  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
+  local port="${CRM_SERVICE_PORT:-8082}"
   http_health_check "Notifications REST" "http://localhost:${port}/api/notifications/health" "notifications"
 }
 
 function check_notifications_sse() {
-  local port="${NOTIFICATIONS_SERVICE_PORT:-8085}"
+  local port="${CRM_SERVICE_PORT:-8082}"
   sse_health_check "Notifications SSE" "http://localhost:${port}/api/notifications/stream" "notifications"
 }
 
