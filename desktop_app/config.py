@@ -1,5 +1,7 @@
 """Configuration module for desktop app"""
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -21,6 +23,15 @@ CRM_PAYMENTS_URL = f"{API_BASE_URL}/payments"
 CRM_POLICIES_URL = f"{API_BASE_URL}/policies"
 CRM_TASKS_URL = f"{API_BASE_URL}/tasks"
 CRM_USERS_URL = f"{API_BASE_URL}/users"
+
+# Documents configuration
+DEAL_DOCUMENTS_ROOT = Path(
+    os.getenv(
+        "DESKTOP_DEAL_DOCUMENTS_ROOT",
+        Path.cwd() / "deal_documents",
+    )
+)
+DEAL_DOCUMENTS_ROOT.mkdir(parents=True, exist_ok=True)
 
 # Logging Configuration
 LOG_LEVEL = os.getenv("DESKTOP_LOG_LEVEL", "INFO")

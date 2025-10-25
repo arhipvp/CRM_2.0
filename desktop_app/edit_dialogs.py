@@ -1,9 +1,10 @@
 """Edit dialogs for all CRM entities"""
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from i18n import i18n
+from document_utils import copy_files_to_deal_folder, open_deal_folder
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -393,6 +394,7 @@ class CalculationEditDialog(BaseEditDialog):
         self.calculation_date_var = tk.StringVar(value=calculation.get("calculation_date", "") if calculation else "")
         self.status_var = tk.StringVar(value=calculation.get("status", "draft") if calculation else "draft")
         self.comments_var = tk.StringVar(value=calculation.get("comments", "") if calculation else "")
+        self.selected_files: List[str] = list(calculation.get("files", [])) if calculation else []
 
         # Set deal dropdown to current value
         if calculation and calculation.get("deal_id"):
@@ -426,8 +428,23 @@ class CalculationEditDialog(BaseEditDialog):
         # Comments
         self.create_field(7, "Comments", self.comments_var, "text")
 
+        # Files management
+        ttk.Label(self, text=f"{i18n('Files')}:").grid(row=8, column=0, sticky="nw", padx=10, pady=5)
+
+        self.files_listbox = tk.Listbox(self, height=5)
+        self.files_listbox.grid(row=8, column=1, sticky="nsew", padx=10, pady=5)
+
+        files_button_frame = ttk.Frame(self)
+        files_button_frame.grid(row=8, column=2, sticky="ns", padx=5, pady=5)
+
+        ttk.Button(files_button_frame, text=i18n("Add"), command=self._on_add_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Remove"), command=self._on_remove_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Open"), command=self._on_open_folder).pack(fill="x", pady=2)
+
+        self._refresh_files_listbox()
+
         # Buttons
-        self.setup_buttons(8)
+        self.setup_buttons(9)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -450,9 +467,52 @@ class CalculationEditDialog(BaseEditDialog):
             "coverage_sum": float(self.coverage_sum_var.get()) if self.coverage_sum_var.get() else None,
             "calculation_date": self.calculation_date_var.get() if self.calculation_date_var.get() else None,
             "status": self.status_var.get(),
-            "comments": comments
+            "comments": comments,
+            "files": list(self.selected_files),
         }
         self.destroy()
+
+    def _refresh_files_listbox(self) -> None:
+        self.files_listbox.delete(0, "end")
+        for path in self.selected_files:
+            self.files_listbox.insert("end", path)
+
+    def _on_add_files(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(deal_id, file_paths)
+        new_items = [path for path in copied if path not in self.selected_files]
+        if new_items:
+            self.selected_files.extend(new_items)
+            self._refresh_files_listbox()
+
+    def _on_remove_files(self) -> None:
+        selection = list(self.files_listbox.curselection())
+        if not selection:
+            messagebox.showinfo(i18n("Info"), i18n("Select file to remove"), parent=self)
+            return
+        for index in reversed(selection):
+            try:
+                del self.selected_files[index]
+            except IndexError:
+                continue
+        self._refresh_files_listbox()
+
+    def _on_open_folder(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+        open_deal_folder(deal_id)
 
 
 class TaskEditDialog(BaseEditDialog):

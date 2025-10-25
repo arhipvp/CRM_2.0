@@ -11,6 +11,7 @@ from edit_dialogs import CalculationEditDialog
 from search_utils import SearchFilter, DataExporter, search_filter_rows
 from i18n import i18n
 from table_sort_utils import treeview_sort_column
+from document_utils import copy_files_to_deal_folder, open_deal_file, open_deal_folder
 
 
 class CalculationsTab:
@@ -64,6 +65,8 @@ class CalculationsTab:
         tk.Button(control_frame, text=i18n("Refresh"), command=self.refresh_deals).pack(side="left", padx=5)
         tk.Button(control_frame, text=i18n("Export CSV"), command=self.export_to_csv).pack(side="left", padx=5)
         tk.Button(control_frame, text=i18n("Export Excel"), command=self.export_to_excel).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Attach Document"), command=self.attach_document).pack(side="left", padx=5)
+        tk.Button(control_frame, text=i18n("Open Document"), command=self.open_document).pack(side="left", padx=5)
 
         # Filter frame
         filter_frame = ttk.LabelFrame(self.parent, text=i18n("Filters"), padding=5)
@@ -282,6 +285,15 @@ class CalculationsTab:
                 self.comments_text.insert("end", self.current_calculation.get("comments", ""))
                 self.comments_text.config(state="disabled")
 
+    def _get_selected_calculation(self) -> Optional[Dict[str, Any]]:
+        if not self.tree:
+            return None
+        selection = self.tree.selection()
+        if not selection:
+            return None
+        selected_id = selection[0]
+        return next((c for c in self.all_calculations if str(c.get("id")) == selected_id), None)
+
     def add_calculation(self):
         """Add new calculation"""
         if not self.selected_deal_id:
@@ -355,6 +367,55 @@ class CalculationsTab:
                     self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('failed to delete')} calculation: {error_msg}"))
 
             Thread(target=worker, daemon=True).start()
+
+    def attach_document(self) -> None:
+        if not self.selected_deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"))
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self.parent, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(self.selected_deal_id, file_paths)
+        if not copied:
+            messagebox.showerror(i18n("Error"), i18n("No files were attached"))
+            return
+
+        folder = open_deal_folder(self.selected_deal_id)
+        messagebox.showinfo(
+            i18n("Success"),
+            i18n("Files attached to deal folder") + f"\n{folder}",
+        )
+
+    def open_document(self) -> None:
+        if not self.selected_deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"))
+            return
+
+        calculation = self._get_selected_calculation()
+        files = calculation.get("files") if calculation else None
+
+        if files:
+            file_to_open = self._choose_file(list(files))
+            if not file_to_open:
+                return
+            try:
+                open_deal_file(file_to_open)
+            except FileNotFoundError:
+                messagebox.showerror(
+                    i18n("Error"),
+                    i18n("File not found in deal folder. It may have been moved or deleted."),
+                )
+        else:
+            open_deal_folder(self.selected_deal_id)
+
+    def _choose_file(self, files: List[str]) -> Optional[str]:
+        if len(files) == 1:
+            return files[0]
+
+        dialog = FileSelectionDialog(self.parent.winfo_toplevel(), files)
+        return dialog.result
 
     def _on_search_change(self, search_text: str):
         """Handle search filter change"""
@@ -436,6 +497,45 @@ class CalculationsTab:
         except Exception as e:
             logger.error(f"Export error: {e}")
             messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
+
+
+class FileSelectionDialog(tk.Toplevel):
+    """Простой диалог для выбора документа из списка."""
+
+    def __init__(self, parent, files: List[str]):
+        super().__init__(parent)
+        self.transient(parent)
+        self.title(i18n("Select file"))
+        self.result: Optional[str] = None
+
+        ttk.Label(self, text=i18n("Select a document to open")).pack(padx=10, pady=5)
+
+        self.listbox = tk.Listbox(self, height=min(10, len(files)))
+        self.listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        for file_path in files:
+            self.listbox.insert("end", file_path)
+
+        button_frame = ttk.Frame(self)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("OK"), command=self._on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Cancel"), command=self._on_cancel).pack(side="left", padx=5)
+
+        self.listbox.bind("<Double-1>", lambda _event: self._on_ok())
+
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+        self.wait_window(self)
+
+    def _on_ok(self):
+        selection = self.listbox.curselection()
+        if not selection:
+            return
+        self.result = self.listbox.get(selection[0])
+        self.destroy()
+
+    def _on_cancel(self):
+        self.result = None
+        self.destroy()
 
     def export_to_excel(self):
         """Export calculations to Excel file"""
