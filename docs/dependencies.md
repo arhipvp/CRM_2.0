@@ -30,7 +30,7 @@
 | **Documents** | NestJS (Node.js 20) | PostgreSQL `documents`, Redis BullMQ | Локальное/self-hosted хранилище (`DOCUMENTS_STORAGE_*`), POSIX ACL, стратегия бэкапов и отдельный воркер BullMQ.【F:backend/documents/README.md†L16-L24】【F:backend/documents/README.md†L38-L43】【F:backend/documents/README.md†L101-L114】【F:env.example†L171-L192】 |
 | **Notifications** | NestJS (Node.js 18) | PostgreSQL `notifications`, RabbitMQ `notifications.events`, Redis (rate limit) | Telegram webhook/bot конфигурация.【F:backend/notifications/README.md†L8-L44】【F:env.example†L60-L157】 |
 | **Tasks** | NestJS (Node.js 18) | PostgreSQL `tasks`, RabbitMQ `tasks.*`, Redis (отложенные задачи) | Планировщик SLA, BullMQ пула нет (использует Redis напрямую).【F:backend/tasks/README.md†L6-L31】【F:env.example†L59-L131】 |
-| **Reports** | Планируется Python/TypeScript | PostgreSQL агрегаты (`crm`, `audit`), RabbitMQ события (позже) | Пока заглушка, но переменные зарезервированы.【F:backend/reports/README.md†L6-L23】【F:env.example†L61-L134】 |
+| **Reports** | Python 3.11, FastAPI + SQLAlchemy Async | PostgreSQL (`crm`, `audit`, `reports` схемы) | Poetry-скрипты `reports-api`/`reports-refresh-views`, переменные `REPORTS_DATABASE_URL`, `REPORTS_CRM_SCHEMA`, `REPORTS_AUDIT_SCHEMA`, `REPORTS_SCHEMA`.【F:backend/reports/README.md†L6-L47】 |
 | **Audit** | Spring Boot WebFlux (JDK 17) | PostgreSQL `audit`, RabbitMQ (`audit.events`, `audit.core`, `audit.dlq`) | Liquibase миграции, persistent volume для write-ahead журнала.【F:backend/audit/README.md†L6-L27】【F:env.example†L61-L138】 |
 
 ## Как пользоваться
