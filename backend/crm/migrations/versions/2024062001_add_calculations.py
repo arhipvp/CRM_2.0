@@ -83,13 +83,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(POLICIES_CALCULATION_INDEX, table_name="policies", schema="crm")
     op.drop_constraint(
         POLICIES_CALCULATION_FK,
         "policies",
         schema="crm",
         type_="foreignkey",
     )
+    op.drop_index(POLICIES_CALCULATION_INDEX, table_name="policies", schema="crm")
     op.drop_column("policies", "calculation_id", schema="crm")
 
     op.drop_index(CALCULATIONS_COMPANY_INDEX, table_name="calculations", schema="crm")
