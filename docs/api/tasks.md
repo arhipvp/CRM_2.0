@@ -66,6 +66,8 @@
 | due_date | date | Нет | Срок исполнения. |
 | priority | string | Нет | `low`, `normal`, `high`. |
 | context | object | Нет | `{ "deal_id": "uuid", "policy_id": "uuid" }`. |
+| scheduled_for | datetime | Нет | Время отложенного запуска задачи. Можно передавать в формате `scheduled_for` или `scheduledFor`; при указании задача сразу попадёт в статус `scheduled` и будет активирована в указанное время. |
+| payload | object | Нет | Дополнительные данные для произвольных интеграций. Полезно, если требуется сохранить нестандартные поля помимо `context`; объект хранится как есть и возвращается в `TaskResponseDto.payload`. |
 
 > Поля `assignee_id` и `author_id` сохраняются внутри `payload` в формате `assigneeId`/`assignee_id` и `authorId`/`author_id`,
 > поэтому в ответе их можно получить без дополнительного парсинга JSON. Если передан `context`, сервис нормализует его ключи в
@@ -173,6 +175,114 @@
 ```
 
 **Ошибки:** `400 validation_error`, `404 task_not_found`, `409 invalid_status_transition` (например, при попытке вернуть задачу из `completed` в `pending`).
+
+### GET `/tasks/{task_id}`
+Возвращает подробную информацию по задаче.
+
+**Параметры пути**
+| Имя | Тип | Описание |
+| --- | --- | --- |
+| task_id | UUID | Идентификатор задачи. |
+
+**Ответ 200** — объект `TaskResponseDto`.
+
+**Пример ответа**
+```json
+{
+  "id": "0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613",
+  "title": "Позвонить клиенту",
+  "description": "Уточнить детали продления полиса",
+  "statusCode": "in_progress",
+  "statusName": "In progress",
+  "dueAt": "2024-03-12T12:00:00.000Z",
+  "scheduledFor": null,
+  "completedAt": null,
+  "cancelledReason": null,
+  "createdAt": "2024-03-05T08:30:00.000Z",
+  "updatedAt": "2024-03-06T09:45:00.000Z",
+  "payload": {
+    "assigneeId": "8e6d3f5c-6c5b-4a2a-8b15-661fbf6ec5cb",
+    "authorId": "09e11f9f-9b1c-44c3-8c2c-6c6b0d35cc7f",
+    "priority": "high",
+    "context": {"dealId": "91cf0743-5df0-4bd1-92c9-8c2c72739f16"}
+  },
+  "assigneeId": "8e6d3f5c-6c5b-4a2a-8b15-661fbf6ec5cb",
+  "priority": "high",
+  "dealId": "91cf0743-5df0-4bd1-92c9-8c2c72739f16",
+  "clientId": null,
+  "context": {"dealId": "91cf0743-5df0-4bd1-92c9-8c2c72739f16"}
+}
+```
+
+**Ошибки:** `404 task_not_found`.
+
+### POST `/tasks/{task_id}/schedule`
+Переводит задачу в статус `scheduled` и планирует автоматический старт.
+
+**Параметры пути**
+| Имя | Тип | Описание |
+| --- | --- | --- |
+| task_id | UUID | Идентификатор задачи. |
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| scheduled_for | datetime | Да | Момент времени (UTC), когда задача должна автоматически перейти в активное состояние. Поддерживаются ключи `scheduled_for` и `scheduledFor`. |
+
+**Пример запроса**
+```json
+{
+  "scheduledFor": "2024-03-10T09:00:00Z"
+}
+```
+
+**Ответ 200** — `TaskResponseDto` с обновлёнными полями `statusCode` = `scheduled` и `scheduledFor`.
+
+**Пример ответа**
+```json
+{
+  "id": "0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613",
+  "statusCode": "scheduled",
+  "scheduledFor": "2024-03-10T09:00:00.000Z",
+  "updatedAt": "2024-03-06T07:15:00.000Z"
+}
+```
+
+**Ошибки:** `400 validation_error`, `400 scheduled_for_required` (если не указан `scheduled_for`), `404 task_not_found`, `409 invalid_status_transition`.
+
+### POST `/tasks/{task_id}/complete`
+Завершает задачу и переводит её в статус `completed`.
+
+**Параметры пути**
+| Имя | Тип | Описание |
+| --- | --- | --- |
+| task_id | UUID | Идентификатор задачи. |
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| completed_at | datetime | Нет | Пользовательская отметка времени завершения (UTC). Если не передано, используется текущее время сервиса. Принимает ключи `completed_at` или `completedAt`. |
+
+**Пример запроса**
+```json
+{
+  "completedAt": "2024-03-10T11:25:00Z"
+}
+```
+
+**Ответ 200** — `TaskResponseDto` со статусом `completed`.
+
+**Пример ответа**
+```json
+{
+  "id": "0f7f0cfd-9f17-4f7f-b761-9a9f0b83f613",
+  "statusCode": "completed",
+  "completedAt": "2024-03-10T11:25:00.000Z",
+  "updatedAt": "2024-03-10T11:25:00.000Z"
+}
+```
+
+**Ошибки:** `400 validation_error`, `404 task_not_found`, `409 invalid_status_transition` (если задача уже в финальном статусе). 
 
 ### POST `/tasks/{task_id}/reminders`
 Создаёт напоминание.

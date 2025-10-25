@@ -31,6 +31,20 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 - `--with-backend` — запускает `scripts/start-backend.sh` после bootstrap (`DEV_UP_WITH_BACKEND=true`); комбинируйте с `--skip-backend`, чтобы Compose-профиль не удерживал порты перед запуском хостовых процессов;
 - `--log-file PATH` — сохраняет журнал `dev-up` в выбранный путь (`DEV_UP_LOG_FILE`, по умолчанию `.local/logs/dev-up.log`).
 
+Флаги управления логами (`--log-dir`, `--discard-logs`) доступны только в `bootstrap-local.sh` и не передаются через `dev-up`.
+
+| Сценарий              | Флаг/переменная                       | Назначение                                   |
+|-----------------------|----------------------------------------|----------------------------------------------|
+| `bootstrap-local.sh`  | `--skip-backend` / `BOOTSTRAP_SKIP_BACKEND=true` | Пропустить запуск Docker Compose профиля backend |
+|                       | `--skip-backend-wait` / `BOOTSTRAP_SKIP_BACKEND_WAIT=true` | Пропустить ожидание healthcheck профиля backend |
+|                       | `--with-backend` / `BOOTSTRAP_WITH_BACKEND=true` | Запустить `scripts/start-backend.sh` после bootstrap |
+|                       | `--log-dir` / `BOOTSTRAP_LOG_DIR`     | Сохранить артефакты bootstrap в указанный каталог |
+|                       | `--discard-logs` / `BOOTSTRAP_SAVE_LOGS=false` | Удалить артефакты bootstrap после завершения |
+| `dev-up.sh`           | `--skip-backend`                      | Передать в bootstrap пропуск профиля backend |
+|                       | `--skip-backend-wait` / `DEV_UP_SKIP_BACKEND_WAIT=true` | Передать пропуск ожидания профиля backend |
+|                       | `--with-backend` / `DEV_UP_WITH_BACKEND=true` | Передать запуск `scripts/start-backend.sh`  |
+|                       | `--log-file PATH` / `DEV_UP_LOG_FILE` | Настроить путь журнала `dev-up`              |
+
 Остальные опции (`--service`, переменные `START_BACKEND_*`) передаются в helper `scripts/start-backend.sh` и описаны в разделах про bootstrap и ручной запуск сервисов.
 
 Профиль `backend` включает Gateway, Auth, CRM и Documents. Скрипт запускает его отдельной командой, ждёт успешных healthcheck-ов (`docker compose --profile backend wait` либо ручной опрос `/api/v1/health`, `/healthz`, `/health`) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если необходимо перейти к ручной проверке без ожидания healthcheck, передайте `--skip-backend-wait` или `BOOTSTRAP_SKIP_BACKEND_WAIT=true` — шаг попадёт в отчёт как `SKIP`. Если требуется запускать сервисы на хосте, добавляйте `--with-backend` вместе с `--skip-backend`, чтобы helper не столкнулся с занятыми портами и не пришлось вручную останавливать compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up -d` / `down` в каталоге `infra/`.
@@ -202,7 +216,8 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 > CRM/Deals не запустится без поднятого Documents и корректного `CRM_DOCUMENTS_BASE_URL`: модуль полисов использует REST-маршруты `/policies/{policy_id}/documents`, которые зависят от таблицы `documents.documents` и миграции `fk_policy_documents_document_id`. Перед стартом CRM обязательно примените миграции Documents и убедитесь, что сервис доступен по URL из `.env`.
 
 1. Перейдите в `backend/documents` и установите зависимости (`pnpm install`).
-2. Подготовьте каталог хранения документов на хосте (по умолчанию `/var/lib/crm/documents`):
+2. Подготовьте каталог хранения документов на хосте (по умолчанию `/var/lib/crm/documents`) — **только если подключаете bind-монт или разворачиваете сервис без Docker**. Стандартный Docker Compose использует именованный volume `documents_data`, поэтому дополнительный каталог на хосте не нужен (подробнее см. раздел [«Файловое хранилище документов»](#файловое-хранилище-документов)).
+   Если каталог требуется, выполните:
    ```bash
    sudo mkdir -p /var/lib/crm/documents
    sudo chown 1000:1000 /var/lib/crm/documents   # замените 1000:1000 на UID/GID пользователя внутри контейнера
@@ -245,7 +260,7 @@ services:
           selinux: z
 ```
 
-- Путь `source` (`/srv/crm/documents`) должен существовать на хосте и быть доступен для записи. Для режимов разработки можно указать относительный путь (`./var/documents`), но для VPS предпочтителен отдельный диск или LVM-раздел.
+- Путь `source` (`/srv/crm/documents`) должен существовать на хосте и быть доступен для записи. Для режимов разработки можно указать относительный путь (`./var/documents`), но для VPS предпочтителен отдельный диск или LVM-раздел. Если используете compose-конфигурацию из `infra/`, именованный volume `documents_data` уже создаётся автоматически, и правки `DOCUMENTS_STORAGE_ROOT` требуются только при переходе на собственный путь.
 - При смене `DOCUMENTS_STORAGE_ROOT` внутри контейнера обновите `target` у volume и `.env` одновременно.
 
 **Kubernetes**

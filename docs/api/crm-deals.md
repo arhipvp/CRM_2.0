@@ -318,6 +318,12 @@ CRM ведёт платежи внутри сервиса; подробные с
 ### PATCH `/tasks/{task_id}`
 Изменяет `title`, `description`, `status`, `priority`, `due_date`.
 
+### POST `/tasks/{task_id}/schedule`
+Переводит задачу в отложенный статус `scheduled` до наступления указанного времени. См. подробности формата запроса в [`docs/api/tasks.md`](tasks.md#post-tasks-task_id-schedule).
+
+### POST `/tasks/{task_id}/complete`
+Отмечает задачу выполненной; при необходимости можно передать `completed_at` с пользовательской отметкой времени. Полная спецификация приведена в [`docs/api/tasks.md`](tasks.md#post-tasks-task_id-complete).
+
 ## Права доступа
 
 ### POST `/permissions/sync`
