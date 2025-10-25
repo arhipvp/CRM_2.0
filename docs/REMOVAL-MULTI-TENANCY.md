@@ -10,7 +10,7 @@
 - 112 упоминаний в services.py
 - 5 файлов документации
 
-**Другие сервисы** (auth, gateway, documents, tasks, audit, notifications) — НЕ используют tenant_id.
+**Другие сервисы** (auth, gateway, documents, tasks, notifications) — НЕ используют tenant_id.
 
 ## Этап 1: Backend CRM — модели и миксины (1 день)
 

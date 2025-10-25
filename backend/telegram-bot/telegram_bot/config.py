@@ -36,9 +36,6 @@ class Settings(BaseSettings):
     rabbitmq_queue_notifications: str = Field(
         "telegram.bot.notifications", description="Имя очереди для событий уведомлений"
     )
-    rabbitmq_queue_crm: str = Field(
-        "telegram.bot.crm", description="Имя очереди для подписки на CRM-события"
-    )
     event_source: str = Field("crm.telegram-bot", description="Значение CloudEvents source для публикуемых событий")
 
     auth_base_url: AnyUrl = Field(..., description="Базовый URL Auth API")
