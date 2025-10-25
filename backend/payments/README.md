@@ -21,6 +21,7 @@
    cd backend/payments
    SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
    ```
+   > ℹ️ Шаблон `env.example` больше не содержит значение `PAYMENTS_CRM_WEBHOOK_SECRET`. Если нужно принять вебхуки от актуальной CRM, задайте секрет вручную в `.env` этого сервиса или через переменную окружения перед запуском.
 
 ## Что можно найти в архиве
 - историческую документацию по API (`docs/api/payments.md`),
