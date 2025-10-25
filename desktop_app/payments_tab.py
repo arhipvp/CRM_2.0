@@ -24,7 +24,7 @@ class PaymentsTab:
         self.all_payments = []  # Store all payments for filtering
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []
-        self.all_policies: List[Dict[str, Any]] = []
+        self.current_policies: List[Dict[str, Any]] = []
         self.deal_dict = {}
 
         self._setup_ui()
@@ -139,9 +139,7 @@ class PaymentsTab:
         def worker():
             try:
                 deals = self.crm_service.get_deals()
-                policies = self.crm_service.get_policies()
                 self.all_deals = deals
-                self.all_policies = policies
                 deal_dict = {deal.get("title", f"Deal {deal.get('id')}"): deal.get("id") for deal in deals}
                 self.parent.after(0, self._update_deals_combo, deal_dict)
             except Exception as e:
@@ -175,19 +173,35 @@ class PaymentsTab:
             return
 
         def worker():
+            payments = []
+            policies = []
+            payment_error: Optional[Exception] = None
+            policies_error: Optional[Exception] = None
+
             try:
                 payments = self.crm_service.get_payments(self.current_deal_id)
-                self.parent.after(0, self._update_tree_ui, payments)
             except Exception as e:
-                logger.error(f"Failed to fetch payments: {e}")
-                error_str = str(e)
-                # Check if it's a 404 error - payments endpoint may not be fully implemented
-                if "404" in error_str:
-                    logger.info(f"Payments endpoint not implemented for this deal")
-                    self.parent.after(0, self._update_tree_ui, [])
-                else:
-                    error_msg = error_str
-                    self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch payments: {error_msg}"))
+                payment_error = e
+
+            try:
+                policies = self.crm_service.get_deal_policies(self.current_deal_id)
+            except Exception as e:
+                policies_error = e
+                logger.error(f"Failed to fetch policies for deal {self.current_deal_id}: {e}")
+
+            def update_ui():
+                payments_to_display = payments if payment_error is None else []
+                policies_to_use = policies if policies_error is None else []
+                self._update_tree_ui(payments_to_display, policies_to_use)
+
+                if payment_error is not None:
+                    error_str = str(payment_error)
+                    if "404" in error_str:
+                        logger.info("Payments endpoint not implemented for this deal")
+                    else:
+                        messagebox.showerror("Error", f"Failed to fetch payments: {error_str}")
+
+            self.parent.after(0, update_ui)
 
         Thread(target=worker, daemon=True).start()
 
@@ -197,7 +211,7 @@ class PaymentsTab:
             messagebox.showwarning("Warning", "Please select a deal first.")
             return
 
-        dialog = PaymentEditDialog(self.parent, payment=None, deals_list=self.all_deals, policies_list=self.all_policies)
+        dialog = PaymentEditDialog(self.parent, payment=None, deals_list=self.all_deals, policies_list=self.current_policies)
         if dialog.result:
             def worker():
                 try:
@@ -227,7 +241,7 @@ class PaymentsTab:
             messagebox.showerror("Error", "Payment not found.")
             return
 
-        dialog = PaymentEditDialog(self.parent, payment=payment_data, deals_list=self.all_deals, policies_list=self.all_policies)
+        dialog = PaymentEditDialog(self.parent, payment=payment_data, deals_list=self.all_deals, policies_list=self.current_policies)
         if dialog.result:
             def worker():
                 try:
@@ -265,12 +279,14 @@ class PaymentsTab:
 
             Thread(target=worker, daemon=True).start()
 
-    def _update_tree_ui(self, payments):
+    def _update_tree_ui(self, payments, policies=None):
         """Update tree UI on main thread"""
         if not self.tree:
             return
         self.payments = payments
         self.all_payments = payments  # Store all payments for filtering
+        if policies is not None:
+            self.current_policies = policies
         self._refresh_tree_display(payments)
 
     def _refresh_tree_display(self, payments_to_display: List[Dict[str, Any]]):

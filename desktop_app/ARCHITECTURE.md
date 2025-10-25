@@ -22,6 +22,7 @@
 │  │  │  • get_clients()      • create_deal()                │   │   │
 │  │  │  • update_client()    • delete_payment()             │   │   │
 │  │  │  • get_policies()     • get_calculations()           │   │   │
+│  │  │  • get_deal_policies()                              │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                          │                                   │   │
 │  │                          ▼                                   │   │

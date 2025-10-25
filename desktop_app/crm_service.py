@@ -183,6 +183,32 @@ class CRMService:
             logger.error(f"Failed to fetch policies: {e}")
             raise
 
+    def get_deal_policies(self, deal_id: str) -> List[Dict[str, Any]]:
+        """Fetch policies that belong to a specific deal."""
+        if not deal_id:
+            logger.warning("Deal ID is empty when requesting deal policies")
+            return []
+
+        try:
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies"
+            response = self.api_client.get(url)
+            if isinstance(response, dict):
+                policies = response.get("items", [])
+            else:
+                policies = response or []
+            logger.info(f"Fetched {len(policies)} policies for deal: {deal_id}")
+            return policies
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch policies for deal {deal_id} via dedicated endpoint: {e}. "
+                "Falling back to filtering all policies."
+            )
+
+        all_policies = self.get_policies()
+        filtered_policies = [policy for policy in all_policies if policy.get("deal_id") == deal_id]
+        logger.info(f"Filtered {len(filtered_policies)} policies for deal: {deal_id}")
+        return filtered_policies
+
     def get_policy(self, policy_id: str) -> Optional[Dict[str, Any]]:
         """Fetch single policy by ID"""
         try:
