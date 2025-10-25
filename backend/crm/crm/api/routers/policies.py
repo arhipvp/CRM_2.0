@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from crm.app.dependencies import get_policy_service, get_tenant_id
+from crm.app.dependencies import get_policy_service
 from crm.domain import schemas
 from crm.domain.services import PolicyService
 
@@ -15,27 +15,24 @@ router = APIRouter(prefix="/policies", tags=["policies"])
 @router.get("", response_model=list[schemas.PolicyRead])
 async def list_policies(
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> list[schemas.PolicyRead]:
-    return list(await service.list_policies(tenant_id))
+    return list(await service.list_policies())
 
 
 @router.post("", response_model=schemas.PolicyRead, status_code=status.HTTP_201_CREATED)
 async def create_policy(
     payload: schemas.PolicyCreate,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.PolicyRead:
-    return await service.create_policy(tenant_id, payload)
+    return await service.create_policy(payload)
 
 
 @router.get("/{policy_id}", response_model=schemas.PolicyRead)
 async def get_policy(
     policy_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.PolicyRead:
-    policy = await service.get_policy(tenant_id, policy_id)
+    policy = await service.get_policy(policy_id)
     if policy is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found")
     return policy
@@ -46,9 +43,8 @@ async def update_policy(
     policy_id: UUID,
     payload: schemas.PolicyUpdate,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.PolicyRead:
-    policy = await service.update_policy(tenant_id, policy_id, payload)
+    policy = await service.update_policy(policy_id, payload)
     if policy is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found")
     return policy

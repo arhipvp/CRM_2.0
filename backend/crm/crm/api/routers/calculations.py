@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from crm.app.dependencies import get_calculation_service, get_tenant_id
+from crm.app.dependencies import get_calculation_service
 from crm.domain import schemas
 from crm.domain.services import CalculationService
 from crm.infrastructure.repositories import RepositoryError
@@ -23,11 +23,9 @@ async def list_calculations(
     calculation_date_from: date | None = Query(default=None),
     calculation_date_to: date | None = Query(default=None),
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> list[schemas.CalculationRead]:
     return list(
         await service.list_calculations(
-            tenant_id,
             deal_id,
             statuses=status_filter,
             insurance_company=insurance_company,
@@ -42,10 +40,9 @@ async def create_calculation(
     deal_id: UUID,
     payload: schemas.CalculationCreate,
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
     try:
-        return await service.create_calculation(tenant_id, deal_id, payload)
+        return await service.create_calculation(deal_id, payload)
     except RepositoryError as exc:
         status_code = status.HTTP_404_NOT_FOUND if str(exc) == "deal_not_found" else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
@@ -56,9 +53,8 @@ async def get_calculation(
     deal_id: UUID,
     calculation_id: UUID,
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
-    calculation = await service.get_calculation(tenant_id, deal_id, calculation_id)
+    calculation = await service.get_calculation(deal_id, calculation_id)
     if calculation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="calculation_not_found")
     return calculation
@@ -70,10 +66,9 @@ async def update_calculation(
     calculation_id: UUID,
     payload: schemas.CalculationUpdate,
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
     try:
-        calculation = await service.update_calculation(tenant_id, deal_id, calculation_id, payload)
+        calculation = await service.update_calculation(deal_id, calculation_id, payload)
     except RepositoryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if calculation is None:
@@ -87,10 +82,9 @@ async def change_calculation_status(
     calculation_id: UUID,
     payload: schemas.CalculationStatusChange,
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.CalculationRead:
     try:
-        calculation = await service.change_status(tenant_id, deal_id, calculation_id, payload)
+        calculation = await service.change_status(deal_id, calculation_id, payload)
     except RepositoryError as exc:
         detail = str(exc)
         status_code = status.HTTP_404_NOT_FOUND if detail == "policy_not_found" else status.HTTP_400_BAD_REQUEST
@@ -105,9 +99,8 @@ async def delete_calculation(
     deal_id: UUID,
     calculation_id: UUID,
     service: Annotated[CalculationService, Depends(get_calculation_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> Response:
-    deleted = await service.delete_calculation(tenant_id, deal_id, calculation_id)
+    deleted = await service.delete_calculation(deal_id, calculation_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="calculation_not_found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

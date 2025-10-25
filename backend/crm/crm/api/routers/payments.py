@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from crm.app.dependencies import get_payment_service, get_tenant_id
+from crm.app.dependencies import get_payment_service
 from crm.domain import schemas
 from crm.domain.services import PaymentService
 from crm.infrastructure.repositories import RepositoryError
@@ -37,11 +37,9 @@ async def list_payments(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentList:
     try:
         return await service.list_payments(
-            tenant_id,
             deal_id,
             policy_id,
             include=include,
@@ -59,10 +57,9 @@ async def create_payment(
     policy_id: UUID,
     payload: schemas.PaymentCreate,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentRead:
     try:
-        return await service.create_payment(tenant_id, deal_id, policy_id, payload)
+        return await service.create_payment(deal_id, policy_id, payload)
     except RepositoryError as exc:
         _handle_repository_error(exc)
 
@@ -75,10 +72,9 @@ async def get_payment(
     *,
     include: Sequence[str] | None = Query(default=None, alias="include[]"),
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentRead:
     try:
-        payment = await service.get_payment(tenant_id, deal_id, policy_id, payment_id, include=include)
+        payment = await service.get_payment(deal_id, policy_id, payment_id, include=include)
     except RepositoryError as exc:
         _handle_repository_error(exc)
     if payment is None:
@@ -93,10 +89,9 @@ async def update_payment(
     payment_id: UUID,
     payload: schemas.PaymentUpdate,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentRead:
     try:
-        payment = await service.update_payment(tenant_id, deal_id, policy_id, payment_id, payload)
+        payment = await service.update_payment(deal_id, policy_id, payment_id, payload)
     except RepositoryError as exc:
         _handle_repository_error(exc)
     if payment is None:
@@ -110,10 +105,9 @@ async def delete_payment(
     policy_id: UUID,
     payment_id: UUID,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> Response:
     try:
-        deleted = await service.delete_payment(tenant_id, deal_id, policy_id, payment_id)
+        deleted = await service.delete_payment(deal_id, policy_id, payment_id)
     except RepositoryError as exc:
         _handle_repository_error(exc)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 
-from crm.app.dependencies import get_deal_service, get_tenant_id
+from crm.app.dependencies import get_deal_service
 from crm.domain import schemas
 from crm.domain.services import DealService
 
@@ -67,45 +67,41 @@ def _build_deal_filters(
 @router.get("", response_model=list[schemas.DealRead])
 async def list_deals(
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
     stage: Annotated[str | None, Query()] = None,
     manager: Annotated[list[str] | None, Query()] = None,
     period: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
 ) -> list[schemas.DealRead]:
     filters = _build_deal_filters(stage, manager, period, search)
-    return list(await service.list_deals(tenant_id, filters))
+    return list(await service.list_deals(filters))
 
 
 @router.post("", response_model=schemas.DealRead, status_code=status.HTTP_201_CREATED)
 async def create_deal(
     payload: schemas.DealCreate,
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.DealRead:
-    return await service.create_deal(tenant_id, payload)
+    return await service.create_deal(payload)
 
 
 @router.get("/stage-metrics", response_model=list[schemas.DealStageMetric])
 async def get_stage_metrics(
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
     stage: Annotated[str | None, Query()] = None,
     manager: Annotated[list[str] | None, Query()] = None,
     period: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
 ) -> list[schemas.DealStageMetric]:
     filters = _build_deal_filters(stage, manager, period, search)
-    return list(await service.get_stage_metrics(tenant_id, filters))
+    return list(await service.get_stage_metrics(filters))
 
 
 @router.get("/{deal_id}", response_model=schemas.DealRead)
 async def get_deal(
     deal_id: UUID,
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.DealRead:
-    deal = await service.get_deal(tenant_id, deal_id)
+    deal = await service.get_deal(deal_id)
     if deal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="deal_not_found")
     return deal
@@ -116,9 +112,8 @@ async def update_deal(
     deal_id: UUID,
     payload: schemas.DealUpdate,
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.DealRead:
-    deal = await service.update_deal(tenant_id, deal_id, payload)
+    deal = await service.update_deal(deal_id, payload)
     if deal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="deal_not_found")
     return deal
@@ -129,9 +124,8 @@ async def update_deal_stage(
     deal_id: UUID,
     payload: schemas.DealStageUpdate,
     service: Annotated[DealService, Depends(get_deal_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.DealRead:
-    deal = await service.update_stage(tenant_id, deal_id, payload.stage)
+    deal = await service.update_stage(deal_id, payload.stage)
     if deal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="deal_not_found")
     return deal

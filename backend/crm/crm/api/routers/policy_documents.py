@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from crm.app.dependencies import get_policy_service, get_tenant_id
+from crm.app.dependencies import get_policy_service
 from crm.domain import schemas
 from crm.domain.services import PolicyService
 from crm.infrastructure.repositories import RepositoryError
@@ -17,9 +17,8 @@ router = APIRouter(prefix="/policies/{policy_id}/documents", tags=["policy-docum
 async def list_policy_documents(
     policy_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> list[schemas.PolicyDocumentRead]:
-    documents = await service.list_policy_documents(tenant_id, policy_id)
+    documents = await service.list_policy_documents(policy_id)
     if documents is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found")
     return list(documents)
@@ -30,10 +29,9 @@ async def attach_policy_document(
     policy_id: UUID,
     payload: schemas.PolicyDocumentLink,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> schemas.PolicyDocumentRead:
     try:
-        document = await service.attach_document(tenant_id, policy_id, payload.document_id)
+        document = await service.attach_document(policy_id, payload.document_id)
     except RepositoryError as exc:
         message = str(exc)
         if message == "document_already_linked":
@@ -51,9 +49,8 @@ async def detach_policy_document(
     policy_id: UUID,
     document_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],
-    tenant_id: Annotated[UUID, Depends(get_tenant_id)],
 ) -> Response:
-    result = await service.detach_document(tenant_id, policy_id, document_id)
+    result = await service.detach_document(policy_id, document_id)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="policy_not_found")
     if not result:

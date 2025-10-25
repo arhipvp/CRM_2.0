@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from crm.app.dependencies import get_payment_service, get_tenant_id
+from crm.app.dependencies import get_payment_service
 from crm.domain import schemas
 from crm.domain.services import PaymentService
 from crm.infrastructure.repositories import RepositoryError
@@ -31,10 +31,9 @@ async def create_income(
     payment_id: UUID,
     payload: schemas.PaymentIncomeCreate,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentIncomeRead:
     try:
-        payment, income = await service.create_income(tenant_id, deal_id, policy_id, payment_id, payload)
+        payment, income = await service.create_income(deal_id, policy_id, payment_id, payload)
     except RepositoryError as exc:
         _handle_repository_error(exc)
     if payment is None or income is None:
@@ -50,11 +49,10 @@ async def update_income(
     income_id: UUID,
     payload: schemas.PaymentIncomeUpdate,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
 ) -> schemas.PaymentIncomeRead:
     try:
         payment, income = await service.update_income(
-            tenant_id, deal_id, policy_id, payment_id, income_id, payload
+            deal_id, policy_id, payment_id, income_id, payload
         )
     except RepositoryError as exc:
         _handle_repository_error(exc)
@@ -70,11 +68,9 @@ async def delete_income(
     payment_id: UUID,
     income_id: UUID,
     service: PaymentService = Depends(get_payment_service),
-    tenant_id: UUID = Depends(get_tenant_id),
     deleted_by_id: UUID | None = Query(default=None),
 ) -> Response:
     payment = await service.delete_income(
-        tenant_id,
         deal_id,
         policy_id,
         payment_id,
