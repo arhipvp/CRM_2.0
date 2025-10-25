@@ -286,13 +286,13 @@ services:
 2. **Запрос токена.** Создайте задачу «Telegram Bot token» в Jira и согласуйте с безопасностью. После одобрения продукт-менеджер создаст или обновит бота через [BotFather](https://core.telegram.org/bots#botfather).
 3. **Хранение.** Токен передаётся через секретное хранилище (1Password/HashiCorp Vault). Доступ к нему имеют DevOps и ответственные разработчики.
 4. **Требуемые права.** На проде бот подключён к корпоративному аккаунту; включите двухфакторную аутентификацию Telegram и назначьте доверенных администраторов. Webhook URL должен быть доступен из интернета.
-5. **Инициализация.** После получения токена пропишите его в `TELEGRAM_BOT_TOKEN`, публичный URL — в `TELEGRAM_WEBHOOK_URL`, при необходимости добавьте `TELEGRAM_WEBHOOK_SECRET`.
+5. **Инициализация.** После получения токена пропишите его в `CRM_NOTIFICATIONS_TELEGRAM_BOT_TOKEN` (CRM использует его для исходящих уведомлений) и `TELEGRAM_BOT_BOT_TOKEN` (если запускаете сервис [`backend/telegram-bot`](../backend/telegram-bot/README.md)). Webhook защищается значением `TELEGRAM_BOT_WEBHOOK_SECRET`, а публичный URL проксируйте через Gateway/BFF согласно инфраструктурным настройкам.
 
 #### Локальные заглушки и тестовые значения
 
 - **Документы.** Для разработки достаточно локального каталога в репозитории (`./var/documents`). Убедитесь, что он исключён из VCS (`.gitignore`) и доступен процессу `node`. Значения `DOCUMENTS_STORAGE_DRIVER=local` и `DOCUMENTS_STORAGE_ROOT=./var/documents` подходят для одиночного стенда.
-- **Telegram.** Для интеграции Telegram используйте mock, встроенный в Notifications: оставьте `NOTIFICATIONS_TELEGRAM_ENABLED=false`, включите `NOTIFICATIONS_TELEGRAM_MOCK=true` и пропишите тестовые значения для связанных переменных (`NOTIFICATIONS_TELEGRAM_BOT_TOKEN=dev-mock-token`, `NOTIFICATIONS_TELEGRAM_CHAT_ID=`, `NOTIFICATIONS_TELEGRAM_WEBHOOK_ENABLED=false`, `NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET=`). Webhook URL можно не указывать — mock принимает локальные запросы напрямую через API Notifications.
-- **Ротация.** После получения реальных ключей отключите заглушки (`NOTIFICATIONS_TELEGRAM_MOCK=false`, при необходимости включите `NOTIFICATIONS_TELEGRAM_ENABLED=true`) и перенесите секреты в управляемый Vault. Для stage/prod использование mock-значений запрещено.
+- **Telegram.** Для интеграции Telegram используйте встроенный в CRM mock: оставьте `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`, включите `CRM_NOTIFICATIONS_TELEGRAM_MOCK=true` и заполните тестовые переменные (`CRM_NOTIFICATIONS_TELEGRAM_BOT_TOKEN=dev-mock-token`, `CRM_NOTIFICATIONS_TELEGRAM_DEFAULT_CHAT_ID=`). Если запускаете сервис бота, продублируйте значения для `TELEGRAM_BOT_BOT_TOKEN` и `TELEGRAM_BOT_WEBHOOK_SECRET`, при необходимости укажите `TELEGRAM_BOT_BOT_API_BASE` для локального mock Bot API.
+- **Ротация.** После получения реальных ключей отключите заглушку (`CRM_NOTIFICATIONS_TELEGRAM_MOCK=false`, при необходимости включите `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=true`), перенесите секреты в управляемый Vault и обновите параметры `TELEGRAM_BOT_*`. Для stage/prod использование mock-значений запрещено.
 
 ## 2. Запустите инфраструктурные контейнеры
 
