@@ -96,7 +96,7 @@ pip install -r requirements.txt
 
 4. (Optional) Create `.env` with your API configuration:
 ```
-DESKTOP_API_BASE_URL=http://localhost:8080/api/v1
+DESKTOP_API_BASE_URL=http://localhost:8082/api/v1
 DESKTOP_API_TIMEOUT=10
 DESKTOP_LOG_LEVEL=INFO
 DESKTOP_DEAL_DOCUMENTS_ROOT=./var/deal_documents
@@ -152,18 +152,18 @@ python main.py
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `/auth/token` | User authentication |
-| GET | `/crm/clients` | List all clients |
-| GET | `/crm/clients/{id}` | Get specific client |
-| POST | `/crm/clients` | Create client |
-| PATCH | `/crm/clients/{id}` | Update client |
-| DELETE | `/crm/clients/{id}` | Delete client |
-| GET | `/crm/deals` | List all deals |
-| GET | `/crm/deals/{id}` | Get specific deal |
-| GET | `/crm/deals/{id}/journal` | List journal entries for deal |
-| POST | `/crm/deals/{id}/journal` | Create journal entry |
-| DELETE | `/crm/deals/{id}/journal/{entry_id}` | Delete journal entry |
-| GET | `/crm/deals/{id}/payments` | Get payments for deal |
+| POST | `http://localhost:8082/api/v1/auth/token` | User authentication |
+| GET | `http://localhost:8082/api/v1/clients` | List all clients |
+| GET | `http://localhost:8082/api/v1/clients/{id}` | Get specific client |
+| POST | `http://localhost:8082/api/v1/clients` | Create client |
+| PATCH | `http://localhost:8082/api/v1/clients/{id}` | Update client |
+| DELETE | `http://localhost:8082/api/v1/clients/{id}` | Delete client |
+| GET | `http://localhost:8082/api/v1/deals` | List all deals |
+| GET | `http://localhost:8082/api/v1/deals/{id}` | Get specific deal |
+| GET | `http://localhost:8082/api/v1/deals/{id}/journal` | List journal entries for deal |
+| POST | `http://localhost:8082/api/v1/deals/{id}/journal` | Create journal entry |
+| DELETE | `http://localhost:8082/api/v1/deals/{id}/journal/{entry_id}` | Delete journal entry |
+| GET | `http://localhost:8082/api/v1/deals/{id}/payments` | Get payments for deal |
 
 ### Authentication
 
@@ -183,7 +183,7 @@ Token expires based on server configuration. On 401 response:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DESKTOP_API_BASE_URL` | `http://localhost:8080/api/v1` | API base URL |
+| `DESKTOP_API_BASE_URL` | `http://localhost:8082/api/v1` | API base URL |
 | `DESKTOP_API_TIMEOUT` | `10` | Request timeout in seconds |
 | `DESKTOP_LOG_LEVEL` | `INFO` | Logging level |
 | `DESKTOP_JOURNAL_AUTHOR_ID` | — | UUID пользователя CRM для записей журнала по умолчанию |
@@ -246,7 +246,7 @@ mypy desktop_app/
 ## Troubleshooting
 
 ### Connection Errors
-- Verify API is running on port 8080
+- Verify API is running on port 8082
 - Check firewall settings
 - Review logs for detailed error messages
 
@@ -291,5 +291,6 @@ Internal use only - CRM_2.0 Project
 
 For issues or questions:
 1. Check logs: Application logs to console
+2. Review API health: `http://localhost:8082/api/v1/gateway/health`
 2. Review API health: `http://localhost:8080/api/v1/health`
 3. Check error messages in application dialogs
