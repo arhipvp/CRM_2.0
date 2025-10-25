@@ -73,7 +73,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L9-L18】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы и доменные события CRM.【F:docs/architecture.md†L11-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L15-L18】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
-| 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота.【F:docs/architecture.md†L13-L66】 | `8085` | [`backend/notifications/README.md`](../backend/notifications/README.md) |
+| 5. Notifications | Доставка уведомлений и SSE-каналов для клиентов и Telegram-бота (модуль CRM).【F:docs/architecture.md†L13-L66】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md#notifications) |
 | 6. Tasks | Планирование задач и напоминаний; SLA будут добавлены в следующих релизах.【F:docs/architecture.md†L13-L66】 | `8086` | [`backend/tasks/README.md`](../backend/tasks/README.md) |
 | 7. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture/bot.md†L1-L36】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
 | 8. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
@@ -126,11 +126,9 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 ### Notifications: быстрый старт
 
-- Перейдите в `backend/notifications` и установите зависимости: `pnpm install` (понадобится Node.js 18+ и активированный Corepack).
-- Синхронизируйте `.env`: `../../scripts/sync-env.sh backend/notifications`. Проверьте блок `NOTIFICATIONS_*`, задайте `NOTIFICATIONS_TELEGRAM_ENABLED`/`NOTIFICATIONS_TELEGRAM_MOCK`, заполните токен/чат для рассылок и секрет вебхука (`NOTIFICATIONS_TELEGRAM_WEBHOOK_SECRET`), если тестируете обратные вызовы Telegram.
-- Запустите HTTP-приложение c SSE: `pnpm start:api:dev`. Проверьте `GET http://localhost:${NOTIFICATIONS_SERVICE_PORT}/api/notifications/stream` и `GET /api/notifications/health` — поток должен отдавать события при публикации в очередь, а health-эндпоинт помогает в docker-compose и probes.
-- Для фоновых подписчиков RabbitMQ выполните `pnpm start:workers:dev`. Процесс использует те же конфигурации и автоматически обрабатывает очередь `notifications.events`, публикуя сообщения в SSE и (при включении) Telegram. Сборка и запуск без watch выполняются командами `pnpm run build:all`, `pnpm start:api` и `pnpm start:workers`.
-- Миграции применяются через `pnpm run migrations:run`; bootstrap вызывает команду автоматически (см. [`scripts/migrate-local.sh`](../scripts/migrate-local.sh)).
+- Модуль уведомлений теперь входит в сервис CRM и запускается вместе с FastAPI-приложением; отдельный NestJS-сервис не требуется.【F:backend/crm/README.md†L88-L140】
+- Синхронизируйте `.env` (см. `CRM_NOTIFICATIONS_*` в `env.example`) и укажите параметры RabbitMQ/Redis/Telegram для доставки сообщений и публикации в SSE.【F:env.example†L118-L157】
+- После запуска CRM (`poetry run crm-api` / `crm-workers`) эндпоинты `POST /api/v1/notifications`, `GET /api/v1/notifications/{id}`, `POST /api/notifications/events` и поток `GET /api/notifications/stream` становятся доступны на `http://localhost:${CRM_SERVICE_PORT:-8082}`.
 ### Tasks: быстрый старт
 
 - Перейдите в `backend/tasks` и установите зависимости `pnpm install`.

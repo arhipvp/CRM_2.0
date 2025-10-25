@@ -1,4 +1,6 @@
-# Notifications Service
+# Notifications Service (legacy)
+
+> ⚠️ Сервис переведён на Python и встроен в CRM (`backend/crm`). Этот каталог сохранён для справки и не используется в актуальной поставке. Эндпоинты `/api/v1/templates`, `/api/v1/notifications`, `/api/notifications/events`, `/api/notifications/stream` реализованы в FastAPI-приложении CRM. См. [`backend/crm/README.md`](../crm/README.md#notifications) и переменные `CRM_NOTIFICATIONS_*` в [`env.example`](../../env.example).
 
 ## Назначение
 Notifications доставляет события и уведомления во внутренний интерфейс (SSE) и Telegram-бот, принимая события из очередей RabbitMQ и публикуя их по минимальному сценарию первой поставки.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L287-L311】
