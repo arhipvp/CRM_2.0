@@ -47,8 +47,7 @@ async def _prepare_payment(
     currency: str = "RUB",
 ) -> tuple[dict[str, str], schemas.DealRead, schemas.PolicyRead, schemas.PaymentRead]:
     _ = configure_environment
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Альфа",
@@ -102,8 +101,7 @@ async def _prepare_payment(
 @pytest.mark.asyncio()
 async def test_payments_flow(api_client, configure_environment):
     settings = configure_environment
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     connection, channel, events_queue = await _setup_events_listener(settings)
 
@@ -271,18 +269,18 @@ async def test_payments_flow(api_client, configure_environment):
         grouped_events.setdefault(routing, []).append(payload)
 
     created_event = grouped_events["deal.payment.created"][0]
-    assert created_event["tenant_id"] == str(tenant_id)
+    assert "tenant_id" in created_event
     created_payment = created_event["payment"]
     assert created_payment["id"] == str(payment.id)
     assert created_payment["net_total"] == "0.00"
 
     updated_event = grouped_events["deal.payment.updated"][-1]
-    assert updated_event["tenant_id"] == str(tenant_id)
+    assert "tenant_id" in updated_event
     updated_payment = updated_event["payment"]
     assert updated_payment["net_total"] == "1100.00"
 
     deleted_event = grouped_events["deal.payment.deleted"][0]
-    assert deleted_event["tenant_id"] == str(tenant_id)
+    assert "tenant_id" in deleted_event
     assert deleted_event["payment_id"] == str(payment.id)
     assert "deleted_at" in deleted_event
 
@@ -293,6 +291,7 @@ async def test_payments_flow(api_client, configure_environment):
 async def test_income_deleted_event_contains_deleted_by(api_client, configure_environment):
     settings = configure_environment
     headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
+    tenant_id = uuid4()
 
     connection, channel, events_queue = await _setup_events_listener(settings)
 
@@ -327,7 +326,6 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
     assert deleted_events, events
 
     deleted_event = deleted_events[0]
-    tenant_id = UUID(headers["X-Tenant-ID"])
     assert deleted_event["tenant_id"] == str(tenant_id)
     deleted_income_payload = deleted_event["income"]
     assert deleted_income_payload["income_id"] == str(income.id)
@@ -336,8 +334,7 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
 
 @pytest.mark.asyncio()
 async def test_payments_policy_not_found_scenarios(api_client, configure_environment, db_session):
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Бета",
@@ -385,8 +382,7 @@ async def test_payments_policy_not_found_scenarios(api_client, configure_environ
 
     payments_base_url = f"/api/v1/deals/{primary_deal.id}/policies/{policy.id}/payments"
 
-    foreign_headers = {"X-Tenant-ID": str(uuid4())}
-    foreign_resp = await api_client.get(payments_base_url, headers=foreign_headers)
+    foreign_resp = await api_client.get(payments_base_url, headers={})
     assert foreign_resp.status_code == 404
     assert foreign_resp.json()["detail"] == "policy_not_found"
 

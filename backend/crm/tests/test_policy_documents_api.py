@@ -8,9 +8,8 @@ from crm.domain import schemas
 
 @pytest.mark.asyncio
 async def test_policy_documents_flow(api_client, document_id):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "Документ клиент",
@@ -103,8 +102,7 @@ async def test_policy_documents_flow(api_client, document_id):
 
 @pytest.mark.asyncio
 async def test_policy_documents_policy_not_found(api_client):
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     list_resp = await api_client.get(
         f"/api/v1/policies/{uuid4()}/documents",

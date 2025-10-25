@@ -12,9 +12,8 @@ from sqlalchemy import select
 
 @pytest.mark.asyncio
 async def test_crud_flow(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Ромашка",
@@ -82,9 +81,8 @@ async def test_crud_flow(api_client):
 
 @pytest.mark.asyncio
 async def test_multiple_crud_requests_do_not_close_session(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     for index in range(2):
         client_payload = {
@@ -148,9 +146,8 @@ async def test_multiple_crud_requests_do_not_close_session(api_client):
 
 @pytest.mark.asyncio
 async def test_deal_patch_next_review_at_validation(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Ромашка",
@@ -188,9 +185,8 @@ async def test_deal_patch_next_review_at_validation(api_client):
 
 @pytest.mark.asyncio
 async def test_deal_list_filters_include_unassigned(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Вектор",
@@ -269,8 +265,7 @@ async def test_deal_list_filters_include_unassigned(api_client):
 
 @pytest.mark.asyncio
 async def test_permissions_sync_endpoint(api_client, db_session):
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
     owner_id = uuid4()
     user_one = uuid4()
     user_two = uuid4()

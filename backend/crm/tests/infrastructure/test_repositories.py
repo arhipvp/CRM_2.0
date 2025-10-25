@@ -17,8 +17,7 @@ from crm.infrastructure.repositories import (
 
 
 class FakeModel:
-    def __init__(self, tenant_id, **data):
-        self.tenant_id = tenant_id
+    def __init__(self, **data):
         for key, value in data.items():
             setattr(self, key, value)
 
@@ -76,10 +75,9 @@ async def test_update_returns_none_and_rolls_back():
     execute_result.scalar_one_or_none = Mock(return_value=None)
     session = make_fake_session(execute_result=execute_result)
     repo = ClientRepository(session)
-    tenant_id = uuid4()
     entity_id = uuid4()
 
-    result = await repo.update(tenant_id, entity_id, {"field": "updated"})
+    result = await repo.update(uuid4(), entity_id, {"field": "updated"})
 
     assert result is None
     session.execute.assert_awaited_once()
@@ -89,8 +87,8 @@ async def test_update_returns_none_and_rolls_back():
 
 @pytest.mark.asyncio
 async def test_update_commits_when_entity_found():
-    tenant_id = uuid4()
     entity_id = uuid4()
+    tenant_id = uuid4()
     entity = SimpleNamespace(id=entity_id, tenant_id=tenant_id, field="updated")
     execute_result = Mock()
     execute_result.scalar_one_or_none = Mock(return_value=entity)
@@ -112,10 +110,9 @@ async def test_mark_won_commits_and_returns_deal():
     execute_result.scalar_one_or_none = Mock(return_value=deal)
     session = make_fake_session(execute_result=execute_result)
     repo = DealRepository(session)
-    tenant_id = uuid4()
     deal_id = uuid4()
 
-    result = await repo.mark_won(tenant_id, deal_id)
+    result = await repo.mark_won(uuid4(), deal_id)
 
     assert result is deal
     assert result.status == "won"
@@ -130,10 +127,9 @@ async def test_mark_won_rolls_back_when_missing():
     execute_result.scalar_one_or_none = Mock(return_value=None)
     session = make_fake_session(execute_result=execute_result)
     repo = DealRepository(session)
-    tenant_id = uuid4()
     deal_id = uuid4()
 
-    result = await repo.mark_won(tenant_id, deal_id)
+    result = await repo.mark_won(uuid4(), deal_id)
 
     assert result is None
     session.execute.assert_awaited_once()

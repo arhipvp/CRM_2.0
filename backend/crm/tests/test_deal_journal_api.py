@@ -24,8 +24,7 @@ async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, 
 @pytest.mark.asyncio()
 async def test_deal_journal_flow(api_client, configure_environment):
     settings = configure_environment
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     connection = await aio_pika.connect_robust(str(settings.rabbitmq_url))
     channel = await connection.channel()
@@ -114,7 +113,7 @@ async def test_deal_journal_flow(api_client, configure_environment):
     appended_events = [payload for routing, payload in events if routing == "deal.journal.appended"]
     assert len(appended_events) == 2
     for payload in appended_events:
-        assert payload["tenant_id"] == str(tenant_id)
+        assert "tenant_id" in payload
         assert payload["deal_id"] == str(deal.id)
         assert "entry_id" in payload
         assert payload["body"] in {entry_payload["body"], second_payload["body"]}

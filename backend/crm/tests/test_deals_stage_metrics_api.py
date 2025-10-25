@@ -8,9 +8,8 @@ from crm.domain import schemas
 
 @pytest.mark.asyncio()
 async def test_update_deal_stage_and_metrics(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Вектор",

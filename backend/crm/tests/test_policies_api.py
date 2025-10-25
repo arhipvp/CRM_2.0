@@ -8,9 +8,8 @@ from crm.domain import schemas
 
 @pytest.mark.asyncio
 async def test_policy_get_and_patch(api_client):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "Тестовый клиент",

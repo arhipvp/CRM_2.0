@@ -26,8 +26,7 @@ async def _collect_events(queue: aio_pika.abc.AbstractQueue) -> list[tuple[str, 
 
 @pytest.mark.asyncio()
 async def test_calculations_list_sorted_by_updated_at(api_client, configure_environment):
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Альфа",
@@ -109,8 +108,7 @@ async def test_calculations_list_sorted_by_updated_at(api_client, configure_envi
 
 @pytest.mark.asyncio()
 async def test_calculation_creation_checks_deal_existence(api_client, db_session):
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Гамма",
@@ -159,11 +157,10 @@ async def test_calculation_creation_checks_deal_existence(api_client, db_session
     )
     assert success_resp.status_code == 201
 
-    foreign_headers = {"X-Tenant-ID": str(uuid4())}
     foreign_resp = await api_client.post(
         f"/api/v1/deals/{deal.id}/calculations",
         json=build_payload("чужой"),
-        headers=foreign_headers,
+        headers={},
     )
     assert foreign_resp.status_code == 404
     assert foreign_resp.json()["detail"] == "deal_not_found"
@@ -185,8 +182,7 @@ async def test_calculation_creation_checks_deal_existence(api_client, db_session
 @pytest.mark.asyncio()
 async def test_calculations_flow(api_client, configure_environment):
     settings = configure_environment
-    tenant_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     connection = await aio_pika.connect_robust(str(settings.rabbitmq_url))
     channel = await connection.channel()
@@ -387,9 +383,8 @@ async def test_calculations_flow(api_client, configure_environment):
 
 @pytest.mark.asyncio()
 async def test_confirming_calculation_reassigns_previous_policy(api_client, db_session):
-    tenant_id = uuid4()
     owner_id = uuid4()
-    headers = {"X-Tenant-ID": str(tenant_id)}
+    headers = {}
 
     client_payload = {
         "name": "ООО Тест", 

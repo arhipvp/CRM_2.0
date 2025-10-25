@@ -186,7 +186,6 @@ async def test_update_payment_ignores_redundant_currency(monkeypatch: pytest.Mon
     tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
-        tenant_id=tenant_id,
         deal_id=uuid4(),
         policy_id=uuid4(),
         sequence=1,
@@ -298,7 +297,6 @@ async def test_update_payment_normalizes_legacy_currency(monkeypatch: pytest.Mon
     tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
-        tenant_id=tenant_id,
         deal_id=uuid4(),
         policy_id=uuid4(),
         sequence=1,
@@ -413,7 +411,6 @@ async def test_update_payment_allows_actual_date_on_local_today(
     utc_today = local_today - timedelta(days=1)
     payment = SimpleNamespace(
         id=uuid4(),
-        tenant_id=tenant_id,
         deal_id=uuid4(),
         policy_id=uuid4(),
         sequence=1,
@@ -566,7 +563,6 @@ async def test_update_income_accepts_currency_field(
     tenant_id = uuid4()
     payment = SimpleNamespace(
         id=uuid4(),
-        tenant_id=tenant_id,
         deal_id=uuid4(),
         policy_id=uuid4(),
         sequence=1,
