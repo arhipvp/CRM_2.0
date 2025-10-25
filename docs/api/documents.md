@@ -119,8 +119,9 @@
 
 ## Доступы
 
-### POST `/permissions/sync`
-Ставит задачу `documents.permissions.sync` на обновление прав каталога в файловом хранилище (POSIX-права, ACL, группы).
+### POST `/api/v1/permissions/sync`
+Ставит задачу `documents.permissions.sync` на обновление прав каталога в файловом хранилище (POSIX-права, ACL, группы). Эндпоинт
+возвращает только идентификаторы созданной задачи в очереди и соответствующей записи в БД.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
@@ -133,18 +134,11 @@
 ```json
 {
   "job_id": "bullmq-job-id",
-  "task_id": "permissions-task-id",
-  "effective_mode": "770",
-  "applied_acl": [
-    {
-      "principal": "crm-sales",
-      "permissions": ["r", "w", "x"]
-    }
-  ]
+  "task_id": "permissions-task-id"
 }
 ```
 
-`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. `effective_mode` отражает итоговый POSIX-режим каталога, `applied_acl` — список правил, применённых в ходе синхронизации. TTL задания в очереди регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
+`job_id` соответствует идентификатору задания BullMQ, `task_id` — записи в таблице `permissions_sync_tasks`. Дополнительные атрибуты синхронизации (режим каталога, применённые ACL и т.п.) сохраняются в БД задач и доступны через сервис очередей. TTL задания в очереди регулируется переменной `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` (в секундах).
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
