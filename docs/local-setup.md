@@ -31,6 +31,20 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 - `--with-backend` — запускает `scripts/start-backend.sh` после bootstrap (`DEV_UP_WITH_BACKEND=true`) и предупреждает о дублировании процессов;
 - `--log-file PATH` — сохраняет журнал `dev-up` в выбранный путь (`DEV_UP_LOG_FILE`, по умолчанию `.local/logs/dev-up.log`).
 
+Флаги управления логами (`--log-dir`, `--discard-logs`) доступны только в `bootstrap-local.sh` и не передаются через `dev-up`.
+
+| Сценарий              | Флаг/переменная                       | Назначение                                   |
+|-----------------------|----------------------------------------|----------------------------------------------|
+| `bootstrap-local.sh`  | `--skip-backend` / `BOOTSTRAP_SKIP_BACKEND=true` | Пропустить запуск Docker Compose профиля backend |
+|                       | `--skip-backend-wait` / `BOOTSTRAP_SKIP_BACKEND_WAIT=true` | Пропустить ожидание healthcheck профиля backend |
+|                       | `--with-backend` / `BOOTSTRAP_WITH_BACKEND=true` | Запустить `scripts/start-backend.sh` после bootstrap |
+|                       | `--log-dir` / `BOOTSTRAP_LOG_DIR`     | Сохранить артефакты bootstrap в указанный каталог |
+|                       | `--discard-logs` / `BOOTSTRAP_SAVE_LOGS=false` | Удалить артефакты bootstrap после завершения |
+| `dev-up.sh`           | `--skip-backend`                      | Передать в bootstrap пропуск профиля backend |
+|                       | `--skip-backend-wait` / `DEV_UP_SKIP_BACKEND_WAIT=true` | Передать пропуск ожидания профиля backend |
+|                       | `--with-backend` / `DEV_UP_WITH_BACKEND=true` | Передать запуск `scripts/start-backend.sh`  |
+|                       | `--log-file PATH` / `DEV_UP_LOG_FILE` | Настроить путь журнала `dev-up`              |
+
 Остальные опции (`--service`, переменные `START_BACKEND_*`) передаются в helper `scripts/start-backend.sh` и описаны в разделах про bootstrap и ручной запуск сервисов.
 
 Профиль `backend` включает Gateway, Auth, CRM и Documents. Скрипт запускает его отдельной командой, ждёт успешных healthcheck-ов (`docker compose --profile backend wait` либо ручной опрос `/api/v1/health`, `/healthz`, `/health`) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если необходимо перейти к ручной проверке без ожидания healthcheck, передайте `--skip-backend-wait` или `BOOTSTRAP_SKIP_BACKEND_WAIT=true` — шаг попадёт в отчёт как `SKIP`. Если параллельно включён флаг `--with-backend`, helper предупредит о возможном дублировании и предложит отключить compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up -d` / `down` в каталоге `infra/`.
