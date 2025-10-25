@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, List
 from api_client import APIClient
 from config import (
     CRM_CLIENTS_URL, CRM_DEALS_URL, CRM_PAYMENTS_URL,
-    CRM_POLICIES_URL, CRM_TASKS_URL
+    CRM_POLICIES_URL, CRM_TASKS_URL, CRM_USERS_URL
 )
 from logger import logger
 
@@ -209,6 +209,32 @@ class CRMService:
             logger.error(f"Failed to fetch policies: {e}")
             raise
 
+    def get_deal_policies(self, deal_id: str) -> List[Dict[str, Any]]:
+        """Fetch policies that belong to a specific deal."""
+        if not deal_id:
+            logger.warning("Deal ID is empty when requesting deal policies")
+            return []
+
+        try:
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies"
+            response = self.api_client.get(url)
+            if isinstance(response, dict):
+                policies = response.get("items", [])
+            else:
+                policies = response or []
+            logger.info(f"Fetched {len(policies)} policies for deal: {deal_id}")
+            return policies
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch policies for deal {deal_id} via dedicated endpoint: {e}. "
+                "Falling back to filtering all policies."
+            )
+
+        all_policies = self.get_policies()
+        filtered_policies = [policy for policy in all_policies if policy.get("deal_id") == deal_id]
+        logger.info(f"Filtered {len(filtered_policies)} policies for deal: {deal_id}")
+        return filtered_policies
+
     def get_policy(self, policy_id: str) -> Optional[Dict[str, Any]]:
         """Fetch single policy by ID"""
         try:
@@ -263,6 +289,20 @@ class CRMService:
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             raise
+
+    def get_users(self) -> List[Dict[str, Any]]:
+        """Fetch all users/executors"""
+        try:
+            response = self.api_client.get(CRM_USERS_URL)
+            if isinstance(response, dict):
+                users = response.get("items", [])
+            else:
+                users = response or []
+            logger.info(f"Fetched {len(users)} users")
+            return users
+        except Exception as e:
+            logger.warning(f"Failed to fetch users: {e}")
+            return []
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch single task by ID"""
@@ -335,7 +375,9 @@ class CRMService:
         """Create new calculation"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/calculations"
-            calculation = self.api_client.post(url, kwargs)
+            payload = dict(kwargs)
+            payload.pop("deal_id", None)
+            calculation = self.api_client.post(url, payload)
             logger.info(f"Created calculation for deal: {deal_id}")
             return calculation
         except Exception as e:
@@ -346,7 +388,9 @@ class CRMService:
         """Update calculation"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/calculations/{calc_id}"
-            calculation = self.api_client.patch(url, kwargs)
+            payload = dict(kwargs)
+            payload.pop("deal_id", None)
+            calculation = self.api_client.patch(url, payload)
             logger.info(f"Updated calculation: {calc_id}")
             return calculation
         except Exception as e:
@@ -365,24 +409,44 @@ class CRMService:
 
     # --- Deal Journal Operations ---
 
-    def get_deal_journal(self, deal_id: str) -> List[Dict[str, Any]]:
+    def get_deal_journal(self, deal_id: str, *, limit: int = 200, offset: int = 0) -> Dict[str, Any]:
         """Fetch journal entries for a deal"""
         try:
-            url = f"{CRM_DEALS_URL}/{deal_id}/journal"
-            entries = self.api_client.get(url)
+            url = f"{CRM_DEALS_URL}/{deal_id}/journal?limit={limit}&offset={offset}"
+            response = self.api_client.get(url)
             logger.info(f"Fetched journal entries for deal: {deal_id}")
-            return entries or []
+            if isinstance(response, dict):
+                items = response.get("items", [])
+                total = response.get("total", len(items))
+            else:
+                items = response or []
+                total = len(items)
+                response = {"items": items, "total": total}
+            return {"items": items, "total": total, **{k: v for k, v in (response or {}).items() if k not in {"items", "total"}}}
         except Exception as e:
             logger.error(f"Failed to fetch journal for deal {deal_id}: {e}")
             raise
 
-    def add_journal_entry(self, deal_id: str, body: str) -> Dict[str, Any]:
+    def add_journal_entry(self, deal_id: str, body: str, *, author_id: Optional[str] = None) -> Dict[str, Any]:
         """Add journal entry for a deal"""
+        if not author_id:
+            raise ValueError("author_id is required to add a journal entry")
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/journal"
-            entry = self.api_client.post(url, {"body": body})
+            payload = {"body": body, "author_id": author_id}
+            entry = self.api_client.post(url, payload)
             logger.info(f"Added journal entry for deal: {deal_id}")
             return entry
         except Exception as e:
             logger.error(f"Failed to add journal entry for deal {deal_id}: {e}")
+            raise
+
+    def delete_journal_entry(self, deal_id: str, entry_id: str) -> None:
+        """Delete journal entry for a deal"""
+        try:
+            url = f"{CRM_DEALS_URL}/{deal_id}/journal/{entry_id}"
+            self.api_client.delete(url)
+            logger.info(f"Deleted journal entry {entry_id} for deal: {deal_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete journal entry {entry_id} for deal {deal_id}: {e}")
             raise

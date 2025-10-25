@@ -1,10 +1,11 @@
 """Edit dialogs for all CRM entities"""
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from i18n import i18n
+from document_utils import copy_files_to_deal_folder, open_deal_folder
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -83,11 +84,21 @@ class BaseEditDialog(tk.Toplevel):
 class DealEditDialog(BaseEditDialog):
     """Dialog for adding/editing deals"""
 
-    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None):
+    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None,
+                 users_list: List[Dict[str, Any]] = None):
         super().__init__(parent, i18n("Edit Deal") if deal else i18n("Add Deal"), deal)
         self.crm_service = crm_service
         self.clients_list = clients_list or []
+        self.users_list = users_list or []
         self.client_dict = {c.get("name", f"Client {c.get('id')}"): c.get("id") for c in self.clients_list}
+        self.owner_dict = {}
+        for user in self.users_list:
+            user_id = user.get("id")
+            if not user_id:
+                continue
+            display_name = user.get("full_name") or user.get("email") or i18n("User")
+            display_label = f"{display_name} (ID: {user_id[:8]}...)"
+            self.owner_dict[display_label] = user_id
 
         self.title_var = tk.StringVar(value=deal.get("title", "") if deal else "")
         self.client_id_var = tk.StringVar()
@@ -95,12 +106,18 @@ class DealEditDialog(BaseEditDialog):
         self.status_var = tk.StringVar(value=deal.get("status", "draft") if deal else "draft")
         self.next_review_var = tk.StringVar(value=deal.get("next_review_at", "") if deal else "")
         self.amount_var = tk.StringVar(value=str(deal.get("amount", "")) if deal else "")
+        self.owner_id_var = tk.StringVar()
 
         # Set client dropdown to current value
         if deal and deal.get("client_id"):
             client_name = next((c.get("name") for c in self.clients_list if c.get("id") == deal.get("client_id")), None)
             if client_name:
                 self.client_id_var.set(client_name)
+
+        if deal and deal.get("owner_id"):
+            owner_display = next((label for label, value in self.owner_dict.items() if value == deal.get("owner_id")), "")
+            if owner_display:
+                self.owner_id_var.set(owner_display)
 
         # Title
         self.create_field(0, i18n("Title"), self.title_var, "entry")
@@ -116,14 +133,18 @@ class DealEditDialog(BaseEditDialog):
         self.create_field(3, i18n("Status"), self.status_var, "combobox",
                          ["draft", "in_progress", "won", "lost"])
 
+        # Owner
+        self.create_field(4, i18n("Owner"), self.owner_id_var, "combobox",
+                         list(self.owner_dict.keys()))
+
         # Amount
-        self.create_field(4, i18n("Amount"), self.amount_var, "entry")
+        self.create_field(5, i18n("Amount"), self.amount_var, "entry")
 
         # Next Review Date
-        self.create_field(5, "Next Review Date", self.next_review_var, "date")
+        self.create_field(6, "Next Review Date", self.next_review_var, "date")
 
         # Buttons
-        self.setup_buttons(6)
+        self.setup_buttons(7)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -144,6 +165,11 @@ class DealEditDialog(BaseEditDialog):
             return
 
         description = self.get_text_value(self.description_var)
+        owner_label = self.owner_id_var.get().strip()
+
+        if owner_label and owner_label not in self.owner_dict:
+            messagebox.showerror(i18n("Error"), "Invalid owner selected.", parent=self)
+            return
 
         self.result = {
             "title": title,
@@ -151,7 +177,8 @@ class DealEditDialog(BaseEditDialog):
             "description": description,
             "status": self.status_var.get(),
             "amount": float(self.amount_var.get()) if self.amount_var.get() else None,
-            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None
+            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None,
+            "owner_id": self.owner_dict.get(owner_label) if owner_label else None
         }
         self.destroy()
 
@@ -451,6 +478,7 @@ class CalculationEditDialog(BaseEditDialog):
         self.calculation_date_var = tk.StringVar(value=calculation.get("calculation_date", "") if calculation else "")
         self.status_var = tk.StringVar(value=calculation.get("status", "draft") if calculation else "draft")
         self.comments_var = tk.StringVar(value=calculation.get("comments", "") if calculation else "")
+        self.selected_files: List[str] = list(calculation.get("files", [])) if calculation else []
 
         # Set deal dropdown to current value
         if calculation and calculation.get("deal_id"):
@@ -484,8 +512,23 @@ class CalculationEditDialog(BaseEditDialog):
         # Comments
         self.create_field(7, "Comments", self.comments_var, "text")
 
+        # Files management
+        ttk.Label(self, text=f"{i18n('Files')}:").grid(row=8, column=0, sticky="nw", padx=10, pady=5)
+
+        self.files_listbox = tk.Listbox(self, height=5)
+        self.files_listbox.grid(row=8, column=1, sticky="nsew", padx=10, pady=5)
+
+        files_button_frame = ttk.Frame(self)
+        files_button_frame.grid(row=8, column=2, sticky="ns", padx=5, pady=5)
+
+        ttk.Button(files_button_frame, text=i18n("Add"), command=self._on_add_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Remove"), command=self._on_remove_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Open"), command=self._on_open_folder).pack(fill="x", pady=2)
+
+        self._refresh_files_listbox()
+
         # Buttons
-        self.setup_buttons(8)
+        self.setup_buttons(9)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -508,19 +551,63 @@ class CalculationEditDialog(BaseEditDialog):
             "coverage_sum": float(self.coverage_sum_var.get()) if self.coverage_sum_var.get() else None,
             "calculation_date": self.calculation_date_var.get() if self.calculation_date_var.get() else None,
             "status": self.status_var.get(),
-            "comments": comments
+            "comments": comments,
+            "files": list(self.selected_files),
         }
         self.destroy()
+
+    def _refresh_files_listbox(self) -> None:
+        self.files_listbox.delete(0, "end")
+        for path in self.selected_files:
+            self.files_listbox.insert("end", path)
+
+    def _on_add_files(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(deal_id, file_paths)
+        new_items = [path for path in copied if path not in self.selected_files]
+        if new_items:
+            self.selected_files.extend(new_items)
+            self._refresh_files_listbox()
+
+    def _on_remove_files(self) -> None:
+        selection = list(self.files_listbox.curselection())
+        if not selection:
+            messagebox.showinfo(i18n("Info"), i18n("Select file to remove"), parent=self)
+            return
+        for index in reversed(selection):
+            try:
+                del self.selected_files[index]
+            except IndexError:
+                continue
+        self._refresh_files_listbox()
+
+    def _on_open_folder(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+        open_deal_folder(deal_id)
 
 
 class TaskEditDialog(BaseEditDialog):
     """Dialog for adding/editing tasks"""
 
     def __init__(self, parent, task=None, deals_list: List[Dict[str, Any]] = None,
-                 clients_list: List[Dict[str, Any]] = None):
+                 clients_list: List[Dict[str, Any]] = None, users_list: List[Dict[str, Any]] = None):
         super().__init__(parent, "Edit Task" if task else "Add Task", task)
         self.deals_list = deals_list or []
         self.clients_list = clients_list or []
+        self.users_list = users_list or []
         self.deal_dict = {
             f"{d.get('title', '') or 'Deal'} (ID: {d.get('id', '')[:8]}...)": d.get('id')
             for d in self.deals_list
@@ -531,6 +618,14 @@ class TaskEditDialog(BaseEditDialog):
             for c in self.clients_list
             if c.get('id')
         }
+        self.user_dict = {}
+        for user in self.users_list:
+            user_id = user.get('id')
+            if not user_id:
+                continue
+            display_name = user.get('full_name') or user.get('email') or 'User'
+            display_label = f"{display_name} (ID: {user_id[:8]}...)"
+            self.user_dict[display_label] = user_id
 
         # Initialize variables
         self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
@@ -540,6 +635,7 @@ class TaskEditDialog(BaseEditDialog):
         self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
         self.deal_id_var = tk.StringVar()
         self.client_id_var = tk.StringVar()
+        self.owner_id_var = tk.StringVar()
 
         if task:
             if task.get("deal_id"):
@@ -556,6 +652,13 @@ class TaskEditDialog(BaseEditDialog):
                 )
                 if client_display:
                     self.client_id_var.set(client_display)
+            if task.get("owner_id"):
+                owner_display = next(
+                    (label for label, value in self.user_dict.items() if value == task.get("owner_id")),
+                    "",
+                )
+                if owner_display:
+                    self.owner_id_var.set(owner_display)
 
         # Title field
         self.create_field(0, "Title", self.title_var, "entry")
@@ -569,25 +672,28 @@ class TaskEditDialog(BaseEditDialog):
         # Client field
         self.create_field(3, "Client", self.client_id_var, "combobox", list(self.client_dict.keys()))
 
+        # Owner field
+        self.create_field(4, "Owner", self.owner_id_var, "combobox", list(self.user_dict.keys()))
+
         # Status field
-        self.create_field(4, "Status", self.status_var, "combobox",
+        self.create_field(5, "Status", self.status_var, "combobox",
                          values=["open", "in_progress", "completed", "closed"])
 
         # Priority field
-        self.create_field(5, "Priority", self.priority_var, "combobox",
+        self.create_field(6, "Priority", self.priority_var, "combobox",
                          values=["low", "normal", "high", "urgent"])
 
         # Due Date field
-        self.create_field(6, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
+        self.create_field(7, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
 
         # Buttons
         button_frame = ttk.Frame(self)
-        button_frame.grid(row=7, columnspan=2, pady=10)
+        button_frame.grid(row=8, columnspan=2, pady=10)
 
         ttk.Button(button_frame, text=i18n("OK"), command=self.on_ok).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Cancel"), command=self.destroy).pack(side="left", padx=5)
 
-        self.geometry("500x520")
+        self.geometry("500x560")
         self.grab_set()
         self.wait_window(self)
 
@@ -602,6 +708,7 @@ class TaskEditDialog(BaseEditDialog):
         due_date = self.due_date_var.get().strip()
         deal_label = self.deal_id_var.get().strip()
         client_label = self.client_id_var.get().strip()
+        owner_label = self.owner_id_var.get().strip()
 
         if deal_label and deal_label not in self.deal_dict:
             messagebox.showerror("Error", "Invalid deal selected.", parent=self)
@@ -611,6 +718,10 @@ class TaskEditDialog(BaseEditDialog):
             messagebox.showerror("Error", "Invalid client selected.", parent=self)
             return
 
+        if owner_label and owner_label not in self.user_dict:
+            messagebox.showerror("Error", "Invalid owner selected.", parent=self)
+            return
+
         self.result = {
             "title": title,
             "description": description,
@@ -618,6 +729,7 @@ class TaskEditDialog(BaseEditDialog):
             "priority": self.priority_var.get(),
             "due_date": due_date if due_date else None,
             "deal_id": self.deal_dict.get(deal_label) if deal_label else None,
-            "client_id": self.client_dict.get(client_label) if client_label else None
+            "client_id": self.client_dict.get(client_label) if client_label else None,
+            "owner_id": self.user_dict.get(owner_label) if owner_label else None,
         }
         self.destroy()

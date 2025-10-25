@@ -94,7 +94,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 ## Сводная таблица сервисов
 | Сервис | Назначение | Порт по умолчанию | README |
 | --- | --- | --- | --- |
-| 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
+| 1. Gateway / BFF | Прозрачное REST-проксирование и ретрансляция SSE для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
 | 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
@@ -318,7 +318,7 @@ services:
 #### Локальные заглушки и тестовые значения
 
 - **Документы.** Для разработки достаточно локального каталога в репозитории (`./var/documents`). Убедитесь, что он исключён из VCS (`.gitignore`) и доступен процессу `node`. Значения `DOCUMENTS_STORAGE_DRIVER=local` и `DOCUMENTS_STORAGE_ROOT=./var/documents` подходят для одиночного стенда.
-- **Telegram.** Для интеграции Telegram используйте встроенный в CRM mock: оставьте `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`, включите `CRM_NOTIFICATIONS_TELEGRAM_MOCK=true` и заполните тестовые переменные (`CRM_NOTIFICATIONS_TELEGRAM_BOT_TOKEN=dev-mock-token`, `CRM_NOTIFICATIONS_TELEGRAM_DEFAULT_CHAT_ID=`). Если запускаете сервис бота, продублируйте значения для `TELEGRAM_BOT_BOT_TOKEN` и `TELEGRAM_BOT_WEBHOOK_SECRET`, при необходимости укажите `TELEGRAM_BOT_BOT_API_BASE` для локального mock Bot API.
+- **Telegram.** Для интеграции Telegram используйте встроенный в CRM mock: оставьте `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`, включите `CRM_NOTIFICATIONS_TELEGRAM_MOCK=true` и заполните тестовые переменные (`CRM_NOTIFICATIONS_TELEGRAM_BOT_TOKEN=dev-mock-token`, `CRM_NOTIFICATIONS_TELEGRAM_DEFAULT_CHAT_ID=`). Если запускаете сервис бота, продублируйте значения для `TELEGRAM_BOT_BOT_TOKEN` и `TELEGRAM_BOT_WEBHOOK_SECRET`, при необходимости укажите `TELEGRAM_BOT_BOT_API_BASE` для локального mock Bot API. При выключенном флаге `CRM_NOTIFICATIONS_TELEGRAM_ENABLED` CRM помечает такие уведомления как `notifications.telegram.skipped`, поэтому интеграционные тесты продолжают возвращать `202`.
 - **Ротация.** После получения реальных ключей отключите заглушку (`CRM_NOTIFICATIONS_TELEGRAM_MOCK=false`, при необходимости включите `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=true`), перенесите секреты в управляемый Vault и обновите параметры `TELEGRAM_BOT_*`. Для stage/prod использование mock-значений запрещено.
 
 ## 2. Запустите инфраструктурные контейнеры

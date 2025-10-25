@@ -36,6 +36,9 @@ TRANSLATIONS_RU = {
     "OK": "ОК",
     "Close": "Закрыть",
     "Submit": "Отправить",
+    "Open": "Открыть",
+    "Remove": "Удалить",
+    "Info": "Информация",
 
     # Common dialogs
     "Success": "Успех",
@@ -106,6 +109,8 @@ TRANSLATIONS_RU = {
     "Please select a deal first": "Пожалуйста выберите сделку сначала",
     "Please select a calculation to edit": "Пожалуйста выберите расчет для редактирования",
     "Please select a calculation to delete": "Пожалуйста выберите расчет для удаления",
+    "Attach Document": "Прикрепить документ",
+    "Open Document": "Открыть документ",
 
     # Payments tab
     "Payment Date": "Дата платежа",
@@ -133,6 +138,7 @@ TRANSLATIONS_RU = {
     "No": "Нет",
     "Yes": "Да",
     "All": "Все",
+    "Files": "Файлы",
 
     # Messages
     "No data to export": "Нет данных для экспорта",
@@ -144,6 +150,14 @@ TRANSLATIONS_RU = {
     "Are you sure": "Вы уверены",
     "Failed to fetch": "Ошибка при получении",
     "API Error": "Ошибка API",
+    "No files were attached": "Файлы не были прикреплены",
+    "Files attached to deal folder": "Файлы сохранены в папку сделки",
+    "File not found in deal folder. It may have been moved or deleted.": "Файл не найден в папке сделки. Возможно, он был перемещен или удален.",
+    "Select file": "Выберите файл",
+    "Select files": "Выберите файлы",
+    "Select a document to open": "Выберите документ для открытия",
+    "Select file to remove": "Выберите файл для удаления",
+    "Deal ID not found": "Идентификатор сделки не найден",
 
     # Search and Filter
     "Search by title": "Поиск по названию",

@@ -22,6 +22,7 @@
 │  │  │  • get_clients()      • create_deal()                │   │   │
 │  │  │  • update_client()    • delete_payment()             │   │   │
 │  │  │  • get_policies()     • get_calculations()           │   │   │
+│  │  │  • get_deal_policies()                              │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                          │                                   │   │
 │  │                          ▼                                   │   │
@@ -110,7 +111,7 @@ class APIClient:
 #### 4. **edit_dialogs.py** - Edit Forms
 Все диалоги для Add/Edit операций:
 - `BaseEditDialog` - базовый класс
-- `DealEditDialog` - создание/редактирование сделок
+- `DealEditDialog` - создание/редактирование сделок с выбором клиента и ответственного пользователя
 - `PaymentEditDialog` - создание/редактирование платежей
 - `PolicyEditDialog` - создание/редактирование политик
 - `CalculationEditDialog` - создание/редактирование расчётов

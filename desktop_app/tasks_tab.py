@@ -25,8 +25,8 @@ class TasksTab:
         self.all_deals = []  # Store all deals for filtering
         self.clients: List[Dict[str, Any]] = []  # Store clients for dialog dropdown
         self.all_clients: List[Dict[str, Any]] = []  # Store all clients for potential reuse
+        self.users: List[Dict[str, Any]] = []  # Store executors for dialog dropdown
         self.all_tasks: List[Dict[str, Any]] = []  # Store all tasks for filtering
-        self.all_deals: List[Dict[str, Any]] = []  # Store all deals for dropdowns
 
         self._setup_ui()
         self.refresh_tree()
@@ -115,10 +115,12 @@ class TasksTab:
         """Refresh tasks list asynchronously"""
         def worker():
             try:
-                # Load both tasks and deals
+                # Load tasks with related entities
                 tasks = self.crm_service.get_tasks()
                 deals = self.crm_service.get_deals()
-                self.parent.after(0, self._update_tree_ui, tasks, deals)
+                clients = self.crm_service.get_clients()
+                users = self.crm_service.get_users()
+                self.parent.after(0, self._update_tree_ui, tasks, deals, clients, users)
             except Exception as e:
                 logger.error(f"Failed to fetch tasks: {e}")
                 error_msg = str(e)
@@ -143,16 +145,22 @@ class TasksTab:
             logger.error(f"Failed to fetch tasks: {e}")
             error_msg = str(e)
             self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch tasks: {error_msg}"))
-    def _update_tree_ui(self, tasks, deals=None):
+    def _update_tree_ui(self, tasks, deals=None, clients=None, users=None):
         """Update tree UI on main thread"""
         if not self.tree:
             return
 
         # Store all data for filtering
-        self.all_tasks = tasks
-        if deals:
-            self.all_deals = deals
-        self._refresh_tree_display(tasks)
+        self.all_tasks = tasks or []
+        if deals is not None:
+            self.deals = deals or []
+            self.all_deals = deals or []
+        if clients is not None:
+            self.clients = clients or []
+            self.all_clients = clients or []
+        if users is not None:
+            self.users = users or []
+        self._refresh_tree_display(self.all_tasks)
 
     def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
         """Refresh tree display with given list of tasks"""
@@ -183,8 +191,13 @@ class TasksTab:
 
     def add_task(self):
         """Add new task"""
-        dialog = TaskEditDialog(self, deals_list=self.deals, clients_list=self.clients)
-        dialog = TaskEditDialog(self.parent, task=None, deals_list=self.all_deals)
+        dialog = TaskEditDialog(
+            self.parent,
+            task=None,
+            deals_list=self.all_deals,
+            clients_list=self.all_clients,
+            users_list=self.users,
+        )
         if dialog.result:
             def worker():
                 try:
@@ -219,13 +232,17 @@ class TasksTab:
                 error_msg = str(e)
                 self.parent.after(0, lambda: messagebox.showerror(i18n("API Error"), f"{i18n('Failed to fetch')} task: {error_msg}"))
 
-        dialog = TaskEditDialog(self, task=self.current_task, deals_list=self.deals,
-                                clients_list=self.clients)
         Thread(target=fetch_and_edit, daemon=True).start()
 
     def _show_edit_dialog(self, task_id, current_task):
         """Show edit dialog on main thread"""
-        dialog = TaskEditDialog(self.parent, task=current_task, deals_list=self.all_deals)
+        dialog = TaskEditDialog(
+            self.parent,
+            task=current_task,
+            deals_list=self.all_deals,
+            clients_list=self.all_clients,
+            users_list=self.users,
+        )
         if dialog.result:
             def worker():
                 try:
