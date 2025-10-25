@@ -49,7 +49,6 @@ Webhook должен проксироваться через Gateway/BFF. Для
 | `TELEGRAM_BOT_RABBITMQ_EXCHANGE_TASKS` | Exchange Tasks (`tasks.events`). |
 | `TELEGRAM_BOT_RABBITMQ_EXCHANGE_NOTIFICATIONS` | Exchange модуля уведомлений CRM (`notifications.events`). |
 | `TELEGRAM_BOT_RABBITMQ_QUEUE_NOTIFICATIONS` | Очередь для событий уведомлений CRM (по умолчанию `telegram.bot.notifications`). |
-| `TELEGRAM_BOT_RABBITMQ_QUEUE_CRM` | Очередь для CRM-событий (по умолчанию `telegram.bot.crm`). |
 | `TELEGRAM_BOT_EVENT_SOURCE` | Значение `source` для CloudEvents (например, `crm.telegram-bot`). |
 | `TELEGRAM_BOT_AUTH_BASE_URL` | Базовый URL Auth API (`http://localhost:8081/api`). |
 | `TELEGRAM_BOT_AUTH_SERVICE_TOKEN` | Сервисный токен для Auth. |
