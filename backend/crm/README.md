@@ -21,6 +21,7 @@ crm/
 - PostgreSQL (схема `crm`), Redis и RabbitMQ — URL подключений настраиваются через переменные `CRM_DATABASE_URL`, `CRM_REDIS_URL`, `CRM_RABBITMQ_URL` и дополнительные параметры очередей (см. `env.example`).【F:env.example†L78-L118】
 - Для фоновых задач Celery используется Redis (по умолчанию `CRM_CELERY_BROKER_URL=${REDIS_CELERY_URL}`).
 - BullMQ-очередь синхронизации прав настраивается переменными `CRM_PERMISSIONS_QUEUE_NAME`, `CRM_PERMISSIONS_QUEUE_PREFIX`, `CRM_PERMISSIONS_JOB_NAME`; при отсутствии `CRM_PERMISSIONS_REDIS_URL` используется общий Redis (`CRM_REDIS_URL`).
+- Обязателен сервис Documents: переменная `CRM_DOCUMENTS_BASE_URL` должна указывать на его REST API, иначе загрузка настроек завершится ошибкой (`crm.app.config.Settings`). Модуль полисов использует репозиторий `PolicyDocumentRepository` и внешний ключ `fk_policy_documents_document_id` к таблице `documents.documents`, поэтому без работающего сервиса падут маршруты `/api/v1/policies/{policyId}/documents`, миграции и интеграционные тесты.
 - Класс настроек `crm.app.config.Settings` считывает только переменные с префиксом `CRM_` и игнорирует любые глобальные ключи в `.env`. Это позволяет хранить общие параметры для других сервисов в одном файле без риска падения CRM.
 
 ## Быстрый запуск (локально)

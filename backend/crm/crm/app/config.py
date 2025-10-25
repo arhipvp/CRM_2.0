@@ -64,7 +64,13 @@ class Settings(BaseSettings):
     events_exchange: str = Field(default="crm.events")
     celery_retry_delay_seconds: int = Field(default=60)
 
-    documents_base_url: Optional[AnyUrl] = Field(default=None)
+    documents_base_url: AnyUrl = Field(
+        ...,
+        description=(
+            "Базовый URL API сервиса Documents, используемый для получения метаданных "
+            "и проверки связей документов."
+        ),
+    )
 
     auth_disabled: bool = Field(default=False)
 

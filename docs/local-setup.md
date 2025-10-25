@@ -188,6 +188,8 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 ### Documents: быстрый старт
 
+> CRM/Deals не запустится без поднятого Documents и корректного `CRM_DOCUMENTS_BASE_URL`: модуль полисов использует REST-маршруты `/policies/{policy_id}/documents`, которые зависят от таблицы `documents.documents` и миграции `fk_policy_documents_document_id`. Перед стартом CRM обязательно примените миграции Documents и убедитесь, что сервис доступен по URL из `.env`.
+
 1. Перейдите в `backend/documents` и установите зависимости (`pnpm install`).
 2. Подготовьте каталог хранения документов на хосте (по умолчанию `/var/lib/crm/documents`):
    ```bash
