@@ -20,12 +20,14 @@ class PaymentsTab:
         self.crm_service = crm_service
         self.tree: Optional[ttk.Treeview] = None
         self.current_deal_id: Optional[str] = None
+        self.current_policy_id: Optional[str] = None
         self.payments: List[Dict[str, Any]] = []
         self.all_payments: List[Dict[str, Any]] = []  # Store all payments for filtering
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []
         self.current_policies: List[Dict[str, Any]] = []
         self.deal_dict = {}
+        self.policy_dict = {}
 
         self._setup_ui()
 
@@ -42,6 +44,15 @@ class PaymentsTab:
         self.deal_combo.bind("<<ComboboxSelected>>", self._on_deal_selected)
 
         tk.Button(select_frame, text="Refresh Deals", command=self._load_deals).pack(side="left", padx=5)
+
+        policy_frame = tk.Frame(self.parent)
+        policy_frame.pack(pady=5, padx=10, fill="x")
+
+        tk.Label(policy_frame, text="Select Policy:").pack(side="left", padx=5)
+        self.policy_var = tk.StringVar()
+        self.policy_combo = ttk.Combobox(policy_frame, textvariable=self.policy_var, state="disabled", width=40)
+        self.policy_combo.pack(side="left", padx=5, fill="x", expand=True)
+        self.policy_combo.bind("<<ComboboxSelected>>", self._on_policy_selected)
 
         # Search filter frame
         search_frame = tk.Frame(self.parent)
@@ -157,7 +168,29 @@ class PaymentsTab:
         selected_deal = self.deal_var.get()
         if selected_deal and selected_deal in self.deal_dict:
             self.current_deal_id = self.deal_dict[selected_deal]
+            self.current_policy_id = None
+            self.policy_dict = {}
+            self.policy_var.set("")
+            if hasattr(self, "policy_combo"):
+                self.policy_combo.config(state="disabled")
+                self.policy_combo["values"] = ()
             self.refresh_payments()
+
+    def _on_policy_selected(self, event=None):
+        """Handle policy selection change"""
+        selected_policy = self.policy_var.get()
+        selected_policy_id = self.policy_dict.get(selected_policy)
+
+        if not selected_policy_id:
+            self.current_policy_id = None
+            self._update_tree_ui([])
+            return
+
+        if selected_policy_id == self.current_policy_id:
+            return
+
+        self.current_policy_id = selected_policy_id
+        self.refresh_payments(reload_policies=False)
 
     def _refresh_current_deal(self):
         """Refresh payments for current deal"""
@@ -166,38 +199,52 @@ class PaymentsTab:
         else:
             messagebox.showwarning("Warning", "Please select a deal first.")
 
-    def refresh_payments(self):
-        """Refresh payments list for selected deal"""
+    def refresh_payments(self, reload_policies: bool = True):
+        """Refresh payments list for selected deal and policy"""
         if not self.current_deal_id:
             messagebox.showwarning("Warning", "Please select a deal first.")
             return
 
         def worker():
-            payments = []
-            policies = []
+            payments: List[Dict[str, Any]] = []
+            policies: List[Dict[str, Any]] = self.current_policies if not reload_policies else []
             payment_error: Optional[Exception] = None
             policies_error: Optional[Exception] = None
+            selected_policy_id = self.current_policy_id
 
-            try:
-                payments = self.crm_service.get_payments(self.current_deal_id)
-            except Exception as e:
-                payment_error = e
+            if reload_policies:
+                try:
+                    policies = self.crm_service.get_deal_policies(self.current_deal_id)
+                except Exception as e:
+                    policies_error = e
+                    policies = []
+                    logger.error(f"Failed to fetch policies for deal {self.current_deal_id}: {e}")
 
-            try:
-                policies = self.crm_service.get_deal_policies(self.current_deal_id)
-            except Exception as e:
-                policies_error = e
-                logger.error(f"Failed to fetch policies for deal {self.current_deal_id}: {e}")
+            policy_ids = {policy.get("id") for policy in policies if policy.get("id") is not None}
+            if not selected_policy_id or (reload_policies and selected_policy_id not in policy_ids):
+                selected_policy_id = next((policy.get("id") for policy in policies if policy.get("id") is not None), None)
+
+            if selected_policy_id:
+                try:
+                    payments = self.crm_service.get_payments(self.current_deal_id, selected_policy_id)
+                except Exception as e:
+                    payment_error = e
+            else:
+                payments = []
 
             def update_ui():
-                payments_to_display = payments if payment_error is None else []
-                policies_to_use = policies if policies_error is None else []
-                self._update_tree_ui(payments_to_display, policies_to_use)
+                if policies_error is None:
+                    self._update_policies_combo(policies, selected_policy_id)
+                elif reload_policies:
+                    messagebox.showerror("Error", f"Failed to fetch policies: {policies_error}")
 
-                if payment_error is not None:
+                if payment_error is None:
+                    self._update_tree_ui(payments)
+                else:
+                    self._update_tree_ui([])
                     error_str = str(payment_error)
                     if "404" in error_str:
-                        logger.info("Payments endpoint not implemented for this deal")
+                        logger.info("Payments endpoint not implemented for this deal/policy")
                     else:
                         messagebox.showerror("Error", f"Failed to fetch payments: {error_str}")
 
@@ -209,6 +256,10 @@ class PaymentsTab:
         """Add new payment"""
         if not self.current_deal_id:
             messagebox.showwarning("Warning", "Please select a deal first.")
+            return
+
+        if not self.current_policies:
+            messagebox.showwarning("Warning", "Please select a policy first.")
             return
 
         dialog = PaymentEditDialog(self.parent, payment=None, deals_list=self.all_deals, policies_list=self.current_policies)
@@ -242,9 +293,17 @@ class PaymentsTab:
 
         dialog = PaymentEditDialog(self.parent, payment=payment_data, deals_list=self.all_deals, policies_list=self.current_policies)
         if dialog.result:
+            update_payload = dict(dialog.result)
+            deal_id = update_payload.pop("deal_id", None)
+            policy_id = update_payload.pop("policy_id", None)
+
+            if not deal_id or not policy_id:
+                messagebox.showerror("Error", "Invalid deal or policy selected.")
+                return
+
             def worker():
                 try:
-                    payment = self.crm_service.update_payment(payment_id, **dialog.result)
+                    payment = self.crm_service.update_payment(deal_id, policy_id, payment_id, **update_payload)
                     self.parent.after(0, lambda: self._handle_payment_saved(payment, message="Payment updated successfully"))
                 except Exception as e:
                     logger.error(f"Failed to update payment: {e}")
@@ -264,11 +323,22 @@ class PaymentsTab:
 
         if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this payment?"):
             payment_id = selected_item
+            payment_data = next((p for p in self.payments if p.get("id") == payment_id), None)
+            if not payment_data:
+                messagebox.showerror("Error", "Payment not found.")
+                return
+
+            deal_id = payment_data.get("deal_id") or self.current_deal_id
+            policy_id = payment_data.get("policy_id") or self.current_policy_id
+
+            if not deal_id or not policy_id:
+                messagebox.showerror("Error", "Unable to determine payment policy.")
+                return
 
             def worker():
                 try:
-                    self.crm_service.delete_payment(payment_id)
-                    self.parent.after(0, self.refresh_payments)
+                    self.crm_service.delete_payment(deal_id, policy_id, payment_id)
+                    self.parent.after(0, lambda: self.refresh_payments(reload_policies=False))
                     self.parent.after(0, lambda: messagebox.showinfo("Success", "Payment deleted successfully"))
                 except Exception as e:
                     logger.error(f"Failed to delete payment: {e}")
@@ -277,7 +347,38 @@ class PaymentsTab:
 
             Thread(target=worker, daemon=True).start()
 
-    def _update_tree_ui(self, payments, policies=None):
+    def _update_policies_combo(self, policies: List[Dict[str, Any]], selected_policy_id: Optional[str]):
+        """Update policies dropdown based on loaded data"""
+        self.current_policies = policies or []
+        self.policy_dict = {
+            policy.get("policy_number", f"Policy {policy.get('id')}"): policy.get("id")
+            for policy in self.current_policies
+            if policy.get("id") is not None
+        }
+
+        if not self.policy_dict:
+            self.policy_var.set("")
+            self.current_policy_id = None
+            self.policy_combo.config(state="disabled")
+            self.policy_combo["values"] = ()
+            return
+
+        values = list(self.policy_dict.keys())
+        self.policy_combo.config(state="readonly")
+        self.policy_combo["values"] = values
+
+        selected_name = next(
+            (name for name, policy_id in self.policy_dict.items() if policy_id == selected_policy_id),
+            None,
+        )
+        if not selected_name:
+            selected_name = values[0]
+            selected_policy_id = self.policy_dict[selected_name]
+
+        self.policy_var.set(selected_name)
+        self.current_policy_id = selected_policy_id
+
+    def _update_tree_ui(self, payments: List[Dict[str, Any]]):
         """Update tree UI on main thread"""
         if not self.tree:
             return
@@ -327,7 +428,7 @@ class PaymentsTab:
         if message:
             messagebox.showinfo("Success", message)
         if refresh and self.current_deal_id:
-            self.refresh_payments()
+            self.refresh_payments(reload_policies=False)
 
     def _normalize_payment(self, payment: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize numeric fields for consistent formatting"""
