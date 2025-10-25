@@ -353,24 +353,44 @@ class CRMService:
 
     # --- Deal Journal Operations ---
 
-    def get_deal_journal(self, deal_id: str) -> List[Dict[str, Any]]:
+    def get_deal_journal(self, deal_id: str, *, limit: int = 200, offset: int = 0) -> Dict[str, Any]:
         """Fetch journal entries for a deal"""
         try:
-            url = f"{CRM_DEALS_URL}/{deal_id}/journal"
-            entries = self.api_client.get(url)
+            url = f"{CRM_DEALS_URL}/{deal_id}/journal?limit={limit}&offset={offset}"
+            response = self.api_client.get(url)
             logger.info(f"Fetched journal entries for deal: {deal_id}")
-            return entries or []
+            if isinstance(response, dict):
+                items = response.get("items", [])
+                total = response.get("total", len(items))
+            else:
+                items = response or []
+                total = len(items)
+                response = {"items": items, "total": total}
+            return {"items": items, "total": total, **{k: v for k, v in (response or {}).items() if k not in {"items", "total"}}}
         except Exception as e:
             logger.error(f"Failed to fetch journal for deal {deal_id}: {e}")
             raise
 
-    def add_journal_entry(self, deal_id: str, body: str) -> Dict[str, Any]:
+    def add_journal_entry(self, deal_id: str, body: str, *, author_id: Optional[str] = None) -> Dict[str, Any]:
         """Add journal entry for a deal"""
+        if not author_id:
+            raise ValueError("author_id is required to add a journal entry")
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}/journal"
-            entry = self.api_client.post(url, {"body": body})
+            payload = {"body": body, "author_id": author_id}
+            entry = self.api_client.post(url, payload)
             logger.info(f"Added journal entry for deal: {deal_id}")
             return entry
         except Exception as e:
             logger.error(f"Failed to add journal entry for deal {deal_id}: {e}")
+            raise
+
+    def delete_journal_entry(self, deal_id: str, entry_id: str) -> None:
+        """Delete journal entry for a deal"""
+        try:
+            url = f"{CRM_DEALS_URL}/{deal_id}/journal/{entry_id}"
+            self.api_client.delete(url)
+            logger.info(f"Deleted journal entry {entry_id} for deal: {deal_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete journal entry {entry_id} for deal {deal_id}: {e}")
             raise
