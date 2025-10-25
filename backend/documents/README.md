@@ -91,12 +91,15 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 - `GET /health` — состояние сервиса.
 - `POST /api/v1/folders` — создаёт каталог внутри `DOCUMENTS_STORAGE_ROOT` и сохраняет связь с сущностью. Ответ содержит относительный путь (`folder_path`), абсолютный путь (`full_path`) и публичную ссылку (`public_url`, если публикация настроена). Ошибки: `400 validation_error`, `409 folder_exists`.
 - `GET /api/v1/folders/:ownerType/:ownerId` — возвращает метаданные каталога: относительный путь, абсолютный путь (`full_path`) и публичную ссылку (`public_url`, может быть `null`). Ошибка `404 folder_not_found`, если запись отсутствует.
-| `DOCUMENTS_FOLDERS_TEMPLATE_*` | Шаблоны названий папок по типам (`{title}`, `{ownerId}`, `{ownerType}`). |
-| `DOCUMENTS_FOLDERS_WEB_BASE_URL` | Базовый URL для формирования ссылок на каталоги (совмещается с `DOCUMENTS_STORAGE_PUBLIC_BASE_URL`). |
-| `DOCUMENTS_STORAGE_DRIVER` | Драйвер хранения (`local` — файловая система по умолчанию). |
-| `DOCUMENTS_STORAGE_ROOT` | Путь внутри контейнера/сервиса, где размещаются файлы. |
-| `DOCUMENTS_STORAGE_QUOTA_MB` | Опциональный лимит диска в мегабайтах; `0` или пусто — без ограничения. |
-| `DOCUMENTS_STORAGE_PUBLIC_BASE_URL` | Опциональный публичный URL (reverse-proxy/CDN) для скачивания файлов. |
+- `GET /documents` — список документов (фильтры по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; общее количество возвращается в заголовке `X-Total-Count`).
+- `GET /documents/:id` — детали документа.
+- `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
+- `PATCH /documents/:id` — обновить метаданные.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, сервис ставит задачу очистки файла и отзывает ACL/группы. Повторный вызов вернёт `409 already_deleted`.
+- `POST /documents/:id/upload` — переотправить документ в очередь загрузки (повторная выдача подписанного URL).
+- `POST /documents/:id/complete` — подтвердить завершение загрузки, зафиксировать размер/хэш и поставить задачу синхронизации (`documents.sync`).
+- `POST /documents/:id/sync` — актуализировать метаданные из файловой системы или объектного хранилища.
+- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на применение POSIX-прав/ACL для каталога. Ошибки: `400 validation_error`, `404 folder_not_found`.
 
 ## Локальное файловое хранилище
 
@@ -111,24 +114,6 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
    ```
    Публичный URL можно оставить пустым — тогда скачивание выполняется через API Documents или защищённый reverse-proxy.
 4. Планируйте бэкапы: каталоги с файлами и база `documents` должны резервироваться вместе (см. раздел про резервное копирование в `docs/local-setup.md`).
-
-## REST API
-- `GET /health` — состояние сервиса.
-- `POST /api/v1/folders` — создаёт каталог в файловом хранилище и сохраняет связь с сущностью. Ответ содержит `folder_path`, `full_path` и `public_url` (может быть `null`). Ошибки: `400 validation_error`, `409 folder_exists`.
-- `GET /api/v1/folders/:ownerType/:ownerId` — возвращает привязанный каталог (`folder_path`, `full_path`, `public_url`). Ошибка `404 folder_not_found`, если запись отсутствует.
-- `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; ответ — массив, общее количество приходит в заголовке `X-Total-Count`).
-- `GET /documents/:id` — детали документа.
-- `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
-- `PATCH /documents/:id` — обновить метаданные.
-- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, сервис ставит задачу очистки файла и отзывает ACL/группы. Повторный вызов вернёт `409 already_deleted`.
-- `POST /documents/:id/upload` — переотправить документ в очередь загрузки (повторная выдача подписанного URL).
-- `POST /documents/:id/complete` — подтвердить завершение загрузки, зафиксировать размер/хэш и поставить задачу синхронизации (`documents.sync`), которая проверяет наличие файла, актуализирует права и ссылку.
-- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на применение POSIX-прав/ACL для каталога. Ответ содержит итоговую маску прав и применённые ACL. Ошибки: `400 validation_error`, `404 folder_not_found`.
-- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, права доступа отзываются (повторный вызов вернёт `409 already_deleted`).
-- `POST /documents/:id/upload` — переотправить документ в очередь загрузки.
-- `POST /documents/:id/complete` — подтвердить завершение загрузки и поставить задачу синхронизации.
-- `POST /documents/:id/sync` — обновить метаданные из файловой системы/объектного хранилища.
-- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на обновление списка пользователей каталога. Ошибки: `400 validation_error`, `404 folder_not_found`.
 
 Список статусов: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
 
