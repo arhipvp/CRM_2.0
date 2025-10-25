@@ -5,8 +5,9 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
-revision = "2025102701_increase_alembic_version_length"
-down_revision = "2025102601_add_tasks_module"
+
+revision = "2024031502_update_alembic_version_length"
+down_revision = "2024031501"
 branch_labels = None
 depends_on = None
 
