@@ -22,7 +22,9 @@ def _build_deal_filters(
     data: dict[str, object] = {}
 
     if stage:
-        data["stage"] = stage
+        normalized_stage = stage.strip()
+        if normalized_stage and normalized_stage != "all":
+            data["stage"] = normalized_stage
 
     include_unassigned = False
     manager_values: list[UUID] = []
