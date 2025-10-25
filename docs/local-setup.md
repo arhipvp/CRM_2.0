@@ -94,7 +94,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 ## Сводная таблица сервисов
 | Сервис | Назначение | Порт по умолчанию | README |
 | --- | --- | --- | --- |
-| 1. Gateway / BFF | Оркестрация REST/SSE, единая точка входа для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
+| 1. Gateway / BFF | Прозрачное REST-проксирование и ретрансляция SSE для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
 | 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
