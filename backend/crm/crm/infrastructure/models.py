@@ -4,6 +4,8 @@ from datetime import datetime, date
 from decimal import Decimal
 from uuid import uuid4
 
+from typing import Any
+
 from sqlalchemy import (
     Boolean,
     Date,
@@ -200,6 +202,31 @@ class Task(TasksBase, TimestampMixin):
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payload: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    assignee_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+    )
+    author_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+    )
+    deal_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("crm.deals.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+    )
+    policy_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("crm.policies.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+    )
+    payment_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("crm.payments.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -209,9 +236,17 @@ class Task(TasksBase, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="TaskReminder.remind_at.asc()",
     )
+    activities: Mapped[list["TaskActivity"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskActivity.created_at.asc()",
+    )
 
     __table_args__ = (
         Index("ix_tasks_status_code", "status_code"),
+        Index("ix_tasks_status_code_due_at", "status_code", "due_at"),
+        Index("ix_tasks_assignee_id", "assignee_id"),
+        Index("ix_tasks_deal_id", "deal_id"),
     )
 
 
@@ -240,6 +275,30 @@ class TaskReminder(TasksBase):
             unique=True,
         ),
     )
+
+
+class TaskActivity(TasksBase):
+    __tablename__ = "task_activity"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    task_id: Mapped[UUID] = mapped_column(
+        ForeignKey("tasks.tasks.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False
+    )
+    author_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    task: Mapped[Task] = relationship(back_populates="activities")
+
+    __table_args__ = (Index("ix_task_activity_created_at", "created_at"),)
 
 
 Index(

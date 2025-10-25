@@ -22,7 +22,7 @@
 **Параметры запроса**
 | Имя | Тип | Описание |
 | --- | --- | --- |
-| assigneeId | UUID | Фильтр по исполнителю (поддерживаются `payload.assigneeId` и `payload.assignee_id`). |
+| assigneeId | UUID | Фильтр по исполнителю (используется колонка `assignee_id`; значение дополнительно дублируется в `payload.assigneeId`). |
 | status | string \| array[string] | Коды статусов: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`. Одиночный параметр воспринимается как массив. |
 | dueBefore | date | Задачи со сроком до указанной даты (не включительно). |
 | dueAfter | date | Задачи со сроком после указанной даты (не включительно). |
@@ -46,10 +46,13 @@
 | cancelledReason | string \| null | Причина отмены. |
 | createdAt | datetime | Время создания. |
 | updatedAt | datetime | Время последнего обновления. |
-| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. Содержит `assigneeId`, `authorId`, приоритет, контекст и дополнительные пользовательские поля. |
-| assigneeId | UUID \| null | Исполнитель из `payload.assigneeId`/`payload.assignee_id`. |
+| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. Содержит зеркальные идентификаторы (`assigneeId`, `authorId`, `dealId` и т.д.) и произвольные поля. |
+| assigneeId | UUID \| null | Исполнитель из колонки `assignee_id`; для обратной совместимости также читается из `payload.assigneeId`/`payload.assignee_id`. |
+| authorId | UUID \| null | Постановщик из колонки `author_id`; при отсутствии данных используется `payload.authorId`/`payload.author_id`. |
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
-| dealId | UUID \| null | Идентификатор сделки из `payload.dealId`/`payload.deal_id`. |
+| dealId | UUID \| null | Колонка `deal_id`; при отсутствии значения берётся из `payload.dealId`/`payload.deal_id`. |
+| policyId | UUID \| null | Колонка `policy_id`; при отсутствии значения берётся из `payload.policyId`/`payload.policy_id`. |
+| paymentId | UUID \| null | Колонка `payment_id`; при отсутствии значения берётся из `payload.paymentId`/`payload.payment_id`. |
 | clientId | UUID \| null | Идентификатор клиента из `payload.clientId`/`payload.client_id`. |
 | context | object \| null | Контекст задачи. Если указан, содержит все строковые поля из `payload.context` в camelCase-формате (`dealId`, `clientId`, `stageId` и т.д.). |
 
@@ -69,9 +72,10 @@
 | scheduled_for | datetime | Нет | Время отложенного запуска задачи. Можно передавать в формате `scheduled_for` или `scheduledFor`; при указании задача сразу попадёт в статус `scheduled` и будет активирована в указанное время. |
 | payload | object | Нет | Дополнительные данные для произвольных интеграций. Полезно, если требуется сохранить нестандартные поля помимо `context`; объект хранится как есть и возвращается в `TaskResponseDto.payload`. |
 
-> Поля `assignee_id` и `author_id` сохраняются внутри `payload` в формате `assigneeId`/`assignee_id` и `authorId`/`author_id`,
-> поэтому в ответе их можно получить без дополнительного парсинга JSON. Если передан `context`, сервис нормализует его ключи в
-> camelCase и сохраняет весь объект (включая пользовательские поля) в `payload.context` и `TaskResponseDto.context`.
+> Поля `assignee_id` и `author_id` теперь хранятся в отдельных колонках таблицы `tasks.tasks`, а `payload` содержит их зеркальные
+> значения (`assigneeId`/`assignee_id`, `authorId`/`author_id`) для обратной совместимости. Если передан `context`, сервис
+> нормализует его ключи в camelCase и сохраняет весь объект (включая пользовательские поля) в `payload.context` и
+> `TaskResponseDto.context`.
 
 **Ответ 201** — созданная задача. Ответ соответствует `TaskResponseDto`.
 

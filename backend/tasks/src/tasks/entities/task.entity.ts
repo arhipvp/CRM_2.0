@@ -37,6 +37,21 @@ export class TaskEntity {
   @Column({ name: 'payload', type: 'jsonb', nullable: true })
   payload?: Record<string, unknown> | null;
 
+  @Column('uuid', { name: 'assignee_id' })
+  assigneeId!: string;
+
+  @Column('uuid', { name: 'author_id' })
+  authorId!: string;
+
+  @Column('uuid', { name: 'deal_id', nullable: true })
+  dealId?: string | null;
+
+  @Column('uuid', { name: 'policy_id', nullable: true })
+  policyId?: string | null;
+
+  @Column('uuid', { name: 'payment_id', nullable: true })
+  paymentId?: string | null;
+
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt?: Date | null;
 

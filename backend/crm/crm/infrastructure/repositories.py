@@ -438,14 +438,7 @@ class TaskRepository:
 
     def _apply_filters(self, stmt, filters: schemas.TaskFilters):
         if filters.assignee_id is not None:
-            assignee = str(filters.assignee_id)
-            payload = models.Task.payload
-            stmt = stmt.where(
-                or_(
-                    payload["assigneeId"].astext == assignee,
-                    payload["assignee_id"].astext == assignee,
-                )
-            )
+            stmt = stmt.where(models.Task.assignee_id == filters.assignee_id)
 
         if filters.statuses:
             stmt = stmt.where(
@@ -507,6 +500,16 @@ class TaskRepository:
         message = str(exc.orig)
         if "fk_tasks_status_code" in message:
             return "task_status_not_found"
+        if "fk_tasks_assignee_id" in message:
+            return "task_assignee_not_found"
+        if "fk_tasks_author_id" in message:
+            return "task_author_not_found"
+        if "fk_tasks_deal_id" in message:
+            return "task_deal_not_found"
+        if "fk_tasks_policy_id" in message:
+            return "task_policy_not_found"
+        if "fk_tasks_payment_id" in message:
+            return "task_payment_not_found"
         return "task_integrity_error"
 
 

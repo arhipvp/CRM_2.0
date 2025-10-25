@@ -554,6 +554,7 @@ class TaskService:
             "scheduled_for": payload.scheduled_for,
             "payload": self._build_payload(payload),
         }
+        data.update(self._build_task_relations(payload))
 
         try:
             task = await self.repository.create(data)
@@ -738,6 +739,9 @@ class TaskService:
             deal_id = self._extract_identifier(payload.context, ("dealId", "deal_id"))
             client_id = self._extract_identifier(payload.context, ("clientId", "client_id"))
             policy_id = self._extract_identifier(payload.context, ("policyId", "policy_id"))
+            payment_id = self._extract_identifier(
+                payload.context, ("paymentId", "payment_id")
+            )
             if deal_id:
                 data["dealId"] = deal_id
                 data["deal_id"] = deal_id
@@ -750,10 +754,40 @@ class TaskService:
                 data["policyId"] = policy_id
                 data["policy_id"] = policy_id
                 normalized_context["policyId"] = policy_id
+            if payment_id:
+                data["paymentId"] = payment_id
+                data["payment_id"] = payment_id
+                normalized_context["paymentId"] = payment_id
             if normalized_context:
                 data["context"] = normalized_context
 
         return data
+
+    def _build_task_relations(self, payload: schemas.TaskCreate) -> dict[str, Any]:
+        context = payload.context or {}
+        deal_id = (
+            self._extract_identifier(context, ("dealId", "deal_id"))
+            if context
+            else None
+        )
+        policy_id = (
+            self._extract_identifier(context, ("policyId", "policy_id"))
+            if context
+            else None
+        )
+        payment_id = (
+            self._extract_identifier(context, ("paymentId", "payment_id"))
+            if context
+            else None
+        )
+
+        return {
+            "assignee_id": payload.assignee_id,
+            "author_id": payload.author_id,
+            "deal_id": self._to_optional_uuid(deal_id),
+            "policy_id": self._to_optional_uuid(policy_id),
+            "payment_id": self._to_optional_uuid(payment_id),
+        }
 
     @staticmethod
     def _extract_identifier(context: dict[str, Any], keys: tuple[str, str]) -> str | None:
@@ -764,6 +798,15 @@ class TaskService:
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return None
+
+    @staticmethod
+    def _to_optional_uuid(value: str | None) -> UUID | None:
+        if value is None:
+            return None
+        try:
+            return UUID(value)
+        except (ValueError, TypeError):
+            return None
 
     @staticmethod
     def _to_camel_case(value: str) -> str:

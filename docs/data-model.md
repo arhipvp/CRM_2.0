@@ -163,6 +163,35 @@ erDiagram
 * `tasks.tasks`: `PRIMARY KEY (id)`, внешние ключи `deal_id` → `crm.deals(id)`, `policy_id` → `crm.policies(id)`, `payment_id` → `crm.payments(id)`, `assignee_id` → `auth.users(id)`, `author_id` → `auth.users(id)`. Индексы по `(status, due_date)`, `assignee_id`, `deal_id`.
 * `tasks.task_activity`: `PRIMARY KEY (id)`, `FOREIGN KEY (task_id)` → `tasks.tasks(id)`, `FOREIGN KEY (author_id)` → `auth.users(id)`, индекс по `created_at`.
 
+#### Поля `tasks.tasks`
+
+* `id` (`uuid`, PK) — идентификатор задачи.
+* `title` (`varchar(255)`, NOT NULL) — краткое название.
+* `description` (`text`, NULL) — подробное описание.
+* `status_code` (`varchar(32)`, NOT NULL) — код статуса из справочника `tasks.task_statuses`.
+* `due_at` (`timestamptz`, NULL) — плановый срок исполнения.
+* `scheduled_for` (`timestamptz`, NULL) — время активации отложенной задачи.
+* `payload` (`jsonb`, NULL) — произвольный контекст и зеркальное хранение идентификаторов для обратной совместимости.
+* `assignee_id` (`uuid`, NOT NULL) — исполнитель, FK → `auth.users(id)`.
+* `author_id` (`uuid`, NOT NULL) — постановщик, FK → `auth.users(id)`.
+* `deal_id` (`uuid`, NULL) — связанная сделка, FK → `crm.deals(id)` с `ON DELETE SET NULL`.
+* `policy_id` (`uuid`, NULL) — связанный полис, FK → `crm.policies(id)` с `ON DELETE SET NULL`.
+* `payment_id` (`uuid`, NULL) — связанный платёж, FK → `crm.payments(id)` с `ON DELETE SET NULL`.
+* `completed_at` (`timestamptz`, NULL) — фактическое завершение.
+* `cancelled_reason` (`text`, NULL) — причина отмены.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`).
+* `updated_at` (`timestamptz`, NOT NULL, default `now()`, обновляется триггером `on update`).
+
+#### Поля `tasks.task_activity`
+
+* `id` (`uuid`, PK) — идентификатор записи истории.
+* `task_id` (`uuid`, NOT NULL) — ссылка на задачу, FK → `tasks.tasks(id)` c `ON DELETE CASCADE`.
+* `author_id` (`uuid`, NOT NULL) — пользователь, зафиксировавший событие, FK → `auth.users(id)`.
+* `event_type` (`varchar(64)`, NOT NULL) — тип события (`comment`, `status_changed` и т.д.).
+* `body` (`text`, NULL) — текстовое описание.
+* `payload` (`jsonb`, NULL) — структурированные данные события.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`). Индекс `ix_task_activity_created_at` ускоряет сортировку и постраничный вывод истории.
+
 ## Схема `documents`
 
 ```mermaid
