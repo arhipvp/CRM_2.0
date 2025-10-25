@@ -91,17 +91,15 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 - `GET /health` — состояние сервиса.
 - `POST /api/v1/folders` — создаёт каталог внутри `DOCUMENTS_STORAGE_ROOT` и сохраняет связь с сущностью. Ответ содержит относительный путь (`folder_path`), абсолютный путь (`full_path`) и публичную ссылку (`public_url`, если публикация настроена). Ошибки: `400 validation_error`, `409 folder_exists`.
 - `GET /api/v1/folders/:ownerType/:ownerId` — возвращает метаданные каталога: относительный путь, абсолютный путь (`full_path`) и публичную ссылку (`public_url`, может быть `null`). Ошибка `404 folder_not_found`, если запись отсутствует.
-- `GET /documents` — список документов (фильтрация по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; ответ — массив, общее количество приходит в заголовке `X-Total-Count`).
+- `GET /documents` — список документов (фильтры по статусу, владельцу, типу, полнотекстовый поиск по названию/описанию, пагинация через `offset`/`limit`; общее количество возвращается в заголовке `X-Total-Count`).
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
-- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, сервис отзывает права доступа и ставит задачу очистки файла. Повторный вызов вернёт `409 already_deleted`.
-- `POST /documents/:id/upload` — переотправить документ в очередь загрузки и получить новую подписанную ссылку.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, сервис ставит задачу очистки файла и отзывает ACL/группы. Повторный вызов вернёт `409 already_deleted`.
+- `POST /documents/:id/upload` — переотправить документ в очередь загрузки (повторная выдача подписанного URL).
 - `POST /documents/:id/complete` — подтвердить завершение загрузки, зафиксировать размер/хэш и поставить задачу синхронизации (`documents.sync`).
-- `POST /documents/:id/sync` — обновить метаданные на основании файловой системы или объектного хранилища.
-- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на обновление POSIX-прав и ACL каталога. Ответ содержит применённую маску прав. Ошибки: `400 validation_error`, `404 folder_not_found`.
-
-Список статусов: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
+- `POST /documents/:id/sync` — актуализировать метаданные из файловой системы или объектного хранилища.
+- `POST /api/v1/permissions/sync` — поставить задачу `documents.permissions.sync` на применение POSIX-прав/ACL для каталога. Ошибки: `400 validation_error`, `404 folder_not_found`.
 
 ## Локальное файловое хранилище
 
@@ -116,6 +114,8 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
    ```
    Публичный URL можно оставить пустым — тогда скачивание выполняется через API Documents или защищённый reverse-proxy.
 4. Планируйте бэкапы: каталоги с файлами и база `documents` должны резервироваться вместе (см. раздел про резервное копирование в `docs/local-setup.md`).
+
+Список статусов: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`.
 
 ## Миграции
 TypeORM-конфигурация расположена в [`typeorm.config.ts`](./typeorm.config.ts). Базовые команды:
