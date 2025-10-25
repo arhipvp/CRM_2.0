@@ -8,7 +8,7 @@
 ## События CRM / Deals
 - **Exchange:** `crm.domain`
 - **Тип обмена:** topic
-- **Очереди-потребители:** `tasks.crm`, `notifications.crm`, `audit.crm`
+- **Очереди-потребители:** `tasks.crm`, `notifications.crm`
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
@@ -33,7 +33,7 @@
 ## События Tasks
 - **Exchange:** `tasks.events`
 - **Тип обмена:** topic
-- **Очереди-потребители:** `notifications.tasks`, `audit.tasks`
+- **Очереди-потребители:** `notifications.tasks`
 - **Source:** `tasks.service`
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
@@ -51,18 +51,18 @@
 ## События Notifications
 - **Exchange:** `notifications.events`
 - **Тип обмена:** topic
-- **Очереди-потребители:** `audit.notifications`, `gateway.notifications`
+- **Очереди-потребители:** `gateway.notifications`
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
 | `notification.dispatched` | `notifications.notification.dispatched` | `{ "notification_id": "uuid", "user_id": "uuid", "channels": ["telegram"], "template": "deal.status.changed", "created_at": "datetime" }` | Gateway ведёт таблицу доставленных уведомлений (idempotent key = `notification_id`). |
-| `notification.failed` | `notifications.notification.failed` | `{ "notification_id": "uuid", "user_id": "uuid", "channel": "telegram", "reason": "blocked" }` | Audit сохраняет `notification_id` + `event_id`. |
+| `notification.failed` | `notifications.notification.failed` | `{ "notification_id": "uuid", "user_id": "uuid", "channel": "telegram", "reason": "blocked" }` | Notifications сохраняет `notification_id` + `event_id` в собственной БД. |
 | `notification.read` | `notifications.notification.read` | `{ "notification_id": "uuid", "user_id": "uuid", "read_at": "datetime" }` | Gateway обновляет состояние и проверяет `event_id`. |
 
 ## События Documents
 - **Exchange:** `documents.events`
 - **Тип обмена:** topic
-- **Очереди-потребители:** `crm.documents`, `notifications.documents`, `audit.documents`
+- **Очереди-потребители:** `crm.documents`, `notifications.documents`
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
