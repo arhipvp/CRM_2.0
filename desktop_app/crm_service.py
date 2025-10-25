@@ -2,7 +2,7 @@
 from typing import Optional, Dict, Any, List
 from api_client import APIClient
 from config import (
-    CRM_CLIENTS_URL, CRM_DEALS_URL, CRM_PAYMENTS_URL,
+    CRM_CLIENTS_URL, CRM_DEALS_URL,
     CRM_POLICIES_URL, CRM_TASKS_URL, CRM_USERS_URL
 )
 from logger import logger
@@ -127,50 +127,53 @@ class CRMService:
 
     # --- Payments Operations ---
 
-    def get_payments(self, deal_id: str) -> List[Dict[str, Any]]:
-        """Fetch payments for a deal"""
+    def get_payments(self, deal_id: str, policy_id: str) -> List[Dict[str, Any]]:
+        """Fetch payments for a deal policy"""
         try:
-            url = f"{CRM_DEALS_URL}/{deal_id}/payments"
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies/{policy_id}/payments"
             payments = self.api_client.get(url)
-            logger.info(f"Fetched payments for deal: {deal_id}")
+            logger.info(f"Fetched payments for deal %s policy %s", deal_id, policy_id)
             return payments or []
         except Exception as e:
-            logger.error(f"Failed to fetch payments for deal {deal_id}: {e}")
+            logger.error(f"Failed to fetch payments for deal {deal_id} policy {policy_id}: {e}")
             raise
 
-    def create_payment(self, deal_id: str, **kwargs) -> Dict[str, Any]:
+    def create_payment(self, deal_id: str, policy_id: str, **kwargs) -> Dict[str, Any]:
         """Create new payment"""
         try:
-            url = f"{CRM_DEALS_URL}/{deal_id}/payments"
-            payload = self._prepare_payment_payload(kwargs)
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies/{policy_id}/payments"
+            payload = self._prepare_payment_payload(kwargs, exclude_keys={"deal_id", "policy_id"})
             payment = self.api_client.post(url, payload)
-            logger.info(f"Created payment for deal: {deal_id}")
+            logger.info(f"Created payment for deal %s policy %s", deal_id, policy_id)
             return payment
         except Exception as e:
-            logger.error(f"Failed to create payment: {e}")
+            logger.error(f"Failed to create payment for deal {deal_id} policy {policy_id}: {e}")
             raise
 
-    def update_payment(self, payment_id: str, **kwargs) -> Dict[str, Any]:
+    def update_payment(self, deal_id: str, policy_id: str, payment_id: str, **kwargs) -> Dict[str, Any]:
         """Update payment"""
         try:
-            # Note: Adjust URL if backend uses different structure
-            url = f"{CRM_PAYMENTS_URL}/{payment_id}"
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies/{policy_id}/payments/{payment_id}"
             payload = self._prepare_payment_payload(kwargs, exclude_keys={"deal_id", "policy_id"})
             payment = self.api_client.patch(url, payload)
-            logger.info(f"Updated payment: {payment_id}")
+            logger.info(f"Updated payment %s for deal %s policy %s", payment_id, deal_id, policy_id)
             return payment
         except Exception as e:
-            logger.error(f"Failed to update payment {payment_id}: {e}")
+            logger.error(
+                f"Failed to update payment {payment_id} for deal {deal_id} policy {policy_id}: {e}"
+            )
             raise
 
-    def delete_payment(self, payment_id: str) -> None:
+    def delete_payment(self, deal_id: str, policy_id: str, payment_id: str) -> None:
         """Delete payment"""
         try:
-            url = f"{CRM_PAYMENTS_URL}/{payment_id}"
+            url = f"{CRM_DEALS_URL}/{deal_id}/policies/{policy_id}/payments/{payment_id}"
             self.api_client.delete(url)
-            logger.info(f"Deleted payment: {payment_id}")
+            logger.info(f"Deleted payment %s for deal %s policy %s", payment_id, deal_id, policy_id)
         except Exception as e:
-            logger.error(f"Failed to delete payment {payment_id}: {e}")
+            logger.error(
+                f"Failed to delete payment {payment_id} for deal {deal_id} policy {policy_id}: {e}"
+            )
             raise
 
     @staticmethod

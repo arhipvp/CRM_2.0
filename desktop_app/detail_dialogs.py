@@ -74,6 +74,7 @@ class DealDetailDialog(tk.Toplevel):
         self.policies = []
         self.calculations = []
         self.payments = []
+        self.current_policy_id: Optional[str] = None
         self.all_clients = []
 
         # Store IDs for display in trees
@@ -238,6 +239,21 @@ class DealDetailDialog(tk.Toplevel):
 
     def _create_payments_tab(self, parent):
         """Create payments management tab"""
+        selection_frame = ttk.Frame(parent)
+        selection_frame.pack(fill="x", padx=10, pady=5)
+
+        ttk.Label(selection_frame, text=f"{i18n('Policy')}:").pack(side="left", padx=5)
+        self.payments_policy_var = tk.StringVar()
+        self.payments_policy_combo = ttk.Combobox(
+            selection_frame,
+            textvariable=self.payments_policy_var,
+            state="disabled",
+            width=40
+        )
+        self.payments_policy_combo.pack(side="left", padx=5, fill="x", expand=True)
+        self.payments_policy_combo.bind("<<ComboboxSelected>>", self._on_payments_policy_selected)
+        self.payments_policy_dict: Dict[str, Any] = {}
+
         # Treeview for payments
         tree_frame = ttk.Frame(parent)
         tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -310,9 +326,14 @@ class DealDetailDialog(tk.Toplevel):
                 deal_id = self.deal_data.get("id", "")
                 self.all_clients = self.crm_service.get_clients()
                 self.policies = self.crm_service.get_deal_policies(deal_id)
+                policy_ids = {policy.get("id") for policy in self.policies if policy.get("id") is not None}
+                if not self.current_policy_id or self.current_policy_id not in policy_ids:
+                    self.current_policy_id = next((policy.get("id") for policy in self.policies if policy.get("id") is not None), None)
                 self.calculations = self.crm_service.get_calculations(deal_id)
-                payments = self.crm_service.get_payments(deal_id)
-                self.payments = [self._normalize_payment(payment) for payment in payments]
+                payments_raw: List[Dict[str, Any]] = []
+                if self.current_policy_id:
+                    payments_raw = self.crm_service.get_payments(deal_id, self.current_policy_id)
+                self.payments = [self._normalize_payment(payment) for payment in payments_raw]
                 self.after(0, self._update_dependent_data)
             except Exception as e:
                 from logger import logger
@@ -323,6 +344,7 @@ class DealDetailDialog(tk.Toplevel):
     def _update_dependent_data(self):
         """Update the tree views with loaded data"""
         self._update_policies_tree()
+        self._update_payments_policy_combo()
         self._update_calculations_tree()
         self._update_payments_tree()
         self._update_finances()
@@ -555,9 +577,21 @@ class DealDetailDialog(tk.Toplevel):
             messagebox.showerror(i18n("Error"), "Payment ID not found")
             return
 
+        payment_data = next((p for p in self.payments if p.get("id") == payment_id), None)
+        if not payment_data:
+            messagebox.showerror(i18n("Error"), i18n("Payment not found"))
+            return
+
+        deal_id = payment_data.get("deal_id") or self.deal_data.get("id")
+        policy_id = payment_data.get("policy_id") or self.current_policy_id
+
+        if not deal_id or not policy_id:
+            messagebox.showerror(i18n("Error"), i18n("Unable to determine payment policy"))
+            return
+
         def worker():
             try:
-                self.crm_service.delete_payment(payment_id)
+                self.crm_service.delete_payment(deal_id, policy_id, payment_id)
                 self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Payment deleted successfully")))
                 self.after(0, self._reload_payments)
             except Exception as e:
@@ -574,7 +608,11 @@ class DealDetailDialog(tk.Toplevel):
             try:
                 deal_id = self.deal_data.get("id", "")
                 self.policies = self.crm_service.get_deal_policies(deal_id)
+                policy_ids = {policy.get("id") for policy in self.policies if policy.get("id") is not None}
+                if self.current_policy_id not in policy_ids:
+                    self.current_policy_id = next((policy.get("id") for policy in self.policies if policy.get("id") is not None), None)
                 self.after(0, self._update_policies_tree)
+                self.after(0, self._update_payments_policy_combo)
             except Exception as e:
                 from logger import logger
                 logger.error(f"Failed to reload policies: {e}")
@@ -601,7 +639,10 @@ class DealDetailDialog(tk.Toplevel):
         def worker():
             try:
                 deal_id = self.deal_data.get("id", "")
-                payments = self.crm_service.get_payments(deal_id)
+                policy_id = self.current_policy_id
+                payments: List[Dict[str, Any]] = []
+                if policy_id:
+                    payments = self.crm_service.get_payments(deal_id, policy_id)
                 self.payments = [self._normalize_payment(payment) for payment in payments]
                 self.after(0, self._update_payments_tree)
                 self.after(0, self._update_finances)
@@ -611,6 +652,60 @@ class DealDetailDialog(tk.Toplevel):
 
         from threading import Thread
         Thread(target=worker, daemon=True).start()
+
+    def _on_payments_policy_selected(self, _event=None):
+        """Handle manual selection of policy for payments tab"""
+        selected_name = self.payments_policy_var.get()
+        selected_policy_id = self.payments_policy_dict.get(selected_name)
+
+        if not selected_policy_id:
+            self.current_policy_id = None
+            self.payments = []
+            self._update_payments_tree()
+            self._update_finances()
+            return
+
+        if selected_policy_id == self.current_policy_id:
+            return
+
+        self.current_policy_id = selected_policy_id
+        self._reload_payments()
+
+    def _update_payments_policy_combo(self):
+        """Sync payments policy selector with available policies"""
+        policies = self.policies or []
+        self.payments_policy_dict = {
+            policy.get("policy_number", f"Policy {policy.get('id')}"): policy.get("id")
+            for policy in policies
+            if policy.get("id") is not None
+        }
+
+        if not self.payments_policy_dict:
+            self.payments_policy_var.set("")
+            self.payments_policy_combo.config(state="disabled")
+            self.payments_policy_combo["values"] = ()
+            self.current_policy_id = None
+            return
+
+        values = list(self.payments_policy_dict.keys())
+        self.payments_policy_combo.config(state="readonly")
+        self.payments_policy_combo["values"] = values
+
+        previous_policy_id = self.current_policy_id
+        selected_name = next(
+            (name for name, policy_id in self.payments_policy_dict.items() if policy_id == previous_policy_id),
+            None,
+        )
+        if not selected_name:
+            selected_name = values[0]
+        self.payments_policy_var.set(selected_name)
+
+        selected_policy_id = self.payments_policy_dict[selected_name]
+        if selected_policy_id != previous_policy_id:
+            self.current_policy_id = selected_policy_id
+            self._reload_payments()
+        else:
+            self.current_policy_id = selected_policy_id
 
     def _update_policies_tree(self):
         """Update policies tree view"""
@@ -684,6 +779,15 @@ class DealDetailDialog(tk.Toplevel):
         if payment:
             normalized = self._normalize_payment(payment)
             self._upsert_payment(normalized)
+            new_policy_id = normalized.get("policy_id")
+            if new_policy_id:
+                self.current_policy_id = new_policy_id
+                display_name = next(
+                    (name for name, policy_id in self.payments_policy_dict.items() if policy_id == new_policy_id),
+                    None,
+                )
+                if display_name:
+                    self.payments_policy_var.set(display_name)
         if success_message:
             messagebox.showinfo(i18n("Success"), success_message)
         self._reload_payments()
