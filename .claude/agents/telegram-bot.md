@@ -118,13 +118,18 @@ Bot получает updates через HTTPS webhook от Gateway:
 
 ## Конфигурация
 
-Основные переменные окружения:
-- `TELEGRAM_BOT_TOKEN`: Токен бота от BotFather
-- `TELEGRAM_WEBHOOK_URL`: URL webhook'а (через Gateway)
-- `BOT_DATABASE_URL`: Connection string с схемой `bot`
-- `BOT_RABBITMQ_URL`: Подключение к RabbitMQ
-- `REDIS_HOST`, `REDIS_PORT`: Redis для FSM
-- Проверяйте `backend/telegram-bot/.env` для актуальных настроек
+Основные переменные окружения (все с префиксом `TELEGRAM_BOT_`):
+- `TELEGRAM_BOT_SERVICE_PORT` — HTTP-порт сервиса (по умолчанию 8089).
+- `TELEGRAM_BOT_BOT_TOKEN` — токен BotFather.
+- `TELEGRAM_BOT_BOT_API_BASE` — (опционально) кастомный URL Bot API для mock'а.
+- `TELEGRAM_BOT_WEBHOOK_SECRET` — секрет подписи webhook'ов (`X-Telegram-Signature`).
+- `TELEGRAM_BOT_REDIS_URL` — подключение к Redis для FSM/rate limiting.
+- `TELEGRAM_BOT_RABBITMQ_URL` + связанные `TELEGRAM_BOT_RABBITMQ_EXCHANGE_*`/`QUEUE_*` — настройки RabbitMQ.
+- `TELEGRAM_BOT_AUTH_BASE_URL` / `TELEGRAM_BOT_AUTH_SERVICE_TOKEN` — доступ к Auth.
+- `TELEGRAM_BOT_CRM_BASE_URL` / `TELEGRAM_BOT_CRM_SERVICE_TOKEN` — интеграция с CRM.
+- `TELEGRAM_BOT_NOTIFICATIONS_BASE_URL` / `TELEGRAM_BOT_NOTIFICATIONS_SERVICE_TOKEN` — интеграция с Notifications.
+- `TELEGRAM_BOT_EVENT_SOURCE`, `TELEGRAM_BOT_HEALTHCHECK_TOKEN`, `TELEGRAM_BOT_ENVIRONMENT` — метаданные событий и healthcheck.
+- Проверяйте `backend/telegram-bot/.env` и README сервиса для полного списка.
 
 ## Команды бота
 
