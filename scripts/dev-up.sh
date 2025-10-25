@@ -50,7 +50,7 @@ usage() {
   cat <<USAGE
 Использование: $0 [--skip-backend] [--with-backend] [--log-file PATH]
 
-  --skip-backend   не запускать профиль backend (gateway, auth, crm, documents, notifications, tasks)
+  --skip-backend   не запускать профиль backend (gateway, auth, crm, documents)
   --with-backend   запустить scripts/start-backend.sh после миграций bootstrap-скрипта
   --log-file PATH  путь к файлу журнала (по умолчанию ${DEV_UP_LOG_FILE})
 USAGE
