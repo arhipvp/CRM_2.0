@@ -1,6 +1,6 @@
 > ℹ️ GitHub Actions полностью удалены из репозитория: автоматические пайплайны недоступны. Интеграционные проверки выполняются только локально согласно инструкции из [`docs/local-setup.md`](docs/local-setup.md).
 
-**Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Технологический стек](docs/tech-stack.md), [API](docs/api/README.md), [UX-документация фронтенда](docs/frontend/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md), [Бэкапы](backups/README.md)
+**Быстрая навигация:** [План поставки](docs/delivery-plan.md), [Архитектура](docs/architecture.md#1-общая-структура-сервисов), [Технологический стек](docs/tech-stack.md), [API](docs/api/README.md), [Локальная настройка](docs/local-setup.md), [Тестовые данные](docs/testing-data.md), [Бэкапы](backups/README.md)
 
 ## Быстрый старт
 

@@ -63,7 +63,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 ## Канал `heartbeat`
 - **Маршрут:** `GET /api/v1/streams/heartbeat`
-- **Назначение:** проверка доступности Gateway и фронтенда; события генерируются самим Gateway каждые 15 секунд и не требуют upstream-подключения.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
+- **Назначение:** проверка доступности Gateway; события генерируются самим Gateway каждые 15 секунд и не требуют upstream-подключения.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
 - **Payload:** `{ "type": "heartbeat", "sequence": <номер сообщения> }`.
 
 ## Управление соединением

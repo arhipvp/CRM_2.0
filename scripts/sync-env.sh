@@ -16,7 +16,6 @@ DEFAULT_TARGETS=(
   "backend/tasks"
   "backend/reports"
   "backend/audit"
-  "frontend"
 )
 
 usage() {

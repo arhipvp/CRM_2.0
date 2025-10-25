@@ -91,7 +91,6 @@ BOOTSTRAP_FINISHED_AT=""
 
 BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
 
-BOOTSTRAP_SKIP_FRONTEND_FLAG="${BOOTSTRAP_SKIP_FRONTEND:-false}"
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
 
@@ -394,9 +393,8 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-frontend] [--skip-backend] [--with-backend] [--log-dir <dir>] [--discard-logs]
+Использование: $0 [--skip-backend] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
-  --skip-frontend  пропустить запуск контейнера фронтенда
   --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
   --with-backend   запустить scripts/start-backend.sh после миграций
   --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
@@ -420,9 +418,6 @@ is_truthy() {
 parse_args() {
   while (($# > 0)); do
     case "$1" in
-      --skip-frontend)
-        BOOTSTRAP_SKIP_FRONTEND_FLAG="true"
-        ;;
       --skip-backend)
         BOOTSTRAP_SKIP_BACKEND_FLAG="true"
         ;;
@@ -845,12 +840,6 @@ step_migrate() {
   (cd "${ROOT_DIR}" && ./scripts/migrate-local.sh)
 }
 
-step_start_frontend() {
-  load_env || return 1
-  (
-    cd "${INFRA_DIR}" && "${COMPOSE_CMD[@]}" --profile app up -d frontend
-  )
-}
 
 step_check_backup_env() {
   load_env || return 1
@@ -1017,11 +1006,6 @@ main() {
     fi
   else
     run_step_skip "Запуск локальных backend-процессов" "флаг --with-backend не передан"
-  fi
-  if is_truthy "${BOOTSTRAP_SKIP_FRONTEND_FLAG}"; then
-    run_step_skip "Запуск фронтенда" "передан флаг пропуска фронтенда"
-  else
-    run_step "Запуск фронтенда" step_start_frontend
   fi
 
   if [[ -x "${ROOT_DIR}/scripts/load-seeds.sh" ]]; then

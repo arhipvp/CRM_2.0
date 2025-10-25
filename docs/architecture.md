@@ -16,7 +16,7 @@ CRM состоит из набора специализированных сер
 | Audit | Централизованный журнал действий пользователей и системных событий | PostgreSQL (схема `audit`), RabbitMQ (подписка на критичные события) |
 | Backup | Резервное копирование баз, политик и конфигураций | PostgreSQL (репликации и дампы), объектное хранилище |
 
-Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm` и REST API, а фронтенд получает обновления через общие эндпоинты CRM. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для Notifications, Reports и Audit.
+Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm` и REST API. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для Notifications, Reports и Audit.
 
 Детализация технологического стека сервисов Tasks и Notifications приведена в разделах [«Tasks»](tech-stack.md#tasks) и [«Notifications»](tech-stack.md#notifications) документа `docs/tech-stack.md`.
 
@@ -26,7 +26,7 @@ CRM состоит из набора специализированных сер
 
 1. Веб-клиент обращается к Gateway/BFF, который определяет целевой сервис и обогащает ответы агрегированными данными.
 2. Telegram-бот получает обновления через webhook, который завершается в Gateway; шлюз нормализует payload и проксирует его в сервис `backend/telegram-bot` (FastAPI + aiogram 3). Сервис проверяет HMAC-подпись заголовка `X-Telegram-Signature`, хранит состояние FSM в Redis и уже внутри диспетчера вызывает сценарии создания сделок, подтверждения задач и платежей.
-3. Gateway проксирует обращения к внутренним REST API (Auth для авторизации, CRM/Deals для операций с клиентами, сделками и платежами) и поддерживает SSE-потоки CRM/Deals и Notifications для фронтенда (детали см. [`docs/api/streams.md`](api/streams.md)). Для восстановления соединений хранит `Last-Event-ID` и heartbeat-метки в Redis по шаблону `${REDIS_HEARTBEAT_PREFIX}:{channel}`. Платёжные обновления (включая изменения структуры доходов/расходов) входят в поток `deals` и не требуют отдельного канала.【F:backend/gateway/src/sse/upstream-sse.service.ts†L31-L68】
+3. Gateway проксирует обращения к внутренним REST API (Auth для авторизации, CRM/Deals для операций с клиентами, сделками и платежами) и поддерживает SSE-потоки CRM/Deals и Notifications (детали см. [`docs/api/streams.md`](api/streams.md)). Для восстановления соединений хранит `Last-Event-ID` и heartbeat-метки в Redis по шаблону `${REDIS_HEARTBEAT_PREFIX}:{channel}`. Платёжные обновления (включая изменения структуры доходов/расходов) входят в поток `deals` и не требуют отдельного канала.【F:backend/gateway/src/sse/upstream-sse.service.ts†L31-L68】
 4. Для операций, требующих нескольких доменов, Gateway выполняет композицию данных и кеширует результаты в Redis.
 
 ### 2.2 Асинхронная шина RabbitMQ
@@ -58,7 +58,7 @@ Gateway — единственная точка входа для внешних
 
 ### 2.5 Сквозной поток данных (пример создания сделки)
 
-1. Пользователь инициирует создание сделки во фронтенде; запрос поступает в Gateway.
+1. Клиент инициирует создание сделки; запрос поступает в Gateway.
 2. Gateway валидирует пользователя через Auth и записывает команду в CRM/Deals.
 3. CRM/Deals создаёт записи в своей схеме PostgreSQL, публикует событие `deal.created` в RabbitMQ и создаёт задачу в Tasks.
 4. Notifications подписывается на событие, формирует уведомления и отправляет их в очереди Telegram-бота и внутренней CRM.

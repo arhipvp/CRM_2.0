@@ -10,7 +10,7 @@
 
 > ℹ️ Файл `infra/docker-compose.yml` использует синтаксис Docker Compose V2, поэтому поле `version` опущено; убедитесь, что у вас установлена Compose V2. Bootstrap-скрипты корректно работают и с устаревшими инсталляциями Docker Compose без поддержки `docker compose ps --format json`, однако рекомендуется обновиться до Compose V2, чтобы сохранить совместимость с инфраструктурными сценариями и профилями.
 
-Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры и автоматически поднимает фронтенд. Перед запуском Docker Compose он импортирует переменные из актуального `.env` без дополнительной обработки: шаблон `env.example` теперь содержит развёрнутые значения вместо ссылок вида `VAR=${OTHER_VAR}`. После изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы обновлённые значения попали в контейнеры и дочерние процессы. При необходимости запустить прикладные сервисы на хосте добавьте флаг `--with-backend` или переменную `BOOTSTRAP_WITH_BACKEND=true` — после миграций helper `scripts/start-backend.sh` создаст фоновые процессы, сохранив PID/логи в `.local/run/backend` и проверив отсутствие дублирующих запусков. Чтобы стартовать только часть сервисов, укажите `--service NAME` (можно передавать несколько имён через запятую или повторять флаг).
+Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры. Перед запуском Docker Compose он импортирует переменные из актуального `.env` без дополнительной обработки: шаблон `env.example` теперь содержит развёрнутые значения вместо ссылок вида `VAR=${OTHER_VAR}`. После изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы обновлённые значения попали в контейнеры и дочерние процессы. При необходимости запустить прикладные сервисы на хосте добавьте флаг `--with-backend` или переменную `BOOTSTRAP_WITH_BACKEND=true` — после миграций helper `scripts/start-backend.sh` создаст фоновые процессы, сохранив PID/логи в `.local/run/backend` и проверив отсутствие дублирующих запусков. Чтобы стартовать только часть сервисов, укажите `--service NAME` (можно передавать несколько имён через запятую или повторять флаг).
 
 Bootstrap также синхронизирует пароли PostgreSQL-ролей с текущими значениями переменных окружения при каждом запуске: если вы обновили секреты в `.env`, просто перезапустите скрипт, и роли получат новые пароли без ручных действий.
 
@@ -38,12 +38,11 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 8. `docker compose --env-file .env --profile backend up -d gateway auth crm documents notifications tasks` — старт профильных API после применения миграций. Скрипт поддерживает флаг `--skip-backend` (или переменную `BOOTSTRAP_SKIP_BACKEND=true`), если требуется ограничиться инфраструктурой без прикладных сервисов.
 9. Ожидание готовности backend-профиля (`docker compose --profile backend wait` с fallback на ручной опрос `/health`/`/healthz`).
 10. `scripts/start-backend.sh` — запуск прикладных сервисов на хосте (Auth `./gradlew bootRun`, CRM API `poetry run crm-api`, CRM worker `poetry run crm-worker worker -l info`, Gateway `pnpm start:dev`). Шаг выполняется только при флаге `--with-backend` или переменной `BOOTSTRAP_WITH_BACKEND=true`; PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`, повторный запуск проверяет наличие активных процессов. Опция `--service NAME` позволяет стартовать только выбранные сервисы (можно перечислять имена через запятую или повторять опцию для добавления новых значений).
-11. `docker compose --env-file .env --profile app up -d frontend` в каталоге `infra/` — запуск контейнера Next.js с подключением к сети инфраструктуры (можно пропустить флагом `--skip-frontend` или переменной `BOOTSTRAP_SKIP_FRONTEND=true`).
-12. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
-13. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
-14. Проверку REST/SSE API backend-профиля: Gateway (`/api/v1/health`, `/api/v1/streams/heartbeat`), Auth (`/actuator/health`), CRM (`/healthz`), Documents (`/health`), Notifications (`/api/notifications/health`, `/api/notifications/stream`) и Tasks (`/api/health`).
+11. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
+12. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
+13. Проверку REST/SSE API backend-профиля: Gateway (`/api/v1/health`, `/api/v1/streams/heartbeat`), Auth (`/actuator/health`), CRM (`/healthz`), Documents (`/health`), Notifications (`/api/notifications/health`, `/api/notifications/stream`) и Tasks (`/api/health`).
 
-Для пользователей, которым нужны дополнительные опции (автооткрытие браузера, избирательный запуск фронтенда или backend-профиля), остаётся `./scripts/dev-up.sh`. Он оборачивает `bootstrap-local.sh`, повторно синхронизирует `.env` фронтенда и позволяет управлять сценариями через флаги `--open-browser`, `--no-browser`, `--skip-frontend`, `--skip-backend`, `--with-backend`, `--log-file PATH`. При запуске `./scripts/dev-up.sh --skip-frontend` или `--skip-backend` соответствующий профиль автоматически пропускается внутри bootstrap, поэтому контейнеры фронтенда или прикладных API не стартуют. Флаг `--with-backend` (или переменная `DEV_UP_WITH_BACKEND=true`) передаёт в bootstrap запуск helper-а и выводит предупреждение, если compose-профиль backend остаётся активным. Журнал работы `dev-up` сохраняется через `tee` в `.local/logs/dev-up.log`; при необходимости укажите другой путь переменной `DEV_UP_LOG_FILE` или опцией `--log-file` — записи добавляются в конец файла при каждом запуске, относительные пути считаются от корня репозитория. При необходимости выполнить шаги вручную (например, для отладки) запустите `./scripts/bootstrap-local.sh`, затем `./scripts/sync-env.sh frontend` и `docker compose --env-file .env --profile app up -d frontend` в `infra/`. Для профиля backend используйте `docker compose --env-file .env --profile backend up -d` либо `down` для отключения. После ручного редактирования `.env` обязательно перезапустите bootstrap, чтобы переменные снова экспортировались и попали в Docker Compose.
+Для ручного выполнения шагов bootstrap (например, для отладки) используйте `./scripts/bootstrap-local.sh`. Для профиля backend используйте `docker compose --env-file .env --profile backend up -d` либо `down` для отключения. После ручного редактирования `.env` обязательно перезапустите bootstrap, чтобы переменные снова экспортировались и попали в Docker Compose.
 
 `scripts/start-backend.sh` проверяет наличие `pnpm`, `poetry` и `java`, импортирует `.env`, затем запускает Auth (`./gradlew bootRun`), CRM API (`poetry run crm-api`), CRM worker (`poetry run crm-worker worker -l info`) и Gateway (`pnpm start:dev`) в фоне. Перед стартом CRM-сервисов helper убеждается, что для каталога `backend/crm` уже создано Poetry-окружение, и при необходимости выполняет `poetry install --sync --no-root`, поэтому дополнительный ручной `poetry install` перед использованием флага `--with-backend` не требуется. PID-файлы, журналы сервисов и журнал запуска по умолчанию размещаются в `.local/run/backend/{pids,logs,start-backend.log}`; повторный запуск выявляет уже работающие процессы, не дублирует их и дописывает сообщения в общий лог. Опция `--service NAME` фильтрует список запускаемых сервисов (значения валидируются относительно известного набора и не допускают дублирования), путь можно переопределить через `--log-file PATH` или переменную `START_BACKEND_LOG_FILE`. Для завершения процессов используйте `./scripts/stop-backend.sh` — скрипт читает PID-файлы, отправляет `SIGTERM` (при необходимости `SIGKILL`) и очищает служебные файлы. Флаг `--service NAME` принимает одно имя или список через запятую (`--service gateway,crm-api`) и допускает повторение ключа для добавления сервисов по одному (`--service gateway --service crm-worker`). Это позволяет целенаправленно останавливать только часть процессов, не затрагивая остальные, что удобно при пошаговой отладке и ручном перезапуске отдельных сервисов. Опция `--log-file PATH` (или та же переменная `START_BACKEND_LOG_FILE`) позволяет явно указать журнал запуска при остановке. При флаге `--clean-logs` helper удаляет журналы сервисов и файл запуска (удаление возможно только для путей внутри каталога `.local/run/backend`); в остальных случаях логи остаются для отладки и пополняются при следующем запуске.
 
@@ -59,9 +58,6 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 - Docker Desktop/Engine с поддержкой Compose V2.
 - Python 3 (интерпретатор `python3`) — обязательная зависимость bootstrap-скриптов и инфраструктурных утилит, используемых для парсинга JSON и проверок состояния сервисов. Сценарии автоматически ищут рабочую команду в порядке `python3`, `python`, `python3.12`, `python3.11`, `python3.10`, `python3.9`, `python3.8`, `py -3`, `py -3.12`, `py -3.11`, `py -3.10`, `py -3.9`, поэтому одинаково запускаются в Git Bash на Windows и на Linux/macOS — важно, чтобы хотя бы один вариант был доступен в `PATH`.
 - Poetry (для CRM/Deals) и JDK 17+ для запуска Gradle wrapper Auth.
-- Node.js 20 LTS для фронтенда. Установите LTS-версию с сайта [nodejs.org](https://nodejs.org) или через менеджер версий, затем выполните подготовку менеджера пакетов:
-  1. `corepack enable` — включает Corepack глобально.
-  2. `corepack prepare pnpm@9 --activate` — активирует требуемую версию pnpm.
 - Рекомендуемые CLI: `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
 - Доступ к интернету для скачивания зависимостей при первом запуске сервисов.
@@ -80,7 +76,6 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 7. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture/bot.md†L1-L36】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
 | 8. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM/Audit.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 | 9. Audit | Централизованный журнал действий и метрик.【F:docs/architecture.md†L17-L66】 | `8088` | [`backend/audit/README.md`](../backend/audit/README.md) |
-| 10. Frontend | Веб-интерфейс CRM на Next.js 15 и React 19; см. [требования](#требования) к Node.js 20 LTS и pnpm 9.【F:docs/tech-stack.md†L99-L118】 | `FRONTEND_SERVICE_PORT` (по умолчанию `3000`) | [`frontend/README.md`](../frontend/README.md) |
 
 ## Как использовать таблицу
 1. Выберите сервис и перейдите по ссылке README.
@@ -465,9 +460,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 После запуска инфраструктуры сервисы и приложения могут использовать значения из `.env`. Примеры:
 
 - Backend сервисы используют URI `*_DATABASE_URL`, `RABBITMQ_URL`, `REDIS_*`, `CONSUL_HTTP_ADDR`.
-- Фронтенд считывает публичные переменные `NEXT_PUBLIC_*`.
-  - По умолчанию шаблон ориентирован на Docker-сеть `infra`: `NEXT_PUBLIC_API_BASE_URL` и `NEXT_PUBLIC_*_SSE_URL` указывают на `http://gateway:8080`, чтобы фронтенд в контейнере обращался к сервису Gateway по имени.
-  - Если вы запускаете фронтенд на хостовой машине, переопределите значения в `.env.local`, используя `http://localhost:${GATEWAY_SERVICE_PORT}` для API и всех SSE-каналов.
+- Веб-приложения и клиенты подключаются к Gateway по переменным `GATEWAY_HTTP_ADDR` и SSE-маршрутам `GATEWAY_UPSTREAM_*_SSE_URL`.
 - Для фоновых заданий и уведомлений используйте очереди RabbitMQ и Redis из запущенного Docker Compose.
 - Для проверки готовности можно запустить ключевые сервисы локально:
   - **Gateway / BFF:**
@@ -498,16 +491,6 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
     ```
 
     При необходимости поднимите Celery-воркер: `poetry run crm-worker worker -l info`.
-
-  - **Frontend:**
-
-    ```bash
-    cd frontend
-    pnpm install
-    pnpm dev
-    ```
-
-    Приложение будет доступно на `http://localhost:${FRONTEND_SERVICE_PORT:-3000}`. Перед запуском можно задать `FRONTEND_SERVICE_PORT=3100` (или `PORT=3100`), чтобы запустить Next.js на другом порту; скрипты `pnpm dev` и `pnpm start` автоматически используют это значение.
 
 ## 7. Очистка состояния
 
