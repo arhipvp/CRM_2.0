@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import date, datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import aio_pika
 import pytest
@@ -269,18 +269,19 @@ async def test_payments_flow(api_client, configure_environment):
         grouped_events.setdefault(routing, []).append(payload)
 
     created_event = grouped_events["deal.payment.created"][0]
-    assert "tenant_id" in created_event
+    assert created_event["deal_id"] == str(deal.id)
+    assert created_event["policy_id"] == str(policy.id)
     created_payment = created_event["payment"]
     assert created_payment["id"] == str(payment.id)
     assert created_payment["net_total"] == "0.00"
 
     updated_event = grouped_events["deal.payment.updated"][-1]
-    assert "tenant_id" in updated_event
+    assert updated_event["deal_id"] == str(deal.id)
+    assert updated_event["policy_id"] == str(policy.id)
     updated_payment = updated_event["payment"]
     assert updated_payment["net_total"] == "1100.00"
 
     deleted_event = grouped_events["deal.payment.deleted"][0]
-    assert "tenant_id" in deleted_event
     assert deleted_event["payment_id"] == str(payment.id)
     assert "deleted_at" in deleted_event
 
@@ -291,7 +292,6 @@ async def test_payments_flow(api_client, configure_environment):
 async def test_income_deleted_event_contains_deleted_by(api_client, configure_environment):
     settings = configure_environment
     headers, deal, policy, payment = await _prepare_payment(api_client, configure_environment)
-    tenant_id = uuid4()
 
     connection, channel, events_queue = await _setup_events_listener(settings)
 
@@ -326,7 +326,9 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
     assert deleted_events, events
 
     deleted_event = deleted_events[0]
-    assert deleted_event["tenant_id"] == str(tenant_id)
+    assert deleted_event["deal_id"] == str(deal.id)
+    assert deleted_event["policy_id"] == str(policy.id)
+    assert deleted_event["payment_id"] == str(payment.id)
     deleted_income_payload = deleted_event["income"]
     assert deleted_income_payload["income_id"] == str(income.id)
     assert deleted_income_payload["deleted_by_id"] == str(deleted_by_id)
