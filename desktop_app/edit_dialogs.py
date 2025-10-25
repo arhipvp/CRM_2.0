@@ -197,6 +197,7 @@ class PaymentEditDialog(BaseEditDialog):
         self.policy_dict = {p.get("policy_number", f"Policy {p.get('id')}"): p.get("id") for p in self.policies_list}
 
         self.deal_id_var = tk.StringVar()
+        self.selected_deal_id: Optional[str] = payment.get("deal_id") if payment else None
         self.policy_id_var = tk.StringVar()
         self.sequence_var = tk.StringVar(value=str(payment.get("sequence", "")) if payment else "")
         self.status_var = tk.StringVar(value=payment.get("status", "scheduled") if payment else "scheduled")
@@ -214,7 +215,8 @@ class PaymentEditDialog(BaseEditDialog):
         # Set dropdowns to current values
         if payment:
             if payment.get("deal_id"):
-                deal_name = next((d.get("title") for d in self.deals_list if d.get("id") == payment.get("deal_id")), None)
+                self.selected_deal_id = payment.get("deal_id")
+                deal_name = next((d.get("title") for d in self.deals_list if d.get("id") == self.selected_deal_id), None)
                 if deal_name:
                     self.deal_id_var.set(deal_name)
             if payment.get("policy_id"):
@@ -297,6 +299,8 @@ class PaymentEditDialog(BaseEditDialog):
             messagebox.showerror(i18n("Error"), "Invalid deal or policy selected.", parent=self)
             return
 
+        self.selected_deal_id = deal_id
+
         incomes_total = self._parse_decimal(incomes_total_raw)
         if incomes_total is None:
             messagebox.showerror(i18n("Error"), "Incomes Total must be a valid number.", parent=self)
@@ -314,7 +318,6 @@ class PaymentEditDialog(BaseEditDialog):
         comment = self.get_text_value(self.comment_var)
 
         self.result = {
-            "deal_id": deal_id,
             "policy_id": policy_id,
             "sequence": int(self.sequence_var.get()) if self.sequence_var.get() else None,
             "status": self.status_var.get(),
@@ -471,6 +474,7 @@ class CalculationEditDialog(BaseEditDialog):
         self.deal_dict = {d.get("title", f"Deal {d.get('id')}"): d.get("id") for d in self.deals_list}
 
         self.deal_id_var = tk.StringVar()
+        self.selected_deal_id: Optional[str] = calculation.get("deal_id") if calculation else None
         self.insurance_company_var = tk.StringVar(value=calculation.get("insurance_company", "") if calculation else "")
         self.program_name_var = tk.StringVar(value=calculation.get("program_name", "") if calculation else "")
         self.premium_amount_var = tk.StringVar(value=str(calculation.get("premium_amount", "")) if calculation else "")
@@ -482,7 +486,7 @@ class CalculationEditDialog(BaseEditDialog):
 
         # Set deal dropdown to current value
         if calculation and calculation.get("deal_id"):
-            deal_name = next((d.get("title") for d in self.deals_list if d.get("id") == calculation.get("deal_id")), None)
+            deal_name = next((d.get("title") for d in self.deals_list if d.get("id") == self.selected_deal_id), None)
             if deal_name:
                 self.deal_id_var.set(deal_name)
 
@@ -540,11 +544,11 @@ class CalculationEditDialog(BaseEditDialog):
 
         deal_name = self.deal_id_var.get().strip()
         deal_id = self.deal_dict.get(deal_name) if deal_name else None
+        self.selected_deal_id = deal_id
 
         comments = self.get_text_value(self.comments_var)
 
         self.result = {
-            "deal_id": deal_id,
             "insurance_company": insurance_company,
             "program_name": self.program_name_var.get().strip(),
             "premium_amount": float(self.premium_amount_var.get()) if self.premium_amount_var.get() else None,
