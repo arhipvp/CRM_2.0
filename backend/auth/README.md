@@ -1,7 +1,7 @@
 # Auth Service
 
 ## Назначение
-Auth — сервис управления пользователями и ролями. Он отвечает за OAuth/OIDC-потоки, выдачу токенов и проверку доступа других компонентов системы, опираясь на схему PostgreSQL `auth` и Redis для хранения refresh-токенов.【F:docs/architecture.md†L9-L18】【F:docs/tech-stack.md†L144-L170】
+Auth — сервис управления пользователями и ролями. Он обрабатывает регистрацию, выдаёт пары JWT access/refresh токенов и проверяет доступы других компонентов системы, опираясь на схему PostgreSQL `auth` и Redis для хранения refresh-токенов.【F:docs/architecture.md†L9-L18】【F:docs/tech-stack.md†L144-L170】
 
 ## Требования к окружению
 - JDK 17, Gradle 8 (используется встроенный wrapper `./gradlew`).

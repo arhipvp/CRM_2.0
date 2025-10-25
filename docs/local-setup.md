@@ -95,7 +95,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | Сервис | Назначение | Порт по умолчанию | README |
 | --- | --- | --- | --- |
 | 1. Gateway / BFF | Прозрачное REST-проксирование и ретрансляция SSE для веб-клиента и Telegram-бота.【F:docs/architecture.md†L5-L97】 | `8080` | [`backend/gateway/README.md`](../backend/gateway/README.md) |
-| 2. Auth | Управление пользователями, ролями и OAuth/OIDC-потоками.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
+| 2. Auth | Управление пользователями, ролями и выдачей JWT-токенов.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
 | 5. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
@@ -199,7 +199,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 2. После синхронизации проверьте секреты и уникальные параметры вручную:
    1. Откройте `.env` в корне и замените заглушки у всех `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_API_KEY` на значения из секретного хранилища.
    2. Сверьте `*_RABBITMQ_URL`, `*_REDIS_URL`, `POSTGRES_*` с локальными инстансами и обновите пароли, если они отличаются от шаблона.
-   3. Проверьте блоки `AUTH_JWT_*`, `GATEWAY_UPSTREAM_*`, параметры webhook-ов и OAuth — убедитесь, что они соответствуют вашей среде разработки.
+   3. Проверьте блоки `AUTH_JWT_*`, `GATEWAY_UPSTREAM_*`, параметры webhook-ов и URL авторизации — убедитесь, что они соответствуют вашей среде разработки.
    4. Для модулей задач и уведомлений внутри CRM настройте блок `CRM_TASKS_*` (exchange, routing key, очереди напоминаний) и проверьте параметры `CRM_EVENTS_EXCHANGE`, `CRM_PERMISSIONS_*`, `CRM_CELERY_*`. SSE-канал `notifications` и Telegram-уведомления используют эти же значения, поэтому дополнительные `NOTIFICATIONS_*` переменные не требуются.
       > ⚠️ Значения, содержащие пробелы или плейсхолдеры в фигурных скобках (например, `Client {ownerId}`), заключайте в двойные кавычки: так `.env` можно безопасно импортировать через `set -a && source .env`.
    3. Повторите проверку для `.env` каждого сервиса, который был скопирован или перезаписан, чтобы не оставить дефолтные секреты.
