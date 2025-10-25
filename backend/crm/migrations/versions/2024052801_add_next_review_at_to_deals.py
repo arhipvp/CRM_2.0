@@ -7,7 +7,7 @@ import sqlalchemy as sa
 
 
 revision = "2024052801_add_next_review_at_to_deals"
-down_revision = "2024031501"
+down_revision = "2024031502_update_alembic_version_length"
 branch_labels = None
 depends_on = None
 
