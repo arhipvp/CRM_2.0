@@ -1,9 +1,11 @@
 """Edit dialogs for all CRM entities"""
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from i18n import i18n
+from document_utils import copy_files_to_deal_folder, open_deal_folder
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -82,11 +84,21 @@ class BaseEditDialog(tk.Toplevel):
 class DealEditDialog(BaseEditDialog):
     """Dialog for adding/editing deals"""
 
-    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None):
+    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None,
+                 users_list: List[Dict[str, Any]] = None):
         super().__init__(parent, i18n("Edit Deal") if deal else i18n("Add Deal"), deal)
         self.crm_service = crm_service
         self.clients_list = clients_list or []
+        self.users_list = users_list or []
         self.client_dict = {c.get("name", f"Client {c.get('id')}"): c.get("id") for c in self.clients_list}
+        self.owner_dict = {}
+        for user in self.users_list:
+            user_id = user.get("id")
+            if not user_id:
+                continue
+            display_name = user.get("full_name") or user.get("email") or i18n("User")
+            display_label = f"{display_name} (ID: {user_id[:8]}...)"
+            self.owner_dict[display_label] = user_id
 
         self.title_var = tk.StringVar(value=deal.get("title", "") if deal else "")
         self.client_id_var = tk.StringVar()
@@ -94,12 +106,18 @@ class DealEditDialog(BaseEditDialog):
         self.status_var = tk.StringVar(value=deal.get("status", "draft") if deal else "draft")
         self.next_review_var = tk.StringVar(value=deal.get("next_review_at", "") if deal else "")
         self.amount_var = tk.StringVar(value=str(deal.get("amount", "")) if deal else "")
+        self.owner_id_var = tk.StringVar()
 
         # Set client dropdown to current value
         if deal and deal.get("client_id"):
             client_name = next((c.get("name") for c in self.clients_list if c.get("id") == deal.get("client_id")), None)
             if client_name:
                 self.client_id_var.set(client_name)
+
+        if deal and deal.get("owner_id"):
+            owner_display = next((label for label, value in self.owner_dict.items() if value == deal.get("owner_id")), "")
+            if owner_display:
+                self.owner_id_var.set(owner_display)
 
         # Title
         self.create_field(0, i18n("Title"), self.title_var, "entry")
@@ -115,14 +133,18 @@ class DealEditDialog(BaseEditDialog):
         self.create_field(3, i18n("Status"), self.status_var, "combobox",
                          ["draft", "in_progress", "won", "lost"])
 
+        # Owner
+        self.create_field(4, i18n("Owner"), self.owner_id_var, "combobox",
+                         list(self.owner_dict.keys()))
+
         # Amount
-        self.create_field(4, i18n("Amount"), self.amount_var, "entry")
+        self.create_field(5, i18n("Amount"), self.amount_var, "entry")
 
         # Next Review Date
-        self.create_field(5, "Next Review Date", self.next_review_var, "date")
+        self.create_field(6, "Next Review Date", self.next_review_var, "date")
 
         # Buttons
-        self.setup_buttons(6)
+        self.setup_buttons(7)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -143,6 +165,11 @@ class DealEditDialog(BaseEditDialog):
             return
 
         description = self.get_text_value(self.description_var)
+        owner_label = self.owner_id_var.get().strip()
+
+        if owner_label and owner_label not in self.owner_dict:
+            messagebox.showerror(i18n("Error"), "Invalid owner selected.", parent=self)
+            return
 
         self.result = {
             "title": title,
@@ -150,7 +177,8 @@ class DealEditDialog(BaseEditDialog):
             "description": description,
             "status": self.status_var.get(),
             "amount": float(self.amount_var.get()) if self.amount_var.get() else None,
-            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None
+            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None,
+            "owner_id": self.owner_dict.get(owner_label) if owner_label else None
         }
         self.destroy()
 
@@ -177,6 +205,11 @@ class PaymentEditDialog(BaseEditDialog):
         self.planned_amount_var = tk.StringVar(value=str(payment.get("planned_amount", "")) if payment else "")
         self.currency_var = tk.StringVar(value=payment.get("currency", "RUB") if payment else "RUB")
         self.comment_var = tk.StringVar(value=payment.get("comment", "") if payment else "")
+        incomes_initial = self._format_decimal_value(payment.get("incomes_total")) if payment else "0.00"
+        expenses_initial = self._format_decimal_value(payment.get("expenses_total")) if payment else "0.00"
+        self.incomes_total_var = tk.StringVar(value=incomes_initial)
+        self.expenses_total_var = tk.StringVar(value=expenses_initial)
+        self.net_total_var = tk.StringVar()
 
         # Set dropdowns to current values
         if payment:
@@ -203,30 +236,47 @@ class PaymentEditDialog(BaseEditDialog):
         # Planned Amount
         self.create_field(3, "Planned Amount", self.planned_amount_var, "entry")
 
+        # Incomes Total
+        self.create_field(4, "Incomes Total", self.incomes_total_var, "entry")
+
+        # Expenses Total
+        self.create_field(5, "Expenses Total", self.expenses_total_var, "entry")
+
+        # Net Total (calculated)
+        ttk.Label(self, text="Net Total:").grid(row=6, column=0, sticky="w", padx=10, pady=5)
+        ttk.Label(self, textvariable=self.net_total_var).grid(row=6, column=1, sticky="w", padx=10, pady=5)
+
         # Currency
-        self.create_field(4, "Currency", self.currency_var, "entry")
+        self.create_field(7, "Currency", self.currency_var, "entry")
 
         # Status
-        self.create_field(5, "Status", self.status_var, "combobox",
+        self.create_field(8, "Status", self.status_var, "combobox",
                          ["scheduled", "completed", "failed", "cancelled"])
 
         # Planned Date
-        self.create_field(6, "Planned Date", self.planned_date_var, "date")
+        self.create_field(9, "Planned Date", self.planned_date_var, "date")
 
         # Actual Date
-        self.create_field(7, "Actual Date", self.actual_date_var, "date")
+        self.create_field(10, "Actual Date", self.actual_date_var, "date")
 
         # Comment
-        self.create_field(8, "Comment", self.comment_var, "text")
+        self.create_field(11, "Comment", self.comment_var, "text")
+
+        # Setup total change tracking
+        self.incomes_total_var.trace_add("write", self._on_totals_changed)
+        self.expenses_total_var.trace_add("write", self._on_totals_changed)
+        self._update_net_total()
 
         # Buttons
-        self.setup_buttons(9)
+        self.setup_buttons(12)
 
     def on_ok(self) -> None:
         """Handle OK button"""
         deal_name = self.deal_id_var.get().strip()
         policy_name = self.policy_id_var.get().strip()
         planned_amount = self.planned_amount_var.get().strip()
+        incomes_total_raw = self.incomes_total_var.get().strip()
+        expenses_total_raw = self.expenses_total_var.get().strip()
 
         if not deal_name:
             messagebox.showerror(i18n("Error"), "Deal must be selected.", parent=self)
@@ -247,6 +297,20 @@ class PaymentEditDialog(BaseEditDialog):
             messagebox.showerror(i18n("Error"), "Invalid deal or policy selected.", parent=self)
             return
 
+        incomes_total = self._parse_decimal(incomes_total_raw)
+        if incomes_total is None:
+            messagebox.showerror(i18n("Error"), "Incomes Total must be a valid number.", parent=self)
+            return
+
+        expenses_total = self._parse_decimal(expenses_total_raw)
+        if expenses_total is None:
+            messagebox.showerror(i18n("Error"), "Expenses Total must be a valid number.", parent=self)
+            return
+
+        incomes_total = incomes_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        expenses_total = expenses_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net_total = (incomes_total - expenses_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
         comment = self.get_text_value(self.comment_var)
 
         self.result = {
@@ -258,9 +322,56 @@ class PaymentEditDialog(BaseEditDialog):
             "actual_date": self.actual_date_var.get() if self.actual_date_var.get() else None,
             "planned_amount": float(planned_amount),
             "currency": self.currency_var.get(),
-            "comment": comment
+            "comment": comment,
+            "incomes_total": f"{incomes_total:.2f}",
+            "expenses_total": f"{expenses_total:.2f}",
+            "net_total": f"{net_total:.2f}"
         }
         self.destroy()
+
+    def _format_decimal_value(self, value: Any) -> str:
+        """Format decimal-like values for entry fields"""
+        if value is None:
+            return "0.00"
+        if isinstance(value, (int, float, Decimal)):
+            return f"{Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
+        string_value = str(value).strip()
+        if not string_value:
+            return "0.00"
+        string_value = string_value.replace(",", ".")
+        try:
+            decimal_value = Decimal(string_value)
+        except InvalidOperation:
+            return "0.00"
+        return f"{decimal_value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):.2f}"
+
+    def _parse_decimal(self, value: str) -> Optional[Decimal]:
+        """Parse user input into Decimal"""
+        normalized = (value or "").strip().replace(",", ".")
+        if not normalized:
+            return Decimal("0")
+        try:
+            return Decimal(normalized)
+        except InvalidOperation:
+            return None
+
+    def _on_totals_changed(self, *_):
+        """Update net total when incomes or expenses change"""
+        self._update_net_total()
+
+    def _update_net_total(self):
+        """Recalculate net total value"""
+        incomes = self._parse_decimal(self.incomes_total_var.get())
+        expenses = self._parse_decimal(self.expenses_total_var.get())
+        if incomes is None or expenses is None:
+            self.net_total_var.set("")
+            return
+        try:
+            net_total = (incomes - expenses).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except InvalidOperation:
+            self.net_total_var.set("")
+            return
+        self.net_total_var.set(f"{net_total:.2f}")
 
 
 # --- Policy Edit Dialog ---
@@ -367,6 +478,7 @@ class CalculationEditDialog(BaseEditDialog):
         self.calculation_date_var = tk.StringVar(value=calculation.get("calculation_date", "") if calculation else "")
         self.status_var = tk.StringVar(value=calculation.get("status", "draft") if calculation else "draft")
         self.comments_var = tk.StringVar(value=calculation.get("comments", "") if calculation else "")
+        self.selected_files: List[str] = list(calculation.get("files", [])) if calculation else []
 
         # Set deal dropdown to current value
         if calculation and calculation.get("deal_id"):
@@ -400,8 +512,23 @@ class CalculationEditDialog(BaseEditDialog):
         # Comments
         self.create_field(7, "Comments", self.comments_var, "text")
 
+        # Files management
+        ttk.Label(self, text=f"{i18n('Files')}:").grid(row=8, column=0, sticky="nw", padx=10, pady=5)
+
+        self.files_listbox = tk.Listbox(self, height=5)
+        self.files_listbox.grid(row=8, column=1, sticky="nsew", padx=10, pady=5)
+
+        files_button_frame = ttk.Frame(self)
+        files_button_frame.grid(row=8, column=2, sticky="ns", padx=5, pady=5)
+
+        ttk.Button(files_button_frame, text=i18n("Add"), command=self._on_add_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Remove"), command=self._on_remove_files).pack(fill="x", pady=2)
+        ttk.Button(files_button_frame, text=i18n("Open"), command=self._on_open_folder).pack(fill="x", pady=2)
+
+        self._refresh_files_listbox()
+
         # Buttons
-        self.setup_buttons(8)
+        self.setup_buttons(9)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -424,9 +551,52 @@ class CalculationEditDialog(BaseEditDialog):
             "coverage_sum": float(self.coverage_sum_var.get()) if self.coverage_sum_var.get() else None,
             "calculation_date": self.calculation_date_var.get() if self.calculation_date_var.get() else None,
             "status": self.status_var.get(),
-            "comments": comments
+            "comments": comments,
+            "files": list(self.selected_files),
         }
         self.destroy()
+
+    def _refresh_files_listbox(self) -> None:
+        self.files_listbox.delete(0, "end")
+        for path in self.selected_files:
+            self.files_listbox.insert("end", path)
+
+    def _on_add_files(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(deal_id, file_paths)
+        new_items = [path for path in copied if path not in self.selected_files]
+        if new_items:
+            self.selected_files.extend(new_items)
+            self._refresh_files_listbox()
+
+    def _on_remove_files(self) -> None:
+        selection = list(self.files_listbox.curselection())
+        if not selection:
+            messagebox.showinfo(i18n("Info"), i18n("Select file to remove"), parent=self)
+            return
+        for index in reversed(selection):
+            try:
+                del self.selected_files[index]
+            except IndexError:
+                continue
+        self._refresh_files_listbox()
+
+    def _on_open_folder(self) -> None:
+        deal_name = self.deal_id_var.get().strip()
+        deal_id = self.deal_dict.get(deal_name)
+        if not deal_id:
+            messagebox.showwarning(i18n("Warning"), i18n("Please select a deal first"), parent=self)
+            return
+        open_deal_folder(deal_id)
 
 
 class TaskEditDialog(BaseEditDialog):

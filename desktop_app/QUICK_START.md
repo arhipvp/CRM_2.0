@@ -133,6 +133,12 @@ Search: [search box] [Clear]
 - Excel export auto-formats columns for readability
 - CSV files can be opened in any spreadsheet app
 
+### Deal Documents Management
+
+- Настройте переменную окружения `DESKTOP_DEAL_DOCUMENTS_ROOT` (по умолчанию `./deal_documents`).
+- На вкладке **Calculations** доступны кнопки **Attach Document** (копирование файлов в папку сделки) и **Open Document** (открытие выбранного документа или папки).
+- В окне редактирования расчёта используйте кнопки **Add**/**Remove** для управления списком файлов. Новые файлы автоматически копируются в папку сделки и добавляются в поле `files` отправляемого запроса.
+
 ### Performance
 - Search on large datasets (1000+ rows) may take 1-2 seconds
 - Export might take time for very large datasets

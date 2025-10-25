@@ -1,10 +1,11 @@
 """Detail dialogs for viewing and editing CRM entities"""
 import tkinter as tk
-from tkinter import ttk, messagebox
-from typing import Optional, Dict, Any
+from tkinter import ttk, messagebox, filedialog
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from i18n import i18n
 from table_sort_utils import treeview_sort_column
+from document_utils import copy_files_to_deal_folder, open_deal_file, open_deal_folder
 
 
 class ClientDetailDialog(tk.Toplevel):
@@ -223,6 +224,8 @@ class DealDetailDialog(tk.Toplevel):
         button_frame.pack(pady=5)
         ttk.Button(button_frame, text=i18n("Add"), command=self._add_calculation).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Delete"), command=self._delete_calculation).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Attach Document"), command=self._attach_document).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Open Document"), command=self._open_document).pack(side="left", padx=5)
 
     def _on_calculations_tree_sort(self, col):
         display_map = {
@@ -241,16 +244,18 @@ class DealDetailDialog(tk.Toplevel):
 
         self.payments_tree = ttk.Treeview(
             tree_frame,
-            columns=("Date", "Amount", "Status", "Planned"),
+            columns=("Date", "Incomes", "Expenses", "Net", "Status", "Planned"),
             show="headings",
             height=12
         )
 
-        for col in ("Date", "Amount", "Status", "Planned"):
+        for col in ("Date", "Incomes", "Expenses", "Net", "Status", "Planned"):
             self.payments_tree.heading(col, text=col, command=lambda c=col: self._on_payments_tree_sort(c))
 
         self.payments_tree.column("Date", width=120)
-        self.payments_tree.column("Amount", width=100)
+        self.payments_tree.column("Incomes", width=100)
+        self.payments_tree.column("Expenses", width=100)
+        self.payments_tree.column("Net", width=100)
         self.payments_tree.column("Status", width=100)
         self.payments_tree.column("Planned", width=100)
 
@@ -269,7 +274,9 @@ class DealDetailDialog(tk.Toplevel):
     def _on_payments_tree_sort(self, col):
         display_map = {
             "Date": "actual_date",
-            "Amount": "incomes_total",
+            "Incomes": "incomes_total",
+            "Expenses": "expenses_total",
+            "Net": "net_total",
             "Status": "status",
             "Planned": "planned_amount",
         }
@@ -302,9 +309,10 @@ class DealDetailDialog(tk.Toplevel):
             try:
                 deal_id = self.deal_data.get("id", "")
                 self.all_clients = self.crm_service.get_clients()
-                self.policies = self.crm_service.get_policies()
+                self.policies = self.crm_service.get_deal_policies(deal_id)
                 self.calculations = self.crm_service.get_calculations(deal_id)
-                self.payments = self.crm_service.get_payments(deal_id)
+                payments = self.crm_service.get_payments(deal_id)
+                self.payments = [self._normalize_payment(payment) for payment in payments]
                 self.after(0, self._update_dependent_data)
             except Exception as e:
                 from logger import logger
@@ -413,6 +421,92 @@ class DealDetailDialog(tk.Toplevel):
         from threading import Thread
         Thread(target=worker, daemon=True).start()
 
+    def _attach_document(self):
+        """Attach files to the deal folder."""
+        deal_id = self.deal_data.get("id")
+        if not deal_id:
+            messagebox.showerror(i18n("Error"), i18n("Deal ID not found"), parent=self)
+            return
+
+        file_paths = filedialog.askopenfilenames(parent=self, title=i18n("Select files"))
+        if not file_paths:
+            return
+
+        copied = copy_files_to_deal_folder(deal_id, file_paths)
+        if not copied:
+            messagebox.showerror(i18n("Error"), i18n("No files were attached"), parent=self)
+            return
+
+        folder = open_deal_folder(deal_id)
+        messagebox.showinfo(i18n("Success"), i18n("Files attached to deal folder") + f"\n{folder}", parent=self)
+
+    def _open_document(self):
+        """Open a document or the deal folder."""
+        deal_id = self.deal_data.get("id")
+        if not deal_id:
+            messagebox.showerror(i18n("Error"), i18n("Deal ID not found"), parent=self)
+            return
+
+        selection = self.calculations_tree.selection()
+        files: List[str] = []
+        if selection:
+            calc_id = self.calculation_id_map.get(selection[0])
+            calculation = next((c for c in self.calculations if c.get("id") == calc_id), None)
+            if calculation:
+                files = list(calculation.get("files") or [])
+
+        if files:
+            file_to_open = self._choose_file_from_list(files)
+            if not file_to_open:
+                return
+            try:
+                open_deal_file(file_to_open)
+            except FileNotFoundError:
+                messagebox.showerror(
+                    i18n("Error"),
+                    i18n("File not found in deal folder. It may have been moved or deleted."),
+                    parent=self,
+                )
+        else:
+            open_deal_folder(deal_id)
+
+    def _choose_file_from_list(self, files: List[str]) -> Optional[str]:
+        if len(files) == 1:
+            return files[0]
+
+        dialog = tk.Toplevel(self)
+        dialog.transient(self)
+        dialog.title(i18n("Select file"))
+        result: Dict[str, Optional[str]] = {"value": None}
+
+        ttk.Label(dialog, text=i18n("Select a document to open")).pack(padx=10, pady=5)
+        listbox = tk.Listbox(dialog, height=min(10, len(files)))
+        listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        for path in files:
+            listbox.insert("end", path)
+
+        def on_ok():
+            selection = listbox.curselection()
+            if not selection:
+                return
+            result["value"] = listbox.get(selection[0])
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("OK"), command=on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Cancel"), command=on_cancel).pack(side="left", padx=5)
+
+        listbox.bind("<Double-1>", lambda _event: on_ok())
+        dialog.grab_set()
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        dialog.wait_window(dialog)
+
+        return result["value"]
+
     def _add_payment(self):
         """Add payment to deal"""
         from edit_dialogs import PaymentEditDialog
@@ -425,10 +519,8 @@ class DealDetailDialog(tk.Toplevel):
         if dialog.result:
             def worker():
                 try:
-                    deal_id = self.deal_data.get("id", "")
-                    self.crm_service.create_payment(deal_id, **dialog.result)
-                    self.after(0, lambda: messagebox.showinfo(i18n("Success"), i18n("Payment created successfully")))
-                    self.after(0, self._reload_payments)
+                    payment = self.crm_service.create_payment(**dialog.result)
+                    self.after(0, lambda: self._handle_payment_saved(payment, i18n("Payment created successfully")))
                 except Exception as e:
                     from logger import logger
                     logger.error(f"Failed to create payment: {e}")
@@ -469,7 +561,8 @@ class DealDetailDialog(tk.Toplevel):
         """Reload policies data"""
         def worker():
             try:
-                self.policies = self.crm_service.get_policies()
+                deal_id = self.deal_data.get("id", "")
+                self.policies = self.crm_service.get_deal_policies(deal_id)
                 self.after(0, self._update_policies_tree)
             except Exception as e:
                 from logger import logger
@@ -497,7 +590,8 @@ class DealDetailDialog(tk.Toplevel):
         def worker():
             try:
                 deal_id = self.deal_data.get("id", "")
-                self.payments = self.crm_service.get_payments(deal_id)
+                payments = self.crm_service.get_payments(deal_id)
+                self.payments = [self._normalize_payment(payment) for payment in payments]
                 self.after(0, self._update_payments_tree)
                 self.after(0, self._update_finances)
             except Exception as e:
@@ -556,21 +650,74 @@ class DealDetailDialog(tk.Toplevel):
         for payment in self.payments:
             item_id = self.payments_tree.insert("", "end", values=(
                 payment.get("actual_date", payment.get("planned_date", "N/A")),
-                payment.get("incomes_total", "N/A"),
+                self._format_amount(payment.get("incomes_total")),
+                self._format_amount(payment.get("expenses_total")),
+                self._format_amount(payment.get("net_total")),
                 payment.get("status", "N/A"),
-                payment.get("planned_amount", "N/A"),
+                self._format_amount(payment.get("planned_amount")),
             ))
             self.payment_id_map[item_id] = payment.get("id")
 
     def _update_finances(self):
         """Update financial summary"""
-        total_income = sum(float(p.get("incomes_total", 0) or 0) for p in self.payments)
-        total_expenses = sum(float(p.get("expenses_total", 0) or 0) for p in self.payments)
+        total_income = sum(self._coerce_numeric(p.get("incomes_total")) for p in self.payments)
+        total_expenses = sum(self._coerce_numeric(p.get("expenses_total")) for p in self.payments)
         net = total_income - total_expenses
 
         self.income_label.config(text=f"{total_income:,.2f}")
         self.expenses_label.config(text=f"{total_expenses:,.2f}")
         self.net_label.config(text=f"{net:,.2f}")
+
+    def _handle_payment_saved(self, payment: Optional[Dict[str, Any]], success_message: Optional[str] = None):
+        """Handle payment creation/update feedback"""
+        if payment:
+            normalized = self._normalize_payment(payment)
+            self._upsert_payment(normalized)
+        if success_message:
+            messagebox.showinfo(i18n("Success"), success_message)
+        self._reload_payments()
+
+    def _normalize_payment(self, payment: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize numeric fields for display"""
+        normalized = dict(payment or {})
+        for field in ("planned_amount", "incomes_total", "expenses_total", "net_total"):
+            normalized[field] = self._coerce_numeric(normalized.get(field))
+        return normalized
+
+    def _upsert_payment(self, payment: Dict[str, Any]):
+        """Insert or update payment locally"""
+        payment_id = payment.get("id")
+        if not payment_id:
+            return
+        updated = False
+        for index, existing in enumerate(self.payments):
+            if existing.get("id") == payment_id:
+                merged = existing.copy()
+                merged.update(payment)
+                self.payments[index] = merged
+                updated = True
+                break
+        if not updated:
+            self.payments.append(payment)
+        self._update_payments_tree()
+        self._update_finances()
+
+    @staticmethod
+    def _coerce_numeric(value: Any) -> float:
+        """Convert provided value to float"""
+        if value is None or value == "":
+            return 0.0
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        try:
+            return float(str(value).replace(",", "."))
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _format_amount(value: Any) -> str:
+        """Format numeric values for tree display"""
+        return f"{DealDetailDialog._coerce_numeric(value):.2f}"
 
 
 class PolicyDetailDialog(tk.Toplevel):

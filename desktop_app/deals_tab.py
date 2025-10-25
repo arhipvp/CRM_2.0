@@ -23,6 +23,8 @@ class DealsTab:
         self.search_filter: Optional[SearchFilter] = None
         self.all_deals: List[Dict[str, Any]] = []  # Store all deals for filtering
         self.all_clients: List[Dict[str, Any]] = []  # Store all clients for dropdowns
+        self.all_users: List[Dict[str, Any]] = []  # Store all users for owner dropdowns
+        self.user_lookup: Dict[str, str] = {}  # Map user_id to display name
 
         self._setup_ui()
         self.refresh_tree()
@@ -110,7 +112,8 @@ class DealsTab:
                 # Load both deals and clients
                 deals = self.crm_service.get_deals()
                 clients = self.crm_service.get_clients()
-                self.parent.after(0, self._update_tree_ui, deals, clients)
+                users = self.crm_service.get_users()
+                self.parent.after(0, self._update_tree_ui, deals, clients, users)
             except Exception as e:
                 logger.error(f"Failed to fetch deals: {e}")
                 error_msg = str(e)
@@ -118,7 +121,7 @@ class DealsTab:
 
         Thread(target=worker, daemon=True).start()
 
-    def _update_tree_ui(self, deals, clients=None):
+    def _update_tree_ui(self, deals, clients=None, users=None):
         """Update tree UI on main thread"""
         if not self.tree:
             return
@@ -127,6 +130,16 @@ class DealsTab:
         self.all_deals = deals
         if clients:
             self.all_clients = clients
+        if users is not None:
+            self.all_users = users or []
+            self.user_lookup = {}
+            for user in self.all_users:
+                user_id = user.get("id")
+                if not user_id:
+                    continue
+                user_id_str = str(user_id)
+                display_name = user.get("full_name") or user.get("email") or user_id_str
+                self.user_lookup[user_id_str] = display_name
         self._refresh_tree_display(deals)
 
     def _refresh_tree_display(self, deals_to_display: List[Dict[str, Any]]):
@@ -150,16 +163,31 @@ class DealsTab:
                 deal.get("status", "N/A"),
                 deal.get("description", "N/A"),
                 is_deleted,
-                str(deal.get("owner_id", "N/A"))[:8],
+                self._format_owner_cell(deal.get("owner_id")),
                 deal.get("created_at", "N/A"),
                 deal.get("updated_at", "N/A"),
                 deal.get("next_review_at", "N/A"),
             )
             self.tree.insert("", "end", iid=deal.get("id", ""), values=values)
 
+    def _format_owner_cell(self, owner_id: Any) -> str:
+        if not owner_id:
+            return "N/A"
+        owner_id_str = str(owner_id)
+        display_name = self.user_lookup.get(owner_id_str)
+        if display_name:
+            return f"{display_name} ({owner_id_str[:8]}...)"
+        return owner_id_str[:8]
+
     def add_deal(self):
         """Add new deal"""
-        dialog = DealEditDialog(self.parent, self.crm_service, deal=None, clients_list=self.all_clients)
+        dialog = DealEditDialog(
+            self.parent,
+            self.crm_service,
+            deal=None,
+            clients_list=self.all_clients,
+            users_list=self.all_users,
+        )
         if dialog.result:
             def worker():
                 try:
@@ -199,7 +227,13 @@ class DealsTab:
 
     def _show_edit_dialog(self, deal_id, current_deal):
         """Show edit dialog on main thread"""
-        dialog = DealEditDialog(self.parent, self.crm_service, deal=current_deal, clients_list=self.all_clients)
+        dialog = DealEditDialog(
+            self.parent,
+            self.crm_service,
+            deal=current_deal,
+            clients_list=self.all_clients,
+            users_list=self.all_users,
+        )
         if dialog.result:
             def worker():
                 try:
