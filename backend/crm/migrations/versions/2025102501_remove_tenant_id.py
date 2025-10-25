@@ -7,7 +7,7 @@ from sqlalchemy.dialects import postgresql
 
 
 revision = '2025102501_remove_tenant_id'
-down_revision = "2024072201"
+down_revision = "2024072801"
 branch_labels = None
 depends_on = None
 
