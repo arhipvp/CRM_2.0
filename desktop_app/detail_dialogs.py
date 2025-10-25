@@ -302,7 +302,7 @@ class DealDetailDialog(tk.Toplevel):
             try:
                 deal_id = self.deal_data.get("id", "")
                 self.all_clients = self.crm_service.get_clients()
-                self.policies = self.crm_service.get_policies()
+                self.policies = self.crm_service.get_deal_policies(deal_id)
                 self.calculations = self.crm_service.get_calculations(deal_id)
                 self.payments = self.crm_service.get_payments(deal_id)
                 self.after(0, self._update_dependent_data)
@@ -464,7 +464,8 @@ class DealDetailDialog(tk.Toplevel):
         """Reload policies data"""
         def worker():
             try:
-                self.policies = self.crm_service.get_policies()
+                deal_id = self.deal_data.get("id", "")
+                self.policies = self.crm_service.get_deal_policies(deal_id)
                 self.after(0, self._update_policies_tree)
             except Exception as e:
                 from logger import logger
