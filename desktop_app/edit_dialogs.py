@@ -82,11 +82,21 @@ class BaseEditDialog(tk.Toplevel):
 class DealEditDialog(BaseEditDialog):
     """Dialog for adding/editing deals"""
 
-    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None):
+    def __init__(self, parent, crm_service, deal=None, clients_list: List[Dict[str, Any]] = None,
+                 users_list: List[Dict[str, Any]] = None):
         super().__init__(parent, i18n("Edit Deal") if deal else i18n("Add Deal"), deal)
         self.crm_service = crm_service
         self.clients_list = clients_list or []
+        self.users_list = users_list or []
         self.client_dict = {c.get("name", f"Client {c.get('id')}"): c.get("id") for c in self.clients_list}
+        self.owner_dict = {}
+        for user in self.users_list:
+            user_id = user.get("id")
+            if not user_id:
+                continue
+            display_name = user.get("full_name") or user.get("email") or i18n("User")
+            display_label = f"{display_name} (ID: {user_id[:8]}...)"
+            self.owner_dict[display_label] = user_id
 
         self.title_var = tk.StringVar(value=deal.get("title", "") if deal else "")
         self.client_id_var = tk.StringVar()
@@ -94,12 +104,18 @@ class DealEditDialog(BaseEditDialog):
         self.status_var = tk.StringVar(value=deal.get("status", "draft") if deal else "draft")
         self.next_review_var = tk.StringVar(value=deal.get("next_review_at", "") if deal else "")
         self.amount_var = tk.StringVar(value=str(deal.get("amount", "")) if deal else "")
+        self.owner_id_var = tk.StringVar()
 
         # Set client dropdown to current value
         if deal and deal.get("client_id"):
             client_name = next((c.get("name") for c in self.clients_list if c.get("id") == deal.get("client_id")), None)
             if client_name:
                 self.client_id_var.set(client_name)
+
+        if deal and deal.get("owner_id"):
+            owner_display = next((label for label, value in self.owner_dict.items() if value == deal.get("owner_id")), "")
+            if owner_display:
+                self.owner_id_var.set(owner_display)
 
         # Title
         self.create_field(0, i18n("Title"), self.title_var, "entry")
@@ -115,14 +131,18 @@ class DealEditDialog(BaseEditDialog):
         self.create_field(3, i18n("Status"), self.status_var, "combobox",
                          ["draft", "in_progress", "won", "lost"])
 
+        # Owner
+        self.create_field(4, i18n("Owner"), self.owner_id_var, "combobox",
+                         list(self.owner_dict.keys()))
+
         # Amount
-        self.create_field(4, i18n("Amount"), self.amount_var, "entry")
+        self.create_field(5, i18n("Amount"), self.amount_var, "entry")
 
         # Next Review Date
-        self.create_field(5, "Next Review Date", self.next_review_var, "date")
+        self.create_field(6, "Next Review Date", self.next_review_var, "date")
 
         # Buttons
-        self.setup_buttons(6)
+        self.setup_buttons(7)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -143,6 +163,11 @@ class DealEditDialog(BaseEditDialog):
             return
 
         description = self.get_text_value(self.description_var)
+        owner_label = self.owner_id_var.get().strip()
+
+        if owner_label and owner_label not in self.owner_dict:
+            messagebox.showerror(i18n("Error"), "Invalid owner selected.", parent=self)
+            return
 
         self.result = {
             "title": title,
@@ -150,7 +175,8 @@ class DealEditDialog(BaseEditDialog):
             "description": description,
             "status": self.status_var.get(),
             "amount": float(self.amount_var.get()) if self.amount_var.get() else None,
-            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None
+            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None,
+            "owner_id": self.owner_dict.get(owner_label) if owner_label else None
         }
         self.destroy()
 
