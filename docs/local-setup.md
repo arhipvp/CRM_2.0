@@ -61,6 +61,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 2. `docker compose --env-file .env up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов с подстановкой значений из актуального корневого `.env`.
    > ℹ️ Если в логах остаются только Redis/Consul/Postgres, выполните `docker compose --env-file .env --profile backend up -d` для запуска профиля backend.
 3. Ожидание готовности инфраструктуры через healthcheck (`docker compose wait` либо резервный цикл при отсутствии команды).
+   > ℹ️ Healthcheck RabbitMQ использует `rabbitmq-diagnostics -q ping` со стартовым периодом около двух минут, поэтому в первые 120 секунд после `docker compose up` контейнер может оставаться в статусе `starting` и при этом считаться ожидаемым поведением.
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
 5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен.
 6. Smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливает bootstrap при обнаружении пустых значений.
