@@ -17,6 +17,7 @@ CRM_DEALS_URL = f"{API_BASE_URL}/deals"
 CRM_PAYMENTS_URL = f"{API_BASE_URL}/payments"
 CRM_POLICIES_URL = f"{API_BASE_URL}/policies"
 CRM_TASKS_URL = f"{API_BASE_URL}/tasks"
+CRM_USERS_URL = f"{API_BASE_URL}/users"
 
 # Logging Configuration
 LOG_LEVEL = os.getenv("DESKTOP_LOG_LEVEL", "INFO")
