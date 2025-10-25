@@ -11,9 +11,7 @@
 7. `2024062401_add_policy_documents` (`2024062401_add_policy_documents.py`) — таблица `policy_documents`, уникальное ограничение и внешние ключи на полисы и документы.
 8. `2024070101` (`2024070101_add_payments_foreign_keys.py`) — внешние ключи `payments` к `deals` и `policies`.
 9. `2024071801` (`2024071801_remove_deal_value.py`) — удаление колонки `value` из `crm.deals`.
-10. `2024072201` (`2024072201_allow_null_owner_in_deals.py`) — разрешение `NULL` в колонке `owner_id` таблицы `crm.deals`.
-11. `2024072801` (`2024072801_add_notifications.py`) — таблицы уведомлений (`notification_templates`, `notifications`,
-    `notification_delivery_attempts`, `notification_events`) с индексами для поиска шаблонов, уведомлений и попыток доставки.
+10. Ревизия `2024072201` — разрешение `NULL` в колонке `owner_id` таблицы `crm.deals`.
 
 Исторические SQL-скрипты миграций удалены; baseline-ревизия покрывает создание всех основных таблиц схемы `crm`.
 
@@ -26,4 +24,4 @@
 
 ## Актуальная ревизия
 
-* Head Alembic: `2024072801_add_notifications.py`.
+* Head Alembic: ревизия `2024072801`.

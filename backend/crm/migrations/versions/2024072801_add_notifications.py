@@ -6,8 +6,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "2024072801_add_notifications"
-down_revision = "2024072201_allow_null_owner_in_deals"
+revision = "2024072801"
+down_revision = "2024072201"
 branch_labels = None
 depends_on = None
 
