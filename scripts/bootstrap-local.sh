@@ -93,6 +93,7 @@ BACKEND_PROFILE_SERVICES=(gateway auth crm documents notifications tasks)
 
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
+BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG="${BOOTSTRAP_SKIP_BACKEND_WAIT:-false}"
 
 strip_cr() {
   local value="$1"
@@ -393,9 +394,11 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-backend] [--with-backend] [--log-dir <dir>] [--discard-logs]
+Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
   --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents, notifications, tasks)
+  --skip-backend-wait
+                   не ждать готовности сервисов из профиля backend после запуска
   --with-backend   запустить scripts/start-backend.sh после миграций
   --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
   --discard-logs   удалить каталоги логов и отчётов после завершения работы
@@ -420,6 +423,9 @@ parse_args() {
     case "$1" in
       --skip-backend)
         BOOTSTRAP_SKIP_BACKEND_FLAG="true"
+        ;;
+      --skip-backend-wait)
+        BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG="true"
         ;;
       --with-backend)
         BOOTSTRAP_WITH_BACKEND_FLAG="true"
@@ -993,7 +999,11 @@ main() {
     run_step_skip "Ожидание готовности backend-сервисов" "backend-профиль пропущен"
   else
     run_step "Запуск backend-профиля" step_compose_backend_up
-    run_step_skip "Запуск ожидания backend-сервисов" "Ожидание отключено пользователем"
+    if is_truthy "${BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG}"; then
+      run_step_skip "Ожидание готовности backend-сервисов" "передан флаг пропуска ожидания backend-сервисов"
+    else
+      run_step "Ожидание готовности backend-сервисов" step_wait_backend
+    fi
   fi
   if is_truthy "${BOOTSTRAP_WITH_BACKEND_FLAG}"; then
     if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_FLAG}"; then
