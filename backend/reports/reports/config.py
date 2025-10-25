@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     service_port: int = 8087
     database_url: str = "postgresql://reports:reports@localhost:5432/crm?search_path=reports"
     crm_schema: str = "crm"
-    audit_schema: str = "audit"
     reports_schema: str = "reports"
     source_schemas: str | None = None
 
@@ -34,7 +33,7 @@ class Settings(BaseSettings):
 
         if self.source_schemas:
             return [item.strip() for item in self.source_schemas.split(",") if item.strip()]
-        return [self.crm_schema, self.audit_schema]
+        return [self.crm_schema]
 
 
 @lru_cache

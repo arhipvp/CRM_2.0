@@ -34,7 +34,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 2. `docker compose --env-file .env up -d` в каталоге `infra/` — запуск PostgreSQL, RabbitMQ, Redis и вспомогательных сервисов с подстановкой значений из актуального корневого `.env`.
 3. Ожидание готовности инфраструктуры через healthcheck (`docker compose wait` либо резервный цикл при отсутствии команды).
 4. `infra/rabbitmq/bootstrap.sh` — проверяет и при необходимости поднимает `rabbitmq`, дожидается его готовности по healthcheck и создаёт vhost-ы/пользователей на основе `*_RABBITMQ_URL`. Скрипт устойчив к предупреждениям Docker Compose (`WARNING: ...`) и корректно отрабатывает даже при появлении лишних строк в выводе `docker compose ps`.
-5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен. Сервис Audit исключён из локального цикла миграций.
+5. `scripts/migrate-local.sh` — миграции CRM (Alembic), Auth (Liquibase/Gradle) и Reports (SQL через `psql`), пока backend-профиль ещё не запущен. Отдельный сервис Audit удалён из репозитория и больше не участвует в цикле миграций.
 6. Smoke-проверку `BACKUP_*`: скрипт убеждается, что ключевые переменные (`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`) заполнены, и останавливает bootstrap при обнаружении пустых значений.
 7. Дополнительную smoke-проверку, которая удостоверяется, что контейнер `backup` действительно запущен в режиме `DummyStorage`, когда `BACKUP_S3_*` пусты.
 8. `docker compose --env-file .env --profile backend up -d gateway auth crm documents` — старт профильных API после применения миграций. Скрипт поддерживает флаг `--skip-backend` (или переменную `BOOTSTRAP_SKIP_BACKEND=true`), если требуется ограничиться инфраструктурой без прикладных сервисов.
@@ -77,7 +77,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 
 ## Как использовать таблицу
-> ℹ️ Сервис Audit исключён из локального набора: инфраструктура не создаёт схему `audit`, переменные `AUDIT_*` удалены из `env.example`, а инструкции по запуску сервиса остаются в репозитории только как архивная документация.
+> ℹ️ Сервис Audit удалён из репозитория: инфраструктура больше не создаёт схему `audit`, переменные `AUDIT_*` отсутствуют в `env.example`, а прежние инструкции доступны только в исторических ветках.
 1. Выберите сервис и перейдите по ссылке README.
 2. Синхронизируйте переменные окружения через [`scripts/sync-env.sh`](../scripts/sync-env.sh), чтобы в каждом сервисе появился свежий `.env` из корневого [`env.example`](../env.example). По умолчанию скрипт работает в интерактивном режиме: при обнаружении существующего файла он спрашивает, перезаписывать ли его, или позволяет пропустить каталог. Для автоматического запуска (например, в CI или bootstrap) добавьте флаг `--non-interactive`, который по умолчанию пропускает существующие файлы или, с вариантом `--non-interactive=overwrite`, перезаписывает их без вопросов. После копирования обязательно обновите секреты и уникальные значения вручную.
 3. Настройте базы данных и очереди (см. [«Инфраструктура» в tech-stack](tech-stack.md#инфраструктура)) и запускайте сервис локально или в Docker согласно инструкции.
@@ -325,12 +325,8 @@ services:
      • создан пользователь 'notifications'
      • подтверждены права 'notifications' на vhost 'notifications'
    ...
-   ==> Обработка пользователя 'audit' и vhost 'audit'
-     • vhost 'audit' уже существует
-     • обновлён пароль пользователя 'audit'
-     • подтверждены права 'audit' на vhost 'audit'
 
-   Готово: проверено 5 комбинаций пользователь/vhost.
+   Готово: проверено N комбинаций пользователь/vhost (зависит от списка `*_RABBITMQ_URL` в `.env`).
    ```
 
 Скрипт можно выполнять сколько угодно раз — он идемпотентен. Для ручной проверки воспользуйтесь `docker compose exec rabbitmq rabbitmqctl list_users` и `docker compose exec rabbitmq rabbitmqctl list_vhosts`.
@@ -367,7 +363,7 @@ services:
 docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 ```
 
-В выводе должны присутствовать схемы `auth`, `crm`, `documents`, `tasks`, `notifications`, `audit`, `backup`.
+В выводе должны присутствовать схемы `auth`, `crm`, `documents`, `tasks`, `notifications`, `backup`.
 
 ## 4. Запуск миграций
 
