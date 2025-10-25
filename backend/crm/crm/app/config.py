@@ -25,6 +25,21 @@ class Settings(BaseSettings):
     redis_url: AnyUrl = Field(default="redis://localhost:6379/0")
     rabbitmq_url: AnyUrl = Field(default="amqp://localhost:5672/")
 
+    tasks_events_exchange: str = Field(default="tasks.events")
+    tasks_events_source: str = Field(default="crm.tasks")
+    tasks_events_routing_keys: dict[str, str] = Field(
+        default_factory=lambda: {
+            "task_created": "task.created",
+            "task_status_changed": "task.status.changed",
+            "task_reminder": "task.reminder",
+        }
+    )
+
+    tasks_reminders_queue_key: str = Field(default="tasks:reminders")
+    tasks_reminders_poll_interval_ms: int = Field(default=5000)
+    tasks_scheduling_batch_size: int = Field(default=100)
+    tasks_delayed_queue_key: str = Field(default="tasks:delayed")
+
     permissions_queue_name: str = Field(default="permissions:sync")
     permissions_queue_prefix: str = Field(default="bull")
     permissions_job_name: str = Field(default="permissions.sync")
@@ -42,6 +57,7 @@ class Settings(BaseSettings):
         default_factory=lambda: {
             "crm.app.tasks.sync_deal_status": {"queue": "crm.sync"},
             "crm.app.tasks.refresh_policy_state": {"queue": "crm.sync"},
+            "crm.app.tasks.process_task_reminders": {"queue": "crm.tasks"},
         }
     )
 

@@ -32,6 +32,10 @@ class CRMBase(DeclarativeBase):
     metadata = MetaData(schema="crm")
 
 
+class TasksBase(DeclarativeBase):
+    metadata = MetaData(schema="tasks")
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -170,22 +174,85 @@ class Calculation(CRMBase, TimestampMixin, OwnershipMixin):
     )
 
 
-class Task(CRMBase, TimestampMixin, OwnershipMixin):
+class TaskStatus(TasksBase):
+    __tablename__ = "task_statuses"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_final: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=func.false())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    tasks: Mapped[list["Task"]] = relationship(back_populates="status")
+
+
+class Task(TasksBase, TimestampMixin):
     __tablename__ = "tasks"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    deal_id: Mapped[UUID | None] = mapped_column(ForeignKey("crm.deals.id", ondelete="SET NULL"), nullable=True)
-    client_id: Mapped[UUID | None] = mapped_column(ForeignKey("crm.clients.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="open")
-    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status_code: Mapped[str] = mapped_column(
+        String(32), ForeignKey("tasks.task_statuses.code", onupdate="CASCADE"), nullable=False
+    )
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payload: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    status: Mapped[TaskStatus] = relationship(back_populates="tasks")
+    reminders: Mapped[list["TaskReminder"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskReminder.remind_at.asc()",
+    )
 
     __table_args__ = (
-        Index("ix_tasks_status", "status"),
-        Index("ix_tasks_due_date", "due_date"),
+        Index("ix_tasks_status_code", "status_code"),
     )
+
+
+class TaskReminder(TasksBase):
+    __tablename__ = "task_reminders"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    task_id: Mapped[UUID] = mapped_column(
+        ForeignKey("tasks.tasks.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False
+    )
+    remind_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    task: Mapped[Task] = relationship(back_populates="reminders")
+
+    __table_args__ = (
+        Index("ix_task_reminders_due", "remind_at"),
+        Index(
+            "idx_task_reminders_unique",
+            "task_id",
+            "remind_at",
+            "channel",
+            unique=True,
+        ),
+    )
+
+
+Index(
+    "ix_tasks_scheduled_for",
+    Task.scheduled_for,
+    postgresql_where=Task.scheduled_for.isnot(None),
+)
+
+Index(
+    "ix_tasks_due_at",
+    Task.due_at,
+    postgresql_where=Task.due_at.isnot(None),
+)
 
 
 class Payment(CRMBase, TimestampMixin):

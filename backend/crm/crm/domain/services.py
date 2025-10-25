@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import logging
+import re
 from decimal import Decimal
 from typing import Any, Iterable, Protocol, Sequence
 from uuid import UUID
@@ -22,9 +24,16 @@ except (ModuleNotFoundError, ImportError):  # pragma: no cover - lightweight fal
             self.lower_inc = lower_inc
             self.upper_inc = upper_inc
 
+from pydantic_core import PydanticUndefined
+
 from crm.domain import schemas
 from crm.infrastructure import models, repositories
+from crm.infrastructure.queues import DelayedTaskQueue, TaskReminderQueue
 from crm.infrastructure.repositories import RepositoryError
+from crm.infrastructure.task_events import TaskEventsPublisher
+
+
+logger = logging.getLogger(__name__)
 
 
 class ClientService:
@@ -472,17 +481,87 @@ class CalculationService:
             payload["policy_id"] = str(calculation.policy.id)
         await self.events.publish(routing_key, payload)
 
-class TaskService:
-    def __init__(self, repository: repositories.TaskRepository):
-        self.repository = repository
+class TaskServiceError(RuntimeError):
+    def __init__(self, code: str, message: str, *, details: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+        self.details = details or {}
 
-    async def list_tasks(self) -> Iterable[schemas.TaskRead]:
-        tasks = await self.repository.list()
+
+class TaskService:
+    FINAL_STATUSES: set[schemas.TaskStatusCode] = {
+        schemas.TaskStatusCode.COMPLETED,
+        schemas.TaskStatusCode.CANCELLED,
+    }
+
+    ALLOWED_TRANSITIONS: dict[schemas.TaskStatusCode, tuple[schemas.TaskStatusCode, ...]] = {
+        schemas.TaskStatusCode.PENDING: (
+            schemas.TaskStatusCode.IN_PROGRESS,
+            schemas.TaskStatusCode.COMPLETED,
+            schemas.TaskStatusCode.CANCELLED,
+        ),
+        schemas.TaskStatusCode.SCHEDULED: (
+            schemas.TaskStatusCode.PENDING,
+            schemas.TaskStatusCode.IN_PROGRESS,
+            schemas.TaskStatusCode.CANCELLED,
+        ),
+        schemas.TaskStatusCode.IN_PROGRESS: (
+            schemas.TaskStatusCode.COMPLETED,
+            schemas.TaskStatusCode.CANCELLED,
+        ),
+        schemas.TaskStatusCode.COMPLETED: (),
+        schemas.TaskStatusCode.CANCELLED: (),
+    }
+
+    def __init__(
+        self,
+        repository: repositories.TaskRepository,
+        status_repository: repositories.TaskStatusRepository,
+        reminder_repository: repositories.TaskReminderRepository,
+        delayed_queue: DelayedTaskQueue,
+        reminder_queue: TaskReminderQueue,
+        events_publisher: TaskEventsPublisher,
+    ) -> None:
+        self.repository = repository
+        self.statuses = status_repository
+        self.reminders = reminder_repository
+        self.delayed_queue = delayed_queue
+        self.reminder_queue = reminder_queue
+        self.events = events_publisher
+
+    async def list_tasks(
+        self, filters: schemas.TaskFilters | None = None
+    ) -> Iterable[schemas.TaskRead]:
+        tasks = await self.repository.list(filters)
         return [schemas.TaskRead.model_validate(task) for task in tasks]
 
     async def create_task(self, payload: schemas.TaskCreate) -> schemas.TaskRead:
-        entity = await self.repository.create(payload.model_dump())
-        return schemas.TaskRead.model_validate(entity)
+        status = payload.initial_status
+        status_entity = await self.statuses.get(status.value)
+        if status_entity is None:
+            raise TaskServiceError("unknown_status", f"Unknown task status: {status.value}")
+        if status is schemas.TaskStatusCode.SCHEDULED and payload.scheduled_for is None:
+            raise TaskServiceError("scheduled_for_required", "scheduledFor is required for scheduled tasks")
+
+        data = {
+            "title": payload.subject,
+            "description": payload.description,
+            "status_code": status.value,
+            "due_at": payload.due_at,
+            "scheduled_for": payload.scheduled_for,
+            "payload": self._build_payload(payload),
+        }
+
+        try:
+            task = await self.repository.create(data)
+        except RepositoryError as exc:
+            raise TaskServiceError(str(exc), "Unable to create task") from exc
+
+        if status is schemas.TaskStatusCode.SCHEDULED and payload.scheduled_for is not None:
+            await self.delayed_queue.schedule(task.id, payload.scheduled_for)
+
+        await self.events.task_created(task)
+        return schemas.TaskRead.model_validate(task)
 
     async def get_task(self, task_id: UUID) -> schemas.TaskRead | None:
         entity = await self.repository.get(task_id)
@@ -493,10 +572,287 @@ class TaskService:
     async def update_task(
         self, task_id: UUID, payload: schemas.TaskUpdate
     ) -> schemas.TaskRead | None:
-        entity = await self.repository.update(task_id, payload.model_dump(exclude_unset=True))
-        if entity is None:
+        task = await self.repository.get(task_id)
+        if task is None:
             return None
-        return schemas.TaskRead.model_validate(entity)
+
+        current_status = self._to_status(task.status_code)
+        next_status = payload.status or current_status
+        status_changed = payload.status is not None and payload.status != current_status
+
+        if payload.status and payload.status != current_status:
+            self._ensure_transition(current_status, payload.status)
+
+        if (
+            payload.completed_at is not PydanticUndefined
+            and payload.completed_at is not None
+            and next_status != schemas.TaskStatusCode.COMPLETED
+        ):
+            raise TaskServiceError(
+                "invalid_status_transition",
+                "completedAt can only be set for completed tasks",
+                details={"current": current_status.value, "next": next_status.value},
+            )
+
+        if payload.status is schemas.TaskStatusCode.COMPLETED and payload.completed_at is None:
+            payload.completed_at = datetime.now(timezone.utc)
+
+        if (
+            payload.cancelled_reason is not PydanticUndefined
+            and next_status != schemas.TaskStatusCode.CANCELLED
+        ):
+            raise TaskServiceError(
+                "invalid_status_transition",
+                "cancelledReason can only be modified for cancelled tasks",
+                details={"current": current_status.value, "next": next_status.value},
+            )
+
+        if (
+            payload.status is None
+            and current_status in self.FINAL_STATUSES
+            and payload.due_at is PydanticUndefined
+            and payload.completed_at is PydanticUndefined
+            and payload.cancelled_reason is PydanticUndefined
+            and payload.scheduled_for is PydanticUndefined
+        ):
+            return schemas.TaskRead.model_validate(task)
+
+        if payload.due_at is not PydanticUndefined:
+            task.due_at = payload.due_at
+
+        if payload.completed_at is not PydanticUndefined:
+            task.completed_at = payload.completed_at
+
+        if payload.status is schemas.TaskStatusCode.CANCELLED:
+            reason = (
+                payload.cancelled_reason
+                if payload.cancelled_reason is not PydanticUndefined
+                else task.cancelled_reason
+            )
+            if reason is None or not str(reason).strip():
+                raise TaskServiceError(
+                    "cancelled_reason_required",
+                    "cancelledReason is required when cancelling a task",
+                )
+            task.cancelled_reason = str(reason).strip()
+            task.scheduled_for = None
+        elif payload.status:
+            task.cancelled_reason = None
+
+        if payload.scheduled_for is not PydanticUndefined:
+            task.scheduled_for = payload.scheduled_for
+
+        if status_changed:
+            task.status_code = payload.status.value
+            if current_status is schemas.TaskStatusCode.SCHEDULED:
+                task.scheduled_for = payload.scheduled_for if payload.scheduled_for is not PydanticUndefined else None
+
+        if next_status is schemas.TaskStatusCode.SCHEDULED and task.scheduled_for is None:
+            raise TaskServiceError("scheduled_for_required", "scheduledFor is required when scheduling a task")
+
+        should_remove_from_queue = (
+            current_status is schemas.TaskStatusCode.SCHEDULED and next_status != schemas.TaskStatusCode.SCHEDULED
+        ) or next_status in self.FINAL_STATUSES
+
+        saved = await self.repository.save(task)
+
+        if should_remove_from_queue:
+            await self.delayed_queue.remove(saved.id)
+        elif (
+            next_status is schemas.TaskStatusCode.SCHEDULED
+            and saved.scheduled_for is not None
+            and (status_changed or payload.scheduled_for is not PydanticUndefined)
+        ):
+            await self.delayed_queue.schedule(saved.id, saved.scheduled_for)
+
+        if status_changed:
+            await self.events.task_status_changed(saved, current_status)
+
+        return schemas.TaskRead.model_validate(saved)
+
+    async def schedule_task(
+        self, task_id: UUID, payload: schemas.TaskScheduleRequest
+    ) -> schemas.TaskRead | None:
+        update_payload = schemas.TaskUpdate(
+            status=schemas.TaskStatusCode.SCHEDULED,
+            scheduled_for=payload.scheduled_for,
+        )
+        return await self.update_task(task_id, update_payload)
+
+    async def complete_task(
+        self, task_id: UUID, payload: schemas.TaskCompleteRequest | None = None
+    ) -> schemas.TaskRead | None:
+        completed_at = payload.completed_at if payload else None
+        update_payload = schemas.TaskUpdate(
+            status=schemas.TaskStatusCode.COMPLETED,
+            completed_at=completed_at,
+        )
+        return await self.update_task(task_id, update_payload)
+
+    async def create_reminder(
+        self, task_id: UUID, payload: schemas.TaskReminderCreate
+    ) -> schemas.TaskReminderRead | None:
+        task = await self.repository.get(task_id)
+        if task is None:
+            return None
+
+        data = {
+            "task_id": task_id,
+            "remind_at": payload.remind_at,
+            "channel": payload.channel.value,
+        }
+
+        try:
+            reminder = await self.reminders.create(data)
+        except RepositoryError as exc:
+            code = str(exc)
+            if code == "task_reminder_conflict":
+                message = "Reminder already exists for this task"
+            elif code == "task_not_found":
+                message = "Task not found"
+            else:
+                message = "Unable to create reminder"
+            raise TaskServiceError(code, message) from exc
+
+        await self.reminder_queue.schedule(reminder.id, reminder.remind_at)
+        return schemas.TaskReminderRead.model_validate(reminder)
+
+    def _build_payload(self, payload: schemas.TaskCreate) -> dict[str, Any]:
+        data: dict[str, Any] = dict(payload.payload or {})
+        data["assigneeId"] = str(payload.assignee_id)
+        data["assignee_id"] = str(payload.assignee_id)
+        data["authorId"] = str(payload.author_id)
+        data["author_id"] = str(payload.author_id)
+
+        if payload.priority:
+            data["priority"] = payload.priority.value
+
+        if payload.context:
+            normalized_context: dict[str, Any] = {}
+            for key, value in payload.context.items():
+                if isinstance(key, str):
+                    normalized_context[self._to_camel_case(key)] = value
+            deal_id = self._extract_identifier(payload.context, ("dealId", "deal_id"))
+            client_id = self._extract_identifier(payload.context, ("clientId", "client_id"))
+            policy_id = self._extract_identifier(payload.context, ("policyId", "policy_id"))
+            if deal_id:
+                data["dealId"] = deal_id
+                data["deal_id"] = deal_id
+                normalized_context["dealId"] = deal_id
+            if client_id:
+                data["clientId"] = client_id
+                data["client_id"] = client_id
+                normalized_context["clientId"] = client_id
+            if policy_id:
+                data["policyId"] = policy_id
+                data["policy_id"] = policy_id
+                normalized_context["policyId"] = policy_id
+            if normalized_context:
+                data["context"] = normalized_context
+
+        return data
+
+    @staticmethod
+    def _extract_identifier(context: dict[str, Any], keys: tuple[str, str]) -> str | None:
+        for key in keys:
+            value = context.get(key)
+            if isinstance(value, UUID):
+                return str(value)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    @staticmethod
+    def _to_camel_case(value: str) -> str:
+        parts = re.split(r"[_\-\s]+", value.strip())
+        if not parts:
+            return value
+        first, *rest = parts
+        return first.lower() + "".join(part.capitalize() for part in rest)
+
+    @classmethod
+    def _to_status(cls, value: str) -> schemas.TaskStatusCode:
+        try:
+            return schemas.TaskStatusCode(value)
+        except ValueError as exc:  # pragma: no cover - defensive
+            raise TaskServiceError("invalid_status", f"Unknown task status: {value}") from exc
+
+    def _ensure_transition(
+        self, current: schemas.TaskStatusCode, next_status: schemas.TaskStatusCode
+    ) -> None:
+        if current in self.FINAL_STATUSES:
+            raise TaskServiceError(
+                "invalid_status_transition",
+                f"Task in status {current.value} cannot transition to {next_status.value}",
+                details={"current": current.value, "next": next_status.value},
+            )
+        allowed = self.ALLOWED_TRANSITIONS.get(current, tuple())
+        if next_status not in allowed:
+            raise TaskServiceError(
+                "invalid_status_transition",
+                f"Transition from {current.value} to {next_status.value} is not allowed",
+                details={"current": current.value, "next": next_status.value},
+            )
+
+
+class TaskReminderProcessor:
+    def __init__(
+        self,
+        queue: TaskReminderQueue,
+        reminder_repository: repositories.TaskReminderRepository,
+        events_publisher: TaskEventsPublisher,
+        *,
+        batch_size: int = 100,
+        retry_delay_ms: int = 5000,
+    ) -> None:
+        self.queue = queue
+        self.reminders = reminder_repository
+        self.events = events_publisher
+        self.batch_size = batch_size
+        self.retry_delay_ms = max(retry_delay_ms, 1000)
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    async def process_due_reminders(self) -> int:
+        claimed = await self.queue.claim_due(limit=self.batch_size)
+        processed = 0
+
+        for reminder_id, score in claimed:
+            try:
+                reminder_uuid = UUID(reminder_id)
+            except ValueError:
+                self.logger.warning("Invalid reminder id %s in queue", reminder_id)
+                continue
+
+            reminder = await self.reminders.get(reminder_uuid)
+            if reminder is None:
+                self.logger.debug("Reminder %s no longer exists; skipping", reminder_id)
+                continue
+
+            try:
+                await self.events.task_reminder(reminder)
+                processed += 1
+            except Exception as exc:  # noqa: BLE001
+                self.logger.error("Error while processing reminder %s: %s", reminder_id, exc)
+                await self._reschedule(reminder_id, int(score))
+
+        return processed
+
+    async def _reschedule(self, reminder_id: str, original_score: int) -> None:
+        next_attempt_ms = max(
+            original_score,
+            int(datetime.now(timezone.utc).timestamp() * 1000) + self.retry_delay_ms,
+        )
+        next_attempt = datetime.fromtimestamp(next_attempt_ms / 1000, tz=timezone.utc)
+        try:
+            await self.queue.schedule(reminder_id, next_attempt)
+            self.logger.debug(
+                "Reminder %s rescheduled for %s", reminder_id, next_attempt.isoformat()
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.logger.error(
+                "Failed to reschedule reminder %s: %s", reminder_id, exc
+            )
+
 
 
 class EventsPublisherProtocol(Protocol):

@@ -54,10 +54,12 @@ async def test_crud_flow(api_client):
     policy = schemas.PolicyRead.model_validate(response.json())
 
     task_payload = {
-        "title": "Согласовать оплату",
+        "subject": "Согласовать оплату",
         "description": "Связаться с клиентом",
-        "owner_id": str(owner_id),
+        "assignee_id": str(owner_id),
+        "author_id": str(owner_id),
         "deal_id": str(deal.id),
+        "due_date": date.today().isoformat(),
     }
     response = await api_client.post("/api/v1/tasks/", json=task_payload, headers=headers)
     assert response.status_code == 201
@@ -67,7 +69,7 @@ async def test_crud_flow(api_client):
         f"/api/v1/tasks/{task.id}", json={"status": "in_progress"}, headers=headers
     )
     assert response.status_code == 200
-    assert response.json()["status"] == "in_progress"
+    assert response.json()["statusCode"] == "in_progress"
 
     response = await api_client.get(f"/api/v1/policies/{policy.id}", headers=headers)
     assert response.status_code == 200
