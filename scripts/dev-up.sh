@@ -12,6 +12,12 @@ LOG_PREFIX="[dev-up]"
 DEFAULT_LOG_FILE="${ROOT_DIR}/.local/logs/dev-up.log"
 DEV_UP_LOG_FILE="${DEV_UP_LOG_FILE:-${DEFAULT_LOG_FILE}}"
 
+BACKEND_PROFILE_SERVICES=(gateway auth crm documents)
+BACKEND_PROFILE_SERVICES_DISPLAY="$(
+  IFS=', '
+  printf '%s' "${BACKEND_PROFILE_SERVICES[*]}"
+)"
+
 log_info() {
   printf '%s %s\n' "${LOG_PREFIX}" "$1"
 }
@@ -50,7 +56,7 @@ usage() {
   cat <<USAGE
 Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-file PATH]
 
-  --skip-backend   не запускать профиль backend (gateway, auth, crm, documents)
+  --skip-backend   не запускать профиль backend (${BACKEND_PROFILE_SERVICES_DISPLAY})
   --with-backend   запустить scripts/start-backend.sh после миграций bootstrap-скрипта
   --log-file PATH  путь к файлу журнала (по умолчанию ${DEV_UP_LOG_FILE})
 USAGE

@@ -90,6 +90,10 @@ BOOTSTRAP_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 BOOTSTRAP_FINISHED_AT=""
 
 BACKEND_PROFILE_SERVICES=(gateway auth crm documents)
+BACKEND_PROFILE_SERVICES_DISPLAY="$(
+  IFS=', '
+  printf '%s' "${BACKEND_PROFILE_SERVICES[*]}"
+)"
 
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
@@ -157,7 +161,19 @@ if isinstance(data, dict):
 
 state_map = {}
 for entry in data:
-    service_name = entry.get("Service") or ""
+    service_name = (entry.get("Service") or "").strip()
+    if not service_name:
+        labels = entry.get("Labels")
+        if isinstance(labels, dict):
+            service_name = (labels.get("com.docker.compose.service") or "").strip()
+    if not service_name:
+        name = (entry.get("Name") or "").strip()
+        if name:
+            service_name = name.rsplit("-", 1)[0]
+            if service_name:
+                parts = service_name.split("-")
+                if len(parts) >= 2:
+                    service_name = parts[-1]
     if service_name:
         state_map[service_name] = entry
 
@@ -396,7 +412,7 @@ usage() {
   cat <<USAGE
 Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
-  --skip-backend   пропустить запуск профиля backend (gateway, auth, crm, documents)
+  --skip-backend   пропустить запуск профиля backend (${BACKEND_PROFILE_SERVICES_DISPLAY})
   --with-backend   запустить scripts/start-backend.sh после миграций
   --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
   --discard-logs   удалить каталоги логов и отчётов после завершения работы
