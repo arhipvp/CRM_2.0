@@ -5,7 +5,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
 ## Features
 
 ### Current Features
-- **Authentication**: Secure login with JWT Bearer tokens
+- **Authentication**: На время разработки авторизация отключена — приложение сразу создаёт `APIClient` без токена и выполняет запросы к CRM API.
 - **Client Management** (CRUD):
   - View all clients in table format
   - Add new clients with name, email, phone
@@ -104,6 +104,8 @@ DESKTOP_DEAL_DOCUMENTS_ROOT=./var/deal_documents
 
 > Значения по умолчанию заданы в `config.py`. Добавляйте `.env` только если требуется переопределить базовый URL, таймауты или уровень логирования.
 > Для работы журнала сделок укажите `DESKTOP_JOURNAL_AUTHOR_ID` — UUID пользователя CRM, от имени которого создаются записи по умолчанию.
+
+> ⚠️ **Примечание об авторизации**. Компоненты `LoginDialog` и `AuthService` остаются в коде, но в `main.py` авторизация намеренно пропущена: метод `show_login_dialog` сразу инициализирует `APIClient()` без токена и завершает выполнение. Этот блок будет актуализирован после включения проверки токенов на CRM API. Если потребуется вручную вернуть проверку, раскомментируйте существующую логику в `show_login_dialog` и обеспечьте выдачу валидного JWT через `/auth/token`.
 
 ## Usage
 
