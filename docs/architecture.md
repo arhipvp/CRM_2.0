@@ -13,6 +13,8 @@ CRM состоит из набора специализированных сер
 | Telegram Bot | Канал обратной связи с пользователями, поддержка быстрых сценариев | Gateway (webhook), Auth (валидация пользователей), RabbitMQ |
 | Backup | Резервное копирование баз, политик и конфигураций | PostgreSQL (репликации и дампы), объектное хранилище |
 
+> **Важно.** Сервис CRM/Deals жёстко зависит от Documents: REST-маршруты `/policies/{policy_id}/documents` используют `PolicyService` и `PolicyDocumentRepository`, которые опираются на внешний ключ `fk_policy_documents_document_id` к таблице `documents.documents`. Удаление или отключение Documents без замены приведёт к сбою API, провалу миграций Alembic и интеграционных тестов, а также нарушит согласованность Docker Compose и конфигурации переменных окружения (`CRM_DOCUMENTS_BASE_URL`, `DOCUMENTS_*`).
+
 Отдельного сервиса Payments больше нет: модуль платежей CRM работает внутри CRM/Deals, использует ту же схему `crm`, предоставляет REST API и публикует доменные события `deal.payment.*`. Базовые реквизиты операций лежат в `crm.payments`, детализация доходов и расходов — в таблицах `crm.payment_incomes` и `crm.payment_expenses`; события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*` обеспечивают синхронизацию данных для встроенных уведомлений и Reports. Каталог [`backend/payments`](../backend/payments/README.md) хранит только архивный код standalone-сервиса для анализа миграций.
 
 ## 2. Взаимодействия и потоки данных
