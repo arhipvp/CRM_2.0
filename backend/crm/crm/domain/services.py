@@ -1552,7 +1552,13 @@ class TelegramService:
 
     async def send(self, chat_id: str | None, message: str) -> dict[str, Any]:
         if not self.enabled:
-            return {"accepted": False, "error": "telegram_disabled", "messageId": None}
+            return {
+                "accepted": True,
+                "messageId": None,
+                "error": None,
+                "reason": "telegram_disabled",
+                "skipped": True,
+            }
         target_chat = chat_id or self.default_chat_id
         if not target_chat:
             return {"accepted": False, "error": "missing_chat_id", "messageId": None}
@@ -1679,30 +1685,35 @@ class NotificationEventsService:
         return f"{dto.type}\n{dto.time.isoformat()}\n\n{payload_preview}"
 
     async def _handle_send_result(self, notification_id: UUID, send_result: dict[str, Any]) -> None:
-        accepted = bool(send_result.get("accepted"))
+        skipped = bool(send_result.get("skipped"))
+        accepted = bool(send_result.get("accepted")) or skipped
         message_id = send_result.get("messageId")
         error = send_result.get("error")
-        occurred_at = datetime.now(timezone.utc) if accepted else None
+        reason = send_result.get("reason") or (None if accepted else error)
+        occurred_at = None if skipped else (datetime.now(timezone.utc) if accepted else None)
+        status = "skipped" if skipped else ("sent" if accepted else "failed")
         await self.repository.update(
             notification_id,
             {
                 "delivered_to_telegram": False,
                 "telegram_message_id": message_id,
-                "telegram_delivery_status": "sent" if accepted else "failed",
-                "telegram_delivery_reason": None if accepted else error,
+                "telegram_delivery_status": status,
+                "telegram_delivery_reason": reason,
                 "telegram_delivery_occurred_at": occurred_at,
             },
         )
         event_type = (
-            "notifications.telegram.sent" if accepted else "notifications.telegram.error"
+            "notifications.telegram.skipped"
+            if skipped
+            else ("notifications.telegram.sent" if accepted else "notifications.telegram.error")
         )
         await self.stream.publish(
             event_type,
             {
                 "notificationId": str(notification_id),
                 "messageId": message_id,
-                "status": "sent" if accepted else "failed",
-                "reason": error,
+                "status": status,
+                "reason": reason or error,
             },
         )
         if not accepted:
