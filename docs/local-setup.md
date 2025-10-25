@@ -31,6 +31,8 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 - `--with-backend` — запускает `scripts/start-backend.sh` после bootstrap (`DEV_UP_WITH_BACKEND=true`); комбинируйте с `--skip-backend`, чтобы Compose-профиль не удерживал порты перед запуском хостовых процессов;
 - `--log-file PATH` — сохраняет журнал `dev-up` в выбранный путь (`DEV_UP_LOG_FILE`, по умолчанию `.local/logs/dev-up.log`).
 
+> ⚠️ `--with-backend` не отключает Docker Compose профиль `backend`: при запуске `dev-up` без `--skip-backend` контейнеры продолжат занимать порты. Добавляйте `--skip-backend`, если хотите переключиться на процессы `scripts/start-backend.sh` после миграций.
+
 Флаги управления логами (`--log-dir`, `--discard-logs`) доступны только в `bootstrap-local.sh` и не передаются через `dev-up`.
 
 | Сценарий              | Флаг/переменная                       | Назначение                                   |
