@@ -21,6 +21,3 @@ data:
   NOTIFICATIONS_BASE_URL: "http://crm:8082/api/v1"
   REDIS_URL: "redis://redis:6379/0"
   CONSUL_HTTP_ADDR: "http://consul:8500"
-  NEXT_PUBLIC_API_BASE_URL: "http://gateway:8080/api/v1"
-  NEXT_PUBLIC_CRM_SSE_URL: "http://gateway:8080/api/v1/streams/deals"
-  NEXT_PUBLIC_NOTIFICATIONS_SSE_URL: "http://gateway:8080/api/v1/streams/notifications"
