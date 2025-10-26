@@ -17,7 +17,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
   - Gateway автоматически переподключается к upstream при обрывах с задержкой `GATEWAY_UPSTREAM_SSE_RECONNECT_DELAY`.
   - При восстановлении соединения используется значение `Last-Event-ID`, сохранённое в Redis (`${REDIS_HEARTBEAT_PREFIX}:crm:last-event-id`).
   - Payload передаётся без изменений; тип события (`event`) задаёт CRM.
-- Обновления по платежам (добавление даты фактической оплаты) публикуются тем же каналом с событием `deal.updated` и соответствующим блоком в payload.
+- Обновления по платежам (включая запись фактической оплаты и перерасчёт итоговых сумм) публикуются тем же каналом событием `deal.payment.updated` с полной моделью платежа.
 - Для обратной совместимости внутренний upstream по-прежнему обозначается как `crm`; публичный маршрут и переменные окружения используют имя `deals`.
 - **Алиас:** путь `/api/v1/streams/crm` остаётся рабочим для клиентов, которым требуется постепенная миграция на `deals`.
 - Каждый канал использует `Last-Event-ID` для восстановления после обрыва.
@@ -30,11 +30,20 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 | Тип события | Описание | Payload |
 | --- | --- | --- |
-| `deal.created` | Создана новая сделка. | `{ "deal_id": "uuid", "client_id": "uuid", "title": "string", "status": "draft", "created_at": "datetime" }` |
-| `deal.updated` | Изменились реквизиты сделки. | `{ "deal_id": "uuid", "changes": { "status": "issuing" }, "updated_at": "datetime", "version": 5 }` |
-| `deal.journal.appended` | Добавлена запись в журнал. | `{ "deal_id": "uuid", "entry_id": "uuid", "author_id": "uuid", "text": "string", "created_at": "datetime" }` |
-| `policy.status.changed` | Полис сменил статус. | `{ "policy_id": "uuid", "deal_id": "uuid", "status": "active", "effective_from": "date", "effective_to": "date" }` |
-| `calculation.added` | Добавлен расчёт. | `{ "calculation_id": "uuid", "deal_id": "uuid", "insurance_company": "string", "premium_amount": 12345.67 }` |
+| `deal.journal.appended` | Добавлена запись в журнал сделки. | `{ "deal_id": "uuid", "entry_id": "uuid", "author_id": "uuid", "body": "string", "created_at": "datetime" }` |
+| `deal.calculation.created` | Создан расчёт по сделке. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "draft", "insurance_company": "string", "calculation_date": "date" }` |
+| `deal.calculation.updated` | Обновлён расчёт (изменены параметры). | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "ready", "premium_amount": "12345.67" }` |
+| `deal.calculation.deleted` | Удалён расчёт. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "draft" }` |
+| `deal.calculation.status.*` | Изменён статус расчёта; `*` — один из `draft`, `ready`, `confirmed`, `archived`. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "confirmed", "policy_id": "uuid" }` |
+| `deal.payment.created` | Запланирован новый платёж по полису. | `{ "deal_id": "uuid", "policy_id": "uuid", "payment": { "payment_id": "uuid", "planned_date": "date", "planned_amount": "1234.56", "currency": "RUB" } }` |
+| `deal.payment.updated` | Обновлены параметры платежа (план, факт, суммы доходов/расходов). | `{ "deal_id": "uuid", "policy_id": "uuid", "payment": { ... полная модель платежа ... } }` |
+| `deal.payment.deleted` | Удалён платёж без связанных транзакций. | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "deleted_at": "datetime" }` |
+| `deal.payment.income.*` | Операции с доходами (создание/обновление/удаление). | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "income": { "income_id": "uuid", "posted_at": "date", "amount": "1234.56" } }` |
+| `deal.payment.expense.*` | Операции с расходами (создание/обновление/удаление). | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "expense": { "expense_id": "uuid", "posted_at": "date", "amount": "1234.56" } }` |
+
+При изменении фактических оплат, пересчёте доходов или расходов `PaymentService` публикует `deal.payment.updated` вместе с соответствующим событием `deal.payment.income.*`/`deal.payment.expense.*`, чтобы клиенты получили целостную модель платежа для повторного рендеринга.【F:backend/crm/crm/domain/services.py†L1036-L1140】【F:backend/crm/crm/domain/services.py†L1213-L1305】
+
+Суффиксы `deal.calculation.status.*` соответствуют перечислению `CalculationStatus` (`draft`, `ready`, `confirmed`, `archived`) из доменных схем CRM.【F:backend/crm/crm/domain/services.py†L305-L383】【F:backend/crm/crm/domain/schemas.py†L248-L305】
 
 **Ошибки канала:**
 - `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
