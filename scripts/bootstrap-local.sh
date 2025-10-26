@@ -120,6 +120,7 @@ BACKEND_PS_FORMAT_FALLBACK_LOGGED=false
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
 BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG="${BOOTSTRAP_SKIP_BACKEND_WAIT:-false}"
+BOOTSTRAP_SKIP_BACKEND_BUILD_FLAG="${BOOTSTRAP_SKIP_BACKEND_BUILD:-false}"
 
 strip_cr() {
   local value="$1"
@@ -578,9 +579,11 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-dir <dir>] [--discard-logs]
+Использование: $0 [--skip-backend] [--skip-backend-wait] [--skip-backend-build] [--with-backend] [--log-dir <dir>] [--discard-logs]
 
   --skip-backend   пропустить запуск профиля backend (${BACKEND_PROFILE_SERVICES_DISPLAY})
+  --skip-backend-build
+                  пропустить пересборку образов профиля backend перед запуском
   --with-backend   запустить scripts/start-backend.sh после миграций
   --log-dir <dir>  сохранять журналы и отчёты bootstrap в указанном каталоге (по умолчанию .local/logs/bootstrap)
   --discard-logs   удалить каталоги логов и отчётов после завершения работы
@@ -608,6 +611,9 @@ parse_args() {
         ;;
       --skip-backend-wait)
         BOOTSTRAP_SKIP_BACKEND_WAIT_FLAG="true"
+        ;;
+      --skip-backend-build)
+        BOOTSTRAP_SKIP_BACKEND_BUILD_FLAG="true"
         ;;
       --with-backend)
         BOOTSTRAP_WITH_BACKEND_FLAG="true"
@@ -928,7 +934,14 @@ step_compose_backend_up() {
   load_env || return 1
   (
     cd "${INFRA_DIR}" || return 1
-    "${COMPOSE_CMD[@]}" --profile backend up -d
+    local -a up_args=(-d)
+    if ! is_truthy "${BOOTSTRAP_SKIP_BACKEND_BUILD_FLAG}"; then
+      up_args=(--build "${up_args[@]}")
+      log_info "Пересборка образов профиля backend перед запуском"
+    else
+      log_info "Пересборка образов профиля backend пропущена по флагу"
+    fi
+    "${COMPOSE_CMD[@]}" --profile backend up "${up_args[@]}"
   )
 }
 

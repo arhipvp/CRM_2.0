@@ -54,9 +54,11 @@ load_env() {
 
 usage() {
   cat <<USAGE
-Использование: $0 [--skip-backend] [--skip-backend-wait] [--with-backend] [--log-file PATH]
+Использование: $0 [--skip-backend] [--skip-backend-wait] [--skip-backend-build] [--with-backend] [--log-file PATH]
 
   --skip-backend   не запускать профиль backend (${BACKEND_PROFILE_SERVICES_DISPLAY})
+  --skip-backend-build
+                   пропустить пересборку образов профиля backend перед запуском
   --with-backend   запустить scripts/start-backend.sh после миграций bootstrap-скрипта
   --log-file PATH  путь к файлу журнала (по умолчанию ${DEV_UP_LOG_FILE})
 USAGE
@@ -90,6 +92,10 @@ if is_truthy "${DEV_UP_SKIP_BACKEND_WAIT:-}"; then
   bootstrap_args+=(--skip-backend-wait)
 fi
 
+if is_truthy "${DEV_UP_SKIP_BACKEND_BUILD:-}"; then
+  bootstrap_args+=(--skip-backend-build)
+fi
+
 while (($# > 0)); do
   case "$1" in
     --skip-backend)
@@ -99,6 +105,11 @@ while (($# > 0)); do
     --skip-backend-wait)
       skip_backend_wait=true
       bootstrap_args+=(--skip-backend-wait)
+      ;;
+    --skip-backend-build)
+      if [[ ! " ${bootstrap_args[*]} " =~ " --skip-backend-build " ]]; then
+        bootstrap_args+=(--skip-backend-build)
+      fi
       ;;
     --with-backend)
       with_backend=true
