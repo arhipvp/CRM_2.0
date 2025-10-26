@@ -55,12 +55,46 @@ def upgrade() -> None:
     op.execute(
         f"""
         DO $$
+        DECLARE
+            schema_owner text;
+            migration_performed boolean := false;
         BEGIN
-            IF EXISTS (
+            SELECT pg_get_userbyid(nspowner)
+              INTO schema_owner
+              FROM pg_namespace
+             WHERE nspname = 'tasks';
+
+            IF schema_owner IS NULL THEN
+                RAISE NOTICE 'Skipping tasks migration: schema tasks not found.';
+                RETURN;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'tasks' AND table_name = 'tasks'
+            ) THEN
+                RAISE NOTICE 'Skipping tasks migration: table tasks.tasks not found.';
+                RETURN;
+            END IF;
+
+            IF NOT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
                 WHERE table_schema = 'crm' AND table_name = 'tasks'
             ) THEN
+                RAISE NOTICE 'Skipping tasks migration: table crm.tasks not found.';
+                RETURN;
+            END IF;
+
+            IF NOT (has_schema_privilege(current_user, 'tasks', 'USAGE')
+                AND has_table_privilege(current_user, 'tasks.tasks', 'SELECT')
+                AND has_table_privilege(current_user, 'tasks.tasks', 'INSERT')) THEN
+                RAISE NOTICE 'Skipping tasks migration: insufficient privileges for % on schema tasks owned by %.', current_user, schema_owner;
+                RETURN;
+            END IF;
+
+            EXECUTE $insert$
                 INSERT INTO tasks.tasks (
                     id,
                     title,
@@ -108,17 +142,21 @@ def upgrade() -> None:
                   AND NOT EXISTS (
                     SELECT 1 FROM tasks.tasks AS existing WHERE existing.id = t.id
                   );
+            $insert$;
+
+            migration_performed := true;
+
+            IF migration_performed THEN
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_owner';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_tenant';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_due_date';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_status';
+                EXECUTE 'DROP TABLE IF EXISTS crm.tasks';
             END IF;
-        END
+        END;
         $$;
         """
     )
-
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_owner")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_tenant")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_due_date")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_status")
-    op.execute("DROP TABLE IF EXISTS crm.tasks")
 
 
 def downgrade() -> None:

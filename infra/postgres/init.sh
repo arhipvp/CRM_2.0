@@ -79,17 +79,36 @@ ensure_tasks_schema() {
   log "Готовим схему tasks для модуля задач CRM"
   psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<'SQL'
 DO $$
+DECLARE
+  schema_owner text;
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm') THEN
-    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'tasks') THEN
+    SELECT pg_get_userbyid(nspowner)
+      INTO schema_owner
+      FROM pg_namespace
+     WHERE nspname = 'tasks';
+
+    IF schema_owner IS NULL THEN
       EXECUTE 'CREATE SCHEMA tasks AUTHORIZATION crm';
-    ELSE
-      EXECUTE 'ALTER SCHEMA tasks OWNER TO crm';
+      schema_owner := 'crm';
     END IF;
 
     EXECUTE 'GRANT USAGE, CREATE ON SCHEMA tasks TO crm';
-    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA tasks GRANT ALL ON TABLES TO crm';
-    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA tasks GRANT ALL ON SEQUENCES TO crm';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA tasks TO crm';
+    EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA tasks TO crm';
+
+    IF schema_owner IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA tasks GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+        schema_owner,
+        'crm'
+      );
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA tasks GRANT USAGE, SELECT ON SEQUENCES TO %I',
+        schema_owner,
+        'crm'
+      );
+    END IF;
   END IF;
 END$$;
 SQL
