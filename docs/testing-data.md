@@ -11,7 +11,7 @@
 | Домен | Файл | Содержимое | Примечания |
 | --- | --- | --- | --- |
 | Auth | `seed_20240715_auth.sql` | Роли `ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN` и пять активных пользователей (email `*@example.com`). | Пароль всех аккаунтов — `Passw0rd!` (bcrypt, 12 раундов). Используются UUID, согласованные с CRM. |
-| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, два полиса с действующими периодами и связанные записи задач/журналов. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и авторов сущностей (`created_by_id`, `updated_by_id`). Значения премий отражают реальные суммы сценариев. |
+| CRM / Deals & Policies | `seed_20240715_crm.sql` | Два клиента (юрлицо и физлицо), две сделки со статусами `in_progress` и `proposal_sent`, обязательными датами `next_review_at`, два полиса с действующими периодами и связанные записи задач/журналов. | Ссылки на пользователей Auth обеспечивают трассировку владельцев и авторов сущностей (`created_by_id`, `updated_by_id`). Значения премий отражают реальные суммы сценариев, а даты `next_review_at` иллюстрируют работу напоминаний (22 и 29 июля 2024). |
 | CRM / Tasks | `seed_20240715_crm.sql` | Две активные задачи, привязанные к сделкам и пользователям, со статусами `pending` и `in_progress`, сроками и комментариями для проверки напоминаний и загрузки канбана. | Значения `assignee_id`/`author_id` совпадают с пользователями из Auth, записи сразу создаются в схеме `tasks`, справочник `task_statuses` загружается миграциями CRM. |
 | CRM / Payments | `seed_20240715_crm.sql` | Три финансовые записи на полисы (премия `5d8d0d68-…7777`, комиссия `3c3ab2c4-…8888`, расход `af5f1f29-…9999`) с агрегированными суммами в `crm.payments` и детализацией в `crm.payment_incomes`/`crm.payment_expenses`. | Для каждого платежа и позиции сохранены пользователи создания и последних правок; суммы сходятся с агрегатом платежа. |
 
@@ -40,13 +40,17 @@
 
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com%' ORDER BY email;
+SELECT COUNT(*) AS seeded_deals FROM crm.deals WHERE id IN (
+    'd1b96491-1ef3-4ff5-8fdc-333333333333',
+    'a2c7305a-3bb2-4a8e-9a02-444444444444'
+);
 SELECT title, status, next_review_at FROM crm.deals ORDER BY created_at DESC;
 SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, created_by_id, updated_by_id FROM crm.payments ORDER BY actual_date DESC;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_incomes ORDER BY payment_id;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_expenses ORDER BY payment_id;
 ```
 
-> Финансовые показатели сделки валидируются через связанные таблицы `crm.calculations`, `crm.policies` и агрегаты в `crm.payments`; отдельное поле стоимости в `crm.deals` отсутствует.
+> Финансовые показатели сделки валидируются через связанные таблицы `crm.calculations`, `crm.policies` и агрегаты в `crm.payments`; отдельное поле стоимости в `crm.deals` отсутствует, зато `next_review_at` обязательно и контролирует напоминания.
 
 Ожидаемые результаты: все пользователи включены (`enabled = true`), одна сделка находится в статусе `in_progress`, другая — `proposal_sent`, а в `crm.payments` есть минимум три записи с заполненными агрегатами (`incomes_total`, `expenses_total`, `net_total`) и связкой пользователей (`created_by_id`, `updated_by_id`). Для каждого платежа найдётся хотя бы одна строка в `crm.payment_incomes` или `crm.payment_expenses`; категории и даты (`category`, `posted_at`) отражают реальные сценарии, а суммы детализации сходятся с агрегатами платежа.
 

@@ -7,7 +7,7 @@
 | Файл | Что создаёт | Зависимости |
 | --- | --- | --- |
 | `seed_20240715_auth.sql` | Базовые роли (`ROLE_SALES_AGENT`, `ROLE_EXECUTOR`, `ROLE_ROOT_ADMIN`) и пять активных пользователей с паролем `Passw0rd!`. | Требуется схема `auth`. |
-| `seed_20240715_crm.sql` | Два клиента, две сделки, два полиса и три финансовые записи в `crm.payments` (премия `5d8d0d68-…7777`, комиссия `3c3ab2c4-…8888`, расход `af5f1f29-…9999`) с позициями `crm.payment_incomes`/`crm.payment_expenses`. | Требуется успешное применение `seed_20240715_auth.sql` (используются UUID пользователей). |
+| `seed_20240715_crm.sql` | Два клиента, две сделки (c обязательной датой `next_review_at`), два полиса и три финансовые записи в `crm.payments` (премия `5d8d0d68-…7777`, комиссия `3c3ab2c4-…8888`, расход `af5f1f29-…9999`) с позициями `crm.payment_incomes`/`crm.payment_expenses`. | Требуется успешное применение `seed_20240715_auth.sql` (используются UUID пользователей). |
 
 Все UUID и даты согласованы между файлами, поэтому набор загружается полностью или выборочно без дополнительных правок. Отдельный seed Payments больше не публикуется: факт оплаты полиса входит в CRM и хранится в `crm.payments` с привязкой к позициям `crm.payment_incomes` и `crm.payment_expenses`.
 
@@ -49,10 +49,14 @@
 
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com';
+SELECT COUNT(*) AS seeded_deals FROM crm.deals WHERE id IN (
+    'd1b96491-1ef3-4ff5-8fdc-333333333333',
+    'a2c7305a-3bb2-4a8e-9a02-444444444444'
+);
 SELECT id, title, status, owner_id, client_id, next_review_at FROM crm.deals ORDER BY next_review_at, updated_at;
 SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, created_by_id, updated_by_id FROM crm.payments ORDER BY actual_date DESC;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_incomes ORDER BY payment_id;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_expenses ORDER BY payment_id;
 ```
 
-Все пользователи включены (`enabled = true`). В выдаче по `crm.deals` проверьте статусы (`in_progress`, `proposal_sent`), актуальных владельцев (`owner_id` соответствует `sergey.seller@example.com` и `olga.lead@example.com`) и то, что `next_review_at` заполнено — колонка обязательна и выставляется при загрузке (если явно не задана, используется текущая дата). В `crm.payments` отображаются агрегаты (`incomes_total`, `expenses_total`, `net_total`) с заполненной `actual_date` и связкой пользователей (`created_by_id`, `updated_by_id`). Каждая запись имеет хотя бы одну связанную строку в таблицах доходов или расходов: категории и даты (`category`, `posted_at`) иллюстрируют реальные сценарии и сходятся по суммам с агрегатами платежа. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
+Все пользователи включены (`enabled = true`). Отдельный smoke-запрос `seeded_deals` должен вернуть `2`, подтверждая загрузку обеих сделок. В выдаче по `crm.deals` проверьте статусы (`in_progress`, `proposal_sent`), актуальных владельцев (`owner_id` соответствует `sergey.seller@example.com` и `olga.lead@example.com`) и то, что `next_review_at` заполнено ожидаемыми датами (`2024-07-22`, `2024-07-29`) — колонка обязательна и выставляется при загрузке. В `crm.payments` отображаются агрегаты (`incomes_total`, `expenses_total`, `net_total`) с заполненной `actual_date` и связкой пользователей (`created_by_id`, `updated_by_id`). Каждая запись имеет хотя бы одну связанную строку в таблицах доходов или расходов: категории и даты (`category`, `posted_at`) иллюстрируют реальные сценарии и сходятся по суммам с агрегатами платежа. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
