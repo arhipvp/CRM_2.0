@@ -20,29 +20,84 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Схема tasks становится частью CRM и управляется Alembic-миграциями.
-    # На инсталляциях, где схема уже создана другим пользователем (например, вручную
-    # или bootstrap-скриптами), Alembic должен получить права владельца, иначе
-    # дальнейшие DDL-операции завершаются ошибкой `permission denied`.
-    op.execute(
-        """
-        DO $$
-        DECLARE
-            v_owner text := current_user;
-        BEGIN
-            IF EXISTS (
-                SELECT 1
-                FROM pg_namespace
-                WHERE nspname = 'tasks'
-            ) THEN
-                EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
-            ELSE
-                EXECUTE format('CREATE SCHEMA tasks AUTHORIZATION %I', v_owner);
-            END IF;
-        END;
-        $$;
-        """
+    bind = op.get_bind()
+
+    current_user = bind.scalar(sa.text("SELECT current_user"))
+    schema_exists = bind.scalar(
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'tasks')")
     )
+
+    if schema_exists:
+        schema_owner = bind.scalar(
+            sa.text(
+                "SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'tasks'"
+            )
+        )
+        if schema_owner == current_user:
+            op.execute(
+                sa.text("ALTER SCHEMA tasks OWNER TO :owner").bindparams(owner=current_user)
+            )
+        else:
+            op.execute(
+                """
+                DO $$
+                DECLARE
+                    v_owner text;
+                    v_current text := current_user;
+                BEGIN
+                    SELECT pg_get_userbyid(nspowner)
+                    INTO v_owner
+                    FROM pg_namespace
+                    WHERE nspname = 'tasks';
+
+                    RAISE NOTICE 'Skipping ALTER SCHEMA for tasks: schema owned by %, current user %', v_owner, v_current;
+                END;
+                $$;
+                """
+            )
+    else:
+        can_create_schema = bind.scalar(
+            sa.text(
+                "SELECT has_database_privilege(current_database(), 'CREATE')"
+            )
+        )
+        if not can_create_schema:
+            op.execute(
+                """
+                DO $$
+                DECLARE
+                    v_db text := current_database();
+                    v_current text := current_user;
+                BEGIN
+                    RAISE NOTICE 'Skipping tasks module migration: user % lacks CREATE privilege on database % to create schema tasks', v_current, v_db;
+                END;
+                $$;
+                """
+            )
+            return
+
+        op.execute(
+            sa.text("CREATE SCHEMA tasks AUTHORIZATION :owner").bindparams(owner=current_user)
+        )
+
+    has_required_privileges = bind.scalar(
+        sa.text(
+            "SELECT has_schema_privilege('tasks', 'USAGE') AND has_schema_privilege('tasks', 'CREATE')"
+        )
+    )
+    if not has_required_privileges:
+        op.execute(
+            """
+            DO $$
+            DECLARE
+                v_current text := current_user;
+            BEGIN
+                RAISE NOTICE 'Skipping tasks module migration: user % lacks USAGE/CREATE privileges on schema tasks', v_current;
+            END;
+            $$;
+            """
+        )
+        return
 
     op.create_table(
         "task_statuses",
