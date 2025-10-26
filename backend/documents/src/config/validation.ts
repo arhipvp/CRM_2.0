@@ -7,8 +7,20 @@ export const validationSchema = Joi.object({
   DOCUMENTS_RUN_MIGRATIONS: Joi.boolean().default(false),
   DOCUMENTS_REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).required(),
   DOCUMENTS_REDIS_PREFIX: Joi.string().default('documents'),
-  DOCUMENTS_QUEUE_NAME: Joi.string().default('documents_tasks'),
-  DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME: Joi.string().default('documents.permissions.sync'),
+  DOCUMENTS_QUEUE_NAME: Joi.string()
+    .pattern(/^[^:]+$/, { name: 'without colon' })
+    .messages({
+      'string.pattern.name':
+        'DOCUMENTS_QUEUE_NAME не должно содержать двоеточия (:).',
+    })
+    .default('documents_tasks'),
+  DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME: Joi.string()
+    .pattern(/^[^:]+$/, { name: 'without colon' })
+    .messages({
+      'string.pattern.name':
+        'DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME не должно содержать двоеточия (:).',
+    })
+    .default('documents.permissions.sync'),
   DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL: Joi.number().integer().min(60).default(300),
   DOCUMENTS_STORAGE_ROOT: Joi.string().default('./var/documents'),
   DOCUMENTS_STORAGE_QUOTA_MB: Joi.alternatives()
