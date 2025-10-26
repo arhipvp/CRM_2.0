@@ -31,7 +31,7 @@ RabbitMQ используется как единая шина событий и
 
 * **Доменные события CRM.** Модуль сделок публикует изменения в exchange `crm.events`, используя ключи `deal.journal.appended`, `deal.calculation.*` и `deal.payment.*`. Notifications при маршрутизации в SSE и Telegram пересылает исходный `event_key` (например, `deal.payment.updated`) без переименования пространств.
 * **Задачи.** `TaskEventsPublisher` отправляет сообщения о задачах в отдельный exchange `tasks.events` с типами `tasks.task.*`, что позволяет изолировать подписчиков фоновых обработчиков.
-* **Telegram Bot.** Бот получает команды из очереди `telegram.bot.notifications`, подписанной на `crm.events`, и публикует ответы (например, `crm.deal.created`, `task.status.changed`) в exchange `crm.events` (переменная `CRM_EVENTS_EXCHANGE`).
+* **Telegram Bot.** Бот получает команды из очереди `telegram.bot.notifications`, подписанной на `crm.events`, и публикует ответы (например, `deal.created`, `task.status.changed`) в exchange `crm.events` (переменная `CRM_EVENTS_EXCHANGE`). Routing key используется без префикса `crm.`, но CloudEvent type при этом остаётся `crm.deal.created` для сохранения совместимости с подписчиками.
 * **Фоновые задачи.** CRM использует Celery и собственный планировщик задач для отложенных операций (пересчёт состояний полисов, напоминания по задачам). Очереди delays/reminders хранятся в Redis, а публикация итоговых событий выполняется через RabbitMQ.
 
 Асинхронное взаимодействие разгружает Gateway и позволяет временно деградировать сервисам без потери данных — сообщения сохраняются до восстановления потребителей.
