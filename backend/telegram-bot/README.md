@@ -6,7 +6,7 @@
 ## Возможности
 
 - приём обновлений Telegram через webhook с валидацией подписи;
-- проверка пользователей и получение Telegram-привязок через Auth;
+- проверка пользователей и (после запуска привязки в Auth) получение Telegram-привязок;
 - создание черновиков сделок и обновление задач/платежей в CRM;
 - публикация событий RabbitMQ в форматах CloudEvents (`deal.created`, `task.status.changed`, `deal.payment.updated`);
 - подписка на события `notifications.notification.*` из RabbitMQ и доставка уведомлений пользователям в Telegram через модуль уведомлений CRM.
@@ -61,7 +61,7 @@ Webhook должен проксироваться через Gateway/BFF. Для
 
 Настройки модуля уведомлений CRM (`CRM_NOTIFICATIONS_*`) описаны в [`backend/crm/README.md`](../crm/README.md#notifications) и управляют источниками событий, которые получает бот.
 
-Auth должен предоставлять внутренние эндпоинты:
+Auth должен (после реализации привязки в дорожной карте Этапа 1.1) предоставлять внутренние эндпоинты:
 
 - `GET /internal/telegram/users/{telegram_id}` — поиск пользователя по Telegram ID;
 - `GET /internal/telegram/bindings/{user_id}` — получение Telegram-привязки по ID пользователя.
