@@ -6,7 +6,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INFRA_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 COMPOSE_FILE="${INFRA_DIR}/docker-compose.yml"
 
-PYTHON_CMD=""
+declare -a PYTHON_CMD=()
 PYTHON_CANDIDATES=(
   "python3"
   "python"
@@ -31,11 +31,52 @@ usage() {
 USAGE
 }
 
+format_command() {
+  local part
+  local formatted=""
+  for part in "$@"; do
+    if [[ -n "${formatted}" ]]; then
+      formatted+=" "
+    fi
+    formatted+="$(printf '%q' "${part}")"
+  done
+  printf '%s' "${formatted}"
+}
+
+format_python_candidates() {
+  local candidate
+  local -a candidate_parts=()
+  local -a formatted=()
+
+  for candidate in "${PYTHON_CANDIDATES[@]}"; do
+    candidate_parts=()
+    IFS=' ' read -r -a candidate_parts <<<"${candidate}"
+    if (( ${#candidate_parts[@]} == 0 )); then
+      continue
+    fi
+    formatted+=("$(format_command "${candidate_parts[@]}")")
+  done
+
+  if (( ${#formatted[@]} == 0 )); then
+    printf '%s' ""
+    return 0
+  fi
+
+  local IFS=', '
+  printf '%s' "${formatted[*]}"
+}
+
 detect_python_cmd() {
   local candidate
+  local -a candidate_parts=()
   for candidate in "${PYTHON_CANDIDATES[@]}"; do
-    if eval "${candidate} --version" >/dev/null 2>&1; then
-      PYTHON_CMD="${candidate}"
+    candidate_parts=()
+    IFS=' ' read -r -a candidate_parts <<<"${candidate}"
+    if (( ${#candidate_parts[@]} == 0 )); then
+      continue
+    fi
+    if "${candidate_parts[@]}" --version >/dev/null 2>&1; then
+      PYTHON_CMD=("${candidate_parts[@]}")
       return 0
     fi
   done
@@ -60,8 +101,7 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
 fi
 
 if ! detect_python_cmd; then
-  joined_candidates=$(printf '%s, ' "${PYTHON_CANDIDATES[@]}")
-  joined_candidates=${joined_candidates%, }
+  joined_candidates=$(format_python_candidates)
   echo "[Ошибка] Не удалось найти рабочий Python 3. Проверены команды: ${joined_candidates}." >&2
   echo "[Ошибка] Установите Python 3 (например, через пакетный менеджер ОС, Microsoft Store или py launcher) и повторите запуск." >&2
   exit 1
@@ -91,15 +131,7 @@ if [[ -z "${RABBITMQ_DEFAULT_USER:-}" || -z "${RABBITMQ_DEFAULT_PASS:-}" || -z "
 fi
 
 format_rabbitmqctl_cmd() {
-  local arg
-  local formatted=""
-  for arg in "$@"; do
-    if [[ -n "${formatted}" ]]; then
-      formatted+=" "
-    fi
-    formatted+="$(printf '%q' "${arg}")"
-  done
-  printf '%s' "${formatted}"
+  format_command "$@"
 }
 
 compose_rabbitmqctl_exec() {
@@ -118,7 +150,7 @@ compose_rabbitmqctl_retry() {
   cmd_display="$(format_rabbitmqctl_cmd "$@")"
 
   while (( attempt < max_attempts )); do
-    ((attempt++))
+    ((++attempt))
     if compose_rabbitmqctl_exec "$@"; then
       return 0
     fi
@@ -173,7 +205,7 @@ wait_for_rabbitmq_ready() {
   local delay_seconds=2
 
   while (( attempt < max_attempts )); do
-    ((attempt++))
+    ((++attempt))
     if ! status_output=$(rabbitmq_status); then
       echo "[Ошибка] Не удалось получить статус RabbitMQ. Прерываем ожидание." >&2
       return 1
@@ -272,7 +304,7 @@ ensure_permissions() {
 
 parse_amqp_url() {
   local url="$1"
-  ${PYTHON_CMD} - "$url" <<'PY'
+  "${PYTHON_CMD[@]}" - "$url" <<'PY'
 import sys
 from urllib.parse import urlparse, unquote
 
