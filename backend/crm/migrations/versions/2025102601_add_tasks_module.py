@@ -33,7 +33,11 @@ def upgrade() -> None:
                 "SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'tasks'"
             )
         )
-        if schema_owner == current_user:
+        is_superuser = bind.scalar(
+            sa.text("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")
+        )
+
+        if schema_owner == current_user or is_superuser:
             op.execute(
                 sa.text("ALTER SCHEMA tasks OWNER TO :owner").bindparams(owner=current_user)
             )
@@ -50,7 +54,7 @@ def upgrade() -> None:
                     FROM pg_namespace
                     WHERE nspname = 'tasks';
 
-                    RAISE NOTICE 'Skipping ALTER SCHEMA for tasks: schema owned by %, current user %', v_owner, v_current;
+                    RAISE NOTICE 'Skipping ALTER SCHEMA for schema tasks: owner %, current user % has no privileges to reassign', v_owner, v_current;
                 END;
                 $$;
                 """
