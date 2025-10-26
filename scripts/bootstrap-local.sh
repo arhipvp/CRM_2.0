@@ -115,6 +115,7 @@ BACKEND_PROFILE_SERVICES_DISPLAY="$(
   IFS=', '
   printf '%s' "${BACKEND_PROFILE_SERVICES[*]}"
 )"
+BACKEND_PS_FORMAT_FALLBACK_LOGGED=false
 
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
 BOOTSTRAP_WITH_BACKEND_FLAG="${BOOTSTRAP_WITH_BACKEND:-false}"
@@ -153,47 +154,105 @@ docker_service_status() {
   docker inspect -f '{{.State.Status}}{{printf "\n"}}{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${container_id}"
 }
 
-check_backend_services() {
-  local json_output=""
-  if ! json_output=$("${COMPOSE_CMD[@]}" --profile backend ps --format json 2>/dev/null); then
-    echo "ERROR compose ps failed"
-    return 2
-  fi
-
-  local json_file="${TMP_DIR}/backend-services-${$}-${RANDOM}.json"
-  if ! printf '%s\n' "${json_output}" >"${json_file}"; then
-    rm -f "${json_file}"
-    echo "ERROR unable to persist compose ps output"
-    return 2
-  fi
+parse_backend_services_file() {
+  local file_path="$1"
+  shift
 
   local result="" python_rc=0
-  result=$(${PYTHON_CMD} - "${json_file}" "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
+  result=$(${PYTHON_CMD} - "${file_path}" "$@" <<'PY'
 import json
+import re
 import sys
 from pathlib import Path
+
+
+def parse_table(raw: str):
+    lines = [line.rstrip() for line in raw.splitlines() if line.strip()]
+    if len(lines) <= 1:
+        return []
+
+    header = re.split(r"\s{2,}", lines[0].strip())
+    header_map = {name.upper(): idx for idx, name in enumerate(header)}
+    name_idx = header_map.get("NAME")
+    service_idx = header_map.get("SERVICE")
+    status_idx = header_map.get("STATUS")
+
+    entries = []
+    for row in lines[1:]:
+        parts = re.split(r"\s{2,}", row.strip())
+        if not parts:
+            continue
+
+        entry = {}
+
+        if service_idx is not None and service_idx < len(parts):
+            entry["Service"] = parts[service_idx].strip()
+
+        if name_idx is not None and name_idx < len(parts):
+            entry["Name"] = parts[name_idx].strip()
+
+        if status_idx is not None and status_idx < len(parts):
+            status_val = parts[status_idx].strip()
+            entry["Status"] = status_val
+            status_lower = status_val.lower()
+            if status_lower.startswith("up") or status_lower.startswith("running"):
+                entry["State"] = "running"
+            elif status_lower.startswith("created"):
+                entry["State"] = "created"
+            elif status_lower.startswith("restarting"):
+                entry["State"] = "restarting"
+            elif status_lower.startswith("paused"):
+                entry["State"] = "paused"
+            elif status_lower.startswith("exited") or status_lower.startswith("exit"):
+                entry["State"] = "exited"
+            elif status_lower.startswith("dead"):
+                entry["State"] = "dead"
+            elif status_lower.startswith("down"):
+                entry["State"] = "down"
+            else:
+                entry["State"] = status_lower.split(" ", 1)[0]
+
+            if "(healthy)" in status_lower:
+                entry["Health"] = "healthy"
+            elif "(unhealthy)" in status_lower:
+                entry["Health"] = "unhealthy"
+            elif "(health: starting)" in status_lower or "(starting)" in status_lower:
+                entry["Health"] = "starting"
+
+        entries.append(entry)
+
+    return entries
+
 
 json_path = Path(sys.argv[1])
 services = sys.argv[2:]
 
 try:
-    raw = json_path.read_text(encoding="utf-8").strip()
+    raw = json_path.read_text(encoding="utf-8")
 except OSError as exc:
     print(f"ERROR read-json {exc}")
     sys.exit(1)
+
+raw = raw.strip()
 
 if not raw:
     print("PENDING no-data")
     sys.exit(0)
 
+data = None
 try:
     data = json.loads(raw)
-except json.JSONDecodeError as exc:
-    print(f"ERROR invalid-json {exc}")
-    sys.exit(1)
+except json.JSONDecodeError:
+    data = parse_table(raw)
 
 if isinstance(data, dict):
     data = [data]
+elif not isinstance(data, list):
+    data = parse_table(raw)
+
+if not isinstance(data, list):
+    print("ERROR unsupported-output")
+    sys.exit(1)
 
 state_map = {}
 for entry in data:
@@ -207,8 +266,8 @@ for entry in data:
         if name:
             service_name = name.rsplit("-", 1)[0]
             if service_name:
-                parts = service_name.split("-")
-                if len(parts) >= 2:
+                parts = re.split(r"[-_]", service_name)
+                if parts:
                     service_name = parts[-1]
     if service_name:
         state_map[service_name] = entry
@@ -222,7 +281,7 @@ for svc in services:
     entry = state_map[svc]
     state = (entry.get("State") or entry.get("Status") or "").lower()
     health = (entry.get("Health") or "").lower()
-    if state not in ("running", "up"):
+    if not (state.startswith("running") or state.startswith("up")):
         print(f"PENDING state:{svc}:{state}")
         sys.exit(0)
     if health and health != "healthy":
@@ -233,9 +292,63 @@ print("READY")
 PY
 ) || python_rc=$?
 
-  rm -f "${json_file}"
+  printf '%s\n' "${result}"
+  return "${python_rc}"
+}
 
-  if (( python_rc != 0 )); then
+check_backend_services() {
+  local compose_output="" tmp_file="" result="" parser_rc=0
+
+  if compose_output=$("${COMPOSE_CMD[@]}" --profile backend ps --format json 2>/dev/null); then
+    tmp_file="${TMP_DIR}/backend-services-${$}-${RANDOM}.out"
+    if ! printf '%s\n' "${compose_output}" >"${tmp_file}"; then
+      rm -f "${tmp_file}"
+      echo "ERROR unable to persist compose ps output"
+      return 2
+    fi
+
+    result=$(parse_backend_services_file "${tmp_file}" "${BACKEND_PROFILE_SERVICES[@]}") || parser_rc=$?
+    rm -f "${tmp_file}"
+
+    if (( parser_rc == 0 )); then
+      case "${result}" in
+        READY)
+          return 0
+          ;;
+        UNHEALTHY*)
+          echo "${result}"
+          return 2
+          ;;
+        *)
+          echo "${result}"
+          return 1
+          ;;
+      esac
+    fi
+  fi
+
+  if ! compose_output=$("${COMPOSE_CMD[@]}" --profile backend ps 2>/dev/null); then
+    echo "ERROR compose ps failed"
+    return 2
+  fi
+
+  if [[ "${BACKEND_PS_FORMAT_FALLBACK_LOGGED}" != true ]]; then
+    echo "docker compose ps --format json недоступен или не распознан, используется разбор табличного вывода"
+    BACKEND_PS_FORMAT_FALLBACK_LOGGED=true
+  fi
+
+  tmp_file="${TMP_DIR}/backend-services-${$}-${RANDOM}.txt"
+  if ! printf '%s\n' "${compose_output}" >"${tmp_file}"; then
+    rm -f "${tmp_file}"
+    echo "ERROR unable to persist compose ps output"
+    return 2
+  fi
+
+  parser_rc=0
+  result=$(parse_backend_services_file "${tmp_file}" "${BACKEND_PROFILE_SERVICES[@]}") || parser_rc=$?
+  rm -f "${tmp_file}"
+
+  if (( parser_rc != 0 )); then
     return 2
   fi
 
@@ -875,17 +988,11 @@ step_wait_backend() {
   load_env || return 1
   (
     cd "${INFRA_DIR}" || return 1
-    local services=("${BACKEND_PROFILE_SERVICES[@]}")
-    if "${COMPOSE_CMD[@]}" --profile backend wait "${services[@]}" >/dev/null 2>&1; then
-      echo "docker compose --profile backend wait completed successfully"
-      return 0
-    fi
-
-    echo "Command docker compose --profile backend wait is unavailable; polling statuses manually"
     local attempt=0
     local max_attempts=60
     local sleep_seconds=3
-    local status_output="" state="" health=""
+
+    echo "Ручной опрос готовности backend-сервисов (${max_attempts} попыток с паузой ${sleep_seconds}с)"
 
     while (( attempt < max_attempts )); do
       ((attempt++))
