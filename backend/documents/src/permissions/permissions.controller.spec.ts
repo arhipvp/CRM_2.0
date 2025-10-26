@@ -1,7 +1,6 @@
 import { BadRequestException, INestApplication, NotFoundException, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getQueueToken } from '@nestjs/bullmq';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as request from 'supertest';
 
@@ -41,7 +40,7 @@ describe('PermissionsController', () => {
       providers: [
         PermissionsService,
         { provide: FoldersService, useValue: foldersService },
-        { provide: getQueueToken(PERMISSIONS_SYNC_QUEUE), useValue: queue },
+        { provide: PERMISSIONS_SYNC_QUEUE, useValue: queue },
         {
           provide: getRepositoryToken(PermissionsSyncTaskEntity),
           useValue: repository,

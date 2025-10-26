@@ -1,5 +1,4 @@
-import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import {
@@ -12,7 +11,7 @@ import {
 export class DocumentsQueueService {
   private readonly logger = new Logger(DocumentsQueueService.name);
 
-  constructor(@InjectQueue(DOCUMENTS_QUEUE) private readonly queue: Queue) {}
+  constructor(@Inject(DOCUMENTS_QUEUE) private readonly queue: Queue) {}
 
   async enqueueUpload(documentId: string, metadata?: Record<string, any>): Promise<string> {
     const job = await this.queue.add(

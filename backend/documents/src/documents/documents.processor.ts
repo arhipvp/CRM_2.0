@@ -1,9 +1,8 @@
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import {
-  DOCUMENTS_QUEUE,
   DOCUMENTS_SYNC_JOB,
   DOCUMENTS_UPLOAD_JOB,
 } from './documents.constants';
@@ -19,7 +18,7 @@ interface SyncJobPayload {
   documentId: string;
 }
 
-@Processor(DOCUMENTS_QUEUE)
+@Injectable()
 export class DocumentsProcessor extends WorkerHost {
   private readonly logger = new Logger(DocumentsProcessor.name);
 

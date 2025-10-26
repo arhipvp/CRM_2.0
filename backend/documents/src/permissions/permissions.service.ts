@@ -1,5 +1,4 @@
-import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
@@ -17,7 +16,7 @@ export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
 
   constructor(
-    @InjectQueue(PERMISSIONS_SYNC_QUEUE)
+    @Inject(PERMISSIONS_SYNC_QUEUE)
     private readonly queue: Queue,
     @InjectRepository(PermissionsSyncTaskEntity)
     private readonly repository: Repository<PermissionsSyncTaskEntity>,
