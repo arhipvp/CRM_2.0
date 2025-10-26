@@ -346,12 +346,14 @@ function check_backup_env_vars() {
   fi
 
   local output
-  if ! output=$(docker_exec backup sh -c 'env | grep "^BACKUP_"' 2>&1); then
+  local exec_status=0
+  output=$(docker_exec backup sh -c 'env | grep "^BACKUP_" || true' 2>&1) || exec_status=$?
+  if (( exec_status != 0 )); then
     add_result "$name" "FAIL" "$output"
     return
   fi
 
-  if [[ -z "$output" ]]; then
+  if [[ -z "${output//$'\n'/}" ]]; then
     add_result "$name" "FAIL" "Переменные BACKUP_* не найдены"
     return
   fi
