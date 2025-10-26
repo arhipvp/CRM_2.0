@@ -76,7 +76,7 @@ SQL
 }
 
 ensure_tasks_schema() {
-  log "Готовим схему tasks для сервиса задач"
+  log "Готовим схему tasks для модуля задач CRM"
   psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<'SQL'
 DO $$
 BEGIN
