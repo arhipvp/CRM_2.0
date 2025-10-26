@@ -5,6 +5,7 @@ export class CreatePermissionsSyncTasks1740801600000 implements MigrationInterfa
   private readonly tableName = `${this.schema}.permissions_sync_tasks`;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
     await queryRunner.createTable(
       new Table({
         name: this.tableName,

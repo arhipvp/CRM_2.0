@@ -5,6 +5,7 @@ export class CreateFoldersTable1740201600000 implements MigrationInterface {
   private readonly tableName = `${this.schema}.folders`;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
     await queryRunner.createTable(
       new Table({
         name: this.tableName,

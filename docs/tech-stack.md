@@ -208,7 +208,7 @@ API: REST (CRUD метаданных, health-check), отдельный ворк
 
 Зависимости:
 
-PostgreSQL-схема `documents` (расширение `pgcrypto` для `gen_random_uuid()` автоматически создаётся `scripts/bootstrap-db-vps.sh`).
+PostgreSQL-схема `documents` (расширение `pgcrypto` для `gen_random_uuid()` теперь создаётся самими миграциями сервиса, вручную его включать не требуется).
 
 Redis (`DOCUMENTS_REDIS_URL`, `DOCUMENTS_REDIS_PREFIX`).
 
