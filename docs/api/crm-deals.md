@@ -409,24 +409,34 @@ CRM ведёт платежи внутри сервиса; подробные с
 ## Задачи первого уровня
 
 ### GET `/tasks`
-Возвращает задачи, связанные со сделками или клиентами.
+Возвращает задачи первого уровня с фильтрами по исполнителю, статусу, срокам и приоритету.
+Полная спецификация, включая схему ответа, перечислена в [`docs/api/tasks.md`](tasks.md#get-tasks).
+
+### GET `/tasks/{task_id}`
+Возвращает подробную информацию по конкретной задаче. Структура ответа соответствует `TaskResponseDto`, описанному в [`docs/api/tasks.md`](tasks.md#get-tasks-task_id).
 
 ### POST `/tasks`
 Создаёт задачу для менеджера.
 
 | Поле | Тип | Обязательное | Описание |
 | --- | --- | --- | --- |
-| title | string | Да | Краткое описание задачи. |
-| description | string | Нет | Детальное описание. |
-| status | string | Нет | `open`/`in_progress`/`done`, по умолчанию `open`. |
-| priority | string | Нет | `low`/`normal`/`high`, по умолчанию `normal`. |
+| subject | string | Да | Краткое название. |
+| description | string | Да | Детальное описание. |
+| assignee_id | UUID | Да | Исполнитель задачи. |
+| author_id | UUID | Да | Постановщик задачи. |
 | due_date | date | Нет | Плановая дата выполнения. |
-| deal_id | UUID | Нет | Привязка к сделке. |
-| client_id | UUID | Нет | Привязка к клиенту. |
-| owner_id | UUID | Да | Исполнитель. |
+| priority | string | Нет | `low`/`normal`/`high`, по умолчанию `normal`. |
+| context | object | Нет | Контекст задачи, например `{ "deal_id": "uuid" }`. |
+| scheduled_for | datetime | Нет | Время отложенного запуска. |
+| initial_status | string | Нет | Начальный статус: `pending`, `scheduled`, `in_progress`, `completed` или `cancelled`. |
+
+> Поддерживаемые статусы задач: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`.
+> Правила переходов и дополнительные поля (`payload`, `context`) подробно описаны в [`docs/api/tasks.md`](tasks.md).
 
 ### PATCH `/tasks/{task_id}`
-Изменяет `title`, `description`, `status`, `priority`, `due_date`.
+Позволяет обновить статус, дедлайн и фактические отметки выполнения.
+Допустимые поля: `status`, `dueDate`, `completedAt`, `cancelledReason`.
+Правила переходов и ограничения по статусам приведены в разделе [`PATCH /tasks/{task_id}` документа по задачам](tasks.md#patch-tasks-task_id).
 
 ### POST `/tasks/{task_id}/schedule`
 Переводит задачу в отложенный статус `scheduled` до наступления указанного времени. См. подробности формата запроса в [`docs/api/tasks.md`](tasks.md#post-tasks-task_id-schedule).
