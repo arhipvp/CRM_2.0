@@ -7,6 +7,22 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
+def _schema_exists(connection, schema: str) -> bool:
+    result = connection.execute(
+        sa.text(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.schemata
+                WHERE schema_name = :schema
+            )
+            """
+        ),
+        {"schema": schema},
+    )
+    return bool(result.scalar())
+
+
 def _table_exists(connection, schema: str, table_name: str) -> bool:
     result = connection.execute(
         sa.text(
@@ -103,7 +119,9 @@ def upgrade() -> None:
         ondelete="CASCADE",
     )
     bind = op.get_bind()
-    if _table_exists(bind, "documents", "documents"):
+    if _schema_exists(bind, "documents") and _table_exists(
+        bind, "documents", "documents"
+    ):
         op.create_foreign_key(
             "fk_policy_documents_document_id",
             "policy_documents",
