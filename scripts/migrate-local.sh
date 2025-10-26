@@ -48,6 +48,30 @@ run_crm_migrations() {
   fi
 }
 
+run_tasks_migrations() {
+  local tasks_dir="$ROOT_DIR/backend/tasks"
+
+  if [[ ! -d "$tasks_dir" ]]; then
+    echo "[migrate-local] Каталог backend/tasks не найден, пропускаем миграции Tasks."
+    return
+  fi
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "[migrate-local] pnpm не найден в PATH, пропускаем миграции Tasks." >&2
+    return
+  fi
+
+  if [[ -z "${TASKS_DATABASE_URL:-}" ]]; then
+    echo "[migrate-local] TASKS_DATABASE_URL не задан, пропускаем миграции Tasks." >&2
+    return
+  fi
+
+  echo "[migrate-local] Применяем миграции Tasks (TypeORM)..."
+  pushd "$tasks_dir" >/dev/null
+  pnpm migration:run
+  popd >/dev/null
+}
+
 run_auth_migrations() {
   echo "[migrate-local] Применяем миграции Auth (Liquibase)..."
   pushd "$ROOT_DIR/backend/auth" >/dev/null
@@ -87,6 +111,7 @@ run_reports_migrations() {
     -f "$migration_file"
 }
 
+run_tasks_migrations
 run_crm_migrations
 run_auth_migrations
 run_reports_migrations

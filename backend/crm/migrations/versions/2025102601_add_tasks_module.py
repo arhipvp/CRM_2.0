@@ -8,9 +8,6 @@ Create Date: 2025-10-26 00:00:00.000000
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 
 # revision identifiers, used by Alembic.
 revision = "2025102601_add_tasks_module"
@@ -20,223 +17,120 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE SCHEMA IF NOT EXISTS tasks")
-
-    op.create_table(
-        "task_statuses",
-        sa.Column("code", sa.String(length=32), primary_key=True),
-        sa.Column("name", sa.String(length=128), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("is_final", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        schema="tasks",
-    )
-
-    op.create_table(
+    op.create_foreign_key(
+        "fk_tasks_assignee_id",
         "tasks",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("title", sa.String(length=255), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "status_code",
-            sa.String(length=32),
-            sa.ForeignKey("tasks.task_statuses.code", onupdate="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("due_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("scheduled_for", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "assignee_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_tasks_assignee_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "author_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_tasks_author_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "deal_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.deals.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_deal_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "policy_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.policies.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_policy_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "payment_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.payments.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_payment_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("cancelled_reason", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            onupdate=sa.func.now(),
-            nullable=False,
-        ),
-        schema="tasks",
+        "users",
+        ["assignee_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="auth",
+        ondelete="RESTRICT",
+        onupdate="CASCADE",
     )
-
-    op.create_index("ix_tasks_status_code", "tasks", ["status_code"], schema="tasks")
-    op.create_index(
-        "ix_tasks_status_code_due_at",
+    op.create_foreign_key(
+        "fk_tasks_author_id",
         "tasks",
-        ["status_code", "due_at"],
-        schema="tasks",
+        "users",
+        ["author_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="auth",
+        ondelete="RESTRICT",
+        onupdate="CASCADE",
     )
-    op.create_index("ix_tasks_assignee_id", "tasks", ["assignee_id"], schema="tasks")
-    op.create_index("ix_tasks_deal_id", "tasks", ["deal_id"], schema="tasks")
-    op.create_index(
-        "ix_tasks_scheduled_for",
+    op.create_foreign_key(
+        "fk_tasks_deal_id",
         "tasks",
-        ["scheduled_for"],
-        schema="tasks",
-        postgresql_where=sa.text("scheduled_for IS NOT NULL"),
+        "deals",
+        ["deal_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="crm",
+        ondelete="SET NULL",
+        onupdate="CASCADE",
     )
-    op.create_index(
-        "ix_tasks_due_at",
+    op.create_foreign_key(
+        "fk_tasks_policy_id",
         "tasks",
-        ["due_at"],
-        schema="tasks",
-        postgresql_where=sa.text("due_at IS NOT NULL"),
+        "policies",
+        ["policy_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="crm",
+        ondelete="SET NULL",
+        onupdate="CASCADE",
     )
-
-    op.create_table(
+    op.create_foreign_key(
+        "fk_tasks_payment_id",
+        "tasks",
+        "payments",
+        ["payment_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="crm",
+        ondelete="SET NULL",
+        onupdate="CASCADE",
+    )
+    op.create_foreign_key(
+        "fk_task_activity_author_id",
         "task_activity",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "task_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "tasks.tasks.id",
-                ondelete="CASCADE",
-                onupdate="CASCADE",
-                name="fk_task_activity_task_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "author_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_task_activity_author_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column("event_type", sa.String(length=64), nullable=False),
-        sa.Column("body", sa.Text(), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        schema="tasks",
-    )
-
-    op.create_index(
-        "ix_task_activity_created_at", "task_activity", ["created_at"], schema="tasks"
-    )
-
-    op.create_table(
-        "task_reminders",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "task_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("tasks.tasks.id", ondelete="CASCADE", onupdate="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("remind_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("channel", sa.String(length=32), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        schema="tasks",
-    )
-
-    op.create_index("ix_task_reminders_due", "task_reminders", ["remind_at"], schema="tasks")
-    op.create_index(
-        "idx_task_reminders_unique",
-        "task_reminders",
-        ["task_id", "remind_at", "channel"],
-        unique=True,
-        schema="tasks",
+        "users",
+        ["author_id"],
+        ["id"],
+        source_schema="tasks",
+        referent_schema="auth",
+        ondelete="RESTRICT",
+        onupdate="CASCADE",
     )
 
     op.execute(
-        """
-        INSERT INTO tasks.task_statuses (code, name, description, is_final)
-        VALUES
-            ('pending', 'Ожидает выполнения', 'Задача готова к взятию в работу или ожиданию воркера.', false),
-            ('scheduled', 'Отложена', 'Задача ожидает наступления времени исполнения в Redis-очереди.', false),
-            ('in_progress', 'В работе', 'Задача обрабатывается исполнителем или автоматикой.', false),
-            ('completed', 'Завершена', 'Работа по задаче завершена успешно.', true),
-            ('cancelled', 'Отменена', 'Задача отменена и не требует дальнейшей обработки.', true)
-        ON CONFLICT (code) DO UPDATE SET
-            name = EXCLUDED.name,
-            description = EXCLUDED.description,
-            is_final = EXCLUDED.is_final
-        """
+        "CREATE INDEX IF NOT EXISTS ix_tasks_status_code ON tasks.tasks (status_code)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_status_code_due_at ON tasks.tasks (status_code, due_at)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_assignee_id ON tasks.tasks (assignee_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_deal_id ON tasks.tasks (deal_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_scheduled_for ON tasks.tasks (scheduled_for) WHERE scheduled_for IS NOT NULL"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_tasks_due_at ON tasks.tasks (due_at) WHERE due_at IS NOT NULL"
+    )
+
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_task_activity_created_at ON tasks.task_activity (created_at)"
+    )
+
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_task_reminders_due ON tasks.task_reminders (remind_at)"
+    )
+    op.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_task_reminders_unique ON tasks.task_reminders (task_id, remind_at, channel)"
     )
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_task_activity_created_at", table_name="task_activity", schema="tasks"
-    )
-    op.drop_table("task_activity", schema="tasks")
+    op.execute("DROP INDEX IF EXISTS tasks.idx_task_reminders_unique")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_task_reminders_due")
 
-    op.drop_index("idx_task_reminders_unique", table_name="task_reminders", schema="tasks")
-    op.drop_index("ix_task_reminders_due", table_name="task_reminders", schema="tasks")
-    op.drop_table("task_reminders", schema="tasks")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_task_activity_created_at")
 
-    op.drop_index("ix_tasks_deal_id", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_assignee_id", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_status_code_due_at", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_due_at", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_scheduled_for", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_status_code", table_name="tasks", schema="tasks")
-    op.drop_table("tasks", schema="tasks")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_due_at")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_scheduled_for")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_deal_id")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_assignee_id")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_status_code_due_at")
+    op.execute("DROP INDEX IF EXISTS tasks.ix_tasks_status_code")
 
-    op.drop_table("task_statuses", schema="tasks")
-    op.execute("DROP SCHEMA IF EXISTS tasks CASCADE")
+    op.drop_constraint("fk_task_activity_author_id", "task_activity", schema="tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_payment_id", "tasks", schema="tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_policy_id", "tasks", schema="tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_deal_id", "tasks", schema="tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_author_id", "tasks", schema="tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_assignee_id", "tasks", schema="tasks", type_="foreignkey")

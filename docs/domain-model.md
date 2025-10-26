@@ -236,6 +236,7 @@
 | `cancelled` | Отменена | Задача утратила актуальность или отменена бизнес-процессом. | Постановщик или автоматический процесс переводит задачу в `cancelled`, обязательно указывая `cancelledReason`. |
 
 **Переходы и права:**
+- Схема `tasks` создаётся и мигрируется сервисом Tasks через TypeORM (`backend/tasks/migrations`), а CRM добавляет внешние ключи и индексы собственной Alembic-ревизией `2025102601_add_tasks_module`. Поэтому при подготовке чистой БД сначала выполняют `pnpm migration:run` в сервисе задач, затем `poetry run alembic upgrade head` в CRM.
 - Pending (`pending`) → Scheduled (`scheduled`) — CRM переводит задачу в отложенное состояние при создании/обновлении с `scheduledFor` в будущем времени (`POST /tasks`, `PATCH /tasks/{id}`).
 - Pending (`pending`) → In progress (`in_progress`) — инициируется исполнителем через `PATCH /tasks/{id}` со статусом `in_progress`.
 - Pending (`pending`) → Completed (`completed`) — используется для мгновенного закрытия задач без длительного исполнения.

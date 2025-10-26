@@ -1,6 +1,8 @@
 # Tasks Service
 
-> ⚠️ **Легаси-сервис.** Отдельное приложение Tasks больше не используется: модуль задач встроен в CRM и предоставляет REST/SSE API, описанные в [`docs/api/tasks.md`](../../docs/api/tasks.md). README сохранён для справки по миграции; актуальные окружения используют блок `CRM_TASKS_*` в `env.example`, а инфраструктурные скрипты больше не синхронизируют `.env` для `backend/tasks` по умолчанию.【F:docs/api/tasks.md†L1-L39】【F:env.example†L166-L176】【F:scripts/sync-env.sh†L8-L16】
+> ⚠️ **Легаси-сервис.** Отдельное приложение Tasks больше не используется: модуль задач встроен в CRM и предоставляет REST/SSE API, описанные в [`docs/api/tasks.md`](../../docs/api/tasks.md). README сохранён для справки по миграции; актуальные окружения используют блок `CRM_TASKS_*` в `env.example`, а инфраструктурные скрипты больше не синхронизируют `.env` для `backend/tasks` по умолчанию.【F:docs/api/tasks.md†L1-L41】【F:env.example†L166-L176】【F:scripts/sync-env.sh†L8-L16】
+
+При этом именно TypeORM-миграции сервиса Tasks отвечают за создание и обновление схемы `tasks`. После их выполнения CRM добавляет внешние ключи и индексы Alembic-ревизией `2025102601_add_tasks_module`, поэтому на чистой базе сначала запускают `pnpm migration:run`, а затем `poetry run alembic upgrade head` в `backend/crm`.【F:backend/tasks/migrations/1700000000000-CreateTasksSchema.ts†L1-L48】【F:backend/crm/migrations/versions/2025102601_add_tasks_module.py†L1-L88】
 
 ## Назначение
 Tasks отвечает за планирование и исполнение задач, SLA и напоминания, обрабатывая команды и события из CRM/Deals, Payments и Notifications через RabbitMQ и Redis таймеры.【F:docs/architecture.md†L13-L17】【F:docs/tech-stack.md†L261-L285】
