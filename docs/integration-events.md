@@ -64,17 +64,10 @@
 | `notification.failed` | `notifications.notification.failed` | `{ "notification_id": "uuid", "user_id": "uuid", "channel": "telegram", "reason": "blocked" }` | Notifications сохраняет `notification_id` + `event_id` в собственной БД. |
 | `notification.read` | `notifications.notification.read` | `{ "notification_id": "uuid", "user_id": "uuid", "read_at": "datetime" }` | Gateway обновляет состояние и проверяет `event_id`. |
 
-## События Documents
-- **Exchange:** `documents.events`
-- **Тип обмена:** topic
-- **Очереди-потребители:** `crm.documents`, `notifications.documents`
-
-| Routing key | CloudEvent `type` | `data` | Идемпотентность |
-| --- | --- | --- | --- |
-| `document.uploaded` | `documents.document.uploaded` | `{ "document_id": "uuid", "owner_type": "deal", "owner_id": "uuid", "title": "string", "uploaded_by": "uuid", "uploaded_at": "datetime" }` | CRM проверяет `document_id`, сохраняет `event_id`. |
-| `document.deleted` | `documents.document.deleted` | `{ "document_id": "uuid", "deleted_at": "datetime", "deleted_by": "uuid" }` | Потребители хранят `document_id` + `event_id`. |
-
 ## Требования к обработчикам
 - Приёмники обязаны обрабатывать повторную доставку (`at-least-once`), опираясь на `id` события.
 - Все события подписываются заголовком `X-Trace-Id`, который должен логироваться для трассировки сквозных операций.
 - Несовместимые изменения формата `data` оформляются как новые routing key (`*.v2`).
+
+## Планы
+- События модуля документов находятся в разработке и пока не реализованы. Финальные схемы обмена и routing key будут опубликованы после завершения проектирования.
