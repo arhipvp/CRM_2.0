@@ -281,6 +281,6 @@ Internal use only - CRM_2.0 Project
 
 For issues or questions:
 1. Check logs: Application logs to console
-2. Review API health: `http://localhost:8082/api/v1/gateway/health`
 2. Review API health: `http://localhost:8080/api/v1/health`
+   > При необходимости замените порт на значение переменной окружения `GATEWAY_SERVICE_PORT`.
 3. Check error messages in application dialogs
