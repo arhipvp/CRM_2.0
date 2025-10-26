@@ -42,7 +42,7 @@ VALUES
         'f2b89c12-68d8-4ce6-8c2f-222222222222'::uuid,
         'КАСКО для электромобиля',
         'Частный клиент подбирает КАСКО с франшизой и страхованием батареи для Tesla Model Y.',
-        'proposal_sent',
+        'proposal',
         DATE '2024-07-29'
 )
 ON CONFLICT (id) DO UPDATE
