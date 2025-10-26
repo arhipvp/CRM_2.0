@@ -49,10 +49,10 @@
 
 ```sql
 SELECT email, enabled FROM auth.users WHERE email LIKE '%@example.com';
-SELECT id, title, status, next_review_at, client_id FROM crm.deals ORDER BY created_at DESC;
+SELECT id, title, status, owner_id, client_id, next_review_at FROM crm.deals ORDER BY next_review_at, updated_at;
 SELECT policy_id, incomes_total, expenses_total, net_total, actual_date, created_by_id, updated_by_id FROM crm.payments ORDER BY actual_date DESC;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_incomes ORDER BY payment_id;
 SELECT payment_id, category, posted_at, amount FROM crm.payment_expenses ORDER BY payment_id;
 ```
 
-Все пользователи включены (`enabled = true`), минимум одна сделка отражает актуальный статус (`in_progress` или `proposal_sent`), а даты `next_review_at` позволяют убедиться в корректном переносе расписания обзора. В `crm.payments` отображаются агрегаты (`incomes_total`, `expenses_total`, `net_total`) с заполненной `actual_date` и связкой пользователей (`created_by_id`, `updated_by_id`). Каждая запись имеет хотя бы одну связанную строку в таблицах доходов или расходов: категории и даты (`category`, `posted_at`) иллюстрируют реальные сценарии и сходятся по суммам с агрегатами платежа. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
+Все пользователи включены (`enabled = true`). В выдаче по `crm.deals` проверьте статусы (`in_progress`, `proposal_sent`), актуальных владельцев (`owner_id` соответствует `sergey.seller@example.com` и `olga.lead@example.com`) и то, что `next_review_at` заполнено — колонка обязательна и выставляется при загрузке (если явно не задана, используется текущая дата). В `crm.payments` отображаются агрегаты (`incomes_total`, `expenses_total`, `net_total`) с заполненной `actual_date` и связкой пользователей (`created_by_id`, `updated_by_id`). Каждая запись имеет хотя бы одну связанную строку в таблицах доходов или расходов: категории и даты (`category`, `posted_at`) иллюстрируют реальные сценарии и сходятся по суммам с агрегатами платежа. Для расширенной проверки сценариев воспользуйтесь чек-листом из [docs/testing-data.md](../../../docs/testing-data.md).
