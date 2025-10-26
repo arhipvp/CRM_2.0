@@ -37,6 +37,7 @@ def upgrade() -> None:
         DECLARE
             v_owner text := current_user;
             v_existing_owner text;
+            v_can_assume_role boolean := false;
         BEGIN
             SELECT pg_get_userbyid(nspowner)
             INTO v_existing_owner
@@ -50,14 +51,30 @@ def upgrade() -> None:
                     WHEN insufficient_privilege THEN
                         PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
                         RAISE NOTICE 'Skipping tasks migration: unable to create schema tasks as %', v_owner;
+                        RETURN;
                 END;
             ELSIF v_existing_owner <> v_owner THEN
+                v_can_assume_role := pg_catalog.pg_has_role(current_user, v_existing_owner, 'MEMBER');
+
+                IF NOT v_can_assume_role THEN
+                    PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
+                    RAISE NOTICE 'Skipping tasks migration: current user % is not a member of tasks owner role %', v_owner, v_existing_owner;
+                    RETURN;
+                END IF;
+
                 BEGIN
+                    EXECUTE format('SET ROLE %I', v_existing_owner);
                     EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
+                    EXECUTE 'RESET ROLE';
                 EXCEPTION
                     WHEN insufficient_privilege THEN
+                        EXECUTE 'RESET ROLE';
                         PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
                         RAISE NOTICE 'Skipping tasks migration: unable to alter schema tasks owner to %', v_owner;
+                        RETURN;
+                    WHEN others THEN
+                        EXECUTE 'RESET ROLE';
+                        RAISE;
                 END;
             END IF;
         END;
@@ -69,121 +86,140 @@ def upgrade() -> None:
     if skip_migration == "1":
         return
 
-    op.execute(
-        f"""
-        DO $$
-        DECLARE
-            schema_owner text;
-            migration_performed boolean := false;
-        BEGIN
-            IF NOT has_table_privilege(current_user, 'tasks.tasks', 'INSERT, UPDATE, DELETE, SELECT') THEN
-                PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
-                RAISE NOTICE 'Skipping tasks migration: current user lacks DML privileges on tasks.tasks';
-            ELSIF EXISTS (
+    legacy_exists = bind.scalar(
+        sa.text(
+            """
+            SELECT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
                 WHERE table_schema = 'crm' AND table_name = 'tasks'
-            ) THEN
-                RAISE NOTICE 'Skipping tasks migration: table crm.tasks not found.';
-                RETURN;
-            END IF;
-
-            IF NOT (has_schema_privilege(current_user, 'tasks', 'USAGE')
-                AND has_table_privilege(current_user, 'tasks.tasks', 'SELECT')
-                AND has_table_privilege(current_user, 'tasks.tasks', 'INSERT')) THEN
-                RAISE NOTICE 'Skipping tasks migration: insufficient privileges for % on schema tasks owned by %.', current_user, schema_owner;
-                RETURN;
-            END IF;
-
-            EXECUTE $insert$
-                INSERT INTO tasks.tasks (
-                    id,
-                    title,
-                    description,
-                    status_code,
-                    due_at,
-                    payload,
-                    assignee_id,
-                    author_id,
-                    deal_id,
-                    created_at,
-                    updated_at
-                )
-                SELECT
-                    t.id,
-                    t.title,
-                    t.description,
-                    {STATUS_MAPPING_CASE},
-                    CASE
-                        WHEN t.due_date IS NOT NULL THEN timezone('UTC', t.due_date::timestamp)
-                        ELSE NULL
-                    END,
-                    NULLIF(
-                        jsonb_strip_nulls(
-                            jsonb_build_object(
-                                'priority', NULLIF(t.priority, ''),
-                                'assigneeId', t.owner_id,
-                                'authorId', t.owner_id,
-                                'dealId', t.deal_id,
-                                'clientId', t.client_id,
-                                'legacyStatus', t.status,
-                                'source', 'crm.tasks'
-                            )
-                        ),
-                        '{{}}'::jsonb
-                    ),
-                    t.owner_id,
-                    t.owner_id,
-                    t.deal_id,
-                    t.created_at,
-                    t.updated_at
-                FROM crm.tasks AS t
-                WHERE NOT t.is_deleted
-                  AND NOT EXISTS (
-                    SELECT 1 FROM tasks.tasks AS existing WHERE existing.id = t.id
-                  );
-            $insert$;
-
-            migration_performed := true;
-
-            IF migration_performed THEN
-                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_owner';
-                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_tenant';
-                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_due_date';
-                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_status';
-                EXECUTE 'DROP TABLE IF EXISTS crm.tasks';
-            END IF;
-        END;
-        $$;
-        """
-    )
-
-    skip_migration = bind.scalar(sa.text("SELECT current_setting('crm.migrate_tasks_to_tasks_schema.skip', true)"))
-    if skip_migration == "1":
-        return
-
-    has_tasks_privileges = bind.scalar(
-        sa.text(
-            """
-            SELECT COALESCE(
-                has_table_privilege(current_user, 'tasks.tasks', 'INSERT, UPDATE, DELETE, SELECT'),
-                false
             )
             """
         )
     )
 
-    if not has_tasks_privileges:
-        bind.execute(
-            sa.text("SELECT set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true)")
+    if not legacy_exists:
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                RAISE NOTICE 'Skipping tasks migration: table crm.tasks not found.';
+            END;
+            $$;
+            """
         )
         return
 
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_owner")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_tenant")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_due_date")
-    op.execute("DROP INDEX IF EXISTS crm.ix_tasks_status")
-    op.execute("DROP TABLE IF EXISTS crm.tasks")
+    privileges = bind.execute(
+        sa.text(
+            """
+            SELECT
+                COALESCE(has_schema_privilege(current_user, 'tasks', 'USAGE'), false) AS tasks_schema_usage,
+                COALESCE(has_table_privilege(current_user, 'tasks.tasks', 'SELECT'), false) AS tasks_tasks_select,
+                COALESCE(has_table_privilege(current_user, 'tasks.tasks', 'INSERT'), false) AS tasks_tasks_insert,
+                COALESCE(has_table_privilege(current_user, 'crm.tasks', 'SELECT'), false) AS crm_tasks_select,
+                COALESCE(
+                    (
+                        SELECT pg_catalog.pg_has_role(current_user, c.relowner, 'MEMBER')
+                        FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE n.nspname = 'crm' AND c.relname = 'tasks'
+                    ),
+                    false
+                ) AS can_drop_crm_tasks
+            """
+        )
+    ).mappings().one()
+
+    has_data_privileges = (
+        privileges["tasks_schema_usage"]
+        and privileges["tasks_tasks_select"]
+        and privileges["tasks_tasks_insert"]
+        and privileges["crm_tasks_select"]
+    )
+
+    if not has_data_privileges:
+        bind.execute(sa.text("SELECT set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true)"))
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                RAISE NOTICE 'Skipping tasks migration: current user lacks required SELECT/INSERT privileges.';
+            END;
+            $$;
+            """
+        )
+        return
+
+    bind.execute(
+        sa.text(
+            f"""
+            INSERT INTO tasks.tasks (
+                id,
+                title,
+                description,
+                status_code,
+                due_at,
+                payload,
+                assignee_id,
+                author_id,
+                deal_id,
+                created_at,
+                updated_at
+            )
+            SELECT
+                t.id,
+                t.title,
+                t.description,
+                {STATUS_MAPPING_CASE},
+                CASE
+                    WHEN t.due_date IS NOT NULL THEN timezone('UTC', t.due_date::timestamp)
+                    ELSE NULL
+                END,
+                NULLIF(
+                    jsonb_strip_nulls(
+                        jsonb_build_object(
+                            'priority', NULLIF(t.priority, ''),
+                            'assigneeId', t.owner_id,
+                            'authorId', t.owner_id,
+                            'dealId', t.deal_id,
+                            'clientId', t.client_id,
+                            'legacyStatus', t.status,
+                            'source', 'crm.tasks'
+                        )
+                    ),
+                    '{{}}'::jsonb
+                ),
+                t.owner_id,
+                t.owner_id,
+                t.deal_id,
+                t.created_at,
+                t.updated_at
+            FROM crm.tasks AS t
+            WHERE NOT t.is_deleted
+              AND NOT EXISTS (
+                SELECT 1 FROM tasks.tasks AS existing WHERE existing.id = t.id
+              );
+            """
+        )
+    )
+
+    if privileges["can_drop_crm_tasks"]:
+        op.execute("DROP INDEX IF EXISTS crm.ix_tasks_owner")
+        op.execute("DROP INDEX IF EXISTS crm.ix_tasks_tenant")
+        op.execute("DROP INDEX IF EXISTS crm.ix_tasks_due_date")
+        op.execute("DROP INDEX IF EXISTS crm.ix_tasks_status")
+        op.execute("DROP TABLE IF EXISTS crm.tasks")
+    else:
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                RAISE NOTICE 'Skipping cleanup of crm.tasks: current user is not a member of the legacy table owner role.';
+            END;
+            $$;
+            """
+        )
 
 
 def downgrade() -> None:
