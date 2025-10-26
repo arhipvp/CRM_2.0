@@ -38,9 +38,11 @@
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |
-| `task.created` | `tasks.task.created` | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid\|null", "author_id": "uuid\|null", "status": "pending", "due_date": "datetime\|null", "scheduled_for": "datetime\|null", "context": { "deal_id": "uuid", "client_id": "uuid", "policy_id": "uuid" } }` | Событие публикует встроенный модуль CRM Tasks; Notifications хранит `event_id` и журналирует дополнительные поля для аналитики. |
-| `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "in_progress", "new_status": "waiting", "changed_at": "datetime" }` | Изменения публикует CRM Tasks; потребители определяют повторы по `event_id`. Доступные значения `old_status`/`new_status`: `new` (Новая), `in_progress` (В работе), `waiting` (В ожидании), `done` (Выполнена), `cancelled` (Отменена). |
+| `task.created` | `tasks.task.created` | `{ "task_id": "uuid", "subject": "string", "assignee_id": "uuid\|null", "author_id": "uuid\|null", "status": "pending\|scheduled\|in_progress\|completed\|cancelled", "due_date": "datetime\|null", "scheduled_for": "datetime\|null", "context": { "deal_id": "uuid", "client_id": "uuid", "policy_id": "uuid" } }` | Событие публикует встроенный модуль CRM Tasks; Notifications хранит `event_id` и журналирует дополнительные поля для аналитики. |
+| `task.status.changed` | `tasks.task.status_changed` | `{ "task_id": "uuid", "old_status": "pending\|scheduled\|in_progress\|completed\|cancelled", "new_status": "pending\|scheduled\|in_progress\|completed\|cancelled", "changed_at": "datetime" }` | Изменения публикует CRM Tasks; потребители определяют повторы по `event_id`. Доступные значения `old_status`/`new_status`: `pending` (Назначена), `scheduled` (Запланирована), `in_progress` (В работе), `completed` (Выполнена), `cancelled` (Отменена). |
 | `task.reminder` | `tasks.task.reminder` | `{ "task_id": "uuid", "remind_at": "datetime", "channel": "sse" }` | Напоминание публикует CRM Tasks; Notifications хранит `event_id` и дополнительно учитывает комбинацию (`task_id`, `remind_at`) при построении витрин. |
+
+> Статусы задач в событиях `task.created` и `task.status.changed` соответствуют кодам `TaskStatusCode` из CRM и передаются без локализации: `pending`, `scheduled`, `in_progress`, `completed`, `cancelled`.
 
 > Обработка напоминаний выполняется сервисом `TaskReminderProcessor`: он опрашивает Redis-очередь `CRM_TASKS_REMINDERS_QUEUE_KEY` каждые `CRM_TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд, публикуя событие и удаляя элемент из очереди; при ошибке напоминание переотправляется с задержкой.
 
