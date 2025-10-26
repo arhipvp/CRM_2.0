@@ -4,7 +4,83 @@
 - **Базовый URL:** `https://crm.internal/api/v1`
 - **Аутентификация:** JWT CRM.
 - **Назначение:** доставка внутренних уведомлений и интеграция с Telegram-ботом; публичные события транслируются через SSE-канал `notifications`.
-- **Ограничения первой поставки:** управление шаблонами и настройками каналов выполняется административными инструментами CRM, отдельного REST API для шаблонов нет.
+- **Ограничения первой поставки:** управление настройками каналов выполняется административными инструментами CRM.
+
+## Шаблоны уведомлений
+
+### GET `/api/v1/templates`
+Возвращает список шаблонов уведомлений. Шаблоны сортируются по `key`, затем по `locale`.
+
+**Параметры запроса**
+| Параметр | Тип | Обязательный | Описание |
+| --- | --- | --- | --- |
+| `channel` | string | Нет | Фильтр по каналу доставки: `sse` или `telegram`. |
+| `active` | boolean | Нет | Флаг активности шаблона. `true` возвращает только `status=active`, `false` — `status=inactive`. |
+
+**Ответ 200** — массив объектов `NotificationTemplate`:
+```json
+{
+  "id": "3f81221e-2c5b-4d91-8a78-8e2d566bbd93",
+  "key": "deal.created",
+  "channel": "telegram",
+  "body": "Новая сделка {dealId}",
+  "metadata": {
+    "parseMode": "MarkdownV2"
+  },
+  "status": "active",
+  "locale": "ru-RU",
+  "created_at": "2024-07-28T12:00:00Z",
+  "updated_at": "2024-07-28T12:05:00Z"
+}
+```
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `422 validation_error` — неверные значения фильтров (`channel`, `active`).
+
+**Пример запроса**
+
+```http
+GET /api/v1/templates?channel=telegram&active=true HTTP/1.1
+Authorization: Bearer <token>
+```
+
+### POST `/api/v1/templates`
+Создаёт шаблон уведомления. Если поле `locale` не указано, используется значение по умолчанию из настроек CRM (`CRM_NOTIFICATIONS_TEMPLATES_DEFAULT_LOCALE`).
+
+**Тело запроса**
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| `key` | string | Да | Уникальный код шаблона в рамках канала. |
+| `channel` | string | Да | Канал доставки: `sse` или `telegram`. |
+| `body` | string | Да | Текст сообщения. |
+| `metadata` | object | Нет | Дополнительные параметры рендеринга (например, `parseMode` для Telegram). По умолчанию `{}`. |
+| `status` | string | Нет | `active` или `inactive`. По умолчанию `active`. |
+| `locale` | string | Нет | Локаль шаблона (`ru-RU`, `en-US` и т. п.). Если не передана, подставляется значение по умолчанию. |
+
+**Ответ 201** — объект `NotificationTemplate` в формате, описанном выше.
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `409 template_conflict` — существует шаблон с той же парой `key` + `channel`.
+- `422 validation_error` — нарушены ограничения полей (`key`, `body`, `locale`).
+
+**Пример запроса**
+
+```http
+POST /api/v1/templates HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "key": "deal.created",
+  "channel": "telegram",
+  "body": "Новая сделка {dealId}",
+  "metadata": {
+    "parseMode": "MarkdownV2"
+  }
+}
+```
 
 ## SSE `GET /streams/notifications`
 Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
