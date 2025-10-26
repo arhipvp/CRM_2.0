@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     rabbitmq_url: AnyUrl = Field(default="amqp://localhost:5672/")
 
     tasks_events_exchange: str = Field(default="tasks.events")
-    tasks_events_source: str = Field(default="tasks.tasks")
+    tasks_events_source: str = Field(default="crm.tasks")
     tasks_events_routing_keys: dict[str, str] = Field(
         default_factory=lambda: {
             "task_created": "task.created",
