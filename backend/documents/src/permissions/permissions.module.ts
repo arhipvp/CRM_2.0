@@ -10,7 +10,10 @@ import { DocumentsConfiguration } from '../config/configuration';
 import { PermissionsController } from './permissions.controller';
 import { PermissionsSyncTaskEntity } from './permissions-sync-task.entity';
 import { PermissionsService } from './permissions.service';
-import { PERMISSIONS_SYNC_QUEUE } from './permissions.constants';
+import {
+  PERMISSIONS_SYNC_QUEUE,
+  PERMISSIONS_SYNC_QUEUE_NAME,
+} from './permissions.constants';
 
 @Module({
   imports: [
@@ -27,15 +30,16 @@ import { PERMISSIONS_SYNC_QUEUE } from './permissions.constants';
   providers: [
     PermissionsService,
     {
-      provide: getQueueToken(PERMISSIONS_SYNC_QUEUE),
-      inject: [ConfigService, ModuleRef],
-      useFactory: (
-        config: ConfigService<DocumentsConfiguration, true>,
-        moduleRef: ModuleRef,
-      ) => {
-        const queueName = config.get('queues.permissionsSync.name', { infer: true });
-        return moduleRef.get<Queue>(getQueueToken(queueName), { strict: false });
-      },
+      provide: PERMISSIONS_SYNC_QUEUE_NAME,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<DocumentsConfiguration, true>) =>
+        config.get('queues.permissionsSync.name', { infer: true }),
+    },
+    {
+      provide: PERMISSIONS_SYNC_QUEUE,
+      inject: [ModuleRef, PERMISSIONS_SYNC_QUEUE_NAME],
+      useFactory: (moduleRef: ModuleRef, queueName: string) =>
+        moduleRef.get<Queue>(getQueueToken(queueName), { strict: false }),
     },
   ],
 })
