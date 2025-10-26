@@ -860,7 +860,7 @@ step_check_dependencies() {
     status=1
   fi
   require_command poetry || status=1
-  if require_command java "java (JDK 17+)"; then
+  if require_command java "java (JDK 21+)"; then
     :
   else
     status=1

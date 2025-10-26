@@ -4,7 +4,7 @@
 Auth — сервис управления пользователями и ролями. Он обрабатывает регистрацию, выдаёт пары JWT access/refresh токенов и проверяет доступы других компонентов системы, опираясь на схему PostgreSQL `auth` и Redis для хранения refresh-токенов.【F:docs/architecture.md†L9-L18】【F:docs/tech-stack.md†L144-L170】
 
 ## Требования к окружению
-- JDK 17, Gradle 8 (используется встроенный wrapper `./gradlew`).
+- JDK 21, Gradle 8 (используется встроенный wrapper `./gradlew`).
 - PostgreSQL 15+ c доступом к схеме `auth` и расширению Liquibase.
 - Redis 6+ для хранения refresh-токенов.
 - Переменные окружения из корневого [`env.example`](../../env.example) (секция `Auth`).
@@ -62,7 +62,7 @@ cd backend/auth
 ./scripts/migrate-local.sh
 ```
 
-Скрипт экспортирует переменные из `.env`, прогоняет `poetry run alembic upgrade head` в `backend/crm`, затем `./gradlew update` здесь. Перед запуском убедитесь, что установлены Poetry, JDK 17, PostgreSQL и Redis доступны, а `.env` создан из `env.example`.
+Скрипт экспортирует переменные из `.env`, прогоняет `poetry run alembic upgrade head` в `backend/crm`, затем `./gradlew update` здесь. Перед запуском убедитесь, что установлены Poetry, JDK 21, PostgreSQL и Redis доступны, а `.env` создан из `env.example`.
 
 ## Тесты
 Для проверки используется JUnit 5 + Testcontainers (PostgreSQL, Redis):

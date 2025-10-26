@@ -398,7 +398,7 @@ main() {
     require_command poetry
   fi
   if [[ "${need_java}" == true ]]; then
-    require_command java "java (JDK 17+)"
+    require_command java "java (JDK 21+)"
   fi
 
   local gradlew="${ROOT_DIR}/backend/auth/gradlew"

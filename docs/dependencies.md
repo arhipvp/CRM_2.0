@@ -6,7 +6,7 @@
 
 - **Node.js 18 LTS + pnpm** — базовая платформа для Gateway/BFF и Documents (NestJS-сервисы).【F:backend/gateway/README.md†L6-L18】【F:backend/documents/README.md†L6-L24】
 - **Python 3.11** — основной рантайм CRM/Deals (FastAPI, SQLAlchemy, Celery).【F:backend/crm/README.md†L6-L17】
-- **JDK 17 + Gradle 8** — стек Spring Boot WebFlux для Auth, где используются Liquibase и Spring Cloud Stream.【F:backend/auth/README.md†L6-L17】
+- **JDK 21 + Gradle 8** — стек Spring Boot WebFlux для Auth, где используются Liquibase и Spring Cloud Stream.【F:backend/auth/README.md†L6-L17】
 
 ## Базовая инфраструктура
 
@@ -25,7 +25,7 @@
 | Сервис | Рантайм/фреймворк | БД и очереди | Дополнительно |
 | --- | --- | --- | --- |
 | **Gateway / BFF** | Node.js 18 LTS, NestJS | Redis, Consul | Настроить `GATEWAY_*` переменные, REST/SSE прокси к CRM/Auth.【F:backend/gateway/README.md†L6-L38】【F:env.example†L290-L336】 |
-| **Auth** | Spring Boot WebFlux (JDK 17) | PostgreSQL `auth`, Redis | REST-контракт регистрации и JWT, Liquibase миграции.【F:backend/auth/README.md†L6-L28】【F:env.example†L38-L148】 |
+| **Auth** | Spring Boot WebFlux (JDK 21) | PostgreSQL `auth`, Redis | REST-контракт регистрации и JWT, Liquibase миграции.【F:backend/auth/README.md†L6-L28】【F:env.example†L38-L148】 |
 | **CRM / Deals** | Python 3.11, FastAPI + Celery | PostgreSQL `crm`, `tasks` (схему `tasks` мигрируют Alembic-скрипты CRM), Redis, RabbitMQ `crm.events` | Alembic миграции, Celery beat/worker, встроенные модули задач и уведомлений (`CRM_TASKS_*`, `CRM_EVENTS_EXCHANGE`).【F:backend/crm/README.md†L6-L66】【F:backend/crm/migrations/versions/2025102604_migrate_crm_tasks_to_tasks_schema.py†L1-L122】【F:env.example†L162-L217】 |
 | **Documents** | NestJS (Node.js 20) | PostgreSQL `documents`, Redis BullMQ | Локальное/self-hosted хранилище (`DOCUMENTS_STORAGE_*`), POSIX ACL, стратегия бэкапов и отдельный воркер BullMQ.【F:backend/documents/README.md†L16-L24】【F:backend/documents/README.md†L38-L43】【F:backend/documents/README.md†L101-L114】【F:env.example†L210-L247】 |
 | **Reports** | Python 3.11, FastAPI + SQLAlchemy Async | PostgreSQL (`crm`, `reports` схемы) | Poetry-скрипты `reports-api`/`reports-refresh-views`, переменные `REPORTS_DATABASE_URL`, `REPORTS_CRM_SCHEMA`, `REPORTS_SOURCE_SCHEMAS`, `REPORTS_SCHEMA`.【F:backend/reports/README.md†L6-L57】【F:env.example†L70-L115】 |
