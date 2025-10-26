@@ -9,9 +9,13 @@ ENV_FILE="${ROOT_DIR}/.env"
 COMPOSE_CMD=(docker compose --env-file "${ENV_FILE}")
 
 create_tmp_dir() {
+  local tmp_path=""
+
   if command -v mktemp >/dev/null 2>&1; then
-    mktemp -d -t bootstrap-local-XXXXXX
-    return
+    if tmp_path=$(mktemp -d -t bootstrap-local-XXXXXX 2>/dev/null); then
+      printf '%s\n' "${tmp_path}"
+      return
+    fi
   fi
 
   local candidates=(
@@ -29,32 +33,49 @@ create_tmp_dir() {
     "py -3.9"
   )
 
-  local python_cmd=""
+  local candidate
+  local -a python_cmd_parts
   for candidate in "${candidates[@]}"; do
-    if eval "${candidate} --version" >/dev/null 2>&1; then
-      python_cmd="${candidate}"
-      break
+    IFS=' ' read -r -a python_cmd_parts <<<"${candidate}"
+    if ((${#python_cmd_parts[@]} == 0)); then
+      continue
     fi
-  done
 
-  if [[ -n "${python_cmd}" ]]; then
-    "${python_cmd}" - <<'PY'
+    if "${python_cmd_parts[@]}" --version >/dev/null 2>&1; then
+      if tmp_path="$("${python_cmd_parts[@]}" - <<'PY'
 import tempfile
 print(tempfile.mkdtemp(prefix="bootstrap-local-"))
 PY
-    return
-  fi
+)"; then
+        if [[ -n "${tmp_path}" ]]; then
+          printf '%s\n' "${tmp_path}"
+          return
+        fi
+      fi
+    fi
+  done
 
   local fallback="${ROOT_DIR}/.local/tmp/bootstrap-$(date +%s)-$$"
   mkdir -p "${fallback}"
   printf '%s\n' "${fallback}"
 }
 
+ensure_tmp_dir_initialized() {
+  if [[ -z "${TMP_DIR:-}" ]]; then
+    TMP_DIR="${ROOT_DIR}/.local/tmp/bootstrap-fallback-$(date +%s)-$$"
+  fi
+  if [[ -n "${TMP_DIR}" ]]; then
+    mkdir -p "${TMP_DIR}"
+  fi
+}
+
 TMP_DIR="$(create_tmp_dir)"
+ensure_tmp_dir_initialized
 LOG_PREFIX="[bootstrap-local]"
 DEFAULT_LOG_DIR="${ROOT_DIR}/.local/logs/bootstrap"
 
 PYTHON_CMD=""
+PYTHON_CMD_PARTS=()
 PYTHON_CANDIDATES=(
   "python3"
   "python"
@@ -140,7 +161,7 @@ check_backend_services() {
   fi
 
   local result=""
-  result=$(printf '%s\n' "${json_output}" | ${PYTHON_CMD} "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
+  result=$(printf '%s\n' "${json_output}" | python_exec "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
 import json
 import sys
 
@@ -269,11 +290,24 @@ log_error() {
   printf '%s[ошибка] %s\n' "${LOG_PREFIX}" "$1" >&2
 }
 
+python_exec() {
+  if ((${#PYTHON_CMD_PARTS[@]} == 0)); then
+    return 127
+  fi
+  "${PYTHON_CMD_PARTS[@]}" "$@"
+}
+
 detect_python_cmd() {
   local candidate
+  local -a python_cmd_parts
   for candidate in "${PYTHON_CANDIDATES[@]}"; do
-    if eval "${candidate} --version" >/dev/null 2>&1; then
+    IFS=' ' read -r -a python_cmd_parts <<<"${candidate}"
+    if ((${#python_cmd_parts[@]} == 0)); then
+      continue
+    fi
+    if "${python_cmd_parts[@]}" --version >/dev/null 2>&1; then
       PYTHON_CMD="${candidate}"
+      PYTHON_CMD_PARTS=("${python_cmd_parts[@]}")
       return 0
     fi
   done
@@ -314,7 +348,7 @@ check_port_available() {
   fi
 
   local exit_code
-  ${PYTHON_CMD} - "$port_num" <<'PY'
+  python_exec - "$port_num" <<'PY'
 import errno
 import socket
 import sys
@@ -536,6 +570,7 @@ write_summary_report() {
     printf '| --- | --- | --- | --- |\n'
   } > "${md_file}"
 
+  ensure_tmp_dir_initialized
   local data_file="${TMP_DIR}/step-results.tsv"
   : > "${data_file}"
 
@@ -563,11 +598,11 @@ write_summary_report() {
     printf '| %s | %s | %s | %s |\n' "${name_cell}" "${status}" "${message_cell}" "${log_cell}" >> "${md_file}"
   done
 
-  if [[ -n "${PYTHON_CMD:-}" ]]; then
+  if ((${#PYTHON_CMD_PARTS[@]} > 0)); then
     BOOTSTRAP_SUMMARY_STARTED_AT="${BOOTSTRAP_STARTED_AT}" \
     BOOTSTRAP_SUMMARY_FINISHED_AT="${BOOTSTRAP_FINISHED_AT}" \
     BOOTSTRAP_SUMMARY_STATUS="${overall_status}" \
-      ${PYTHON_CMD} - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
+      python_exec - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
 import json
 import os
 import sys
@@ -643,14 +678,13 @@ add_result() {
 run_step() {
   local name="$1"
   local func="$2"
+  ensure_tmp_dir_initialized
   local index=${#STEP_RESULTS[@]}
   local safe_name
   safe_name=$(printf '%s' "$name" | tr -cs '[:alnum:]_-' '_')
   local log_root="${TMP_DIR}"
   if [[ "${SESSION_LOG_INITIALIZED}" == true && -n "${STEP_LOG_DIR}" ]]; then
     log_root="${STEP_LOG_DIR}"
-  else
-    mkdir -p "${TMP_DIR}"
   fi
   mkdir -p "${log_root}"
   local log_file="${log_root}/$(printf '%02d' "$index")_${safe_name}.log"
