@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -139,14 +139,14 @@ class CRMClient:
             description=data.get("description"),
         )
 
-    async def update_task_status(
-        self, task_id: UUID, *, status: str, description: str | None = None
-    ) -> None:
-        payload = {"status": status, "description": description}
-        response = await self._http.patch(
-            f"{self._base_url}/tasks/{task_id}",
+    async def complete_task(self, task_id: UUID, *, completed_at: datetime | None = None) -> None:
+        payload: dict[str, Any] = {}
+        if completed_at is not None:
+            payload["completed_at"] = completed_at.isoformat()
+        response = await self._http.post(
+            f"{self._base_url}/tasks/{task_id}/complete",
             headers=self._headers(),
-            json=payload,
+            json=payload if payload else {},
             timeout=10.0,
         )
         if response.status_code == httpx.codes.NOT_FOUND:

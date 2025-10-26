@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,15 +13,13 @@ from telegram_bot.services.tasks import TaskService
 
 class FakeCRMClient:
     def __init__(self) -> None:
-        self.updated: dict[str, object] | None = None
+        self.completed: dict[str, object] | None = None
 
     async def get_task(self, task_id: UUID) -> Task:
         return Task(id=task_id, title="Подготовить КП", status="in_progress", due_date=date.today(), description=None)
 
-    async def update_task_status(
-        self, task_id: UUID, *, status: str, description: str | None = None
-    ) -> None:
-        self.updated = {"task_id": task_id, "status": status, "description": description}
+    async def complete_task(self, task_id: UUID, *, completed_at: datetime | None = None) -> None:
+        self.completed = {"task_id": task_id, "completed_at": completed_at}
 
 
 class FakeNotificationsClient:
@@ -50,11 +48,10 @@ async def test_task_confirmation_publishes_status_change() -> None:
 
     result = await service.confirm_task(user, uuid4(), comment="Готово", trace_id="trace")
 
-    assert crm.updated is not None
-    assert crm.updated["status"] == "done"
+    assert crm.completed is not None
     assert len(publisher.published) == 1
     _, event, payload = publisher.published[0]
     assert event.routing_key == "task.status.changed"
-    assert payload["data"]["new_status"] == "done"
+    assert payload["data"]["new_status"] == "completed"
     assert notifications.calls == ["task.completed"]
-    assert result.task.status == "in_progress"
+    assert result.task.status == "completed"
