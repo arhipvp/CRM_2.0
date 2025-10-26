@@ -198,6 +198,11 @@
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/incomes/{income_id}`
 Удаляет операцию поступления.
 
+**Параметры запроса**
+| Имя | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| deleted_by_id | UUID | Нет | Пользователь, фиксирующий удаление операции. |
+
 **Ответ 204** — без тела.
 
 **Ошибки**: `401 invalid_token`, `403 forbidden`, `404 income_not_found`.
@@ -225,9 +230,14 @@
 ### DELETE `/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}/expenses/{expense_id}`
 Удаляет расход.
 
+**Параметры запроса**
+| Имя | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| deleted_by_id | UUID | Нет | Пользователь, фиксирующий удаление операции. |
+
 **Ответ 204** — без тела.
 
 ## Журналирование и события
 - Все операции записываются в аудит CRM с фиксацией пользователя, предыдущего и нового значения.
-- При изменениях публикуются события `deal.payment.created`, `deal.payment.updated`, `deal.payment.deleted`, `deal.payment.income.*`, `deal.payment.expense.*` в очереди `crm.events`.
+- При изменениях публикуются события `deal.payment.created`, `deal.payment.updated`, `deal.payment.deleted`, `deal.payment.income.*`, `deal.payment.expense.*` в очереди `crm.events`. При удалении поступлений и расходов переданный `deleted_by_id` включается в события `deal.payment.income.deleted` и `deal.payment.expense.deleted`, чтобы downstream-сервисы могли зафиксировать исполнителя удаления.
 - Клиентские приложения (веб-интерфейсы, Telegram-бот) обновляют карточку полиса по REST-запросам и потокам SSE (`/streams/deals`).
