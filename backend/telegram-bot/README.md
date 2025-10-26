@@ -45,7 +45,7 @@ Webhook должен проксироваться через Gateway/BFF. Для
 | `TELEGRAM_BOT_WEBHOOK_SECRET` | Секрет подписи webhook-ов (`X-Telegram-Signature`). |
 | `TELEGRAM_BOT_REDIS_URL` | Подключение к Redis (FSM, rate limiting). |
 | `TELEGRAM_BOT_RABBITMQ_URL` | URL RabbitMQ (используется для публикации и потребления событий). |
-| `TELEGRAM_BOT_RABBITMQ_EXCHANGE_CRM` | Exchange CRM (`crm.domain`). |
+| `TELEGRAM_BOT_RABBITMQ_EXCHANGE_CRM` | Exchange CRM (`crm.events`). |
 | `TELEGRAM_BOT_RABBITMQ_EXCHANGE_TASKS` | Exchange Tasks (`tasks.events`). |
 | `TELEGRAM_BOT_RABBITMQ_EXCHANGE_NOTIFICATIONS` | Exchange модуля уведомлений CRM (`notifications.events`). |
 | `TELEGRAM_BOT_RABBITMQ_QUEUE_NOTIFICATIONS` | Очередь для событий уведомлений CRM (по умолчанию `telegram.bot.notifications`). |
@@ -58,6 +58,8 @@ Webhook должен проксироваться через Gateway/BFF. Для
 | `TELEGRAM_BOT_NOTIFICATIONS_SERVICE_TOKEN` | Сервисный токен для CRM-уведомлений. |
 | `TELEGRAM_BOT_HEALTHCHECK_TOKEN` | Токен для `/health`. |
 | `TELEGRAM_BOT_ENVIRONMENT` | Текущая среда (`dev`, `stage`, `prod`). |
+
+> ℹ️ Значение `TELEGRAM_BOT_RABBITMQ_EXCHANGE_CRM` должно совпадать с `CRM_EVENTS_EXCHANGE`, чтобы события попадали в общую шину CRM.
 
 Настройки модуля уведомлений CRM (`CRM_NOTIFICATIONS_*`) описаны в [`backend/crm/README.md`](../crm/README.md#notifications) и управляют источниками событий, которые получает бот.
 
