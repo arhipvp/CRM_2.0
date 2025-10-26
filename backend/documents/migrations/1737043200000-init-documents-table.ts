@@ -6,6 +6,7 @@ export class InitDocumentsTable1737043200000 implements MigrationInterface {
   private readonly statusEnum = `${this.schema}_documents_status_enum`;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
     await queryRunner.createSchema(this.schema, true);
     await queryRunner.query(`CREATE TYPE "${this.statusEnum}" AS ENUM ('draft', 'pending_upload', 'uploading', 'synced', 'error')`);
 
