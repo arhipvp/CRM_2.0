@@ -1,7 +1,7 @@
 """Allow NULL owner for clients
 
 Revision ID: 2025102602_allow_null_owner_in_clients
-Revises: 2025102601_add_tasks_module
+Revises: 2025102602_add_premium_to_policies
 Create Date: 2025-10-26 00:00:00.000001
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2025102602_allow_null_owner_in_clients"
-down_revision = "2025102601_add_tasks_module"
+down_revision = "2025102602_add_premium_to_policies"
 branch_labels = None
 depends_on = None
 
