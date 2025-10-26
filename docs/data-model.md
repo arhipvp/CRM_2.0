@@ -171,7 +171,10 @@ erDiagram
 * `status_code` (`varchar(32)`, NOT NULL) — код статуса из справочника `tasks.task_statuses`.
 * `due_at` (`timestamptz`, NULL) — плановый срок исполнения.
 * `scheduled_for` (`timestamptz`, NULL) — время активации отложенной задачи.
-* `payload` (`jsonb`, NULL) — произвольный контекст и зеркальное хранение идентификаторов для обратной совместимости.
+* `payload` (`jsonb`, NULL) — произвольный контекст и зеркальное хранение идентификаторов для обратной совместимости. При миграции
+  из `crm.tasks` сюда же сохраняются `assigneeId`, `authorId`, `dealId`, `clientId`, `priority`, `tenantId` (если колонка ещё
+  существовала в исходной таблице), исходный `legacyStatus` и служебное поле `source = crm.tasks`, чтобы интеграции могли отличить
+  наследованные задачи от новых.
 * `assignee_id` (`uuid`, NOT NULL) — исполнитель, FK → `auth.users(id)`.
 * `author_id` (`uuid`, NOT NULL) — постановщик, FK → `auth.users(id)`.
 * `deal_id` (`uuid`, NULL) — связанная сделка, FK → `crm.deals(id)` с `ON DELETE SET NULL`.
