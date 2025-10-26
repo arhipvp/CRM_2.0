@@ -25,9 +25,6 @@ STATUS_MAPPING_CASE = """
         END
 """
 
-TENANT_EXPRESSION = "NULLIF(to_jsonb(t)->>'tenant_id', '')::uuid"
-
-
 def upgrade() -> None:
     bind = op.get_bind()
 
@@ -75,6 +72,9 @@ def upgrade() -> None:
     op.execute(
         f"""
         DO $$
+        DECLARE
+            schema_owner text;
+            migration_performed boolean := false;
         BEGIN
             IF NOT has_table_privilege(current_user, 'tasks.tasks', 'INSERT, UPDATE, DELETE, SELECT') THEN
                 PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
@@ -84,6 +84,18 @@ def upgrade() -> None:
                 FROM information_schema.tables
                 WHERE table_schema = 'crm' AND table_name = 'tasks'
             ) THEN
+                RAISE NOTICE 'Skipping tasks migration: table crm.tasks not found.';
+                RETURN;
+            END IF;
+
+            IF NOT (has_schema_privilege(current_user, 'tasks', 'USAGE')
+                AND has_table_privilege(current_user, 'tasks.tasks', 'SELECT')
+                AND has_table_privilege(current_user, 'tasks.tasks', 'INSERT')) THEN
+                RAISE NOTICE 'Skipping tasks migration: insufficient privileges for % on schema tasks owned by %.', current_user, schema_owner;
+                RETURN;
+            END IF;
+
+            EXECUTE $insert$
                 INSERT INTO tasks.tasks (
                     id,
                     title,
@@ -114,7 +126,6 @@ def upgrade() -> None:
                                 'authorId', t.owner_id,
                                 'dealId', t.deal_id,
                                 'clientId', t.client_id,
-                                'tenantId', {TENANT_EXPRESSION},
                                 'legacyStatus', t.status,
                                 'source', 'crm.tasks'
                             )
@@ -131,8 +142,18 @@ def upgrade() -> None:
                   AND NOT EXISTS (
                     SELECT 1 FROM tasks.tasks AS existing WHERE existing.id = t.id
                   );
+            $insert$;
+
+            migration_performed := true;
+
+            IF migration_performed THEN
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_owner';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_tenant';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_due_date';
+                EXECUTE 'DROP INDEX IF EXISTS crm.ix_tasks_status';
+                EXECUTE 'DROP TABLE IF EXISTS crm.tasks';
             END IF;
-        END
+        END;
         $$;
         """
     )
@@ -169,7 +190,6 @@ def downgrade() -> None:
     op.create_table(
         "tasks",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("deal_id", postgresql.UUID(as_uuid=True), nullable=True),
@@ -198,14 +218,12 @@ def downgrade() -> None:
 
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_status ON crm.tasks (status)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_due_date ON crm.tasks (due_date)")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_tenant ON crm.tasks (tenant_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_owner ON crm.tasks (owner_id)")
 
     op.execute(
         """
         INSERT INTO crm.tasks (
             id,
-            tenant_id,
             owner_id,
             is_deleted,
             deal_id,
@@ -220,7 +238,6 @@ def downgrade() -> None:
         )
         SELECT
             t.id,
-            COALESCE(NULLIF(t.payload->>'tenantId', '')::uuid, '00000000-0000-0000-0000-000000000000'::uuid),
             COALESCE(t.assignee_id, NULLIF(t.payload->>'assigneeId', '')::uuid),
             false,
             t.deal_id,
