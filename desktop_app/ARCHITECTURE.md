@@ -406,9 +406,9 @@ def on_ok(self):
 ### Type validation
 ```python
 try:
-    amount = float(self.amount_var.get())
+    datetime.strptime(self.next_review_var.get(), "%Y-%m-%d")
 except ValueError:
-    messagebox.showerror("Error", "Amount must be a number")
+    messagebox.showerror("Error", "Next review date must be in YYYY-MM-DD format")
     return
 ```
 

@@ -158,6 +158,8 @@ TRANSLATIONS_RU = {
     "Select a document to open": "Выберите документ для открытия",
     "Select file to remove": "Выберите файл для удаления",
     "Deal ID not found": "Идентификатор сделки не найден",
+    "Next review date is required.": "Дата следующего обзора обязательна.",
+    "Next review date must be in YYYY-MM-DD format.": "Дата следующего обзора должна быть в формате ГГГГ-ММ-ДД.",
 
     # Search and Filter
     "Search by title": "Поиск по названию",
