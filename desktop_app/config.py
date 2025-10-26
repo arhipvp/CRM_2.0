@@ -1,15 +1,41 @@
 """Configuration module for desktop app"""
 import os
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
+
+
+def normalize_api_base_url(raw_url: Optional[str]) -> Optional[str]:
+    """Normalize the API base URL expected by the desktop application.
+
+    Gateway проксирует CRM под путём ``/api/v1/crm``. Разработчики часто
+    прокидывают ``DESKTOP_API_BASE_URL`` без суффикса ``/crm`` (``/api/v1``),
+    что приводит к обращению к корневому пространству Gateway и 404 на CRM
+    эндпоинтах. Функция дописывает ``/crm`` только если путь явно заканчивается
+    на ``/api/v1`` и суффикс отсутствует. Остальные значения возвращаются без
+    изменений, чтобы поддерживать прямые подключения к CRM без Gateway.
+    """
+
+    if not raw_url:
+        return raw_url
+
+    normalized = raw_url.rstrip("/")
+
+    if normalized.endswith("/api/v1") and not normalized.endswith("/api/v1/crm"):
+        normalized = f"{normalized}/crm"
+
+    return normalized
+
 
 # Load environment variables
 load_dotenv()
 
 # API Configuration
 # Используем CRM API напрямую без авторизации (для разработки)
-API_BASE_URL = os.getenv("DESKTOP_API_BASE_URL", "http://localhost:8082/api/v1")
+API_BASE_URL = normalize_api_base_url(
+    os.getenv("DESKTOP_API_BASE_URL", "http://localhost:8082/api/v1")
+)
 API_TIMEOUT = int(os.getenv("DESKTOP_API_TIMEOUT", "10"))
 
 # Deal journal configuration

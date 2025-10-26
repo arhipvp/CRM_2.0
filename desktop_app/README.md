@@ -94,7 +94,8 @@ pip install -r requirements.txt
 
 4. (Optional) Create `.env` with your API configuration:
 ```
-DESKTOP_API_BASE_URL=http://localhost:8082/api/v1
+# Gateway проксирует CRM под /api/v1/crm. Для прямого подключения к CRM оставьте http://localhost:8082/api/v1.
+DESKTOP_API_BASE_URL=http://localhost:8080/api/v1/crm
 DESKTOP_API_TIMEOUT=10
 DESKTOP_LOG_LEVEL=INFO
 DESKTOP_DEAL_DOCUMENTS_ROOT=./var/deal_documents
@@ -190,7 +191,7 @@ python main.py
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DESKTOP_API_BASE_URL` | `http://localhost:8082/api/v1` | API base URL |
+| `DESKTOP_API_BASE_URL` | `http://localhost:8082/api/v1` | API base URL. Для Gateway обязательно используйте путь с `/api/v1/crm`; значение без суффикса подходит только при прямом подключении к CRM API. |
 | `DESKTOP_API_TIMEOUT` | `10` | Request timeout in seconds |
 | `DESKTOP_LOG_LEVEL` | `INFO` | Logging level |
 | `DESKTOP_JOURNAL_AUTHOR_ID` | — | UUID пользователя CRM для записей журнала по умолчанию |
