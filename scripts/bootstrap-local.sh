@@ -54,7 +54,7 @@ TMP_DIR="$(create_tmp_dir)"
 LOG_PREFIX="[bootstrap-local]"
 DEFAULT_LOG_DIR="${ROOT_DIR}/.local/logs/bootstrap"
 
-PYTHON_CMD=""
+PYTHON_CMD=()
 PYTHON_CANDIDATES=(
   "python3"
   "python"
@@ -140,7 +140,7 @@ check_backend_services() {
   fi
 
   local result=""
-  result=$(printf '%s\n' "${json_output}" | ${PYTHON_CMD} "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
+  result=$(printf '%s\n' "${json_output}" | "${PYTHON_CMD[@]}" "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
 import json
 import sys
 
@@ -272,8 +272,10 @@ log_error() {
 detect_python_cmd() {
   local candidate
   for candidate in "${PYTHON_CANDIDATES[@]}"; do
-    if eval "${candidate} --version" >/dev/null 2>&1; then
-      PYTHON_CMD="${candidate}"
+    local parts=()
+    IFS=' ' read -r -a parts <<<"${candidate}"
+    if ("${parts[@]}" --version >/dev/null 2>&1); then
+      PYTHON_CMD=("${parts[@]}")
       return 0
     fi
   done
@@ -314,7 +316,7 @@ check_port_available() {
   fi
 
   local exit_code
-  ${PYTHON_CMD} - "$port_num" <<'PY'
+  "${PYTHON_CMD[@]}" - "$port_num" <<'PY'
 import errno
 import socket
 import sys
@@ -563,11 +565,11 @@ write_summary_report() {
     printf '| %s | %s | %s | %s |\n' "${name_cell}" "${status}" "${message_cell}" "${log_cell}" >> "${md_file}"
   done
 
-  if [[ -n "${PYTHON_CMD:-}" ]]; then
+  if (( ${#PYTHON_CMD[@]} > 0 )); then
     BOOTSTRAP_SUMMARY_STARTED_AT="${BOOTSTRAP_STARTED_AT}" \
     BOOTSTRAP_SUMMARY_FINISHED_AT="${BOOTSTRAP_FINISHED_AT}" \
     BOOTSTRAP_SUMMARY_STATUS="${overall_status}" \
-      ${PYTHON_CMD} - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
+      "${PYTHON_CMD[@]}" - "${data_file}" "${SUMMARY_JSON_FILE}" <<'PY'
 import json
 import os
 import sys
@@ -691,8 +693,16 @@ step_check_dependencies() {
   else
     status=1
   fi
-  if [[ -n "${PYTHON_CMD:-}" ]]; then
-    log_info "Используем интерпретатор Python: ${PYTHON_CMD}"
+  if (( ${#PYTHON_CMD[@]} > 0 )); then
+    local formatted_python_cmd=""
+    local part
+    for part in "${PYTHON_CMD[@]}"; do
+      if [[ -n "${formatted_python_cmd}" ]]; then
+        formatted_python_cmd+=" "
+      fi
+      formatted_python_cmd+="$(printf '%q' "${part}")"
+    done
+    log_info "Используем интерпретатор Python: ${formatted_python_cmd}"
   else
     log_error "Python 3 обязателен для bootstrap. Установите интерпретатор python3 из поставки вашей ОС (например, 'sudo apt install python3') и повторите попытку."
     status=1
