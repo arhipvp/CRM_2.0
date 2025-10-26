@@ -38,7 +38,7 @@ describe('NotificationEventsService', () => {
   describe('handleIncoming', () => {
     const incoming: IncomingNotificationDto = {
       id: 'event-1',
-      source: 'tasks.service',
+      source: 'crm.tasks',
       type: 'tasks.task.created',
       time: '2024-03-10T09:00:00.000Z',
       data: { id: 'deal-1' },
