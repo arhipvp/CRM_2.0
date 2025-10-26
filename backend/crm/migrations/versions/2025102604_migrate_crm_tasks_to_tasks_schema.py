@@ -86,28 +86,26 @@ def upgrade() -> None:
     if skip_migration == "1":
         return
 
-    legacy_exists = bind.scalar(
-        sa.text(
-            """
-            SELECT EXISTS (
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
                 WHERE table_schema = 'crm' AND table_name = 'tasks'
-            )
-            """
-        )
+            ) THEN
+                PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
+                RAISE NOTICE 'crm.tasks отсутствует — миграцию пропускаем';
+                RETURN;
+            END IF;
+        END;
+        $$;
+        """
     )
 
-    if not legacy_exists:
-        op.execute(
-            """
-            DO $$
-            BEGIN
-                RAISE NOTICE 'Skipping tasks migration: table crm.tasks not found.';
-            END;
-            $$;
-            """
-        )
+    skip_migration = bind.scalar(sa.text("SELECT current_setting('crm.migrate_tasks_to_tasks_schema.skip', true)"))
+    if skip_migration == "1":
         return
 
     privileges = bind.execute(
