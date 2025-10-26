@@ -159,7 +159,6 @@ def downgrade() -> None:
     op.create_table(
         "tasks",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("deal_id", postgresql.UUID(as_uuid=True), nullable=True),
@@ -188,14 +187,12 @@ def downgrade() -> None:
 
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_status ON crm.tasks (status)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_due_date ON crm.tasks (due_date)")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_tenant ON crm.tasks (tenant_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_owner ON crm.tasks (owner_id)")
 
     op.execute(
         """
         INSERT INTO crm.tasks (
             id,
-            tenant_id,
             owner_id,
             is_deleted,
             deal_id,
@@ -210,7 +207,6 @@ def downgrade() -> None:
         )
         SELECT
             t.id,
-            '00000000-0000-0000-0000-000000000000'::uuid,
             COALESCE(t.assignee_id, NULLIF(t.payload->>'assigneeId', '')::uuid),
             false,
             t.deal_id,
