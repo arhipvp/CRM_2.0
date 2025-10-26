@@ -25,9 +25,6 @@ STATUS_MAPPING_CASE = """
         END
 """
 
-TENANT_EXPRESSION = "NULLIF(to_jsonb(t)->>'tenant_id', '')::uuid"
-
-
 def upgrade() -> None:
     # Повторно убеждаемся, что схема tasks принадлежит текущему пользователю Alembic.
     # Это критично для инсталляций, где первая миграция была применена частично
@@ -91,7 +88,6 @@ def upgrade() -> None:
                                 'authorId', t.owner_id,
                                 'dealId', t.deal_id,
                                 'clientId', t.client_id,
-                                'tenantId', {TENANT_EXPRESSION},
                                 'legacyStatus', t.status,
                                 'source', 'crm.tasks'
                             )
@@ -176,7 +172,7 @@ def downgrade() -> None:
         )
         SELECT
             t.id,
-            COALESCE(NULLIF(t.payload->>'tenantId', '')::uuid, '00000000-0000-0000-0000-000000000000'::uuid),
+            '00000000-0000-0000-0000-000000000000'::uuid,
             COALESCE(t.assignee_id, NULLIF(t.payload->>'assigneeId', '')::uuid),
             false,
             t.deal_id,
