@@ -100,9 +100,18 @@
 | owner_id | UUID | Фильтр по сущности (`metadata.ownerId`). |
 | owner_type | string | Ограничение на тип (`metadata.ownerType`). |
 | document_type | array[string] | Фильтр по типу документа (`metadata.documentType`). Можно передавать массив параметров `document_type[]=...` или через запятую. |
+| status | string | Необязательный фильтр по статусу документа. Допустимые значения: `draft`, `pending_upload`, `uploading`, `uploaded`, `synced`, `error`. |
 | search | string | Поиск по названию, описанию и заметкам (`metadata.notes`). |
 | limit | integer | По умолчанию 25, максимум 200. |
 | offset | integer | Смещение с начала списка (по умолчанию 0). |
+
+Фильтр по `status` можно комбинировать с любыми другими параметрами, перечисленными выше.
+
+**Пример запроса**
+
+```
+GET /documents?owner_type=deal&owner_id=uuid&status=synced
+```
 
 **Ответ 200** — массив документов с метаданными (мягко удалённые записи не возвращаются).
 
