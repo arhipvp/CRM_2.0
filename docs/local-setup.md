@@ -136,7 +136,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 - Примените миграции: `poetry run alembic upgrade head`.
   > ⚠️ Перед любым запуском CRM API вручную обязательно повторите `poetry run alembic upgrade head`.
   > Приложение проверяет ревизию базы при старте и возвращает `503 CRM сервис недоступен`,
-  > если текущая версия ниже `2024052801_add_next_review_at_to_deals`.
+  > если текущая версия ниже `2025102604_migrate_crm_tasks_to_tasks_schema`.
   > ℹ️ Если схема `tasks` уже существует (например, создана вручную другим пользователем),
   > убедитесь, что роль, запускающая Alembic, обладает правами `ALTER SCHEMA tasks`.
   > Миграции `2025102601_add_tasks_module` и `2025102604_migrate_crm_tasks_to_tasks_schema`

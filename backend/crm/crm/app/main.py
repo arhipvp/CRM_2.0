@@ -33,9 +33,10 @@ from crm.infrastructure.task_events import TaskEventsPublisher
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_REVISION = "2024052801_add_next_review_at_to_deals"
+REQUIRED_REVISION = "2025102604_migrate_crm_tasks_to_tasks_schema"
 MIGRATIONS_REQUIRED_MESSAGE = (
     "CRM сервис недоступен: примените миграции базы данных "
+    "до ревизии `2025102604_migrate_crm_tasks_to_tasks_schema` "
     "(`poetry run alembic upgrade head`)."
 )
 
