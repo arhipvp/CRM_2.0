@@ -41,7 +41,7 @@ desktop_app/
 ├── auth_service.py      # Authentication service
 ├── crm_service.py       # CRM business logic
 ├── deals_tab.py         # Deals management tab component
-├── payments_tab.py      # Payments viewing tab component
+├── payments_tab.py      # Payments tab component (просмотр и управление платежами)
 ├── requirements.txt     # Python dependencies
 ├── README.md            # This file
 └── *.py                 # Таблицы, диалоги, сервисы и диагностические скрипты
@@ -127,7 +127,8 @@ python main.py
 ### Deals Viewing
 1. Navigate to "Deals" tab
 2. View all deals in table format
-3. Features for editing/creating coming soon
+3. **Add Deal**: Нажмите кнопку "Add Deal", заполните форму `DealEditDialog` и подтвердите изменения.
+4. **Edit Deal**: Выберите сделку в таблице и нажмите "Edit", чтобы открыть форму редактирования и обновить данные.
 
 ### Deal Documents
 1. Установите переменную `DESKTOP_DEAL_DOCUMENTS_ROOT` или используйте значение по умолчанию (`<repo>/deal_documents`).
@@ -136,11 +137,14 @@ python main.py
 4. В диалоге расчёта (при создании или редактировании) добавляйте файлы кнопкой **Add** — выбранные документы копируются в папку сделки и сохраняются в поле `files` расчёта.
 5. Кнопка **Open** в диалоге расчёта открывает папку сделки для ручного управления файлами.
 
-### Payments Viewing
-1. Navigate to "Payments" tab
-2. Select deal from dropdown
-3. View associated payments
-4. Payments for multiple deals supported
+### Payments Management
+1. Перейдите на вкладку "Payments" — таблица покажет платежи для выбранной сделки и полиса.
+2. Выберите сделку в верхнем списке; без выбранной сделки кнопки добавления/редактирования/удаления недоступны.
+3. После выбора сделки укажите полис в выпадающем списке; пока не выбран полис, добавление или редактирование платежа недоступны, а таблица остаётся пустой.
+4. **Добавление платежа**: нажмите **Add**, заполните форму (сумма, дата, комментарий и прочие обязательные поля) и подтвердите сохранение.
+5. **Редактирование платежа**: выделите запись в таблице, нажмите **Edit**, внесите изменения и сохраните.
+6. **Удаление платежа**: выберите запись, нажмите **Delete** и подтвердите действие в диалоге.
+7. При переключении сделки или полиса список платежей автоматически обновляется; можно последовательно управлять платежами для разных связок сделки и полиса без перезапуска приложения.
 
 ## API Integration
 
@@ -281,6 +285,6 @@ Internal use only - CRM_2.0 Project
 
 For issues or questions:
 1. Check logs: Application logs to console
-2. Review API health: `http://localhost:8082/api/v1/gateway/health`
 2. Review API health: `http://localhost:8080/api/v1/health`
+   > При необходимости замените порт на значение переменной окружения `GATEWAY_SERVICE_PORT`.
 3. Check error messages in application dialogs
