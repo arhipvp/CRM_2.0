@@ -158,6 +158,7 @@
 | cancelledReason | Text | Нет | Причина отмены при статусе `cancelled`. |
 | payload | JSON | Нет | Исходные данные задачи. Содержит `assigneeId`, `authorId`, `priority`, контекст и дополнительные пользовательские поля. |
 | assigneeId | UUID | Нет | Исполнитель, дублируется из `payload.assigneeId`/`payload.assignee_id`. |
+| authorId | UUID | Нет | Автор задачи, дублируется из `payload.authorId`/`payload.author_id`, основным источником считается этот столбец. |
 | priority | String | Нет | Приоритет задачи (`low`/`normal`/`high`) из `payload.priority`. |
 | clientId | UUID | Нет | Клиент, указанный в `payload.clientId`/`payload.client_id`. |
 | dealId | UUID | Нет | Сделка, если присутствует в `payload`. |
@@ -165,7 +166,7 @@
 | createdAt | DateTime | Да | Дата и время создания. |
 | updatedAt | DateTime | Да | Дата и время последнего изменения. |
 
-> Автор задачи не выделяется отдельным столбцом: идентификатор постановщика хранится внутри `payload.authorId`/`payload.author_id` и возвращается целиком вместе с остальными данными `payload`.
+> Идентификатор автора по-прежнему дублируется в `payload.authorId`/`payload.author_id` для обратной совместимости с существующими интеграциями, однако основным источником значения является отдельный столбец `authorId`.
 
 > Уведомления по задачам формируются автоматически в CRM и Telegram в соответствии с бизнес-процессами, ручных переключателей каналов нет.
 
