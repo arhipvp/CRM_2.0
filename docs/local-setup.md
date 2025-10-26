@@ -94,7 +94,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 - Docker Desktop/Engine с поддержкой Compose V2.
 - Python 3 (интерпретатор `python3`) — обязательная зависимость bootstrap-скриптов и инфраструктурных утилит, используемых для парсинга JSON и проверок состояния сервисов. Сценарии автоматически ищут рабочую команду в порядке `python3`, `python`, `python3.12`, `python3.11`, `python3.10`, `python3.9`, `python3.8`, `py -3`, `py -3.12`, `py -3.11`, `py -3.10`, `py -3.9`, поэтому одинаково запускаются в Git Bash на Windows и на Linux/macOS — важно, чтобы хотя бы один вариант был доступен в `PATH`.
-- Poetry (для CRM/Deals) и JDK 17+ для запуска Gradle wrapper Auth.
+- Poetry (для CRM/Deals) и JDK 21+ для запуска Gradle wrapper Auth.
 - Рекомендуемые CLI: `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
 - Доступ к интернету для скачивания зависимостей при первом запуске сервисов.
@@ -442,7 +442,7 @@ docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dn"
 2. Запускает `poetry run alembic upgrade head` в `backend/crm`.
 3. Выполняет `./gradlew update` в `backend/auth`.
 
-> Требования: установленный Poetry (для CRM) и JDK 17 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
+> Требования: установленный Poetry (для CRM) и JDK 21 + Gradle wrapper (для Auth). Перед запуском убедитесь, что PostgreSQL и Redis доступны, а схемы созданы по шагам выше.
 
 ## 5. Проверка доступности сервисов
 
