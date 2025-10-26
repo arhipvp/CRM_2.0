@@ -11,8 +11,14 @@
 7. `2024062401_add_policy_documents` (`2024062401_add_policy_documents.py`) — таблица `policy_documents`, уникальное ограничение и внешние ключи на полисы и документы.
 8. `2024070101` (`2024070101_add_payments_foreign_keys.py`) — внешние ключи `payments` к `deals` и `policies`.
 9. `2024071801` (`2024071801_remove_deal_value.py`) — удаление колонки `value` из `crm.deals`.
-10. Ревизия `2024072201` — разрешение `NULL` в колонке `owner_id` таблицы `crm.deals`.
-11. Ревизия `2025102602` — разрешение `NULL` в колонке `owner_id` таблицы `crm.clients`.
+10. `2024072201` (`2024072201_allow_null_owner_in_deals.py`) — разрешение `NULL` в колонке `owner_id` таблицы `crm.deals`.
+11. `2024072801` (`2024072801_add_notifications.py`) — модуль уведомлений (`notification_messages`, `notification_recipients`).
+12. `2025102501` (`2025102501_remove_tenant_id.py`) — удаление колонки `tenant_id` из таблиц CRM.
+13. `2025102601` (`2025102601_add_tasks_module.py`) — базовая схема `tasks` и справочники задач.
+14. `2025102602` (`2025102602_add_premium_to_policies.py`) — колонка `premium` в `crm.policies`.
+15. `2025102602` (`2025102602_allow_null_owner_in_clients.py`) — разрешение `NULL` в колонке `owner_id` таблицы `crm.clients`.
+16. `2025102603` (`2025102603_allow_null_owner_in_clients.py`) — подтверждение `NULL` в колонке `owner_id` таблицы `crm.clients`.
+17. `2025102604` (`2025102604_migrate_crm_tasks_to_tasks_schema.py`) — перенос таблиц задач из `crm` в схему `tasks`.
 
 Исторические SQL-скрипты миграций удалены; baseline-ревизия покрывает создание всех основных таблиц схемы `crm`.
 
@@ -25,4 +31,4 @@
 
 ## Актуальная ревизия
 
-* Head Alembic: ревизия `2025102602`.
+* Head Alembic: ревизия `2025102604`.
