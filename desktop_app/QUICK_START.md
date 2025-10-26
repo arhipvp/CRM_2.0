@@ -32,9 +32,9 @@ Search: [________________] [Clear]
 
 **Delete Operation:**
 - Select a row in the table
-- Click "Delete" button
-- Confirm deletion in the dialog
-- Row is removed from the database
+- Click "Delete" button (кнопка активна только для сущностей с поддержкой удаления на стороне API)
+- Confirm deletion in the dialog (если доступно)
+- Row is removed from the database (для поддерживаемых сущностей)
 
 **Edit Operation:**
 - Select a row in the table
@@ -103,13 +103,14 @@ Search: [search box] [Clear]
 4. Save as "john_clients.csv"
 5. Open in Excel or Notepad
 
-### Example 2: Find and Delete Expired Policies
+### Example 2: Find and Review Expired Policies
 
 1. Go to **Policies** tab
 2. Type "inactive" in search box
 3. Review filtered results
-4. Select policy
-5. Click "Delete" and confirm
+4. Select a policy to open it in the editor if you need to update details
+
+> **Примечание.** Кнопка **Delete** на вкладке **Policies** пока не работает: в CRM API отсутствует `DELETE`-эндпоинт для полисов. См. реализацию роутера в файле [`backend/crm/crm/api/routers/policies.py`](../backend/crm/crm/api/routers/policies.py).
 
 ### Example 3: Generate Task Report
 
