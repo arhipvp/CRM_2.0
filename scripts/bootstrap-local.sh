@@ -139,13 +139,28 @@ check_backend_services() {
     return 2
   fi
 
-  local result=""
-  result=$(printf '%s\n' "${json_output}" | ${PYTHON_CMD} "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
+  local json_file="${TMP_DIR}/backend-services-${$}-${RANDOM}.json"
+  if ! printf '%s\n' "${json_output}" >"${json_file}"; then
+    rm -f "${json_file}"
+    echo "ERROR unable to persist compose ps output"
+    return 2
+  fi
+
+  local result="" python_rc=0
+  result=$(${PYTHON_CMD} - "${json_file}" "${BACKEND_PROFILE_SERVICES[@]}" <<'PY'
 import json
 import sys
+from pathlib import Path
 
-services = sys.argv[1:]
-raw = sys.stdin.read().strip()
+json_path = Path(sys.argv[1])
+services = sys.argv[2:]
+
+try:
+    raw = json_path.read_text(encoding="utf-8").strip()
+except OSError as exc:
+    print(f"ERROR read-json {exc}")
+    sys.exit(1)
+
 if not raw:
     print("PENDING no-data")
     sys.exit(0)
@@ -195,7 +210,13 @@ for svc in services:
 
 print("READY")
 PY
-) || return 2
+) || python_rc=$?
+
+  rm -f "${json_file}"
+
+  if (( python_rc != 0 )); then
+    return 2
+  fi
 
   case "${result}" in
     READY)
