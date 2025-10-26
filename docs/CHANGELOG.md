@@ -13,4 +13,4 @@
 ### Backend
 - Удалён легаси-сервис `backend/tasks`: модуль задач поддерживается только внутри CRM (`backend/crm`). Обновлены README, документация и `env.example`, чтобы отразить новое расположение и переменные окружения (`CRM_TASKS_EVENTS_SOURCE`).
 - Из тестовой конфигурации CRM удалена устаревшая переменная окружения `CRM_DEFAULT_TENANT_ID`; тесты больше не полагаются на tenant-настройки.
-- Миграция `2025102604_migrate_crm_tasks_to_tasks_schema` больше не копирует `tenantId` в payload и не ожидает его при откате.
+- Миграция `2025102604_migrate_crm_tasks_to_tasks_schema` больше не копирует `tenantId` в payload и не требует `tenant_id` при откате.
