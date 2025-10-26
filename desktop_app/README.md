@@ -10,7 +10,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
   - View all clients in table format
   - Add new clients with name, email, phone
   - Edit existing client information
-  - Delete clients with confirmation
+  - Delete clients: UI и сервисная логика отключены до появления DELETE-эндпоинта в CRM API (задача `CRM-219` в backlog)
 - **Deal Management**: Create, edit, and browse deals через `DealEditDialog`; формы работают, но пока без расширенных валидаций и UX-подсказок
 - **Payments Management**: Запись, обновление и удаление платежей по выбранному полису сделки; рабочий поток требует доработки UX (автовыбор полиса, подсветка обязательных полей)
 - **Deal Journal**: Просмотр и создание записей журнала сделки через CRM API (дата, автор, тип записи)
@@ -158,10 +158,15 @@ python main.py
 | POST | `http://localhost:8082/api/v1/clients` | Create client |
 | PATCH | `http://localhost:8082/api/v1/clients/{id}` | Update client |
 | GET | `http://localhost:8082/api/v1/deals` | List all deals |
+| POST | `http://localhost:8082/api/v1/deals` | Create deal from вкладки "Deals" через форму `DealEditDialog` |
 | GET | `http://localhost:8082/api/v1/deals/{id}` | Get specific deal |
+| PATCH | `http://localhost:8082/api/v1/deals/{id}` | Update выбранную сделку из вкладки "Deals" |
 | GET | `http://localhost:8082/api/v1/deals/{id}/journal` | List journal entries for deal |
 | POST | `http://localhost:8082/api/v1/deals/{id}/journal` | Create journal entry |
-| GET | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Get payments for deal policy |
+| GET | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Get payments for выбранного полиса сделки во вкладке "Payments" |
+| POST | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Create payment через кнопку **Add** на вкладке "Payments" |
+| PATCH | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Update payment при редактировании записи (**Edit**) |
+| DELETE | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}` | Delete payment по действию **Delete** |
 
 > ⚠️ Операции удаления клиентов, сделок и записей журнала пока не поддерживаются CRM API. Соответствующие методы `CRMService.delete_client`, `CRMService.delete_deal` и `CRMService.delete_journal_entry` остаются в коде как заглушки на будущее.
 
