@@ -746,8 +746,16 @@ step_check_dependencies() {
   else
     status=1
   fi
-  if [[ -n "${PYTHON_CMD:-}" ]]; then
-    log_info "Используем интерпретатор Python: ${PYTHON_CMD}"
+  if (( ${#PYTHON_CMD[@]} > 0 )); then
+    local formatted_python_cmd=""
+    local part
+    for part in "${PYTHON_CMD[@]}"; do
+      if [[ -n "${formatted_python_cmd}" ]]; then
+        formatted_python_cmd+=" "
+      fi
+      formatted_python_cmd+="$(printf '%q' "${part}")"
+    done
+    log_info "Используем интерпретатор Python: ${formatted_python_cmd}"
   else
     log_error "Python 3 обязателен для bootstrap. Установите интерпретатор python3 из поставки вашей ОС (например, 'sudo apt install python3') и повторите попытку."
     status=1
