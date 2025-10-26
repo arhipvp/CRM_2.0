@@ -105,7 +105,6 @@ class DealEditDialog(BaseEditDialog):
         self.description_var = tk.StringVar(value=deal.get("description", "") if deal else "")
         self.status_var = tk.StringVar(value=deal.get("status", "draft") if deal else "draft")
         self.next_review_var = tk.StringVar(value=deal.get("next_review_at", "") if deal else "")
-        self.amount_var = tk.StringVar(value=str(deal.get("amount", "")) if deal else "")
         self.owner_id_var = tk.StringVar()
 
         # Set client dropdown to current value
@@ -137,14 +136,11 @@ class DealEditDialog(BaseEditDialog):
         self.create_field(4, i18n("Owner"), self.owner_id_var, "combobox",
                          list(self.owner_dict.keys()))
 
-        # Amount
-        self.create_field(5, i18n("Amount"), self.amount_var, "entry")
-
         # Next Review Date
-        self.create_field(6, "Next Review Date", self.next_review_var, "date")
+        self.create_field(5, "Next Review Date", self.next_review_var, "date")
 
         # Buttons
-        self.setup_buttons(7)
+        self.setup_buttons(6)
 
     def on_ok(self) -> None:
         """Handle OK button"""
@@ -171,13 +167,27 @@ class DealEditDialog(BaseEditDialog):
             messagebox.showerror(i18n("Error"), "Invalid owner selected.", parent=self)
             return
 
+        next_review_raw = self.next_review_var.get().strip()
+        if not next_review_raw:
+            messagebox.showerror(i18n("Error"), i18n("Next review date is required."), parent=self)
+            return
+
+        try:
+            datetime.strptime(next_review_raw, "%Y-%m-%d")
+        except ValueError:
+            messagebox.showerror(
+                i18n("Error"),
+                i18n("Next review date must be in YYYY-MM-DD format."),
+                parent=self,
+            )
+            return
+
         self.result = {
             "title": title,
             "client_id": client_id,
             "description": description,
             "status": self.status_var.get(),
-            "amount": float(self.amount_var.get()) if self.amount_var.get() else None,
-            "next_review_at": self.next_review_var.get() if self.next_review_var.get() else None,
+            "next_review_at": next_review_raw,
             "owner_id": self.owner_dict.get(owner_label) if owner_label else None
         }
         self.destroy()

@@ -96,8 +96,13 @@ class CRMService:
     def create_deal(self, title: str, client_id: str, **kwargs) -> Dict[str, Any]:
         """Create new deal"""
         try:
-            data = {"title": title, "client_id": client_id, **kwargs}
-            deal = self.api_client.post(CRM_DEALS_URL, data)
+            payload = {"title": title, "client_id": client_id}
+            optional = self._prepare_deal_payload(
+                kwargs,
+                allowed_fields={"description", "status", "owner_id", "next_review_at"},
+            )
+            payload.update(optional)
+            deal = self.api_client.post(CRM_DEALS_URL, payload)
             logger.info(f"Created deal: {title}")
             return deal
         except Exception as e:
@@ -108,7 +113,11 @@ class CRMService:
         """Update deal"""
         try:
             url = f"{CRM_DEALS_URL}/{deal_id}"
-            deal = self.api_client.patch(url, kwargs)
+            payload = self._prepare_deal_payload(
+                kwargs,
+                allowed_fields={"title", "description", "status", "owner_id", "next_review_at", "client_id"},
+            )
+            deal = self.api_client.patch(url, payload)
             logger.info(f"Updated deal: {deal_id}")
             return deal
         except Exception as e:
@@ -186,6 +195,22 @@ class CRMService:
         for field in ("incomes_total", "expenses_total", "net_total"):
             if field in payload:
                 payload[field] = CRMService._format_decimal(payload.get(field))
+        return payload
+
+    @staticmethod
+    def _prepare_deal_payload(data: Dict[str, Any], *, allowed_fields: set[str]) -> Dict[str, Any]:
+        """Filter deal payload to allowed fields and drop empty values"""
+        if not data:
+            return {}
+
+        payload: Dict[str, Any] = {}
+        for key in allowed_fields:
+            if key not in data:
+                continue
+            value = data.get(key)
+            if value in (None, ""):
+                continue
+            payload[key] = value
         return payload
 
     @staticmethod

@@ -72,8 +72,7 @@ python main.py
    - Client: выбрать из dropdown'а (обязательно)
    - Description: "Описание сделки"
    - Status: "draft"
-   - Amount: "50000"
-   - Next Review Date: "2024-12-31"
+   - Next Review Date: "2024-12-31" (обязательно)
 4. Нажать OK
 5. Ожидаемый результат: Сделка добавлена в таблицу
 
