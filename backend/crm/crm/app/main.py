@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from alembic.config import Config as AlembicConfig
+from alembic.script import ScriptDirectory
+from alembic.script.revision import RangeNotAncestorError, ResolutionError
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from crm.api.router import get_api_router
 from crm.api.routers import notification_events
@@ -21,13 +28,98 @@ from crm.app.dependencies import (
 )
 from crm.app.notifications_consumer import NotificationQueueConsumer
 from crm.app.events import EventsPublisher
+from crm.infrastructure.db import AsyncSessionFactory
 from crm.infrastructure.task_events import TaskEventsPublisher
 
 logger = logging.getLogger(__name__)
 
+REQUIRED_REVISION = "2024052801_add_next_review_at_to_deals"
+MIGRATIONS_REQUIRED_MESSAGE = (
+    "CRM сервис недоступен: примените миграции базы данных "
+    "(`poetry run alembic upgrade head`)."
+)
+
+
+def _get_script_directory() -> ScriptDirectory:
+    base_dir = Path(__file__).resolve().parents[2]
+    config = AlembicConfig(str(base_dir / "alembic.ini"))
+    config.set_main_option("script_location", str(base_dir / "migrations"))
+    return ScriptDirectory.from_config(config)
+
+
+async def _check_database_revision() -> tuple[bool, str | None]:
+    script_directory = _get_script_directory()
+
+    try:
+        script_directory.get_revision(REQUIRED_REVISION)
+    except ResolutionError as exc:  # pragma: no cover - configuration error
+        logger.exception("Required Alembic revision is missing: %s", exc)
+        return False, (
+            "CRM сервис недоступен: обязательная ревизия Alembic отсутствует в кодовой базе."
+        )
+
+    try:
+        async with AsyncSessionFactory() as session:
+            result = await session.execute(text("SELECT version_num FROM crm.alembic_version"))
+    except SQLAlchemyError as exc:
+        logger.warning("Failed to read Alembic version from database: %s", exc)
+        return False, MIGRATIONS_REQUIRED_MESSAGE
+
+    revisions = {row[0] for row in result if row[0]}
+    if not revisions:
+        logger.warning("Alembic version table is empty or missing.")
+        return False, MIGRATIONS_REQUIRED_MESSAGE
+
+    if len(revisions) > 1:
+        logger.warning("Multiple Alembic revisions detected: %s", ", ".join(sorted(revisions)))
+        return False, MIGRATIONS_REQUIRED_MESSAGE
+
+    current_revision = revisions.pop()
+
+    try:
+        script_directory.get_revision(current_revision)
+    except ResolutionError:
+        logger.warning("Unknown Alembic revision %s present in database.", current_revision)
+        return False, (
+            "CRM сервис недоступен: версия базы данных не соответствует коду. "
+            "Обновите репозиторий или выполните `poetry run alembic upgrade head`."
+        )
+
+    if current_revision == REQUIRED_REVISION:
+        return True, None
+
+    try:
+        missing_chain = list(script_directory.iterate_revisions(REQUIRED_REVISION, current_revision))
+    except RangeNotAncestorError:
+        missing_chain = []
+
+    if missing_chain:
+        logger.warning(
+            "Database revision %s is behind required %s.", current_revision, REQUIRED_REVISION
+        )
+        return False, (
+            f"CRM сервис недоступен: текущая ревизия базы данных ({current_revision}) "
+            f"уступает обязательной ({REQUIRED_REVISION}). Выполните `poetry run alembic upgrade head`."
+        )
+
+    return True, None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.events_publisher = None
+    app.state.task_events_publisher = None
+    app.state.notification_consumer = None
+
+    migrations_ok, error_message = await _check_database_revision()
+    app.state.migrations_ok = migrations_ok
+    app.state.migrations_error = error_message
+
+    if not migrations_ok:
+        logger.error("CRM API is unavailable: %s", error_message)
+        yield {}
+        return
+
     publisher = EventsPublisher(settings)
     task_publisher = TaskEventsPublisher(settings)
     try:
@@ -75,6 +167,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
+    app.state.migrations_ok = True
+    app.state.migrations_error = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173"],
@@ -82,6 +176,16 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    @app.middleware("http")
+    async def ensure_migrations(request: Request, call_next):
+        if not getattr(app.state, "migrations_ok", True):
+            detail = getattr(app.state, "migrations_error", MIGRATIONS_REQUIRED_MESSAGE)
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"detail": detail},
+            )
+        return await call_next(request)
+
     app.include_router(get_api_router(), prefix=settings.api_prefix)
     app.include_router(notification_events.router, prefix="/api")
 
