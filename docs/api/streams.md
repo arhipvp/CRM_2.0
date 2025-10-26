@@ -31,10 +31,12 @@ Gateway публикует события через Server-Sent Events (SSE) д
 | Тип события | Описание | Payload |
 | --- | --- | --- |
 | `deal.journal.appended` | Добавлена запись в журнал сделки. | `{ "deal_id": "uuid", "entry_id": "uuid", "author_id": "uuid", "body": "string", "created_at": "datetime" }` |
-| `deal.calculation.created` | Создан расчёт по сделке. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "draft", "insurance_company": "string", "calculation_date": "date" }` |
+| `deal.calculation.created` | Создан расчёт по сделке. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "<status>", "insurance_company": "string", "calculation_date": "date" }` |
 | `deal.calculation.updated` | Обновлён расчёт (изменены параметры). | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "ready", "premium_amount": "12345.67" }` |
-| `deal.calculation.deleted` | Удалён расчёт. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "draft" }` |
-| `deal.calculation.status.*` | Изменён статус расчёта; `*` — один из `draft`, `ready`, `confirmed`, `archived`. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "confirmed", "policy_id": "uuid" }` |
+| `deal.calculation.deleted` | Удалён расчёт. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "archived" }` |
+| `deal.calculation.status.ready` | Расчёт переведён в состояние готовности. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "ready" }` |
+| `deal.calculation.status.confirmed` | Расчёт подтверждён и связан с полисом. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "confirmed", "policy_id": "uuid" }` |
+| `deal.calculation.status.archived` | Расчёт архивирован, связь с полисом удалена. | `{ "deal_id": "uuid", "calculation_id": "uuid", "status": "archived" }` |
 | `deal.payment.created` | Запланирован новый платёж по полису. | `{ "deal_id": "uuid", "policy_id": "uuid", "payment": { "payment_id": "uuid", "planned_date": "date", "planned_amount": "1234.56", "currency": "RUB" } }` |
 | `deal.payment.updated` | Обновлены параметры платежа (план, факт, суммы доходов/расходов). | `{ "deal_id": "uuid", "policy_id": "uuid", "payment": { ... полная модель платежа ... } }` |
 | `deal.payment.deleted` | Удалён платёж без связанных транзакций. | `{ "deal_id": "uuid", "policy_id": "uuid", "payment_id": "uuid", "deleted_at": "datetime" }` |
@@ -43,7 +45,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 
 При изменении фактических оплат, пересчёте доходов или расходов `PaymentService` публикует `deal.payment.updated` вместе с соответствующим событием `deal.payment.income.*`/`deal.payment.expense.*`, чтобы клиенты получили целостную модель платежа для повторного рендеринга.【F:backend/crm/crm/domain/services.py†L1036-L1140】【F:backend/crm/crm/domain/services.py†L1213-L1305】
 
-Суффиксы `deal.calculation.status.*` соответствуют перечислению `CalculationStatus` (`draft`, `ready`, `confirmed`, `archived`) из доменных схем CRM.【F:backend/crm/crm/domain/services.py†L305-L383】【F:backend/crm/crm/domain/schemas.py†L248-L305】
+События статусов ограничены логикой `_is_transition_allowed`, которая описывает допустимые переходы и публикацию уведомлений для состояний `ready`, `confirmed` и `archived`.【F:backend/crm/crm/domain/services.py†L342-L423】
 
 **Ошибки канала:**
 - `event: error` + `data: {"code": "forbidden"}` — пользователь не имеет доступа, соединение закрывается.
