@@ -746,10 +746,10 @@ step_check_dependencies() {
   else
     status=1
   fi
-  if (( ${#PYTHON_CMD[@]} > 0 )); then
+  if (( ${#PYTHON_CMD_PARTS[@]} > 0 )); then
     local formatted_python_cmd=""
     local part
-    for part in "${PYTHON_CMD[@]}"; do
+    for part in "${PYTHON_CMD_PARTS[@]}"; do
       if [[ -n "${formatted_python_cmd}" ]]; then
         formatted_python_cmd+=" "
       fi
