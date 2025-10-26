@@ -17,7 +17,15 @@ ON CONFLICT (id) DO UPDATE
         owner_id = EXCLUDED.owner_id,
         updated_at = timezone('utc', now());
 
-INSERT INTO crm.deals (id, owner_id, client_id, title, description, status, value)
+INSERT INTO crm.deals (
+    id,
+    owner_id,
+    client_id,
+    title,
+    description,
+    status,
+    next_review_at
+)
 VALUES
     (
         'd1b96491-1ef3-4ff5-8fdc-333333333333'::uuid,
@@ -26,7 +34,7 @@ VALUES
         'Комплексное страхование автопарка',
         'Клиент хочет объединить полисы ОСАГО и КАСКО для 25 автомобилей, включая телематический мониторинг.',
         'in_progress',
-        2500000.00
+        DATE '2024-07-22'
     ),
     (
         'a2c7305a-3bb2-4a8e-9a02-444444444444'::uuid,
@@ -35,15 +43,15 @@ VALUES
         'КАСКО для электромобиля',
         'Частный клиент подбирает КАСКО с франшизой и страхованием батареи для Tesla Model Y.',
         'proposal_sent',
-        180000.00
-    )
+        DATE '2024-07-29'
+)
 ON CONFLICT (id) DO UPDATE
     SET owner_id = EXCLUDED.owner_id,
         client_id = EXCLUDED.client_id,
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         status = EXCLUDED.status,
-        value = EXCLUDED.value,
+        next_review_at = EXCLUDED.next_review_at,
         updated_at = timezone('utc', now());
 
 INSERT INTO crm.policies (id, owner_id, client_id, deal_id, policy_number, status, premium, effective_from, effective_to)
