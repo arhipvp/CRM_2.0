@@ -24,11 +24,11 @@ config.set_main_option(
     database_url.render_as_string(hide_password=False),
 )
 
-target_metadata = models.CRMBase.metadata
+target_metadata = [models.CRMBase.metadata, models.TasksBase.metadata]
 
 
 def include_object(object, name, type_, reflected, compare_to):  # noqa: ANN001
-    if type_ == "table" and object.schema != "crm":
+    if type_ == "table" and object.schema not in {"crm", "tasks"}:
         return False
     return True
 

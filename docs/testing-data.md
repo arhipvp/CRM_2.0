@@ -19,7 +19,7 @@
 
 Отдельный файл `seed_20240715_payments.sql` больше не требуется: факт оплаты полиса входит в основной seed CRM и хранится в `crm.payments` с привязкой к позициям доходов и расходов.
 
-Структура задач описана в миграциях Alembic (`backend/crm/migrations/versions/2025102601_add_tasks_module.py`, `backend/crm/migrations/versions/2025102604_migrate_crm_tasks_to_tasks_schema.py`): они фиксируют переход от таблицы `crm.tasks` к схеме `tasks` и защиту истории. После загрузки seed-файла записи задач автоматически мигрируют в сервис задач, поэтому smoke-тесты следует выполнять уже по таблице `tasks.tasks`. Справочник статусов поддерживается TypeORM-скриптом `backend/tasks/src/seeds/task-statuses.seed.ts` (команда `pnpm seed:statuses`).
+Структура задач описана в миграциях Alembic (`backend/crm/migrations/versions/2025102601_add_tasks_module.py`, `backend/crm/migrations/versions/2025102604_migrate_crm_tasks_to_tasks_schema.py`): они фиксируют переход от таблицы `crm.tasks` к схеме `tasks` внутри CRM и защиту истории. После загрузки seed-файла записи задач остаются в таблице `tasks.tasks`, поэтому smoke-тесты следует выполнять именно по ней. Справочник статусов необходимо загрузить заранее (например, через SQL seed из `backups/postgres/seeds`), чтобы API возвращало корректные коды.
 
 Расширение набора (Documents, Notifications) запланировано после публикации соответствующих миграций. Новые файлы будут добавляться с префиксом даты и описанием домена.
 
