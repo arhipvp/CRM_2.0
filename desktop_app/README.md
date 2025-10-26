@@ -155,13 +155,13 @@ python main.py
 | GET | `http://localhost:8082/api/v1/clients/{id}` | Get specific client |
 | POST | `http://localhost:8082/api/v1/clients` | Create client |
 | PATCH | `http://localhost:8082/api/v1/clients/{id}` | Update client |
-| DELETE | `http://localhost:8082/api/v1/clients/{id}` | Delete client |
 | GET | `http://localhost:8082/api/v1/deals` | List all deals |
 | GET | `http://localhost:8082/api/v1/deals/{id}` | Get specific deal |
 | GET | `http://localhost:8082/api/v1/deals/{id}/journal` | List journal entries for deal |
 | POST | `http://localhost:8082/api/v1/deals/{id}/journal` | Create journal entry |
-| DELETE | `http://localhost:8082/api/v1/deals/{id}/journal/{entry_id}` | Delete journal entry |
-| GET | `http://localhost:8082/api/v1/deals/{id}/payments` | Get payments for deal |
+| GET | `http://localhost:8082/api/v1/deals/{deal_id}/policies/{policy_id}/payments` | Get payments for deal policy |
+
+> ⚠️ Операции удаления клиентов, сделок и записей журнала пока не поддерживаются CRM API. Соответствующие методы `CRMService.delete_client`, `CRMService.delete_deal` и `CRMService.delete_journal_entry` остаются в коде как заглушки на будущее.
 
 ### Authentication
 
