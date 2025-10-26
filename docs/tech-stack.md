@@ -214,7 +214,7 @@ Redis (`DOCUMENTS_REDIS_URL`, `DOCUMENTS_REDIS_PREFIX`).
 
 Серверный каталог (`DOCUMENTS_STORAGE_ROOT`) с доступом пользователя сервиса, установленными утилитами `setfacl/getfacl`, `rsync`/`restic` для бэкапов и (опционально) systemd-unit для монтирования тома/S3 (см. [`backend/documents/README.md`](../backend/documents/README.md)).
 
-Переменные `DOCUMENTS_QUEUE_NAME` и `DOCUMENTS_RUN_MIGRATIONS` управляют именем очереди BullMQ и автозапуском миграций TypeORM.
+Переменные `DOCUMENTS_QUEUE_NAME` и `DOCUMENTS_RUN_MIGRATIONS` управляют именем очереди BullMQ и автозапуском миграций TypeORM; имя очереди не должно содержать двоеточий.
 
 Тестирование и деплой:
 

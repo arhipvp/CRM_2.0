@@ -49,8 +49,8 @@ pnpm install
 | `DOCUMENTS_RUN_MIGRATIONS` | Автоматически применять миграции при старте (false по умолчанию). |
 | `DOCUMENTS_REDIS_URL` | Redis для BullMQ. |
 | `DOCUMENTS_REDIS_PREFIX` | Префикс ключей Redis (по умолчанию `documents`). |
-| `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents_tasks`). |
-| `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME` | Имя очереди синхронизации прав (по умолчанию `documents.permissions.sync`). |
+| `DOCUMENTS_QUEUE_NAME` | Имя очереди BullMQ (по умолчанию `documents_tasks`, не содержит двоеточий). |
+| `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME` | Имя очереди синхронизации прав (по умолчанию `documents.permissions.sync`, не содержит двоеточий). |
 | `DOCUMENTS_PERMISSIONS_SYNC_JOB_TTL` | TTL задания синхронизации прав в очереди (секунды, по умолчанию 300). |
 | `DOCUMENTS_UPLOAD_URL_BASE` | Базовый URL файлового шлюза для формирования подписанной ссылки. |
 | `DOCUMENTS_UPLOAD_URL_TTL` | Время жизни подписанной ссылки на загрузку (секунды, по умолчанию 900). |
