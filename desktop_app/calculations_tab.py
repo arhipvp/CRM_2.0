@@ -511,44 +511,6 @@ class CalculationsTab:
             messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
 
 
-class FileSelectionDialog(tk.Toplevel):
-    """Простой диалог для выбора документа из списка."""
-
-    def __init__(self, parent, files: List[str]):
-        super().__init__(parent)
-        self.transient(parent)
-        self.title(i18n("Select file"))
-        self.result: Optional[str] = None
-
-        ttk.Label(self, text=i18n("Select a document to open")).pack(padx=10, pady=5)
-
-        self.listbox = tk.Listbox(self, height=min(10, len(files)))
-        self.listbox.pack(fill="both", expand=True, padx=10, pady=5)
-        for file_path in files:
-            self.listbox.insert("end", file_path)
-
-        button_frame = ttk.Frame(self)
-        button_frame.pack(pady=5)
-        ttk.Button(button_frame, text=i18n("OK"), command=self._on_ok).pack(side="left", padx=5)
-        ttk.Button(button_frame, text=i18n("Cancel"), command=self._on_cancel).pack(side="left", padx=5)
-
-        self.listbox.bind("<Double-1>", lambda _event: self._on_ok())
-
-        self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
-        self.wait_window(self)
-
-    def _on_ok(self):
-        selection = self.listbox.curselection()
-        if not selection:
-            return
-        self.result = self.listbox.get(selection[0])
-        self.destroy()
-
-    def _on_cancel(self):
-        self.result = None
-        self.destroy()
-
     def export_to_excel(self):
         """Export calculations to Excel file"""
         if not self.tree or not self.all_calculations:
@@ -604,3 +566,44 @@ class FileSelectionDialog(tk.Toplevel):
         except Exception as e:
             logger.error(f"Export error: {e}")
             messagebox.showerror(i18n("Error"), f"{i18n('Failed to export data')}: {e}")
+
+
+class FileSelectionDialog(tk.Toplevel):
+    """Простой диалог для выбора документа из списка."""
+
+    def __init__(self, parent, files: List[str]):
+        super().__init__(parent)
+        self.transient(parent)
+        self.title(i18n("Select file"))
+        self.result: Optional[str] = None
+
+        ttk.Label(self, text=i18n("Select a document to open")).pack(padx=10, pady=5)
+
+        self.listbox = tk.Listbox(self, height=min(10, len(files)))
+        self.listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        for file_path in files:
+            self.listbox.insert("end", file_path)
+
+        button_frame = ttk.Frame(self)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text=i18n("OK"), command=self._on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text=i18n("Cancel"), command=self._on_cancel).pack(side="left", padx=5)
+
+        self.listbox.bind("<Double-1>", lambda _event: self._on_ok())
+
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+        self.wait_window(self)
+
+    def _on_ok(self):
+        selection = self.listbox.curselection()
+        if not selection:
+            return
+        self.result = self.listbox.get(selection[0])
+        self.destroy()
+
+    def _on_cancel(self):
+        self.result = None
+        self.destroy()
+
+    
