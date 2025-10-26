@@ -29,6 +29,29 @@ TENANT_EXPRESSION = "NULLIF(to_jsonb(t)->>'tenant_id', '')::uuid"
 
 
 def upgrade() -> None:
+    # Повторно убеждаемся, что схема tasks принадлежит текущему пользователю Alembic.
+    # Это критично для инсталляций, где первая миграция была применена частично
+    # вручную или schema уже создана сторонними инструментами.
+    op.execute(
+        """
+        DO $$
+        DECLARE
+            v_owner text := current_user;
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM pg_namespace
+                WHERE nspname = 'tasks'
+            ) THEN
+                EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
+            ELSE
+                EXECUTE format('CREATE SCHEMA tasks AUTHORIZATION %I', v_owner);
+            END IF;
+        END;
+        $$;
+        """
+    )
+
     op.execute(
         f"""
         DO $$

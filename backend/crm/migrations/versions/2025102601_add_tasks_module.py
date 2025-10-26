@@ -21,7 +21,28 @@ depends_on = None
 
 def upgrade() -> None:
     # Схема tasks становится частью CRM и управляется Alembic-миграциями.
-    op.execute("CREATE SCHEMA IF NOT EXISTS tasks")
+    # На инсталляциях, где схема уже создана другим пользователем (например, вручную
+    # или bootstrap-скриптами), Alembic должен получить права владельца, иначе
+    # дальнейшие DDL-операции завершаются ошибкой `permission denied`.
+    op.execute(
+        """
+        DO $$
+        DECLARE
+            v_owner text := current_user;
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM pg_namespace
+                WHERE nspname = 'tasks'
+            ) THEN
+                EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
+            ELSE
+                EXECUTE format('CREATE SCHEMA tasks AUTHORIZATION %I', v_owner);
+            END IF;
+        END;
+        $$;
+        """
+    )
 
     op.create_table(
         "task_statuses",
