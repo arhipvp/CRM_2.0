@@ -38,10 +38,13 @@ class TaskService:
         trace_id: str | None = None,
     ) -> TaskConfirmationResult:
         task = await self._crm.get_task(task_id)
-        await self._crm.update_task_status(
-            task_id,
-            status="done",
-            description=comment or task.description,
+        await self._crm.complete_task(task_id)
+        updated_task = Task(
+            id=task.id,
+            title=task.title,
+            status="completed",
+            due_date=task.due_date,
+            description=task.description,
         )
         event = IntegrationEvent(
             routing_key="task.status.changed",
@@ -49,7 +52,7 @@ class TaskService:
             data={
                 "task_id": str(task.id),
                 "old_status": task.status,
-                "new_status": "done",
+                "new_status": "completed",
                 "changed_at": datetime.now(tz=timezone.utc).isoformat(),
             },
             trace_id=trace_id,
@@ -59,6 +62,6 @@ class TaskService:
             event_key="task.completed",
             user_id=user.id,
             payload={"taskId": str(task.id), "title": task.title},
-            deduplication_key=f"task:{task.id}:done",
+            deduplication_key=f"task:{task.id}:completed",
         )
-        return TaskConfirmationResult(task=task)
+        return TaskConfirmationResult(task=updated_task)

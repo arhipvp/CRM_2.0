@@ -31,7 +31,7 @@ Webhook должен проксироваться через Gateway/BFF. Для
 ## Команды бота
 
 - `/new_deal` — мастера вопросов по клиенту и сделке, по завершении создаёт черновик в CRM и публикует событие `crm.deal.created`.
-- `/confirm_task <task_id> [комментарий]` — переводит задачу в статус `done`, отправляет событие `tasks.task.status_changed`.
+- `/confirm_task <task_id> [комментарий]` — переводит задачу в статус `completed` согласно [контракту CRM Tasks](../../docs/api/tasks.md#post-tasks-task_id-complete), использует `POST /api/v1/tasks/{task_id}/complete`, отправляет событие `tasks.task.status_changed`.
 - `/confirm_payment <deal_id> <policy_id> <payment_id> [дата YYYY-MM-DD]` — подтверждает платёж, публикует событие
   `crm.deal.payment.updated`.
 
