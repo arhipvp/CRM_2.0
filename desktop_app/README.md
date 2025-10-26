@@ -6,7 +6,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
 
 ### Current Features
 - **Authentication**: На время разработки авторизация отключена — приложение сразу создаёт `APIClient` без токена и выполняет запросы к CRM API.
-- **Client Management** (CRUD):
+- **Client Management** (просмотр/создание/редактирование):
   - View all clients in table format
   - Add new clients with name, email, phone
   - Edit existing client information
@@ -122,7 +122,7 @@ python main.py
 2. View all clients in table
 3. **Add Client**: Click "Add" button, fill form, click "OK"
 4. **Edit Client**: Select client, click "Edit", modify, click "OK"
-5. **Delete Client**: Select client, click "Delete", confirm
+5. **Delete Client**: Функциональность удаления скрыта, пока CRM API не добавит соответствующий эндпоинт (задача `CRM-219` в backlog). При необходимости удаляйте записи напрямую через backend.
 
 ### Deals Viewing
 1. Navigate to "Deals" tab
