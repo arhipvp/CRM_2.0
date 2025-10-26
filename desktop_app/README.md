@@ -127,7 +127,8 @@ python main.py
 ### Deals Viewing
 1. Navigate to "Deals" tab
 2. View all deals in table format
-3. Features for editing/creating coming soon
+3. **Add Deal**: Нажмите кнопку "Add Deal", заполните форму `DealEditDialog` и подтвердите изменения.
+4. **Edit Deal**: Выберите сделку в таблице и нажмите "Edit", чтобы открыть форму редактирования и обновить данные.
 
 ### Deal Documents
 1. Установите переменную `DESKTOP_DEAL_DOCUMENTS_ROOT` или используйте значение по умолчанию (`<repo>/deal_documents`).
