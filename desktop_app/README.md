@@ -10,7 +10,7 @@ A professional Python Tkinter-based desktop application for managing CRM clients
   - View all clients in table format
   - Add new clients with name, email, phone
   - Edit existing client information
-  - Delete clients with confirmation
+  - Delete clients: UI и сервисная логика отключены до появления DELETE-эндпоинта в CRM API (задача `CRM-219` в backlog)
 - **Deal Management**: Create, edit, and browse deals через `DealEditDialog`; формы работают, но пока без расширенных валидаций и UX-подсказок
 - **Payments Management**: Запись, обновление и удаление платежей по выбранному полису сделки; рабочий поток требует доработки UX (автовыбор полиса, подсветка обязательных полей)
 - **Deal Journal**: Просмотр и создание записей журнала сделки через CRM API (дата, автор, тип записи)
