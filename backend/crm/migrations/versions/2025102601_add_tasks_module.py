@@ -1,4 +1,4 @@
-"""Add tasks schema and reminders
+"""Placeholder migration after moving tasks schema to dedicated service.
 
 Revision ID: 2025102601_add_tasks_module
 Revises: 2025102501_remove_tenant_id
@@ -8,8 +8,6 @@ Create Date: 2025-10-26 00:00:00.000000
 from __future__ import annotations
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -20,223 +18,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE SCHEMA IF NOT EXISTS tasks")
-
-    op.create_table(
-        "task_statuses",
-        sa.Column("code", sa.String(length=32), primary_key=True),
-        sa.Column("name", sa.String(length=128), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("is_final", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        schema="tasks",
-    )
-
-    op.create_table(
-        "tasks",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("title", sa.String(length=255), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "status_code",
-            sa.String(length=32),
-            sa.ForeignKey("tasks.task_statuses.code", onupdate="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("due_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("scheduled_for", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "assignee_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_tasks_assignee_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "author_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_tasks_author_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "deal_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.deals.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_deal_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "policy_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.policies.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_policy_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "payment_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "crm.payments.id",
-                ondelete="SET NULL",
-                onupdate="CASCADE",
-                name="fk_tasks_payment_id",
-            ),
-            nullable=True,
-        ),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("cancelled_reason", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            onupdate=sa.func.now(),
-            nullable=False,
-        ),
-        schema="tasks",
-    )
-
-    op.create_index("ix_tasks_status_code", "tasks", ["status_code"], schema="tasks")
-    op.create_index(
-        "ix_tasks_status_code_due_at",
-        "tasks",
-        ["status_code", "due_at"],
-        schema="tasks",
-    )
-    op.create_index("ix_tasks_assignee_id", "tasks", ["assignee_id"], schema="tasks")
-    op.create_index("ix_tasks_deal_id", "tasks", ["deal_id"], schema="tasks")
-    op.create_index(
-        "ix_tasks_scheduled_for",
-        "tasks",
-        ["scheduled_for"],
-        schema="tasks",
-        postgresql_where=sa.text("scheduled_for IS NOT NULL"),
-    )
-    op.create_index(
-        "ix_tasks_due_at",
-        "tasks",
-        ["due_at"],
-        schema="tasks",
-        postgresql_where=sa.text("due_at IS NOT NULL"),
-    )
-
-    op.create_table(
-        "task_activity",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "task_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "tasks.tasks.id",
-                ondelete="CASCADE",
-                onupdate="CASCADE",
-                name="fk_task_activity_task_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "author_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey(
-                "auth.users.id",
-                ondelete="RESTRICT",
-                onupdate="CASCADE",
-                name="fk_task_activity_author_id",
-            ),
-            nullable=False,
-        ),
-        sa.Column("event_type", sa.String(length=64), nullable=False),
-        sa.Column("body", sa.Text(), nullable=True),
-        sa.Column("payload", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        schema="tasks",
-    )
-
-    op.create_index(
-        "ix_task_activity_created_at", "task_activity", ["created_at"], schema="tasks"
-    )
-
-    op.create_table(
-        "task_reminders",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "task_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("tasks.tasks.id", ondelete="CASCADE", onupdate="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("remind_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("channel", sa.String(length=32), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        schema="tasks",
-    )
-
-    op.create_index("ix_task_reminders_due", "task_reminders", ["remind_at"], schema="tasks")
-    op.create_index(
-        "idx_task_reminders_unique",
-        "task_reminders",
-        ["task_id", "remind_at", "channel"],
-        unique=True,
-        schema="tasks",
-    )
-
-    op.execute(
-        """
-        INSERT INTO tasks.task_statuses (code, name, description, is_final)
-        VALUES
-            ('pending', 'Ожидает выполнения', 'Задача готова к взятию в работу или ожиданию воркера.', false),
-            ('scheduled', 'Отложена', 'Задача ожидает наступления времени исполнения в Redis-очереди.', false),
-            ('in_progress', 'В работе', 'Задача обрабатывается исполнителем или автоматикой.', false),
-            ('completed', 'Завершена', 'Работа по задаче завершена успешно.', true),
-            ('cancelled', 'Отменена', 'Задача отменена и не требует дальнейшей обработки.', true)
-        ON CONFLICT (code) DO UPDATE SET
-            name = EXCLUDED.name,
-            description = EXCLUDED.description,
-            is_final = EXCLUDED.is_final
-        """
-    )
+    # Структура схемы tasks управляется сервисом задач (TypeORM миграции).
+    # Alembic миграция сохранена для совместимости истории CRM и намеренно
+    # не выполняет действий, чтобы избежать дублирования DDL.
+    op.get_bind()  # Убеждаемся, что соединение установлено.
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_task_activity_created_at", table_name="task_activity", schema="tasks"
-    )
-    op.drop_table("task_activity", schema="tasks")
-
-    op.drop_index("idx_task_reminders_unique", table_name="task_reminders", schema="tasks")
-    op.drop_index("ix_task_reminders_due", table_name="task_reminders", schema="tasks")
-    op.drop_table("task_reminders", schema="tasks")
-
-    op.drop_index("ix_tasks_deal_id", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_assignee_id", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_status_code_due_at", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_due_at", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_scheduled_for", table_name="tasks", schema="tasks")
-    op.drop_index("ix_tasks_status_code", table_name="tasks", schema="tasks")
-    op.drop_table("tasks", schema="tasks")
-
-    op.drop_table("task_statuses", schema="tasks")
-    op.execute("DROP SCHEMA IF EXISTS tasks CASCADE")
+    # Обратная операция также не требуется: таблицы остаются под управлением
+    # сервиса задач. Alembic хранит ревизию только для согласованности цепочки.
+    op.get_bind()

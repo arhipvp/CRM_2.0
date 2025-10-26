@@ -75,8 +75,28 @@ END$$;
 SQL
 }
 
+ensure_tasks_schema() {
+  log "Готовим схему tasks для сервиса задач"
+  psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<'SQL'
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'tasks') THEN
+      EXECUTE 'CREATE SCHEMA tasks AUTHORIZATION crm';
+    ELSE
+      EXECUTE 'ALTER SCHEMA tasks OWNER TO crm';
+    END IF;
+
+    EXECUTE 'GRANT USAGE, CREATE ON SCHEMA tasks TO crm';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA tasks GRANT ALL ON TABLES TO crm';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA tasks GRANT ALL ON SEQUENCES TO crm';
+  END IF;
+END$$;
+SQL
+}
+
 grant_cross_schema_privileges() {
-  log "Выдаём CRM доступ к схеме documents"
+  log "Выдаём CRM доступ к схемам documents и auth"
   psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<'SQL'
 DO $$
 BEGIN
@@ -88,12 +108,22 @@ BEGIN
     EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA documents GRANT SELECT, REFERENCES ON TABLES TO crm';
     EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA documents GRANT USAGE ON SEQUENCES TO crm';
   END IF;
+
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm')
+     AND EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
+    EXECUTE 'GRANT USAGE ON SCHEMA auth TO crm';
+    EXECUTE 'GRANT SELECT, REFERENCES ON ALL TABLES IN SCHEMA auth TO crm';
+    EXECUTE 'GRANT USAGE ON ALL SEQUENCES IN SCHEMA auth TO crm';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT SELECT, REFERENCES ON TABLES TO crm';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT USAGE ON SEQUENCES TO crm';
+  END IF;
 END$$;
 SQL
 }
 
 
 grant_database_privileges
+ensure_tasks_schema
 grant_cross_schema_privileges
 
 log "Инициализация завершена"
