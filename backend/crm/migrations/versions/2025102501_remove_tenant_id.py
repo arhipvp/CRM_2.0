@@ -1,9 +1,7 @@
 """Remove tenant_id columns from all tables"""
-
 from __future__ import annotations
 
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 
 revision = '2025102501_remove_tenant_id'
@@ -16,7 +14,6 @@ def upgrade() -> None:
     # Drop indexes containing tenant_id
     op.drop_index("ix_clients_tenant_id", table_name="clients", schema="crm", if_exists=True)
     op.drop_index("ix_deals_tenant_id", table_name="deals", schema="crm", if_exists=True)
-    op.drop_index("ix_policies_tenant_id", table_name="policies", schema="crm", if_exists=True)
     op.drop_index("ix_calculations_tenant_id", table_name="calculations", schema="crm", if_exists=True)
     op.drop_index("ix_tasks_tenant_id", table_name="tasks", schema="crm", if_exists=True)
     op.drop_index("ix_payments_tenant_id", table_name="payments", schema="crm", if_exists=True)
