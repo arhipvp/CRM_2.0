@@ -34,7 +34,7 @@
 - **Exchange:** `tasks.events` (управляется переменной `CRM_TASKS_EVENTS_EXCHANGE`)
 - **Тип обмена:** topic
 - **Очереди-потребители:** `notifications.tasks`
-- **Source:** `crm.tasks` (значение задаётся `CRM_TASKS_EVENTS_SOURCE`)
+- **Source:** `tasks.tasks` (значение задаётся `CRM_TASKS_EVENTS_SOURCE`)
 
 | Routing key | CloudEvent `type` | `data` | Идемпотентность |
 | --- | --- | --- | --- |

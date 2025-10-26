@@ -103,8 +103,9 @@ Tasks интегрируется с Telegram Bot для:
 
 ## Конфигурация
 
-Основные переменные окружения:
-- `TASKS_DATABASE_URL`: Connection string с схемой `tasks`
-- `TASKS_RABBITMQ_URL`: Подключение к RabbitMQ
-- `TASKS_REMINDER_INTERVAL`: Интервал проверки напоминаний
-- Проверяйте `backend/tasks/.env` для актуальных настроек
+Основные переменные окружения CRM-модуля задач:
+- `CRM_TASKS_EVENTS_EXCHANGE`, `CRM_TASKS_EVENTS_SOURCE`: публикация событий `task.*`
+- `CRM_TASKS_REMINDERS_QUEUE_KEY`, `CRM_TASKS_DELAYED_QUEUE_KEY`: ключи Redis для напоминаний и отложенных задач
+- `CRM_TASKS_SCHEDULING_BATCH_SIZE`, `CRM_TASKS_REMINDERS_POLL_INTERVAL_MS`: параметры воркеров расписания
+- `CRM_DATABASE_URL` (c `search_path=crm`) и настройки PostgreSQL в `infra/postgres/init.sh`: обеспечивают доступ к схемам `crm` и `tasks`
+- Актуальные значения описаны в `env.example` и README CRM; отдельного `.env` для standalone Tasks больше нет
