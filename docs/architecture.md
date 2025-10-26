@@ -29,7 +29,8 @@ CRM состоит из набора специализированных сер
 
 RabbitMQ используется как единая шина событий и фоновых задач (форматы сообщений описаны в [`docs/integration-events.md`](integration-events.md)).
 
-* **Доменные события CRM.** Модуль сделок публикует изменения в exchange `crm.events`, охватывая журнал (`deal.journal.appended`), расчёты (`deal.calculation.*`), платежи (`deal.payment.*`) и события документов. Модуль задач использует тот же exchange и префиксы маршрутов `task.*`, а модуль уведомлений формирует события `notification.*` для SSE и Telegram.
+* **Доменные события CRM.** Модуль сделок публикует изменения в exchange `crm.events`, используя ключи `deal.journal.appended`, `deal.calculation.*` и `deal.payment.*`. Notifications при маршрутизации в SSE и Telegram пересылает исходный `event_key` (например, `deal.payment.updated`) без переименования пространств.
+* **Задачи.** `TaskEventsPublisher` отправляет сообщения о задачах в отдельный exchange `tasks.events` с типами `tasks.task.*`, что позволяет изолировать подписчиков фоновых обработчиков.
 * **Telegram Bot.** Бот получает команды из очереди `telegram.bot.notifications`, подписанной на `crm.events`, и публикует ответы (например, `crm.deal.created`, `task.status.changed`) в exchange `crm.events` (переменная `CRM_EVENTS_EXCHANGE`).
 * **Фоновые задачи.** CRM использует Celery и собственный планировщик задач для отложенных операций (пересчёт состояний полисов, напоминания по задачам). Очереди delays/reminders хранятся в Redis, а публикация итоговых событий выполняется через RabbitMQ.
 
@@ -54,8 +55,8 @@ Gateway — единственная точка входа для внешних
 
 1. Клиент инициирует создание сделки; запрос поступает в Gateway.
 2. Gateway проксирует запрос, Auth проверяет токен и CRM/Deals принимает команду.
-3. CRM/Deals создаёт записи в своей схеме PostgreSQL и при последующих действиях публикует доменные события (`deal.journal.appended`, `deal.calculation.*`, `deal.payment.*`) в RabbitMQ; задачи (если требуются) планируются во встроенном модуле.
-4. Модуль уведомлений CRM формирует события `notification.created`, публикует их в `crm.events` и ретранслирует через SSE-канал `notifications` и очереди Telegram-бота.
+3. CRM/Deals создаёт записи в своей схеме PostgreSQL и при последующих действиях публикует доменные события (`deal.journal.appended`, `deal.calculation.*`, `deal.payment.*`) в RabbitMQ; задачи (если требуются) планируются во встроенном модуле. Отдельное событие для самого факта создания сделки пока не публикуется.
+4. Модуль уведомлений CRM принимает доменное событие, пересылает его с тем же `event_key` в `crm.events` и ретранслирует через SSE-канал `notifications` и очереди Telegram-бота.
 5. Telegram-бот и внутренняя CRM доставляют сообщения пользователю; подтверждения через Gateway возвращаются в CRM/Deals, обновляя статус задачи.
 6. При подтверждении оплаты продавец вызывает CRM API, который создаёт или обновляет запись `crm.payments`, пересчитывает связанные позиции доходов/расходов и публикует события `deal.payment.updated`, `deal.payment.income.*` и `deal.payment.expense.*`.
 
