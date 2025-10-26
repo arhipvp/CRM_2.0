@@ -46,7 +46,7 @@
 | cancelledReason | string \| null | Причина отмены. |
 | createdAt | datetime | Время создания. |
 | updatedAt | datetime | Время последнего обновления. |
-| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. Содержит зеркальные идентификаторы (`assigneeId`, `authorId`, `dealId` и т.д.) и произвольные поля. Для мигрированных записей из `crm.tasks` дополнительно присутствуют `legacyStatus`, `source = crm.tasks`, а также `tenantId`, если столбец был доступен в исходной таблице. |
+| payload | object \| null | Исходный `payload`, сохранённый при создании задачи. Содержит зеркальные идентификаторы (`assigneeId`, `authorId`, `dealId`, `policyId`, `paymentId`, `clientId`) и произвольные поля. Для мигрированных записей из `crm.tasks` дополнительно присутствуют `legacyStatus` и `source = crm.tasks`; поле `tenantId` не сохраняется, потому что однотенантная модель дублирует только фактические связи задачи. |
 | assigneeId | UUID \| null | Исполнитель из колонки `assignee_id`; для обратной совместимости также читается из `payload.assigneeId`/`payload.assignee_id`. |
 | authorId | UUID \| null | Постановщик из колонки `author_id`; при отсутствии данных используется `payload.authorId`/`payload.author_id`. |
 | priority | string \| null | Приоритет `low`/`normal`/`high` из `payload.priority`. |
