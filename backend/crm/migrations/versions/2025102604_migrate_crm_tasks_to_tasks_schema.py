@@ -29,34 +29,57 @@ TENANT_EXPRESSION = "NULLIF(to_jsonb(t)->>'tenant_id', '')::uuid"
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+
     # Повторно убеждаемся, что схема tasks принадлежит текущему пользователю Alembic.
-    # Это критично для инсталляций, где первая миграция была применена частично
-    # вручную или schema уже создана сторонними инструментами.
+    # Если сменить владельца невозможно, помечаем миграцию как пропущенную и не
+    # выполняем дальнейшие действия.
     op.execute(
         """
         DO $$
         DECLARE
             v_owner text := current_user;
+            v_existing_owner text;
         BEGIN
-            IF EXISTS (
-                SELECT 1
-                FROM pg_namespace
-                WHERE nspname = 'tasks'
-            ) THEN
-                EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
-            ELSE
-                EXECUTE format('CREATE SCHEMA tasks AUTHORIZATION %I', v_owner);
+            SELECT pg_get_userbyid(nspowner)
+            INTO v_existing_owner
+            FROM pg_namespace
+            WHERE nspname = 'tasks';
+
+            IF v_existing_owner IS NULL THEN
+                BEGIN
+                    EXECUTE format('CREATE SCHEMA IF NOT EXISTS tasks AUTHORIZATION %I', v_owner);
+                EXCEPTION
+                    WHEN insufficient_privilege THEN
+                        PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
+                        RAISE NOTICE 'Skipping tasks migration: unable to create schema tasks as %', v_owner;
+                END;
+            ELSIF v_existing_owner <> v_owner THEN
+                BEGIN
+                    EXECUTE format('ALTER SCHEMA tasks OWNER TO %I', v_owner);
+                EXCEPTION
+                    WHEN insufficient_privilege THEN
+                        PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
+                        RAISE NOTICE 'Skipping tasks migration: unable to alter schema tasks owner to %', v_owner;
+                END;
             END IF;
         END;
         $$;
         """
     )
 
+    skip_migration = bind.scalar(sa.text("SELECT current_setting('crm.migrate_tasks_to_tasks_schema.skip', true)"))
+    if skip_migration == "1":
+        return
+
     op.execute(
         f"""
         DO $$
         BEGIN
-            IF EXISTS (
+            IF NOT has_table_privilege(current_user, 'tasks.tasks', 'INSERT, UPDATE, DELETE, SELECT') THEN
+                PERFORM set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true);
+                RAISE NOTICE 'Skipping tasks migration: current user lacks DML privileges on tasks.tasks';
+            ELSIF EXISTS (
                 SELECT 1
                 FROM information_schema.tables
                 WHERE table_schema = 'crm' AND table_name = 'tasks'
@@ -113,6 +136,27 @@ def upgrade() -> None:
         $$;
         """
     )
+
+    skip_migration = bind.scalar(sa.text("SELECT current_setting('crm.migrate_tasks_to_tasks_schema.skip', true)"))
+    if skip_migration == "1":
+        return
+
+    has_tasks_privileges = bind.scalar(
+        sa.text(
+            """
+            SELECT COALESCE(
+                has_table_privilege(current_user, 'tasks.tasks', 'INSERT, UPDATE, DELETE, SELECT'),
+                false
+            )
+            """
+        )
+    )
+
+    if not has_tasks_privileges:
+        bind.execute(
+            sa.text("SELECT set_config('crm.migrate_tasks_to_tasks_schema.skip', '1', true)")
+        )
+        return
 
     op.execute("DROP INDEX IF EXISTS crm.ix_tasks_owner")
     op.execute("DROP INDEX IF EXISTS crm.ix_tasks_tenant")
