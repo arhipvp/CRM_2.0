@@ -147,6 +147,45 @@ require_command() {
   fi
 }
 
+require_java_version() {
+  local min_major="$1"
+  local human_name="${2:-java}"
+  if ! command -v java >/dev/null 2>&1; then
+    log_error "Не найдена команда '${human_name}'. Установите JDK ${min_major}+ и повторите попытку."
+    exit 1
+  fi
+
+  local version_output version_line version_str numeric_version major
+  if ! version_output=$(java -version 2>&1); then
+    log_error "Не удалось выполнить 'java -version'. Убедитесь, что установлена JDK ${min_major}+ и команда доступна в PATH."
+    exit 1
+  fi
+
+  version_line=$(printf '%s\n' "${version_output}" | head -n 1)
+  if [[ ${version_line} =~ "([^"]+)" ]]; then
+    version_str="${BASH_REMATCH[1]}"
+  else
+    log_error "Не удалось определить версию Java из вывода 'java -version'. Установите JDK ${min_major}+ и повторите попытку."
+    exit 1
+  fi
+
+  numeric_version="${version_str%%[-_+]*}"
+  if [[ ${numeric_version} == 1.* ]]; then
+    numeric_version="${numeric_version#1.}"
+  fi
+  major="${numeric_version%%.*}"
+
+  if ! [[ ${major} =~ ^[0-9]+$ ]]; then
+    log_error "Не удалось разобрать версию Java '${version_str}'. Установите JDK ${min_major}+ и повторите попытку."
+    exit 1
+  fi
+
+  if (( major < min_major )); then
+    log_error "Обнаружена Java ${version_str}. Требуется минимум JDK ${min_major}+ для запуска сервисов."
+    exit 1
+  fi
+}
+
 load_env() {
   if [[ ! -f "${ENV_FILE}" ]]; then
     log_error "Файл окружения ${ENV_FILE} не найден. Запустите scripts/sync-env.sh и повторите попытку."
@@ -398,7 +437,7 @@ main() {
     require_command poetry
   fi
   if [[ "${need_java}" == true ]]; then
-    require_command java "java (JDK 21+)"
+    require_java_version 21 "java (JDK 21+)"
   fi
 
   local gradlew="${ROOT_DIR}/backend/auth/gradlew"
