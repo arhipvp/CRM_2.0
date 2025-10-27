@@ -140,8 +140,50 @@ Content-Type: application/json
 - `422 validation_error` — нарушены ограничения схемы (`eventKey`, `recipients`, структура `payload`).
 - `500 notification_dispatch_failed` — внутренняя ошибка постановки задачи на доставку.
 
-## SSE `GET /api/notifications/stream`
-Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/notifications/stream` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
+### POST `/api/notifications/events`
+Принимает произвольные внешние события для трансляции в CRM. Дополнительные поля полезной нагрузки уточняйте по коду
+`NotificationEventsService.handle_incoming`, чтобы поддерживать документацию в актуальном состоянии.
+
+**Тело запроса** — объект `NotificationEventIngest`:
+
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| `id` | UUID | Да | Уникальный идентификатор события. |
+| `source` | string | Да | Человекочитаемый источник события (например, `telegram`, `crm-billing`). |
+| `type` | string | Да | Тип события; используется для маршрутизации и шаблонов. |
+| `time` | string (date-time) | Да | Время возникновения события в формате ISO 8601. |
+| `data` | object | Да | Полезная нагрузка события, произвольный JSON. |
+| `chatId` | string | Нет | Идентификатор чата-назначения; используется при ручной адресации Telegram. |
+
+**Пример запроса**
+
+```http
+POST /api/notifications/events HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "id": "c4ba5b61-62fb-4c4c-8f48-0a8eab808f1c",
+  "source": "crm-billing",
+  "type": "payment.received",
+  "time": "2024-08-01T12:34:56Z",
+  "data": {
+    "invoiceId": "inv-42",
+    "amount": 12500,
+    "currency": "RUB"
+  }
+}
+```
+
+**Ответ 202 Accepted** — событие принято и поставлено на обработку.
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `422 validation_error` — нарушены ограничения схемы (`NotificationEventIngest`).
+- `500 notification_event_failed` — ошибка доставки события до внутренних потребителей.
+
+## SSE `GET /streams/notifications`
+Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
 ### Формат событий
 Поток соответствует спецификации SSE. Каждое сообщение содержит `retry` с интервалом повторного подключения (по умолчанию 5 секунд) и два основных поля:
@@ -190,6 +232,16 @@ data: {
 
 - **Публикация задач на доставку.** При постановке уведомления сервис отправляет сообщение с routing key `notifications.dispatch`. Полезная нагрузка включает `notificationId`, `eventKey`, исходный `payload`, список `recipients`, `channelOverrides` и (при наличии) `deduplicationKey`. Эти сообщения предназначены для рабочих процессов доставки (например, коннекторов к внешним каналам).
 - **Приём внешних событий.** Сервис подписывается на очередь `notifications.events`, связанную с exchange `notifications.exchange` по шаблону `notifications.*`. Ожидаемая структура сообщения совпадает с `IncomingNotificationDto`: поля `id`, `source`, `type` (обычно повторяет `eventKey`), `time`, `data` и опционально `chatId`. Такие события записываются в журнал уведомлений, транслируются в SSE и инициируют отправку через Telegram.
+
+### Ключевые переменные окружения
+
+| Переменная | Назначение | Где применяется | Значение по умолчанию |
+| --- | --- | --- | --- |
+| `CRM_NOTIFICATIONS_DISPATCH_EXCHANGE` | Имя RabbitMQ-exchange для исходящих заданий на доставку уведомлений. | Используется диспетчером (`NotificationService` → `NotificationDispatcher`) при публикации в брокер и консьюмером (`NotificationQueueConsumer`) при создании биндинга. | См. [`env.example`](../env.example#L174). |
+| `CRM_NOTIFICATIONS_DISPATCH_ROUTING_KEY` | Routing key для задач на доставку, отправляемых в RabbitMQ. | Передаётся в `NotificationService` при отправке в exchange, чтобы внешние воркеры получали уведомления. | См. [`env.example`](../env.example#L175). |
+| `CRM_NOTIFICATIONS_QUEUE_NAME` | Имя входящей очереди с событиями уведомлений. | Консьюмер `NotificationQueueConsumer` объявляет очередь и читает из неё подтверждённые события. | См. [`env.example`](../env.example#L179). |
+| `CRM_NOTIFICATIONS_QUEUE_ROUTING_KEY` | Шаблон routing key, по которому очередь связывается с exchange. | Определяет биндинг `NotificationQueueConsumer`, чтобы принимать события `notifications.*`. | См. [`env.example`](../env.example#L180). |
+| `CRM_NOTIFICATIONS_SSE_RETRY_MS` | Интервал (в мс) для повторного подключения SSE-клиентов. | Передаётся в `NotificationStreamService`, который рассылает события по Web-SSE и указывает retry в каждом сообщении. | См. [`env.example`](../env.example#L182). |
 
 ## Интеграция с Telegram-ботом
 CRM публикует события в очередь `telegram.bot.notifications`, которую обслуживает бот (`backend/telegram-bot`). Ответы (успешная доставка, ошибки) возвращаются в CRM по REST-вебхуку и транслируются в SSE. Если переменная окружения `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`, модуль уведомлений фиксирует событие `notifications.telegram.skipped` и завершает обработку без попытки отправки в Telegram — статус уведомления остаётся `processed`.
