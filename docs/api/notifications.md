@@ -225,6 +225,16 @@ data: {
 - **Публикация задач на доставку.** При постановке уведомления сервис отправляет сообщение с routing key `notifications.dispatch`. Полезная нагрузка включает `notificationId`, `eventKey`, исходный `payload`, список `recipients`, `channelOverrides` и (при наличии) `deduplicationKey`. Эти сообщения предназначены для рабочих процессов доставки (например, коннекторов к внешним каналам).
 - **Приём внешних событий.** Сервис подписывается на очередь `notifications.events`, связанную с exchange `notifications.exchange` по шаблону `notifications.*`. Ожидаемая структура сообщения совпадает с `IncomingNotificationDto`: поля `id`, `source`, `type` (обычно повторяет `eventKey`), `time`, `data` и опционально `chatId`. Такие события записываются в журнал уведомлений, транслируются в SSE и инициируют отправку через Telegram.
 
+### Ключевые переменные окружения
+
+| Переменная | Назначение | Где применяется | Значение по умолчанию |
+| --- | --- | --- | --- |
+| `CRM_NOTIFICATIONS_DISPATCH_EXCHANGE` | Имя RabbitMQ-exchange для исходящих заданий на доставку уведомлений. | Используется диспетчером (`NotificationService` → `NotificationDispatcher`) при публикации в брокер и консьюмером (`NotificationQueueConsumer`) при создании биндинга. | См. [`env.example`](../env.example#L174). |
+| `CRM_NOTIFICATIONS_DISPATCH_ROUTING_KEY` | Routing key для задач на доставку, отправляемых в RabbitMQ. | Передаётся в `NotificationService` при отправке в exchange, чтобы внешние воркеры получали уведомления. | См. [`env.example`](../env.example#L175). |
+| `CRM_NOTIFICATIONS_QUEUE_NAME` | Имя входящей очереди с событиями уведомлений. | Консьюмер `NotificationQueueConsumer` объявляет очередь и читает из неё подтверждённые события. | См. [`env.example`](../env.example#L179). |
+| `CRM_NOTIFICATIONS_QUEUE_ROUTING_KEY` | Шаблон routing key, по которому очередь связывается с exchange. | Определяет биндинг `NotificationQueueConsumer`, чтобы принимать события `notifications.*`. | См. [`env.example`](../env.example#L180). |
+| `CRM_NOTIFICATIONS_SSE_RETRY_MS` | Интервал (в мс) для повторного подключения SSE-клиентов. | Передаётся в `NotificationStreamService`, который рассылает события по Web-SSE и указывает retry в каждом сообщении. | См. [`env.example`](../env.example#L182). |
+
 ## Интеграция с Telegram-ботом
 CRM публикует события в очередь `telegram.bot.notifications`, которую обслуживает бот (`backend/telegram-bot`). Ответы (успешная доставка, ошибки) возвращаются в CRM по REST-вебхуку и транслируются в SSE. Если переменная окружения `CRM_NOTIFICATIONS_TELEGRAM_ENABLED=false`, модуль уведомлений фиксирует событие `notifications.telegram.skipped` и завершает обработку без попытки отправки в Telegram — статус уведомления остаётся `processed`.
 
