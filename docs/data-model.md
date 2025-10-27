@@ -57,7 +57,6 @@ erDiagram
 
 ```mermaid
 erDiagram
-    CRM_CLIENTS ||--o{ CRM_CLIENT_CONTACTS : ""
     CRM_CLIENTS ||--o{ CRM_DEALS : ""
     CRM_DEALS ||--o{ CRM_DEAL_JOURNAL : ""
     CRM_DEALS ||--o{ CRM_CALCULATIONS : ""
@@ -73,7 +72,6 @@ erDiagram
 | Таблица | Назначение |
 | --- | --- |
 | `crm.clients` | Карточки клиентов. |
-| `crm.client_contacts` | Контактные лица клиентов. |
 | `crm.deals` | Сделки (воронка продаж и сопровождение). |
 | `crm.deal_journal` | История заметок и действий в сделке. |
 | `crm.calculations` | Полученные расчёты/предложения страховых компаний. |
@@ -108,7 +106,6 @@ erDiagram
 ### Ключи и ограничения
 
 * `crm.clients`: `PRIMARY KEY (id)`, индексы по `owner_id`, `status`; мягкое удаление реализовано полем `is_deleted`.
-* `crm.client_contacts`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`, индекс по `client_id`.
 * `crm.deals`: `PRIMARY KEY (id)`, `FOREIGN KEY (client_id)` → `crm.clients(id)`. Индексы по `owner_id`, `status`, `ix_deals_next_review_at` (по `next_review_at`). Поле `owner_id` допускает `NULL`, чтобы фиксировать сделки без назначенного менеджера.
 * `crm.deal_journal`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)` с `ON DELETE CASCADE`. Индексы `ix_deal_journal_deal_id`, `ix_deal_journal_created_at`. Поле `author_id` хранит UUID автора записи (идентификатор пользователя CRM).
 * `crm.calculations`: `PRIMARY KEY (id)`, `FOREIGN KEY (deal_id)` → `crm.deals(id)`, индексы по `insurance_company`, `calculation_date`, а также `idx_calculations_status` (по `status`) для ускорения фильтрации в интерфейсе сделок.
