@@ -291,7 +291,7 @@
 ### POST `/tasks/{task_id}/reminders`
 Создаёт напоминание.
 
-> Напоминания выполняются асинхронно Celery-задачей `crm.app.tasks.process_task_reminders`. Она использует `TaskReminderProcessor`, который каждые `CRM_TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд опрашивает Redis-очередь `tasks_reminders_queue_key` (значение переменной `CRM_TASKS_REMINDERS_QUEUE_KEY`), публикует событие `task.reminder` в обменник `CRM_TASKS_EVENTS_EXCHANGE` с ключом `CRM_TASKS_EVENTS_ROUTING_KEYS__TASK_REMINDER` (источник задаётся `CRM_TASKS_EVENTS_SOURCE`) и удаляет успешно обработанные элементы. Параметры выборки управляются `CRM_TASKS_SCHEDULING_BATCH_SIZE`, а повторные попытки выполняются автоматически с задержкой.
+> Напоминания выполняются асинхронно Celery-задачей `crm.app.tasks.process_task_reminders`. Она использует `TaskReminderProcessor`, который каждые `CRM_TASKS_REMINDERS_POLL_INTERVAL_MS` миллисекунд опрашивает Redis-очередь `tasks:reminders` (значение переменной `CRM_TASKS_REMINDERS_QUEUE_KEY`, которое при необходимости можно переопределить в `.env`), публикует событие `task.reminder` в обменник `CRM_TASKS_EVENTS_EXCHANGE` с ключом `CRM_TASKS_EVENTS_ROUTING_KEYS__TASK_REMINDER` (источник задаётся `CRM_TASKS_EVENTS_SOURCE`) и удаляет успешно обработанные элементы. Параметры выборки управляются `CRM_TASKS_SCHEDULING_BATCH_SIZE`, а повторные попытки выполняются автоматически с задержкой.
 
 **Тело запроса**
 | Поле | Тип | Обязательное | Описание |
