@@ -1,8 +1,0 @@
-
-> @crm/gateway@0.1.0 start:dev C:\Dev\CRM_2.0\backend\gateway
-> nest start --watch
-
-"nest" не является внутренней или внешней
-командой, исполняемой программой или пакетным файлом.
-тАЙELIFECYCLEтАЙ Command failed with exit code 1.
-тАЙWARNтАЙ  Local package.json exists, but node_modules missing, did you mean to install?

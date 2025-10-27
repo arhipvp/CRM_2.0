@@ -38,9 +38,8 @@ def upgrade() -> None:
         )
 
         if schema_owner == current_user or is_superuser:
-            op.execute(
-                sa.text("ALTER SCHEMA tasks OWNER TO :owner").bindparams(owner=current_user)
-            )
+            # Schema is already owned by current user, no need to change
+            pass
         else:
             op.execute(
                 """

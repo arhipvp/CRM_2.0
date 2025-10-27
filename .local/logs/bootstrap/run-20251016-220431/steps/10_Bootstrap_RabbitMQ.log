@@ -1,6 +1,0 @@
-[Инфо] Контейнер RabbitMQ не запущен (state='absent'). Пытаемся стартовать...
-[Инфо] Ожидаем готовность RabbitMQ (healthcheck)...
-T_KEY\" variable is not set. Defaulting to a blank string."
-time="2025-10-16T22:08:52+03:00" level=warning msg="The \"BACKUP_S3_BUCKET\" variable is not set. Defaulting to a blank string."
-time="2025-10-16T22:08:52+03:00" level=warning msg="The \"BACKUP_S3_ACCESS_KEY\" variable is not set. Defaulting to a blank string."
- Container crm-rabbitmq  Running

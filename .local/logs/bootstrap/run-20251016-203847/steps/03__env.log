@@ -1,4 +1,0 @@
-Python [bootstrap-local][ошибка] Не удалось проверить порт 5433 из переменной POSTGRES_PORT. Проверьте настройки /c/Dev/CRM_2.0/.env.
-Python [bootstrap-local][ошибка] Не удалось проверить порт 5672 из переменной RABBITMQ_PORT. Проверьте настройки /c/Dev/CRM_2.0/.env.
-Python [bootstrap-local][ошибка] Не удалось проверить порт 6379 из переменной REDIS_PORT. Проверьте настройки /c/Dev/CRM_2.0/.env.
-Python [bootstrap-local][ошибка] Не удалось проверить порт 5050 из переменной PGADMIN_PORT. Проверьте настройки /c/Dev/CRM_2.0/.env.

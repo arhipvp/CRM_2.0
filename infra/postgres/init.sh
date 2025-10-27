@@ -32,16 +32,17 @@ create_role() {
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${role}') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${role}', '${password}');
+    EXECUTE format('CREATE ROLE %I WITH LOGIN CREATEDB PASSWORD %L', '${role}', '${password}');
+  ELSE
+    EXECUTE format('ALTER ROLE %I WITH LOGIN CREATEDB PASSWORD %L', '${role}', '${password}');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = '${schema}') THEN
     EXECUTE format('CREATE SCHEMA %I AUTHORIZATION %I', '${schema}', '${role}');
   END IF;
 
-  EXECUTE format('ALTER ROLE %I WITH PASSWORD %L', '${role}', '${password}');
   EXECUTE format('ALTER ROLE %I IN DATABASE %I SET search_path TO %I, public', '${role}', '${POSTGRES_DB}', '${schema}');
-  EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I', '${schema}', '${role}');
+  EXECUTE format('GRANT USAGE, CREATE ON SCHEMA %I TO %I', '${schema}', '${role}');
   EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO %I', '${schema}', '${role}');
   EXECUTE format('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA %I TO %I', '${schema}', '${role}');
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO %I', '${schema}', '${role}');
@@ -122,7 +123,7 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm')
      AND EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'documents') THEN
-    EXECUTE 'GRANT USAGE ON SCHEMA documents TO crm';
+    EXECUTE 'GRANT USAGE, CREATE ON SCHEMA documents TO crm';
     EXECUTE 'GRANT SELECT, REFERENCES ON ALL TABLES IN SCHEMA documents TO crm';
     EXECUTE 'GRANT SELECT, USAGE ON ALL SEQUENCES IN SCHEMA documents TO crm';
     EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA documents GRANT SELECT, REFERENCES ON TABLES TO crm';
@@ -131,7 +132,7 @@ BEGIN
 
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm')
      AND EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
-    EXECUTE 'GRANT USAGE ON SCHEMA auth TO crm';
+    EXECUTE 'GRANT USAGE, CREATE ON SCHEMA auth TO crm';
     EXECUTE 'GRANT SELECT, REFERENCES ON ALL TABLES IN SCHEMA auth TO crm';
     EXECUTE 'GRANT USAGE ON ALL SEQUENCES IN SCHEMA auth TO crm';
     EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT SELECT, REFERENCES ON TABLES TO crm';

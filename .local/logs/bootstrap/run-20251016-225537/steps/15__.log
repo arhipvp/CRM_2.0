@@ -1,2 +1,0 @@
-[Ошибка] Следующие сервисы Docker Compose не запущены: postgres backup.
-[Подсказка] Запустите инфраструктуру командой:\n  docker compose --env-file /c/Dev/CRM_2.0/.env -f /c/Dev/CRM_2.0/infra/docker-compose.yml up -d

@@ -1,6 +1,0 @@
-Python [Предупреждение] Пропускаем переменную AUDIT_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://audit:audit@localhost:5672/audit'.
-Python [Предупреждение] Пропускаем переменную BACKUP_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://crm:crm@localhost:5672/crm'.
-Python [Предупреждение] Пропускаем переменную CRM_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://crm:crm@localhost:5672/crm'.
-Python [Предупреждение] Пропускаем переменную NOTIFICATIONS_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://notifications:notifications@localhost:5672/notifications'.
-Python [Предупреждение] Пропускаем переменную TASKS_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://tasks:tasks@localhost:5672/tasks'.
-Python [Предупреждение] Пропускаем переменную TELEGRAM_BOT_RABBITMQ_URL: пользователь или vhost не определены в URL 'amqp://telegram:telegram@localhost:5672/telegram'.
