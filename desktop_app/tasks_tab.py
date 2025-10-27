@@ -26,6 +26,7 @@ class TasksTab:
         self.clients: List[Dict[str, Any]] = []  # Store clients for dialog dropdown
         self.all_clients: List[Dict[str, Any]] = []  # Store all clients for potential reuse
         self.users: List[Dict[str, Any]] = []  # Store executors for dialog dropdown
+        self.user_lookup: Dict[str, str] = {}  # Map user IDs to display names
         self.all_tasks: List[Dict[str, Any]] = []  # Store all tasks for filtering
 
         self._setup_ui()
@@ -47,7 +48,7 @@ class TasksTab:
         self.tree = ttk.Treeview(
             tree_frame,
             columns=(
-                "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+                "ID", "Assignee ID", "Deleted", "Deal ID", "Client ID",
                 "Title", "Description", "Status", "Priority", "Due Date",
                 "Created At", "Updated At"
             ),
@@ -55,14 +56,14 @@ class TasksTab:
         )
 
         for col in (
-            "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
+            "ID", "Assignee ID", "Deleted", "Deal ID", "Client ID",
             "Title", "Description", "Status", "Priority", "Due Date",
             "Created At", "Updated At"
         ):
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
-        self.tree.column("Owner ID", width=100)
+        self.tree.column("Assignee ID", width=150)
         self.tree.column("Deleted", width=60)
         self.tree.column("Deal ID", width=100)
         self.tree.column("Client ID", width=100)
@@ -97,7 +98,7 @@ class TasksTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Owner ID": "owner_id",
+            "Assignee ID": "assigneeId",
             "Deleted": "is_deleted",
             "Deal ID": "deal_id",
             "Client ID": "client_id",
@@ -150,16 +151,19 @@ class TasksTab:
         if not self.tree:
             return
 
+        if users is not None:
+            self.users = users or []
+            self.user_lookup = self._build_user_lookup(self.users)
+
         # Store all data for filtering
-        self.all_tasks = tasks or []
+        raw_tasks = tasks or []
+        self.all_tasks = [self._normalize_task(task) for task in raw_tasks]
         if deals is not None:
             self.deals = deals or []
             self.all_deals = deals or []
         if clients is not None:
             self.clients = clients or []
             self.all_clients = clients or []
-        if users is not None:
-            self.users = users or []
         self._refresh_tree_display(self.all_tasks)
 
     def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
@@ -176,7 +180,7 @@ class TasksTab:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
                 str(task.get("id", "N/A"))[:8],
-                str(task.get("owner_id", "N/A"))[:8],
+                self._format_assignee_cell(task),
                 is_deleted,
                 str(task.get("deal_id", "N/A"))[:8],
                 str(task.get("client_id", "N/A"))[:8],
@@ -188,6 +192,67 @@ class TasksTab:
                 task.get("created_at", "N/A"),
                 task.get("updated_at", "N/A"),
             ))
+
+    def _build_user_lookup(self, users: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Build dictionary for user ID to display name mapping"""
+        lookup: Dict[str, str] = {}
+        for user in users:
+            user_id = user.get("id")
+            if not user_id:
+                continue
+            user_id_str = str(user_id)
+            display_name = user.get("full_name") or user.get("email") or user.get("name") or user_id_str
+            lookup[user_id_str] = display_name
+        return lookup
+
+    def _normalize_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure task contains resolved assignee information for display and search"""
+        normalized = dict(task) if isinstance(task, dict) else {}
+        assignee_id = self._extract_assignee_id(normalized)
+        if assignee_id:
+            normalized["assigneeId"] = assignee_id
+            existing_name = (
+                normalized.get("assigneeName")
+                or normalized.get("assignee_name")
+                or normalized.get("assignee")
+            )
+            normalized["assigneeName"] = existing_name or self.user_lookup.get(assignee_id, "")
+        else:
+            normalized.setdefault("assigneeId", None)
+            normalized.setdefault("assigneeName", "")
+        return normalized
+
+    def _extract_assignee_id(self, task: Dict[str, Any]) -> Optional[str]:
+        """Extract assignee ID from task or its payload"""
+        if not task:
+            return None
+
+        for key in ("assigneeId", "assignee_id"):
+            value = task.get(key)
+            if value:
+                return str(value)
+
+        payload = task.get("payload")
+        if isinstance(payload, dict):
+            for key in ("assigneeId", "assignee_id"):
+                value = payload.get(key)
+                if value:
+                    return str(value)
+
+        return None
+
+    def _format_assignee_cell(self, task: Dict[str, Any]) -> str:
+        """Format assignee cell with display name and truncated ID"""
+        assignee_id = self._extract_assignee_id(task)
+        if not assignee_id:
+            return "N/A"
+
+        display_name = self.user_lookup.get(assignee_id) or task.get("assigneeName")
+        short_id = assignee_id[:8]
+        if display_name:
+            suffix = "..." if len(assignee_id) > 8 else ""
+            return f"{display_name} ({short_id}{suffix})"
+        return short_id
 
     def add_task(self):
         """Add new task"""
@@ -286,7 +351,7 @@ class TasksTab:
             return
 
         # Filter tasks by search text
-        search_fields = ["title", "description", "status"]
+        search_fields = ["title", "description", "status", "assigneeId", "assigneeName"]
         filtered_tasks = search_filter_rows(self.all_tasks, search_text, search_fields)
 
         # Update tree display with filtered results
@@ -310,7 +375,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -320,7 +385,7 @@ class TasksTab:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
                     task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    (self._extract_assignee_id(task) or "N/A")[:8],
                     is_deleted,
                     task.get("deal_id", "N/A")[:8],
                     task.get("client_id", "N/A")[:8],
@@ -362,7 +427,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -372,7 +437,7 @@ class TasksTab:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
                     task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    (self._extract_assignee_id(task) or "N/A")[:8],
                     is_deleted,
                     task.get("deal_id", "N/A")[:8],
                     task.get("client_id", "N/A")[:8],

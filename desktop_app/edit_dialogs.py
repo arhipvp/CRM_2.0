@@ -637,9 +637,10 @@ class TaskEditDialog(BaseEditDialog):
             user_id = user.get('id')
             if not user_id:
                 continue
+            user_id_str = str(user_id)
             display_name = user.get('full_name') or user.get('email') or 'User'
-            display_label = f"{display_name} (ID: {user_id[:8]}...)"
-            self.user_dict[display_label] = user_id
+            display_label = f"{display_name} (ID: {user_id_str[:8]}...)"
+            self.user_dict[display_label] = user_id_str
 
         # Initialize variables
         self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
@@ -649,7 +650,8 @@ class TaskEditDialog(BaseEditDialog):
         self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
         self.deal_id_var = tk.StringVar()
         self.client_id_var = tk.StringVar()
-        self.owner_id_var = tk.StringVar()
+        self.assignee_id_var = tk.StringVar()
+        self.author_id: Optional[str] = None
 
         if task:
             if task.get("deal_id"):
@@ -666,13 +668,15 @@ class TaskEditDialog(BaseEditDialog):
                 )
                 if client_display:
                     self.client_id_var.set(client_display)
-            if task.get("owner_id"):
+            assignee_id = self._extract_assignee_id_from_task(task)
+            if assignee_id:
                 owner_display = next(
-                    (label for label, value in self.user_dict.items() if value == task.get("owner_id")),
+                    (label for label, value in self.user_dict.items() if value == assignee_id),
                     "",
                 )
                 if owner_display:
-                    self.owner_id_var.set(owner_display)
+                    self.assignee_id_var.set(owner_display)
+            self.author_id = self._extract_author_id_from_task(task)
 
         # Title field
         self.create_field(0, "Title", self.title_var, "entry")
@@ -686,8 +690,8 @@ class TaskEditDialog(BaseEditDialog):
         # Client field
         self.create_field(3, "Client", self.client_id_var, "combobox", list(self.client_dict.keys()))
 
-        # Owner field
-        self.create_field(4, "Owner", self.owner_id_var, "combobox", list(self.user_dict.keys()))
+        # Assignee field
+        self.create_field(4, "Assignee", self.assignee_id_var, "combobox", list(self.user_dict.keys()))
 
         # Status field
         self.create_field(5, "Status", self.status_var, "combobox",
@@ -722,7 +726,7 @@ class TaskEditDialog(BaseEditDialog):
         due_date = self.due_date_var.get().strip()
         deal_label = self.deal_id_var.get().strip()
         client_label = self.client_id_var.get().strip()
-        owner_label = self.owner_id_var.get().strip()
+        assignee_label = self.assignee_id_var.get().strip()
 
         if deal_label and deal_label not in self.deal_dict:
             messagebox.showerror("Error", "Invalid deal selected.", parent=self)
@@ -732,8 +736,8 @@ class TaskEditDialog(BaseEditDialog):
             messagebox.showerror("Error", "Invalid client selected.", parent=self)
             return
 
-        if owner_label and owner_label not in self.user_dict:
-            messagebox.showerror("Error", "Invalid owner selected.", parent=self)
+        if assignee_label and assignee_label not in self.user_dict:
+            messagebox.showerror("Error", "Invalid assignee selected.", parent=self)
             return
 
         self.result = {
@@ -744,6 +748,35 @@ class TaskEditDialog(BaseEditDialog):
             "due_date": due_date if due_date else None,
             "deal_id": self.deal_dict.get(deal_label) if deal_label else None,
             "client_id": self.client_dict.get(client_label) if client_label else None,
-            "owner_id": self.user_dict.get(owner_label) if owner_label else None,
+            "assigneeId": self.user_dict.get(assignee_label) if assignee_label else None,
         }
+        if self.author_id:
+            self.result["authorId"] = self.author_id
         self.destroy()
+
+    @staticmethod
+    def _extract_field_from_task(task: Dict[str, Any], keys: List[str]) -> Optional[str]:
+        if not task:
+            return None
+
+        for key in keys:
+            value = task.get(key)
+            if value:
+                return str(value)
+
+        payload = task.get("payload")
+        if isinstance(payload, dict):
+            for key in keys:
+                value = payload.get(key)
+                if value:
+                    return str(value)
+
+        return None
+
+    @classmethod
+    def _extract_assignee_id_from_task(cls, task: Dict[str, Any]) -> Optional[str]:
+        return cls._extract_field_from_task(task, ["assigneeId", "assignee_id"])
+
+    @classmethod
+    def _extract_author_id_from_task(cls, task: Dict[str, Any]) -> Optional[str]:
+        return cls._extract_field_from_task(task, ["authorId", "author_id"])
