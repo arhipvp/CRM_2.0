@@ -56,7 +56,7 @@ cd backend/auth
 - `POST /api/auth/token` — выдача пары access/refresh токенов по email+паролю.
 - `POST /api/auth/refresh` — обновление access токена по refresh токену.
 - `GET /api/auth/me` — данные текущего пользователя (по access токену).
-- `POST /api/roles`, `GET /api/roles` — управление ролями (только `ROLE_ADMIN`).
+- `POST /api/roles` — создание ролей (только `ROLE_ADMIN`), `GET /api/roles` — список доступных ролей для любого аутентифицированного пользователя.
 - `POST /api/users/{id}/roles`, `DELETE /api/users/{id}/roles/{role}` — назначение и отзыв ролей (только `ROLE_ADMIN`).
 
 ## Миграции
