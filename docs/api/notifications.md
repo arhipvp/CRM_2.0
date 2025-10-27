@@ -82,6 +82,36 @@ Content-Type: application/json
 }
 ```
 
+### GET `/api/v1/notifications/{id}`
+Возвращает агрегированную информацию о поставке уведомления.
+
+**Параметры пути**
+| Параметр | Тип | Обязательный | Описание |
+| --- | --- | --- | --- |
+| `id` | UUID | Да | Идентификатор уведомления, полученный при постановке в очередь. |
+
+**Ответ 200** — объект `NotificationStatusResponse`:
+```json
+{
+  "id": "3b0b61c9-6d6c-4f2f-9f46-9fe2e03f46f2",
+  "status": "processed",
+  "attempts": 2,
+  "channels": ["sse", "telegram"],
+  "delivered_at": "2024-07-28T12:34:56Z"
+}
+```
+
+**Поля ответа**
+- `id` — идентификатор уведомления.
+- `status` — текущий статус уведомления. Возможны значения `pending`, `queued`, `processed`, `failed`, а также `delivered`, когда в журнале событий найдена успешная доставка в Telegram.
+- `attempts` — количество совершённых попыток доставки (учитываются записи репозитория попыток).
+- `channels` — отсортированный список каналов, по которым выполнялись попытки (`sse`, `telegram` и т. д.).
+- `delivered_at` — ISO-время подтверждённой доставки (окончание обработки Telegram), иначе `null`.
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `404 notification_not_found` — уведомление не найдено (удалено или не было поставлено в очередь).
+
 ## SSE `GET /streams/notifications`
 Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
