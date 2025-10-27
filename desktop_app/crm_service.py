@@ -1,5 +1,6 @@
 """CRM service module for business logic"""
 from typing import Optional, Dict, Any, List
+from requests import exceptions as requests_exceptions
 from api_client import APIClient
 from config import (
     CRM_CLIENTS_URL, CRM_DEALS_URL,
@@ -10,6 +11,24 @@ from logger import logger
 
 class CRMService:
     """Service for CRM operations"""
+
+    TASK_FIELD_LABELS = {
+        "subject": "Тема",
+        "description": "Описание",
+        "assignee_id": "Исполнитель",
+        "author_id": "Постановщик",
+        "context.deal_id": "Сделка",
+        "context.client_id": "Клиент",
+        "assigneeId": "Исполнитель",
+        "authorId": "Постановщик",
+        "dealId": "Сделка",
+        "clientId": "Клиент",
+        "priority": "Приоритет",
+        "due_at": "Срок",
+        "dueAt": "Срок",
+        "scheduled_for": "Запланировано на",
+        "scheduledFor": "Запланировано на",
+    }
 
     def __init__(self, api_client: APIClient):
         self.api_client = api_client
@@ -343,13 +362,17 @@ class CRMService:
             logger.error(f"Failed to fetch task {task_id}: {e}")
             raise
 
-    def create_task(self, title: str, **kwargs) -> Dict[str, Any]:
+    def create_task(self, subject: str, **kwargs) -> Dict[str, Any]:
         """Create new task"""
         try:
-            data = {"title": title, **kwargs}
-            task = self.api_client.post(CRM_TASKS_URL, data)
-            logger.info(f"Created task: {title}")
+            payload = self._prepare_task_payload(subject, kwargs)
+            task = self.api_client.post(CRM_TASKS_URL, payload)
+            logger.info(f"Created task: {subject}")
             return task
+        except requests_exceptions.HTTPError as error:
+            message = self._format_http_error(error)
+            logger.error(f"Failed to create task: {message}")
+            raise ValueError(message) from error
         except Exception as e:
             logger.error(f"Failed to create task: {e}")
             raise
@@ -358,9 +381,15 @@ class CRMService:
         """Update task"""
         try:
             url = f"{CRM_TASKS_URL}/{task_id}"
-            task = self.api_client.patch(url, kwargs)
+            subject = kwargs.get("subject", "")
+            payload = self._prepare_task_payload(subject, kwargs)
+            task = self.api_client.patch(url, payload)
             logger.info(f"Updated task: {task_id}")
             return task
+        except requests_exceptions.HTTPError as error:
+            message = self._format_http_error(error)
+            logger.error(f"Failed to update task {task_id}: {message}")
+            raise ValueError(message) from error
         except Exception as e:
             logger.error(f"Failed to update task {task_id}: {e}")
             raise
@@ -374,6 +403,176 @@ class CRMService:
         except Exception as e:
             logger.error(f"Failed to delete task {task_id}: {e}")
             raise
+
+    def _prepare_task_payload(self, subject: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare payload for task create/update operations"""
+        data = data or {}
+        payload: Dict[str, Any] = {}
+        missing_fields: List[str] = []
+
+        subject_value = (subject or data.get("subject") or "")
+        if isinstance(subject_value, str):
+            subject_value = subject_value.strip()
+        if subject_value:
+            payload["subject"] = subject_value
+        else:
+            missing_fields.append("subject")
+
+        description_value = data.get("description")
+        if isinstance(description_value, str):
+            description_value = description_value.strip()
+        if description_value:
+            payload["description"] = description_value
+        else:
+            missing_fields.append("description")
+
+        for field in ("assignee_id", "author_id"):
+            value = data.get(field)
+            if value:
+                payload[field] = value
+            else:
+                missing_fields.append(field)
+
+        if missing_fields:
+            readable = [self.TASK_FIELD_LABELS.get(field, field) for field in missing_fields]
+            raise ValueError(f"Требуется заполнить поля: {', '.join(readable)}")
+
+        priority = data.get("priority")
+        if isinstance(priority, str) and priority.strip():
+            payload["priority"] = priority.strip()
+
+        due_at_value = (
+            data.get("due_at")
+            or data.get("dueAt")
+            or data.get("due_date")
+            or data.get("dueDate")
+        )
+        if isinstance(due_at_value, str):
+            due_at_value = due_at_value.strip()
+        if due_at_value:
+            payload["due_at"] = due_at_value
+
+        scheduled_for_value = data.get("scheduled_for") or data.get("scheduledFor")
+        if isinstance(scheduled_for_value, str):
+            scheduled_for_value = scheduled_for_value.strip()
+        if scheduled_for_value:
+            payload["scheduled_for"] = scheduled_for_value
+
+        context = data.get("context")
+        if isinstance(context, dict):
+            cleaned_context = {k: v for k, v in context.items() if v}
+            if cleaned_context:
+                payload["context"] = cleaned_context
+
+        return payload
+
+    @classmethod
+    def _format_http_error(cls, error: requests_exceptions.HTTPError) -> str:
+        """Return human friendly error message for HTTP errors"""
+        response = getattr(error, "response", None)
+        if response is None:
+            return str(error)
+
+        try:
+            payload = response.json()
+        except ValueError:
+            text = response.text or ""
+            return text.strip() or str(error)
+
+        messages: List[str] = []
+        if isinstance(payload, dict):
+            base_message = payload.get("message") or payload.get("detail")
+            if isinstance(base_message, str):
+                messages.append(base_message.strip())
+
+            details_source = payload.get("details") or payload.get("errors")
+            if isinstance(payload.get("detail"), (dict, list)) and not details_source:
+                details_source = payload.get("detail")
+
+            messages.extend(cls._render_validation_messages(details_source))
+
+            if not messages and payload.get("code"):
+                messages.append(str(payload.get("code")))
+        elif isinstance(payload, list):
+            messages.extend(cls._render_validation_messages(payload))
+
+        final_message = "; ".join(msg for msg in messages if msg).strip()
+        if final_message:
+            return final_message
+
+        text = getattr(response, "text", "") or ""
+        return text.strip() or str(error)
+
+    @classmethod
+    def _render_validation_messages(cls, details: Any) -> List[str]:
+        if not details:
+            return []
+
+        messages: List[str] = []
+        if isinstance(details, dict):
+            for field, info in details.items():
+                field_key = str(field)
+                field_label = cls.TASK_FIELD_LABELS.get(field_key, field_key)
+                normalized_items = cls._normalize_detail_values(info)
+                if normalized_items:
+                    messages.append(f"{field_label}: {', '.join(normalized_items)}")
+        elif isinstance(details, list):
+            for item in details:
+                if isinstance(item, dict):
+                    loc = item.get("loc") or item.get("field")
+                    if isinstance(loc, list):
+                        field_key = ".".join(str(part) for part in loc if part not in {"body", "__root__"})
+                    else:
+                        field_key = str(loc) if loc else item.get("field")
+                    field_label = cls.TASK_FIELD_LABELS.get(field_key, field_key or "")
+                    message_text = cls._normalize_detail_values(item)
+                    if message_text:
+                        combined = ", ".join(message_text)
+                        if field_label:
+                            messages.append(f"{field_label}: {combined}")
+                        else:
+                            messages.append(combined)
+                else:
+                    normalized_items = cls._normalize_detail_values(item)
+                    if normalized_items:
+                        messages.append(", ".join(normalized_items))
+        else:
+            normalized_items = cls._normalize_detail_values(details)
+            if normalized_items:
+                messages.append(", ".join(normalized_items))
+
+        return [msg for msg in messages if msg]
+
+    @classmethod
+    def _normalize_detail_values(cls, detail: Any) -> List[str]:
+        if detail is None:
+            return []
+        if isinstance(detail, str):
+            return [detail.strip()] if detail.strip() else []
+        if isinstance(detail, list):
+            values: List[str] = []
+            for item in detail:
+                values.extend(cls._normalize_detail_values(item))
+            return values
+        if isinstance(detail, dict):
+            possible_message = detail.get("message") or detail.get("msg") or detail.get("detail")
+            if isinstance(possible_message, str) and possible_message.strip():
+                return [possible_message.strip()]
+            if "code" in detail and isinstance(detail["code"], str):
+                return [detail["code"].strip()]
+            values: List[str] = []
+            for key, value in detail.items():
+                nested_values = cls._normalize_detail_values(value)
+                if not nested_values:
+                    continue
+                key_label = cls.TASK_FIELD_LABELS.get(str(key), str(key))
+                if len(nested_values) == 1 and ":" not in nested_values[0]:
+                    values.append(f"{key_label}: {nested_values[0]}")
+                else:
+                    joined = ", ".join(nested_values)
+                    values.append(f"{key_label}: {joined}")
+            return values
+        return [str(detail)]
 
     # --- Calculations Operations ---
 

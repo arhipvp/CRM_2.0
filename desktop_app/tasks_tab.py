@@ -44,33 +44,33 @@ class TasksTab:
         tree_frame = tk.Frame(self.parent)
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
+        columns = (
+            "ID", "Assignee ID", "Author ID", "Deleted", "Deal ID", "Client ID",
+            "Subject", "Description", "Status", "Priority", "Due At", "Scheduled For",
+            "Created At", "Updated At"
+        )
+
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=(
-                "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-                "Title", "Description", "Status", "Priority", "Due Date",
-                "Created At", "Updated At"
-            ),
+            columns=columns,
             show="headings"
         )
 
-        for col in (
-            "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-            "Title", "Description", "Status", "Priority", "Due Date",
-            "Created At", "Updated At"
-        ):
+        for col in columns:
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
-        self.tree.column("Owner ID", width=100)
+        self.tree.column("Assignee ID", width=110)
+        self.tree.column("Author ID", width=110)
         self.tree.column("Deleted", width=60)
         self.tree.column("Deal ID", width=100)
         self.tree.column("Client ID", width=100)
-        self.tree.column("Title", width=250)
+        self.tree.column("Subject", width=250)
         self.tree.column("Description", width=200)
         self.tree.column("Status", width=100)
         self.tree.column("Priority", width=100)
-        self.tree.column("Due Date", width=100)
+        self.tree.column("Due At", width=110)
+        self.tree.column("Scheduled For", width=140)
         self.tree.column("Created At", width=150)
         self.tree.column("Updated At", width=150)
 
@@ -97,15 +97,17 @@ class TasksTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Owner ID": "owner_id",
+            "Assignee ID": "assignee_id",
+            "Author ID": "author_id",
             "Deleted": "is_deleted",
             "Deal ID": "deal_id",
             "Client ID": "client_id",
-            "Title": "title",
+            "Subject": "subject",
             "Description": "description",
             "Status": "status",
             "Priority": "priority",
-            "Due Date": "due_date",
+            "Due At": "due_at",
+            "Scheduled For": "scheduled_for",
             "Created At": "created_at",
             "Updated At": "updated_at",
         }
@@ -151,7 +153,8 @@ class TasksTab:
             return
 
         # Store all data for filtering
-        self.all_tasks = tasks or []
+        normalized_tasks = [self._normalize_task(task) for task in (tasks or [])]
+        self.all_tasks = normalized_tasks
         if deals is not None:
             self.deals = deals or []
             self.all_deals = deals or []
@@ -162,6 +165,72 @@ class TasksTab:
             self.users = users or []
         self._refresh_tree_display(self.all_tasks)
 
+    def _extract_task_value(self, task: Dict[str, Any], *keys: str) -> Any:
+        if not isinstance(task, dict):
+            return None
+        for key in keys:
+            if key in task:
+                value = task.get(key)
+                if value not in (None, ""):
+                    return value
+        payload = task.get("payload")
+        if isinstance(payload, dict):
+            for key in keys:
+                if key in payload:
+                    value = payload.get(key)
+                    if value not in (None, ""):
+                        return value
+        return None
+
+    def _extract_context_value(self, task: Dict[str, Any], *keys: str) -> Any:
+        contexts = []
+        context = task.get("context")
+        if isinstance(context, dict):
+            contexts.append(context)
+        payload = task.get("payload")
+        if isinstance(payload, dict):
+            payload_context = payload.get("context")
+            if isinstance(payload_context, dict):
+                contexts.append(payload_context)
+        if not keys:
+            for ctx in contexts:
+                if ctx:
+                    return ctx
+        for ctx in contexts:
+            for key in keys:
+                if key in ctx:
+                    value = ctx.get(key)
+                    if value not in (None, ""):
+                        return value
+        return None
+
+    def _normalize_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        task = task or {}
+        normalized: Dict[str, Any] = dict(task)
+
+        normalized["subject"] = self._extract_task_value(task, "subject", "title") or ""
+        normalized["description"] = self._extract_task_value(task, "description") or ""
+        normalized["status"] = self._extract_task_value(task, "status", "statusCode") or ""
+        normalized["priority"] = self._extract_task_value(task, "priority") or ""
+        normalized["assignee_id"] = self._extract_task_value(task, "assignee_id", "assigneeId")
+        normalized["author_id"] = self._extract_task_value(task, "author_id", "authorId")
+        normalized["due_at"] = self._extract_task_value(task, "due_at", "dueAt", "due_date", "dueDate")
+        normalized["scheduled_for"] = self._extract_task_value(task, "scheduled_for", "scheduledFor")
+        normalized["created_at"] = self._extract_task_value(task, "created_at", "createdAt")
+        normalized["updated_at"] = self._extract_task_value(task, "updated_at", "updatedAt")
+        normalized["deal_id"] = (
+            self._extract_task_value(task, "deal_id", "dealId")
+            or self._extract_context_value(task, "deal_id", "dealId")
+        )
+        normalized["client_id"] = (
+            self._extract_task_value(task, "client_id", "clientId")
+            or self._extract_context_value(task, "client_id", "clientId")
+        )
+        context_value = self._extract_context_value(task)
+        normalized["context"] = context_value if isinstance(context_value, dict) else {}
+        normalized["is_deleted"] = task.get("is_deleted", False)
+        return normalized
+
     def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
         """Refresh tree display with given list of tasks"""
         if not self.tree:
@@ -171,22 +240,29 @@ class TasksTab:
         for i in self.tree.get_children():
             self.tree.delete(i)
 
+        def _short_id(value: Any) -> str:
+            if not value:
+                return "N/A"
+            return str(value)[:8]
+
         # Add tasks
         for task in tasks_to_display:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
             self.tree.insert("", "end", iid=task.get("id"), values=(
-                str(task.get("id", "N/A"))[:8],
-                str(task.get("owner_id", "N/A"))[:8],
+                _short_id(task.get("id")),
+                _short_id(task.get("assignee_id")),
+                _short_id(task.get("author_id")),
                 is_deleted,
-                str(task.get("deal_id", "N/A"))[:8],
-                str(task.get("client_id", "N/A"))[:8],
-                task.get("title", "N/A"),
-                task.get("description", "N/A"),
-                task.get("status", "N/A"),
-                task.get("priority", "N/A"),
-                task.get("due_date", "N/A"),
-                task.get("created_at", "N/A"),
-                task.get("updated_at", "N/A"),
+                _short_id(task.get("deal_id")),
+                _short_id(task.get("client_id")),
+                task.get("subject") or "N/A",
+                task.get("description") or "N/A",
+                task.get("status") or "N/A",
+                task.get("priority") or "N/A",
+                task.get("due_at") or "N/A",
+                task.get("scheduled_for") or "N/A",
+                task.get("created_at") or "N/A",
+                task.get("updated_at") or "N/A",
             ))
 
     def add_task(self):
@@ -286,7 +362,7 @@ class TasksTab:
             return
 
         # Filter tasks by search text
-        search_fields = ["title", "description", "status"]
+        search_fields = ["subject", "description", "status", "priority"]
         filtered_tasks = search_filter_rows(self.all_tasks, search_text, search_fields)
 
         # Update tree display with filtered results
@@ -310,8 +386,9 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
-                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Author ID"), i18n("Deleted"),
+                i18n("Deal ID"), i18n("Client ID"), i18n("Subject"), i18n("Description"),
+                i18n("Status"), i18n("Priority"), i18n("Due At"), i18n("Scheduled For"),
                 i18n("Created At"), i18n("Updated At")
             ]
             rows = []
@@ -319,18 +396,20 @@ class TasksTab:
             for task in self.all_tasks:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
-                    task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    (task.get("id") or "N/A")[:8],
+                    (task.get("assignee_id") or "N/A")[:8],
+                    (task.get("author_id") or "N/A")[:8],
                     is_deleted,
-                    task.get("deal_id", "N/A")[:8],
-                    task.get("client_id", "N/A")[:8],
-                    task.get("title", "N/A"),
-                    task.get("description", "N/A"),
-                    task.get("status", "N/A"),
-                    task.get("priority", "N/A"),
-                    task.get("due_date", "N/A"),
-                    task.get("created_at", "N/A"),
-                    task.get("updated_at", "N/A"),
+                    (task.get("deal_id") or "N/A")[:8],
+                    (task.get("client_id") or "N/A")[:8],
+                    task.get("subject") or "N/A",
+                    task.get("description") or "N/A",
+                    task.get("status") or "N/A",
+                    task.get("priority") or "N/A",
+                    task.get("due_at") or "N/A",
+                    task.get("scheduled_for") or "N/A",
+                    task.get("created_at") or "N/A",
+                    task.get("updated_at") or "N/A",
                 ])
 
             # Export using DataExporter
@@ -362,8 +441,9 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
-                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Author ID"), i18n("Deleted"),
+                i18n("Deal ID"), i18n("Client ID"), i18n("Subject"), i18n("Description"),
+                i18n("Status"), i18n("Priority"), i18n("Due At"), i18n("Scheduled For"),
                 i18n("Created At"), i18n("Updated At")
             ]
             rows = []
@@ -371,18 +451,20 @@ class TasksTab:
             for task in self.all_tasks:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
                 rows.append([
-                    task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    (task.get("id") or "N/A")[:8],
+                    (task.get("assignee_id") or "N/A")[:8],
+                    (task.get("author_id") or "N/A")[:8],
                     is_deleted,
-                    task.get("deal_id", "N/A")[:8],
-                    task.get("client_id", "N/A")[:8],
-                    task.get("title", "N/A"),
-                    task.get("description", "N/A"),
-                    task.get("status", "N/A"),
-                    task.get("priority", "N/A"),
-                    task.get("due_date", "N/A"),
-                    task.get("created_at", "N/A"),
-                    task.get("updated_at", "N/A"),
+                    (task.get("deal_id") or "N/A")[:8],
+                    (task.get("client_id") or "N/A")[:8],
+                    task.get("subject") or "N/A",
+                    task.get("description") or "N/A",
+                    task.get("status") or "N/A",
+                    task.get("priority") or "N/A",
+                    task.get("due_at") or "N/A",
+                    task.get("scheduled_for") or "N/A",
+                    task.get("created_at") or "N/A",
+                    task.get("updated_at") or "N/A",
                 ])
 
             # Export using DataExporter

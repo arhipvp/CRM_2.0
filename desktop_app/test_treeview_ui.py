@@ -25,7 +25,7 @@ scrollbar = ttk.Scrollbar(frame)
 scrollbar.pack(side="right", fill="y")
 
 # Create treeview
-columns = ("title", "status", "priority", "due_date", "created_at", "deleted")
+columns = ("subject", "status", "priority", "due_at", "scheduled_for", "created_at", "deleted")
 tree = ttk.Treeview(
     frame,
     columns=columns,
@@ -36,18 +36,20 @@ tree = ttk.Treeview(
 scrollbar.config(command=tree.yview)
 
 # Configure columns
-tree.column("title", width=300, anchor="w")
+tree.column("subject", width=300, anchor="w")
 tree.column("status", width=100, anchor="w")
 tree.column("priority", width=80, anchor="w")
-tree.column("due_date", width=100, anchor="w")
+tree.column("due_at", width=120, anchor="w")
+tree.column("scheduled_for", width=140, anchor="w")
 tree.column("created_at", width=100, anchor="w")
 tree.column("deleted", width=60, anchor="w")
 
 # Configure headings
-tree.heading("title", text="Title")
+tree.heading("subject", text="Subject")
 tree.heading("status", text="Status")
 tree.heading("priority", text="Priority")
-tree.heading("due_date", text="Due Date")
+tree.heading("due_at", text="Due At")
+tree.heading("scheduled_for", text="Scheduled For")
 tree.heading("created_at", text="Created")
 tree.heading("deleted", text="Deleted")
 
@@ -57,25 +59,25 @@ print("Treeview created successfully")
 
 # Test data - Russian names
 test_data = [
-    ("1945edd5-73b2-49e1-8c4a-1aa5f0408752", "Задача 1", "open", "high", "2025-10-27", "2025-10-24", "No"),
-    ("391f1851-8039-4424-8108-a090ad6c5e8a", "Задача 2", "in_progress", "normal", "2025-10-29", "2025-10-24", "No"),
-    ("4714ed0a-b833-4769-be95-0a0d5d99d2f7", "Задача 3", "completed", "low", "2025-10-25", "2025-10-24", "No"),
-    ("22f75af9-42ee-41b3-9fdb-e25630c7fee0", "Задача 4", "closed", "urgent", "2025-10-22", "2025-10-24", "No"),
-    ("d736f7f2-fca8-4241-a9a1-d0c504aef45b", "Задача 5", "open", "high", "2025-10-31", "2025-10-24", "No"),
+    ("1945edd5-73b2-49e1-8c4a-1aa5f0408752", "Задача 1", "open", "high", "2025-10-27", "2025-10-26T09:00:00", "2025-10-24", "No"),
+    ("391f1851-8039-4424-8108-a090ad6c5e8a", "Задача 2", "in_progress", "normal", "2025-10-29", "", "2025-10-24", "No"),
+    ("4714ed0a-b833-4769-be95-0a0d5d99d2f7", "Задача 3", "completed", "low", "2025-10-25", "", "2025-10-24", "No"),
+    ("22f75af9-42ee-41b3-9fdb-e25630c7fee0", "Задача 4", "closed", "urgent", "2025-10-22", "2025-10-20T12:00:00", "2025-10-24", "No"),
+    ("d736f7f2-fca8-4241-a9a1-d0c504aef45b", "Задача 5", "open", "high", "2025-10-31", "", "2025-10-24", "No"),
 ]
 
 print(f"Inserting {len(test_data)} rows into tree...")
 
 # Insert test data
-for task_id, title, status, priority, due_date, created_at, is_deleted in test_data:
+for task_id, subject, status, priority, due_at, scheduled_for, created_at, is_deleted in test_data:
     try:
         tree.insert(
             "",
             "end",
             iid=task_id,
-            values=(title, status, priority, due_date, created_at, is_deleted)
+            values=(subject, status, priority, due_at, scheduled_for or "—", created_at, is_deleted)
         )
-        print(f"  Inserted: {title}")
+        print(f"  Inserted: {subject}")
     except Exception as e:
         print(f"  ERROR inserting {title}: {e}")
 

@@ -32,18 +32,26 @@ def test_tasks_api():
             for i, task in enumerate(tasks, 1):
                 print(f"\n  Task {i}:")
                 print(f"    - ID:       {task.get('id')}")
-                print(f"    - Title:    {task.get('title')}")
-                print(f"    - Status:   {task.get('status')}")
-                print(f"    - Priority: {task.get('priority')}")
-                print(f"    - Due Date: {task.get('due_date')}")
+                subject = task.get('subject') or task.get('title')
+                status = task.get('status') or task.get('statusCode')
+                priority = task.get('priority')
+                due_at = task.get('due_at') or task.get('dueAt') or task.get('due_date')
+                assignee = task.get('assignee_id') or task.get('assigneeId')
+                author = task.get('author_id') or task.get('authorId')
+                print(f"    - Subject:  {subject}")
+                print(f"    - Assignee: {assignee}")
+                print(f"    - Author:   {author}")
+                print(f"    - Status:   {status}")
+                print(f"    - Priority: {priority}")
+                print(f"    - Due At:   {due_at}")
                 print(f"    - Description: {task.get('description')}")
 
                 # Check data types
                 print(f"    - Data Types: ", end="")
                 checks = [
                     isinstance(task.get('id'), str),
-                    isinstance(task.get('title'), str),
-                    isinstance(task.get('status'), str),
+                    isinstance(subject, str),
+                    isinstance(status, str),
                     isinstance(task.get('priority'), str),
                 ]
                 if all(checks):

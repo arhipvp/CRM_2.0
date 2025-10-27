@@ -642,40 +642,83 @@ class TaskEditDialog(BaseEditDialog):
             self.user_dict[display_label] = user_id
 
         # Initialize variables
-        self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
+        subject_value = ""
+        if task:
+            subject_value = task.get("subject") or task.get("title") or ""
+        self.subject_var = tk.StringVar(value=subject_value)
         self.description_var = tk.StringVar(value=task.get("description", "") if task else "")
         self.status_var = tk.StringVar(value=task.get("status", "open") if task else "open")
         self.priority_var = tk.StringVar(value=task.get("priority", "normal") if task else "normal")
-        self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
+        self.due_at_var = tk.StringVar()
+        self.scheduled_for_var = tk.StringVar()
         self.deal_id_var = tk.StringVar()
         self.client_id_var = tk.StringVar()
-        self.owner_id_var = tk.StringVar()
+        self.assignee_id_var = tk.StringVar()
+        self.author_id_var = tk.StringVar()
+
+        def _get_value(data: Dict[str, Any], *keys: str) -> Optional[Any]:
+            if not isinstance(data, dict):
+                return None
+            for key in keys:
+                value = data.get(key)
+                if value:
+                    return value
+            payload = data.get("payload")
+            if isinstance(payload, dict):
+                for key in keys:
+                    value = payload.get(key)
+                    if value:
+                        return value
+            context = data.get("context")
+            if isinstance(context, dict):
+                for key in keys:
+                    value = context.get(key)
+                    if value:
+                        return value
+            return None
 
         if task:
-            if task.get("deal_id"):
+            deal_value = _get_value(task, "deal_id", "dealId")
+            if deal_value:
                 deal_display = next(
-                    (label for label, value in self.deal_dict.items() if value == task.get("deal_id")),
+                    (label for label, value in self.deal_dict.items() if value == deal_value),
                     ""
                 )
                 if deal_display:
                     self.deal_id_var.set(deal_display)
-            if task.get("client_id"):
+            client_value = _get_value(task, "client_id", "clientId")
+            if client_value:
                 client_display = next(
-                    (label for label, value in self.client_dict.items() if value == task.get("client_id")),
+                    (label for label, value in self.client_dict.items() if value == client_value),
                     ""
                 )
                 if client_display:
                     self.client_id_var.set(client_display)
-            if task.get("owner_id"):
-                owner_display = next(
-                    (label for label, value in self.user_dict.items() if value == task.get("owner_id")),
+            assignee_value = _get_value(task, "assignee_id", "assigneeId", "owner_id")
+            if assignee_value:
+                assignee_display = next(
+                    (label for label, value in self.user_dict.items() if value == assignee_value),
                     "",
                 )
-                if owner_display:
-                    self.owner_id_var.set(owner_display)
+                if assignee_display:
+                    self.assignee_id_var.set(assignee_display)
+            author_value = _get_value(task, "author_id", "authorId")
+            if author_value:
+                author_display = next(
+                    (label for label, value in self.user_dict.items() if value == author_value),
+                    "",
+                )
+                if author_display:
+                    self.author_id_var.set(author_display)
+            due_at_value = _get_value(task, "due_at", "dueAt", "due_date", "dueDate")
+            if due_at_value:
+                self.due_at_var.set(str(due_at_value))
+            scheduled_for_value = _get_value(task, "scheduled_for", "scheduledFor")
+            if scheduled_for_value:
+                self.scheduled_for_var.set(str(scheduled_for_value))
 
-        # Title field
-        self.create_field(0, "Title", self.title_var, "entry")
+        # Subject field
+        self.create_field(0, "Subject", self.subject_var, "entry")
 
         # Description field
         self.create_field(1, "Description", self.description_var, "text")
@@ -686,64 +729,93 @@ class TaskEditDialog(BaseEditDialog):
         # Client field
         self.create_field(3, "Client", self.client_id_var, "combobox", list(self.client_dict.keys()))
 
-        # Owner field
-        self.create_field(4, "Owner", self.owner_id_var, "combobox", list(self.user_dict.keys()))
+        # Assignee field
+        self.create_field(4, "Assignee", self.assignee_id_var, "combobox", list(self.user_dict.keys()))
+
+        # Author field
+        self.create_field(5, "Author", self.author_id_var, "combobox", list(self.user_dict.keys()))
 
         # Status field
-        self.create_field(5, "Status", self.status_var, "combobox",
+        self.create_field(6, "Status", self.status_var, "combobox",
                          values=["open", "in_progress", "completed", "closed"])
 
         # Priority field
-        self.create_field(6, "Priority", self.priority_var, "combobox",
+        self.create_field(7, "Priority", self.priority_var, "combobox",
                          values=["low", "normal", "high", "urgent"])
 
         # Due Date field
-        self.create_field(7, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
+        self.create_field(8, "Due Date (YYYY-MM-DD)", self.due_at_var, "entry")
+
+        # Scheduled For field
+        self.create_field(9, "Scheduled For (ISO8601)", self.scheduled_for_var, "entry")
 
         # Buttons
         button_frame = ttk.Frame(self)
-        button_frame.grid(row=8, columnspan=2, pady=10)
+        button_frame.grid(row=10, columnspan=2, pady=10)
 
         ttk.Button(button_frame, text=i18n("OK"), command=self.on_ok).pack(side="left", padx=5)
         ttk.Button(button_frame, text=i18n("Cancel"), command=self.destroy).pack(side="left", padx=5)
 
-        self.geometry("500x560")
+        self.geometry("520x620")
         self.grab_set()
         self.wait_window(self)
 
     def on_ok(self):
         """Handle OK button"""
-        title = self.title_var.get().strip()
-        if not title:
-            messagebox.showerror(i18n("Error"), "Title cannot be empty.", parent=self)
+        subject = self.subject_var.get().strip()
+        if not subject:
+            messagebox.showerror(i18n("Error"), i18n("Subject cannot be empty."), parent=self)
             return
 
-        description = self.get_text_value(self.description_var)
-        due_date = self.due_date_var.get().strip()
+        description = self.get_text_value(self.description_var).strip()
+        if not description:
+            messagebox.showerror(i18n("Error"), i18n("Description cannot be empty."), parent=self)
+            return
+
+        due_at = self.due_at_var.get().strip()
+        scheduled_for = self.scheduled_for_var.get().strip()
         deal_label = self.deal_id_var.get().strip()
         client_label = self.client_id_var.get().strip()
-        owner_label = self.owner_id_var.get().strip()
+        assignee_label = self.assignee_id_var.get().strip()
+        author_label = self.author_id_var.get().strip()
 
         if deal_label and deal_label not in self.deal_dict:
-            messagebox.showerror("Error", "Invalid deal selected.", parent=self)
+            messagebox.showerror(i18n("Error"), i18n("Invalid deal selected."), parent=self)
             return
 
         if client_label and client_label not in self.client_dict:
-            messagebox.showerror("Error", "Invalid client selected.", parent=self)
+            messagebox.showerror(i18n("Error"), i18n("Invalid client selected."), parent=self)
             return
 
-        if owner_label and owner_label not in self.user_dict:
-            messagebox.showerror("Error", "Invalid owner selected.", parent=self)
+        if not assignee_label or assignee_label not in self.user_dict:
+            messagebox.showerror(i18n("Error"), i18n("Assignee must be selected."), parent=self)
             return
 
-        self.result = {
-            "title": title,
+        if not author_label or author_label not in self.user_dict:
+            messagebox.showerror(i18n("Error"), i18n("Author must be selected."), parent=self)
+            return
+
+        context: Dict[str, Any] = {}
+        if deal_label:
+            context["deal_id"] = self.deal_dict.get(deal_label)
+        if client_label:
+            context["client_id"] = self.client_dict.get(client_label)
+
+        payload: Dict[str, Any] = {
+            "subject": subject,
             "description": description,
             "status": self.status_var.get(),
             "priority": self.priority_var.get(),
-            "due_date": due_date if due_date else None,
-            "deal_id": self.deal_dict.get(deal_label) if deal_label else None,
-            "client_id": self.client_dict.get(client_label) if client_label else None,
-            "owner_id": self.user_dict.get(owner_label) if owner_label else None,
+            "assignee_id": self.user_dict.get(assignee_label),
+            "author_id": self.user_dict.get(author_label),
         }
+
+        if due_at:
+            payload["due_at"] = due_at
+        if scheduled_for:
+            payload["scheduled_for"] = scheduled_for
+        if context:
+            payload["context"] = context
+
+        self.result = payload
         self.destroy()

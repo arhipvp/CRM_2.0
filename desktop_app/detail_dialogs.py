@@ -976,12 +976,15 @@ class TaskDetailDialog(tk.Toplevel):
 
         fields = [
             (i18n("ID"), self.task_data.get("id", "N/A")),
-            (i18n("Title"), self.task_data.get("title", "N/A")),
-            (i18n("Status"), self.task_data.get("status", "N/A")),
+            (i18n("Subject"), self.task_data.get("subject") or self.task_data.get("title", "N/A")),
+            (i18n("Status"), self.task_data.get("status") or self.task_data.get("statusCode", "N/A")),
             (i18n("Priority"), self.task_data.get("priority", "N/A")),
-            (i18n("Due Date"), self.task_data.get("due_date", "N/A")),
-            (i18n("Deal ID"), self.task_data.get("deal_id", "N/A")),
-            (i18n("Client ID"), self.task_data.get("client_id", "N/A")),
+            (i18n("Assignee ID"), self.task_data.get("assignee_id") or self.task_data.get("assigneeId", "N/A")),
+            (i18n("Author ID"), self.task_data.get("author_id") or self.task_data.get("authorId", "N/A")),
+            (i18n("Due At"), self.task_data.get("due_at") or self.task_data.get("dueAt", "N/A")),
+            (i18n("Scheduled For"), self.task_data.get("scheduled_for") or self.task_data.get("scheduledFor", "N/A")),
+            (i18n("Deal ID"), self.task_data.get("deal_id") or self.task_data.get("dealId", "N/A")),
+            (i18n("Client ID"), self.task_data.get("client_id") or self.task_data.get("clientId", "N/A")),
         ]
 
         for i, (label, value) in enumerate(fields):

@@ -32,30 +32,30 @@ def test_treeview_display():
             return False
 
         # Print header
-        print(f"{'Title':<25} | {'Status':<12} | {'Priority':<8} | {'Due Date':<12} | {'Created':<10}")
+        print(f"{'Subject':<25} | {'Status':<12} | {'Priority':<8} | {'Due At':<20} | {'Assignee':<10}")
         print("-" * 70)
 
         # Simulate tree insertion
         insertion_count = 0
         for task in tasks:
-            title = task.get("title", "")
-            status = task.get("status", "")
+            subject = task.get("subject") or task.get("title", "")
+            status = task.get("status") or task.get("statusCode", "")
             priority = task.get("priority", "")
-            due_date = task.get("due_date", "")
-            created = task.get("created_at", "")[:10] if task.get("created_at") else ""
+            due_at = task.get("due_at") or task.get("dueAt") or task.get("due_date", "")
+            assignee = task.get("assignee_id") or task.get("assigneeId", "")
 
             # This is what tree.insert() would do
-            tree_values = (title, status, priority, due_date, created, "No")
+            tree_values = (subject, status, priority, due_at, assignee, "No")
 
             # Print the values that would be in the tree
-            print(f"{title:<25} | {status:<12} | {priority:<8} | {due_date:<12} | {created:<10}")
+            print(f"{subject:<25} | {status:<12} | {priority:<8} | {due_at:<20} | {assignee[:8]:<10}")
 
             insertion_count += 1
 
             # Verify data types
             if not all([
                 isinstance(task.get("id"), str),
-                isinstance(title, str),
+                isinstance(subject, str),
                 isinstance(status, str),
                 isinstance(priority, str),
             ]):
