@@ -645,9 +645,14 @@ class TaskEditDialog(BaseEditDialog):
         # Initialize variables
         self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
         self.description_var = tk.StringVar(value=task.get("description", "") if task else "")
-        self.status_var = tk.StringVar(value=task.get("status", "open") if task else "open")
-        initial_priority = normalize_priority(task.get("priority")) if task else DEFAULT_PRIORITY
-        self.priority_var = tk.StringVar(value=initial_priority)
+        self.status_var = tk.StringVar(
+            value=self._normalize_status_value(
+                task.get("status_code") if task else None,
+                fallback=task.get("status") if task else None,
+                default="pending",
+            )
+        )
+        self.priority_var = tk.StringVar(value=task.get("priority", "normal") if task else "normal")
         self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
         self.deal_id_var = tk.StringVar()
         self.client_id_var = tk.StringVar()
@@ -692,8 +697,13 @@ class TaskEditDialog(BaseEditDialog):
         self.create_field(4, "Owner", self.owner_id_var, "combobox", list(self.user_dict.keys()))
 
         # Status field
-        self.create_field(5, "Status", self.status_var, "combobox",
-                         values=["open", "in_progress", "completed", "closed"])
+        self.create_field(
+            5,
+            "Status",
+            self.status_var,
+            "combobox",
+            values=["pending", "scheduled", "in_progress", "completed", "cancelled"],
+        )
 
         # Priority field
         self.create_field(6, "Priority", self.priority_var, "combobox",
@@ -752,3 +762,30 @@ class TaskEditDialog(BaseEditDialog):
             "owner_id": self.user_dict.get(owner_label) if owner_label else None,
         }
         self.destroy()
+
+    @staticmethod
+    def _normalize_status_value(status_code: Optional[str], *, fallback: Optional[str] = None,
+                                default: str = "pending") -> str:
+        """Normalize status value to allowed status code."""
+        if status_code:
+            normalized = TaskEditDialog._to_status_code(status_code)
+            if normalized:
+                return normalized
+        if fallback:
+            normalized = TaskEditDialog._to_status_code(fallback)
+            if normalized:
+                return normalized
+        return default
+
+    @staticmethod
+    def _to_status_code(value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        lowered = trimmed.lower().replace(" ", "_")
+        allowed = {"pending", "scheduled", "in_progress", "completed", "cancelled"}
+        if lowered in allowed:
+            return lowered
+        return None

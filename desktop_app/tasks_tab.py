@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from threading import Thread
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 
 from crm_service import CRMService
 from logger import logger
@@ -48,7 +49,7 @@ class TasksTab:
             tree_frame,
             columns=(
                 "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-                "Title", "Description", "Status", "Priority", "Due Date",
+                "Title", "Description", "Status Code", "Status Name", "Priority", "Due Date",
                 "Created At", "Updated At"
             ),
             show="headings"
@@ -56,7 +57,7 @@ class TasksTab:
 
         for col in (
             "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-            "Title", "Description", "Status", "Priority", "Due Date",
+            "Title", "Description", "Status Code", "Status Name", "Priority", "Due Date",
             "Created At", "Updated At"
         ):
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
@@ -68,7 +69,8 @@ class TasksTab:
         self.tree.column("Client ID", width=100)
         self.tree.column("Title", width=250)
         self.tree.column("Description", width=200)
-        self.tree.column("Status", width=100)
+        self.tree.column("Status Code", width=110)
+        self.tree.column("Status Name", width=140)
         self.tree.column("Priority", width=100)
         self.tree.column("Due Date", width=100)
         self.tree.column("Created At", width=150)
@@ -103,11 +105,12 @@ class TasksTab:
             "Client ID": "client_id",
             "Title": "title",
             "Description": "description",
-            "Status": "status",
+            "Status Code": "statusCode",
+            "Status Name": "statusName",
             "Priority": "priority",
-            "Due Date": "due_date",
-            "Created At": "created_at",
-            "Updated At": "updated_at",
+            "Due Date": "dueAt",
+            "Created At": "createdAt",
+            "Updated At": "updatedAt",
         }
         treeview_sort_column(self.tree, col, False, self.all_tasks, display_map)
 
@@ -132,7 +135,7 @@ class TasksTab:
         """Fetch tasks in background"""
         try:
             self.tasks = self.crm_service.get_tasks()
-            self.all_tasks = self.tasks  # Store all tasks for filtering
+            self.all_tasks = [self._normalize_task(task) for task in (self.tasks or [])]  # Store all tasks for filtering
             # Also fetch deals for dropdown
             self.deals = self.crm_service.get_deals()
             self.all_deals = self.deals
@@ -151,7 +154,8 @@ class TasksTab:
             return
 
         # Store all data for filtering
-        self.all_tasks = tasks or []
+        normalized_tasks = [self._normalize_task(task) for task in (tasks or [])]
+        self.all_tasks = normalized_tasks
         if deals is not None:
             self.deals = deals or []
             self.all_deals = deals or []
@@ -174,20 +178,82 @@ class TasksTab:
         # Add tasks
         for task in tasks_to_display:
             is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
+            status_code = self._get_value(task, "statusCode", "status_code", "status") or "N/A"
+            status_name = self._get_value(task, "statusName", "status_name") or status_code
+            due_at_raw = self._get_value(task, "dueAt", "due_at", "dueDate", "due_date")
+            due_at_display = self._format_datetime(due_at_raw, date_only=True)
+            created_at_display = self._format_datetime(self._get_value(task, "createdAt", "created_at"))
+            updated_at_display = self._format_datetime(self._get_value(task, "updatedAt", "updated_at"))
+
             self.tree.insert("", "end", iid=task.get("id"), values=(
-                str(task.get("id", "N/A"))[:8],
-                str(task.get("owner_id", "N/A"))[:8],
+                self._shorten_identifier(task.get("id")),
+                self._shorten_identifier(task.get("owner_id")),
                 is_deleted,
-                str(task.get("deal_id", "N/A"))[:8],
-                str(task.get("client_id", "N/A"))[:8],
+                self._shorten_identifier(task.get("deal_id")),
+                self._shorten_identifier(task.get("client_id")),
                 task.get("title", "N/A"),
                 task.get("description", "N/A"),
-                task.get("status", "N/A"),
+                status_code,
+                status_name or "N/A",
                 task.get("priority", "N/A"),
-                task.get("due_date", "N/A"),
-                task.get("created_at", "N/A"),
-                task.get("updated_at", "N/A"),
+                due_at_display,
+                created_at_display,
+                updated_at_display,
             ))
+
+    @staticmethod
+    def _normalize_task(task: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure task dictionary contains expected camelCase keys."""
+        normalized = dict(task) if task else {}
+
+        def ensure_key(target_key: str, *aliases: str):
+            if target_key not in normalized or normalized.get(target_key) in (None, ""):
+                for alias in aliases:
+                    if alias in normalized and normalized.get(alias) not in (None, ""):
+                        normalized[target_key] = normalized.get(alias)
+                        return
+
+        ensure_key("statusCode", "status_code", "status")
+        ensure_key("statusName", "status_name")
+        ensure_key("dueAt", "due_at", "dueDate", "due_date")
+        ensure_key("createdAt", "created_at")
+        ensure_key("updatedAt", "updated_at")
+
+        if not normalized.get("statusName") and normalized.get("statusCode"):
+            normalized["statusName"] = normalized.get("statusCode")
+
+        return normalized
+
+    @staticmethod
+    def _get_value(task: Dict[str, Any], *keys: str) -> Any:
+        """Return first available value by iterating over aliases."""
+        for key in keys:
+            if key in task and task.get(key) not in (None, ""):
+                return task.get(key)
+        return None
+
+    @staticmethod
+    def _format_datetime(value: Any, date_only: bool = False) -> str:
+        """Format ISO datetime string to readable form."""
+        if not value:
+            return "N/A"
+        if isinstance(value, datetime):
+            dt_value = value
+        else:
+            try:
+                normalized = str(value).replace("Z", "+00:00")
+                dt_value = datetime.fromisoformat(normalized)
+            except (ValueError, TypeError):
+                return str(value)
+
+        return dt_value.strftime("%Y-%m-%d") if date_only else dt_value.strftime("%Y-%m-%d %H:%M")
+
+    @staticmethod
+    def _shorten_identifier(value: Any) -> str:
+        """Shorten identifier for display in the table."""
+        if not value:
+            return "N/A"
+        return str(value)[:8]
 
     def add_task(self):
         """Add new task"""
@@ -286,7 +352,16 @@ class TasksTab:
             return
 
         # Filter tasks by search text
-        search_fields = ["title", "description", "status"]
+        search_fields = [
+            "title",
+            "description",
+            "statusCode",
+            "statusName",
+            "priority",
+            "dueAt",
+            "createdAt",
+            "updatedAt",
+        ]
         filtered_tasks = search_filter_rows(self.all_tasks, search_text, search_fields)
 
         # Update tree display with filtered results
@@ -311,26 +386,33 @@ class TasksTab:
             # Prepare data
             columns = [
                 i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
-                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("Title"), i18n("Description"), i18n("Status Code"), i18n("Status Name"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
             rows = []
 
             for task in self.all_tasks:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
+                status_code = self._get_value(task, "statusCode", "status_code", "status") or "N/A"
+                status_name = self._get_value(task, "statusName", "status_name") or status_code
+                due_at_raw = self._get_value(task, "dueAt", "due_at", "dueDate", "due_date")
+                due_at_display = self._format_datetime(due_at_raw, date_only=True)
+                created_at_display = self._format_datetime(self._get_value(task, "createdAt", "created_at"))
+                updated_at_display = self._format_datetime(self._get_value(task, "updatedAt", "updated_at"))
                 rows.append([
-                    task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    self._shorten_identifier(task.get("id")),
+                    self._shorten_identifier(task.get("owner_id")),
                     is_deleted,
-                    task.get("deal_id", "N/A")[:8],
-                    task.get("client_id", "N/A")[:8],
+                    self._shorten_identifier(task.get("deal_id")),
+                    self._shorten_identifier(task.get("client_id")),
                     task.get("title", "N/A"),
                     task.get("description", "N/A"),
-                    task.get("status", "N/A"),
+                    status_code,
+                    status_name or "N/A",
                     task.get("priority", "N/A"),
-                    task.get("due_date", "N/A"),
-                    task.get("created_at", "N/A"),
-                    task.get("updated_at", "N/A"),
+                    due_at_display,
+                    created_at_display,
+                    updated_at_display,
                 ])
 
             # Export using DataExporter
@@ -363,26 +445,33 @@ class TasksTab:
             # Prepare data
             columns = [
                 i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
-                i18n("Title"), i18n("Description"), i18n("Status"), i18n("Priority"), i18n("Due Date"),
+                i18n("Title"), i18n("Description"), i18n("Status Code"), i18n("Status Name"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
             rows = []
 
             for task in self.all_tasks:
                 is_deleted = i18n("Yes") if task.get("is_deleted", False) else i18n("No")
+                status_code = self._get_value(task, "statusCode", "status_code", "status") or "N/A"
+                status_name = self._get_value(task, "statusName", "status_name") or status_code
+                due_at_raw = self._get_value(task, "dueAt", "due_at", "dueDate", "due_date")
+                due_at_display = self._format_datetime(due_at_raw, date_only=True)
+                created_at_display = self._format_datetime(self._get_value(task, "createdAt", "created_at"))
+                updated_at_display = self._format_datetime(self._get_value(task, "updatedAt", "updated_at"))
                 rows.append([
-                    task.get("id", "N/A")[:8],
-                    task.get("owner_id", "N/A")[:8],
+                    self._shorten_identifier(task.get("id")),
+                    self._shorten_identifier(task.get("owner_id")),
                     is_deleted,
-                    task.get("deal_id", "N/A")[:8],
-                    task.get("client_id", "N/A")[:8],
+                    self._shorten_identifier(task.get("deal_id")),
+                    self._shorten_identifier(task.get("client_id")),
                     task.get("title", "N/A"),
                     task.get("description", "N/A"),
-                    task.get("status", "N/A"),
+                    status_code,
+                    status_name or "N/A",
                     task.get("priority", "N/A"),
-                    task.get("due_date", "N/A"),
-                    task.get("created_at", "N/A"),
-                    task.get("updated_at", "N/A"),
+                    due_at_display,
+                    created_at_display,
+                    updated_at_display,
                 ])
 
             # Export using DataExporter

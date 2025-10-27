@@ -18,6 +18,34 @@ def _normalize_task(task: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+TASK_STATUS_CODES: set[str] = {"pending", "scheduled", "in_progress", "completed", "cancelled"}
+TASK_STATUS_DISPLAY_MAP: Dict[str, str] = {
+    "pending": "Pending",
+    "scheduled": "Scheduled",
+    "in_progress": "In Progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+}
+
+
+def _task_status_to_display(status_code: Optional[str]) -> Optional[str]:
+    if not status_code:
+        return None
+    normalized = status_code.strip().lower().replace(" ", "_")
+    if normalized in TASK_STATUS_CODES:
+        return TASK_STATUS_DISPLAY_MAP.get(normalized, normalized.replace("_", " ").title())
+    return status_code
+
+
+def _task_status_to_code(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower().replace(" ", "_")
+    if normalized in TASK_STATUS_CODES:
+        return normalized
+    return None
+
+
 class CRMService:
     """Service for CRM operations"""
 
@@ -321,14 +349,14 @@ class CRMService:
     def get_tasks(self) -> List[Dict[str, Any]]:
         """Fetch all tasks"""
         try:
-            response = self.api_client.get(CRM_TASKS_URL)
-            if isinstance(response, dict):
-                tasks = response.get("items", []) or []
+            tasks = self.api_client.get(CRM_TASKS_URL)
+            if isinstance(tasks, dict):
+                items = tasks.get("items", [])
             else:
-                tasks = response or []
-            normalized_tasks = [_normalize_task(task) for task in tasks if isinstance(task, dict)]
-            logger.info(f"Fetched {len(normalized_tasks)} tasks")
-            return normalized_tasks
+                items = tasks or []
+            transformed = [self._transform_task_response(task) for task in items]
+            logger.info(f"Fetched {len(transformed)} tasks")
+            return transformed
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             raise
@@ -355,6 +383,8 @@ class CRMService:
             if task:
                 task = _normalize_task(task)
             logger.info(f"Fetched task: {task_id}")
+            if isinstance(task, dict):
+                return self._transform_task_response(task)
             return task
         except Exception as e:
             logger.error(f"Failed to fetch task {task_id}: {e}")
@@ -363,13 +393,11 @@ class CRMService:
     def create_task(self, title: str, **kwargs) -> Dict[str, Any]:
         """Create new task"""
         try:
-            data = {"title": title, **kwargs}
-            if "priority" in data:
-                data["priority"] = normalize_priority(data["priority"])
-            task = self.api_client.post(CRM_TASKS_URL, data)
-            if task:
-                task = _normalize_task(task)
+            payload = self._prepare_task_payload({"title": title, **kwargs})
+            task = self.api_client.post(CRM_TASKS_URL, payload)
             logger.info(f"Created task: {title}")
+            if isinstance(task, dict):
+                return self._transform_task_response(task)
             return task
         except Exception as e:
             logger.error(f"Failed to create task: {e}")
@@ -379,13 +407,11 @@ class CRMService:
         """Update task"""
         try:
             url = f"{CRM_TASKS_URL}/{task_id}"
-            data = kwargs.copy()
-            if "priority" in data:
-                data["priority"] = normalize_priority(data["priority"])
-            task = self.api_client.patch(url, data)
-            if task:
-                task = _normalize_task(task)
+            payload = self._prepare_task_payload(kwargs)
+            task = self.api_client.patch(url, payload)
             logger.info(f"Updated task: {task_id}")
+            if isinstance(task, dict):
+                return self._transform_task_response(task)
             return task
         except Exception as e:
             logger.error(f"Failed to update task {task_id}: {e}")
@@ -400,6 +426,40 @@ class CRMService:
         except Exception as e:
             logger.error(f"Failed to delete task {task_id}: {e}")
             raise
+
+    def _transform_task_response(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert CRM task payload to UI-friendly format."""
+        task_copy = dict(task)
+        status_code = (
+            task_copy.get("statusCode")
+            or task_copy.get("status_code")
+            or task_copy.get("status")
+        )
+        normalized_status = _task_status_to_code(status_code)
+        if normalized_status:
+            task_copy["statusCode"] = normalized_status
+            task_copy["status_code"] = normalized_status
+            task_copy["status"] = _task_status_to_display(normalized_status)
+        elif status_code:
+            task_copy["status"] = status_code
+        return task_copy
+
+    def _prepare_task_payload(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare payload for task create/update operations."""
+        payload = dict(data or {})
+        status_candidates = [
+            payload.pop("status_code", None),
+            payload.get("status"),
+        ]
+        normalized_status: Optional[str] = None
+        for candidate in status_candidates:
+            normalized_status = _task_status_to_code(candidate)
+            if normalized_status:
+                break
+        if normalized_status:
+            payload["statusCode"] = normalized_status
+        payload.pop("status", None)
+        return payload
 
     # --- Calculations Operations ---
 
