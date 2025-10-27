@@ -46,21 +46,18 @@ class TasksTab:
         tree_frame = tk.Frame(self.parent)
         tree_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
+        columns = (
+            "ID", "Assignee ID", "Deleted", "Deal ID", "Client ID",
+            "Title", "Description", "Status Code", "Status Name", "Priority", "Due Date",
+            "Created At", "Updated At"
+        )
         self.tree = ttk.Treeview(
             tree_frame,
-            columns=(
-                "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-                "Title", "Description", "Status Code", "Status Name", "Priority", "Due Date",
-                "Created At", "Updated At"
-            ),
+            columns=columns,
             show="headings"
         )
 
-        for col in (
-            "ID", "Owner ID", "Deleted", "Deal ID", "Client ID",
-            "Title", "Description", "Status Code", "Status Name", "Priority", "Due Date",
-            "Created At", "Updated At"
-        ):
+        for col in columns:
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
@@ -190,7 +187,7 @@ class TasksTab:
 
             self.tree.insert("", "end", iid=task.get("id"), values=(
                 self._shorten_identifier(task.get("id")),
-                self._shorten_identifier(task.get("owner_id")),
+                self._shorten_identifier(self._get_value(task, "assigneeId", "assignee_id", "owner_id")),
                 is_deleted,
                 self._shorten_identifier(task.get("deal_id")),
                 self._shorten_identifier(task.get("client_id")),
@@ -216,6 +213,7 @@ class TasksTab:
                         normalized[target_key] = normalized.get(alias)
                         return
 
+        ensure_key("assigneeId", "assignee_id", "owner_id")
         ensure_key("statusCode", "status_code", "status")
         ensure_key("statusName", "status_name")
         ensure_key("dueAt", "due_at", "dueDate", "due_date")
@@ -388,7 +386,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status Code"), i18n("Status Name"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -404,7 +402,7 @@ class TasksTab:
                 updated_at_display = self._format_datetime(self._get_value(task, "updatedAt", "updated_at"))
                 rows.append([
                     self._shorten_identifier(task.get("id")),
-                    self._shorten_identifier(task.get("owner_id")),
+                    self._shorten_identifier(self._get_value(task, "assigneeId", "assignee_id", "owner_id")),
                     is_deleted,
                     self._shorten_identifier(task.get("deal_id")),
                     self._shorten_identifier(task.get("client_id")),
@@ -447,7 +445,7 @@ class TasksTab:
         try:
             # Prepare data
             columns = [
-                i18n("ID"), i18n("Owner ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
+                i18n("ID"), i18n("Assignee ID"), i18n("Deleted"), i18n("Deal ID"), i18n("Client ID"),
                 i18n("Title"), i18n("Description"), i18n("Status Code"), i18n("Status Name"), i18n("Priority"), i18n("Due Date"),
                 i18n("Created At"), i18n("Updated At")
             ]
@@ -463,7 +461,7 @@ class TasksTab:
                 updated_at_display = self._format_datetime(self._get_value(task, "updatedAt", "updated_at"))
                 rows.append([
                     self._shorten_identifier(task.get("id")),
-                    self._shorten_identifier(task.get("owner_id")),
+                    self._shorten_identifier(self._get_value(task, "assigneeId", "assignee_id", "owner_id")),
                     is_deleted,
                     self._shorten_identifier(task.get("deal_id")),
                     self._shorten_identifier(task.get("client_id")),
