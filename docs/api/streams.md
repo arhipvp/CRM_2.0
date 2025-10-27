@@ -54,8 +54,9 @@ Gateway публикует события через Server-Sent Events (SSE) д
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** ретрансляция внутренних уведомлений CRM и откликов Telegram-бота (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
-- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/streams`).
+- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/api/notifications/stream`).
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
+- **Примечание:** upstream публикуется без префикса `/api/v1`, поскольку роутер уведомлений подключается напрямую с префиксом `/api` в `crm.app.main`.【F:backend/crm/crm/app/main.py†L121-L127】
 
 ## Канал `heartbeat`
 - **Маршрут:** `GET /api/v1/streams/heartbeat`
