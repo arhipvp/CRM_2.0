@@ -803,14 +803,13 @@ require_java_version() {
     return 1
   fi
 
-  version_line=$(printf '%s\n' "${version_output}" | head -n 1)
-  local quoted_version_regex='"([^"]+)"'
-  if [[ ${version_line} =~ ${quoted_version_regex} ]]; then
-    version_str="${BASH_REMATCH[1]}"
-  else
-    log_error "Не удалось определить версию Java из вывода 'java -version'. Убедитесь, что установлена JDK ${min_major}+."
-    return 1
-  fi
+    version_line=$(printf '%s\n' "${version_output}" | head -n 1)
+    version_str="${version_line#*\"}"
+    if [[ "${version_str}" == "${version_line}" ]]; then
+      log_error "Не удалось определить версию Java из вывода 'java -version'. Убедитесь, что установлена JDK ${min_major}+."
+      return 1
+    fi
+    version_str="${version_str%%\"*}"
 
   numeric_version="${version_str%%[-_+]*}"
   if [[ ${numeric_version} == 1.* ]]; then
