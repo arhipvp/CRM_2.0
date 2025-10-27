@@ -79,6 +79,8 @@ TRANSLATIONS_RU = {
     "high": "высокий",
     "Due Date": "Срок выполнения",
     "Description": "Описание",
+    "Assignee ID": "ID исполнителя",
+    "Assignee": "Исполнитель",
     "Add Task": "Добавить задачу",
     "Edit Task": "Редактировать задачу",
     "Task Details": "Детали задачи",
