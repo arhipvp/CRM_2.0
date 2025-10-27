@@ -149,6 +149,7 @@ erDiagram
 ```mermaid
 erDiagram
     TASKS_TASKS ||--o{ TASKS_ACTIVITY : ""
+    TASKS_TASKS ||--o{ TASKS_TASK_REMINDERS : ""
 ```
 
 ### Таблицы
@@ -157,11 +158,13 @@ erDiagram
 | --- | --- |
 | `tasks.tasks` | Задачи с привязкой к сделкам, полисам и оплатам. |
 | `tasks.task_activity` | История изменений и комментариев по задачам. |
+| `tasks.task_reminders` | Настройка индивидуальных напоминаний по задачам. |
 
 ### Ключи и ограничения
 
 * `tasks.tasks`: `PRIMARY KEY (id)`, внешние ключи `deal_id` → `crm.deals(id)`, `policy_id` → `crm.policies(id)`, `payment_id` → `crm.payments(id)`, `assignee_id` → `auth.users(id)`, `author_id` → `auth.users(id)`. Индексы по `(status_code, due_at)`, `assignee_id`, `deal_id`.
 * `tasks.task_activity`: `PRIMARY KEY (id)`, `FOREIGN KEY (task_id)` → `tasks.tasks(id)` с `ON DELETE CASCADE`, `FOREIGN KEY (author_id)` → `auth.users(id)`, индекс по `created_at`.
+* `tasks.task_reminders`: `PRIMARY KEY (id)`, `FOREIGN KEY (task_id)` → `tasks.tasks(id)` с `ON DELETE CASCADE`, уникальный индекс `idx_task_reminders_unique (task_id, remind_at, channel)`, покрывающий проверку дубликатов, индекс `ix_task_reminders_due` по `remind_at` для выборки ближайших напоминаний.
 
 #### Поля `tasks.tasks`
 
@@ -195,6 +198,16 @@ erDiagram
 * `body` (`text`, NULL) — текстовое описание.
 * `payload` (`jsonb`, NULL) — структурированные данные события.
 * `created_at` (`timestamptz`, NOT NULL, default `now()`). Индекс `ix_task_activity_created_at` ускоряет сортировку и постраничный вывод истории.
+
+#### Поля `tasks.task_reminders`
+
+* `id` (`uuid`, PK) — идентификатор напоминания.
+* `task_id` (`uuid`, NOT NULL) — ссылка на задачу, FK → `tasks.tasks(id)`; связь объявлена в ORM-модели `TaskReminder` (`backend/crm/crm/infrastructure/models.py`), которая расширяет отношение `Task.reminders`.
+* `remind_at` (`timestamptz`, NOT NULL) — момент, когда напоминание должно сработать; индекс `ix_task_reminders_due` позволяет воркеру быстро находить записи с подходящим временем.
+* `channel` (`varchar(32)`, NOT NULL) — канал доставки (`sse`, `notification` и т.п.), хранимый как перечисление `TaskReminderChannel` в схемах домена.
+* `created_at` (`timestamptz`, NOT NULL, default `now()`) — дата постановки напоминания.
+
+Напоминания создаются сервисом задач через `TaskReminderRepository` и привязываются к конкретной задаче (одна задача может иметь несколько напоминаний с разными каналами и временем). Уникальный индекс `idx_task_reminders_unique` исключает повторяющиеся комбинации `task_id` + `remind_at` + `channel`, тем самым предотвращая дублирование событий в очереди. Обработка просроченных напоминаний выполняется фоновой службой `TaskReminderProcessor`: она читает ORM-модель `TaskReminder`, выбирает записи по индексу `ix_task_reminders_due`, публикует событие `task.reminder` и при необходимости переоткладывает элемент в Redis-очереди `tasks:reminders` (см. `backend/crm/crm/domain/services.py`).
 
 ## Схема `reports`
 
