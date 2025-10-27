@@ -6,6 +6,16 @@ from config import (
     CRM_POLICIES_URL, CRM_TASKS_URL, CRM_USERS_URL
 )
 from logger import logger
+from priority_utils import normalize_priority
+
+
+def _normalize_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of task with normalized priority."""
+    if not isinstance(task, dict):
+        return task
+    normalized = task.copy()
+    normalized["priority"] = normalize_priority(task.get("priority"))
+    return normalized
 
 
 TASK_STATUS_CODES: set[str] = {"pending", "scheduled", "in_progress", "completed", "cancelled"}
@@ -370,6 +380,8 @@ class CRMService:
         try:
             url = f"{CRM_TASKS_URL}/{task_id}"
             task = self.api_client.get(url)
+            if task:
+                task = _normalize_task(task)
             logger.info(f"Fetched task: {task_id}")
             if isinstance(task, dict):
                 return self._transform_task_response(task)

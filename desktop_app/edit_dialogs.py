@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from i18n import i18n
 from document_utils import copy_files_to_deal_folder, open_deal_folder
+from priority_utils import ALLOWED_PRIORITIES, DEFAULT_PRIORITY, normalize_priority
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -706,7 +707,7 @@ class TaskEditDialog(BaseEditDialog):
 
         # Priority field
         self.create_field(6, "Priority", self.priority_var, "combobox",
-                         values=["low", "normal", "high", "urgent"])
+                         values=list(ALLOWED_PRIORITIES))
 
         # Due Date field
         self.create_field(7, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
@@ -747,11 +748,14 @@ class TaskEditDialog(BaseEditDialog):
             messagebox.showerror("Error", "Invalid owner selected.", parent=self)
             return
 
+        selected_priority = normalize_priority(self.priority_var.get())
+        self.priority_var.set(selected_priority)
+
         self.result = {
             "title": title,
             "description": description,
             "status": self.status_var.get(),
-            "priority": self.priority_var.get(),
+            "priority": selected_priority,
             "due_date": due_date if due_date else None,
             "deal_id": self.deal_dict.get(deal_label) if deal_label else None,
             "client_id": self.client_dict.get(client_label) if client_label else None,
