@@ -124,7 +124,7 @@
 
 > При отсутствии поля `description` или передаче пустого значения API вернёт `400 validation_error` с указанием обязательного поля.
 
-**Ошибки:** `400 validation_error`, `404 context_not_found` (если указаны несуществующие сущности).
+**Ошибки:** `400 validation_error`, `400 task_deal_not_found` (если указан несуществующий `deal_id`), `400 task_policy_not_found` (если указан несуществующий `policy_id`), `400 task_payment_not_found` (если указан несуществующий `payment_id`).
 
 ### PATCH `/tasks/{task_id}`
 Обновление статуса, дедлайна и фактических отметок выполнения.
@@ -361,3 +361,5 @@ Content-Type: application/json
 | 409 | `conflict` | Конфликт статусов. |
 | 429 | `rate_limited` | Ограничение по напоминаниям. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
+
+> Обратите внимание, что сервис задач всегда возвращает код ошибки в поле `code`, при этом HTTP-статус остаётся `400`. Конкретная причина (например, `task_deal_not_found`, `task_policy_not_found`, `task_payment_not_found`) определяется логикой `_handle_task_error` и `TaskRepository._map_task_integrity_error`.
