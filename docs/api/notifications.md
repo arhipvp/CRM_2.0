@@ -82,6 +82,56 @@ Content-Type: application/json
 }
 ```
 
+## Уведомления
+
+### POST `/api/v1/notifications`
+Ставит уведомление в очередь на доставку через доступные каналы.
+
+**Тело запроса** — объект `NotificationCreate`:
+
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| `eventKey` | string | Да | Ключ события (1–255 символов), который будет использован в шаблонизаторе и SSE. |
+| `recipients` | array | Да | Список получателей. Каждый элемент — объект `NotificationRecipient` с полями `userId` (строка 1–255 символов) и опциональным `telegramId`. |
+| `payload` | object | Да | Произвольная полезная нагрузка, доступная в шаблонах и отправляемая в SSE. |
+| `channelOverrides` | array | Нет | Список каналов доставки, ограничивающий отправку (например, `telegram`, `sse`). Если не указано, используется конфигурация по умолчанию. |
+| `deduplicationKey` | string | Нет | Ключ дедупликации (до 255 символов). При повторной отправке с тем же значением сервис вернёт конфликт. |
+
+**Пример запроса**
+
+```http
+POST /api/v1/notifications HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "eventKey": "deal.created",
+  "recipients": [
+    { "userId": "user-1", "telegramId": "123456" }
+  ],
+  "payload": {
+    "dealId": "deal-1",
+    "title": "Новая сделка"
+  },
+  "channelOverrides": ["telegram"],
+  "deduplicationKey": "deal-1:created"
+}
+```
+
+**Ответ 202 Accepted**
+
+```json
+{
+  "notification_id": "3b0b61c9-6d6c-4f2f-9f46-9fe2e03f46f2"
+}
+```
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `409 duplicate_notification` — уведомление с таким `deduplicationKey` уже поставлено в очередь.
+- `422 validation_error` — нарушены ограничения схемы (`eventKey`, `recipients`, структура `payload`).
+- `500 notification_dispatch_failed` — внутренняя ошибка постановки задачи на доставку.
+
 ## SSE `GET /streams/notifications`
 Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
