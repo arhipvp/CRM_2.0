@@ -103,6 +103,7 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 
 - Docker Desktop/Engine с поддержкой Compose V2.
 - Python 3 (интерпретатор `python3`) — обязательная зависимость bootstrap-скриптов и инфраструктурных утилит, используемых для парсинга JSON и проверок состояния сервисов. Сценарии автоматически ищут рабочую команду в порядке `python3`, `python`, `python3.12`, `python3.11`, `python3.10`, `python3.9`, `python3.8`, `py -3`, `py -3.12`, `py -3.11`, `py -3.10`, `py -3.9`, поэтому одинаково запускаются в Git Bash на Windows и на Linux/macOS — важно, чтобы хотя бы один вариант был доступен в `PATH`.
+- Node.js LTS (18+ для Gateway, 20 LTS для Documents) с активированным Corepack (`corepack enable && corepack prepare pnpm@9 --activate`), чтобы использовать `pnpm` в сервисах согласно README [`backend/gateway`](../backend/gateway/README.md#требования-к-окружению) и [`backend/documents`](../backend/documents/README.md#требования-к-окружению).
 - Poetry (для CRM/Deals) и JDK 21+ для запуска Gradle wrapper Auth.
 - Рекомендуемые CLI: `psql`, `redis-cli`, `curl`. При их отсутствии bootstrap выведет предупреждения; при необходимости используйте `docker compose exec` или альтернативные инструменты.
 - CLI-инструменты `psql`, `redis-cli`, `curl` остаются опциональными: при запущенном Docker Compose `scripts/check-local-infra.sh` выполняет проверки внутри контейнеров, а `scripts/sync-env.sh` создаёт `.env` без дополнительных утилит.
