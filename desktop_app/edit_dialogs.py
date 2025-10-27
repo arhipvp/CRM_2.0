@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from i18n import i18n
 from document_utils import copy_files_to_deal_folder, open_deal_folder
+from priority_utils import ALLOWED_PRIORITIES, DEFAULT_PRIORITY, normalize_priority
 
 
 class BaseEditDialog(tk.Toplevel):
@@ -645,7 +646,13 @@ class TaskEditDialog(BaseEditDialog):
         # Initialize variables
         self.title_var = tk.StringVar(value=task.get("title", "") if task else "")
         self.description_var = tk.StringVar(value=task.get("description", "") if task else "")
-        self.status_var = tk.StringVar(value=task.get("status", "open") if task else "open")
+        self.status_var = tk.StringVar(
+            value=self._normalize_status_value(
+                task.get("status_code") if task else None,
+                fallback=task.get("status") if task else None,
+                default="pending",
+            )
+        )
         self.priority_var = tk.StringVar(value=task.get("priority", "normal") if task else "normal")
         self.due_date_var = tk.StringVar(value=task.get("due_date", "") if task else "")
         self.deal_id_var = tk.StringVar()
@@ -694,12 +701,17 @@ class TaskEditDialog(BaseEditDialog):
         self.create_field(4, "Assignee", self.assignee_id_var, "combobox", list(self.user_dict.keys()))
 
         # Status field
-        self.create_field(5, "Status", self.status_var, "combobox",
-                         values=["open", "in_progress", "completed", "closed"])
+        self.create_field(
+            5,
+            "Status",
+            self.status_var,
+            "combobox",
+            values=["pending", "scheduled", "in_progress", "completed", "cancelled"],
+        )
 
         # Priority field
         self.create_field(6, "Priority", self.priority_var, "combobox",
-                         values=["low", "normal", "high", "urgent"])
+                         values=list(ALLOWED_PRIORITIES))
 
         # Due Date field
         self.create_field(7, "Due Date (YYYY-MM-DD)", self.due_date_var, "entry")
@@ -740,11 +752,14 @@ class TaskEditDialog(BaseEditDialog):
             messagebox.showerror("Error", "Invalid assignee selected.", parent=self)
             return
 
+        selected_priority = normalize_priority(self.priority_var.get())
+        self.priority_var.set(selected_priority)
+
         self.result = {
             "title": title,
             "description": description,
             "status": self.status_var.get(),
-            "priority": self.priority_var.get(),
+            "priority": selected_priority,
             "due_date": due_date if due_date else None,
             "deal_id": self.deal_dict.get(deal_label) if deal_label else None,
             "client_id": self.client_dict.get(client_label) if client_label else None,
@@ -755,28 +770,28 @@ class TaskEditDialog(BaseEditDialog):
         self.destroy()
 
     @staticmethod
-    def _extract_field_from_task(task: Dict[str, Any], keys: List[str]) -> Optional[str]:
-        if not task:
+    def _normalize_status_value(status_code: Optional[str], *, fallback: Optional[str] = None,
+                                default: str = "pending") -> str:
+        """Normalize status value to allowed status code."""
+        if status_code:
+            normalized = TaskEditDialog._to_status_code(status_code)
+            if normalized:
+                return normalized
+        if fallback:
+            normalized = TaskEditDialog._to_status_code(fallback)
+            if normalized:
+                return normalized
+        return default
+
+    @staticmethod
+    def _to_status_code(value: Optional[str]) -> Optional[str]:
+        if not value:
             return None
-
-        for key in keys:
-            value = task.get(key)
-            if value:
-                return str(value)
-
-        payload = task.get("payload")
-        if isinstance(payload, dict):
-            for key in keys:
-                value = payload.get(key)
-                if value:
-                    return str(value)
-
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        lowered = trimmed.lower().replace(" ", "_")
+        allowed = {"pending", "scheduled", "in_progress", "completed", "cancelled"}
+        if lowered in allowed:
+            return lowered
         return None
-
-    @classmethod
-    def _extract_assignee_id_from_task(cls, task: Dict[str, Any]) -> Optional[str]:
-        return cls._extract_field_from_task(task, ["assigneeId", "assignee_id"])
-
-    @classmethod
-    def _extract_author_id_from_task(cls, task: Dict[str, Any]) -> Optional[str]:
-        return cls._extract_field_from_task(task, ["authorId", "author_id"])
