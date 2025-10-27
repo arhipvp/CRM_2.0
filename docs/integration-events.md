@@ -31,7 +31,7 @@
 
 > Routing key `deal.payment.income.*` и `deal.payment.expense.*` отражают операции по доходам и расходам одного платежа. Приёмники должны хранить пары (`income_id`, `event_id`) и (`expense_id`, `event_id`) в собственных журналах идемпотентности и синхронизировать агрегаты с учётом вложенных массивов в событии `deal.payment.updated`.
 
-> События создания, обновления статуса и напоминаний по задачам публикуются модулем CRM Tasks через exchange `tasks.events`; см. раздел [«События Tasks»](#события-tasks). Модуль уведомлений ретранслирует доменные изменения в exchange `notifications.events` (см. раздел [«События Notifications»](#события-notifications)).
+> События создания, обновления статуса и напоминаний по задачам публикуются модулем CRM Tasks через exchange `tasks.events`; см. раздел [«События Tasks»](#события-tasks). Модуль уведомлений публикует задачи на доставку в exchange `notifications.exchange` (см. раздел [«События Notifications»](#события-notifications)).
 
 ## События Tasks
 - **Exchange:** `tasks.events` (управляется переменной `CRM_TASKS_EVENTS_EXCHANGE`)
@@ -54,15 +54,46 @@
 > Поля `assignee_id`, `author_id`, `due_date`, `scheduled_for` и ключи объекта `context` могут принимать значение `null`, если соответствующие данные не заданы в задаче.
 
 ## События Notifications
-- **Exchange:** `notifications.events`
+- **Exchange:** `notifications.exchange`
 - **Тип обмена:** topic
-- **Очереди-потребители:** `gateway.notifications`
+- **Основной routing key:** `notifications.dispatch`
+- **Очереди-потребители:** подключаются на стороне коннекторов доставки (в CRM нет жёстко заданного имени очереди)
 
-| Routing key | CloudEvent `type` | `data` | Идемпотентность |
-| --- | --- | --- | --- |
-| `notification.dispatched` | `notifications.notification.dispatched` | `{ "notification_id": "uuid", "user_id": "uuid", "channels": ["telegram"], "template": "deal.status.changed", "created_at": "datetime" }` | Gateway ведёт таблицу доставленных уведомлений (idempotent key = `notification_id`). |
-| `notification.failed` | `notifications.notification.failed` | `{ "notification_id": "uuid", "user_id": "uuid", "channel": "telegram", "reason": "blocked" }` | Notifications сохраняет `notification_id` + `event_id` в собственной БД. |
-| `notification.read` | `notifications.notification.read` | `{ "notification_id": "uuid", "user_id": "uuid", "read_at": "datetime" }` | Gateway обновляет состояние и проверяет `event_id`. |
+| Канал | Формат сообщения | Особенности идемпотентности |
+| --- | --- | --- |
+| RabbitMQ (`exchange` = `notifications.exchange`, `routing key` = `notifications.dispatch`) | `{ "notificationId": "uuid", "eventKey": "string", "payload": { ... }, "recipients": [{ "userId": "string", "telegramId": "string\|null" }], "channelOverrides": ["string", ...], "deduplicationKey": "string\|null" }` | Потребители обязаны учитывать `notificationId` как уникальный идентификатор задачи на доставку. |
+| Redis pub/sub (`channel` = `notifications:dispatch`) | Сообщение идентично публикации в RabbitMQ (JSON-строка). | Используется для внутренних воркеров; повторная доставка контролируется получателями по `notificationId`. |
+| Внутренний stream (SSE через `NotificationStreamService`) | `{ "event": "<event_type>", "data": { "eventType": "<event_type>", "payload": { ... } }, "retry": <milliseconds> }`. При исходном событии `<event_type>` = значению `eventKey`, дополнительно публикуются события `notifications.telegram.sent\|skipped\|error` и `notifications.telegram.delivery`. | Подписчики stream-а используют `payload.notificationId` для фильтрации и дедупликации. |
+
+> Публикации CloudEvent `notifications.notification.*` ещё не реализованы в CRM; они остаются в плане развития после стабилизации текущего контура доставки.
+
+### Payload `notifications.dispatch`
+
+Payload формируется методом `NotificationService.enqueue` и повторяет модель `NotificationCreate`:
+
+```json
+{
+  "notificationId": "4a0df3c0-3c6a-4c2d-8d83-5a458b6b2799",
+  "eventKey": "deal.status.changed",
+  "payload": { "dealId": "...", "oldStatus": "pending", "newStatus": "won" },
+  "recipients": [
+    {
+      "userId": "manager-42",
+      "telegramId": "123456789"
+    }
+  ],
+  "channelOverrides": ["telegram"],
+  "deduplicationKey": "deal-123-status-won"
+}
+```
+
+- `eventKey` — ключ сценария уведомления.
+- `payload` — произвольный словарь данных сценария (например, параметры сделки или задачи).
+- `recipients` — массив получателей; поля соответствуют `NotificationRecipient`. Значение `telegramId` может быть `null`, если чат ещё не привязан.
+- `channelOverrides` — необязательный список каналов доставки, если нужно переопределить поведение шаблона (при отсутствии передаётся пустой список).
+- `deduplicationKey` — опциональный ключ для защиты от повторной постановки одной и той же задачи; может быть `null`.
+
+> Все каналы доставки получают одно и то же сообщение, поэтому потребители должны быть готовы к повторной доставке и сохранять `notificationId` / `deduplicationKey` в своих журналах.
 
 ## Требования к обработчикам
 - Приёмники обязаны обрабатывать повторную доставку (`at-least-once`), опираясь на `id` события.
