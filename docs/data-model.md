@@ -196,6 +196,29 @@ erDiagram
 * `payload` (`jsonb`, NULL) — структурированные данные события.
 * `created_at` (`timestamptz`, NOT NULL, default `now()`). Индекс `ix_task_activity_created_at` ускоряет сортировку и постраничный вывод истории.
 
+## Схема `reports`
+
+Схема `reports` содержит материализованные представления, которые агрегируют данные CRM для сервисов аналитики и внешних дашбордов.
+Базовая витрина `deal_pipeline_summary` описана в [backend/reports/README.md](../backend/reports/README.md).
+
+### Представления
+
+| Представление | Назначение |
+| --- | --- |
+| `reports.deal_pipeline_summary` | Агрегирует сделки CRM по статусам для построения воронки и мониторинга активности менеджеров. |
+
+#### Поля `reports.deal_pipeline_summary`
+
+* `status` (тот же тип, что у `crm.deals.status`) — статус сделки.
+* `total_deals` (`bigint`, NOT NULL) — количество активных сделок в статусе; учитываются только записи, где `crm.deals.is_deleted = false`.
+* `first_deal_at` (`timestamptz`, NULL) — дата и время создания самой ранней сделки в статусе.
+* `last_activity_at` (`timestamptz`, NULL) — дата последнего обновления сделки в статусе.
+
+Материализованное представление создаётся SQL-миграциями сервиса Reports (`backend/reports/migrations/001_create_deal_pipeline_summary.sql`).
+Оно зависит от данных схемы `crm` (таблица `crm.deals`) и поддерживает уникальный индекс по `status` для ускорения выборок.
+Актуальность витрины обеспечивается запуском служебного скрипта `reports-refresh-views`, который выполняет `REFRESH MATERIALIZED VIEW`
+и синхронизирует отчётные показатели с оперативными данными CRM.
+
 ## Схема `documents`
 
 ```mermaid
