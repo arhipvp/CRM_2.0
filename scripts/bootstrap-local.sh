@@ -804,7 +804,8 @@ require_java_version() {
   fi
 
   version_line=$(printf '%s\n' "${version_output}" | head -n 1)
-  if [[ ${version_line} =~ "([^"]+)" ]]; then
+  local quoted_version_regex='"([^"]+)"'
+  if [[ ${version_line} =~ ${quoted_version_regex} ]]; then
     version_str="${BASH_REMATCH[1]}"
   else
     log_error "Не удалось определить версию Java из вывода 'java -version'. Убедитесь, что установлена JDK ${min_major}+."
