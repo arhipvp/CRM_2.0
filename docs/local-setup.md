@@ -14,6 +14,15 @@
 
 Bootstrap-скрипт выполняет полный цикл подготовки инфраструктуры. В начале сценарий вызывает `scripts/sync-env.sh --non-interactive`, который создаёт только отсутствующие `.env`; чтобы подтянуть новые переменные в существующие файлы, предварительно запустите `scripts/sync-env.sh --non-interactive=overwrite` или обновите их вручную. Перед запуском Docker Compose bootstrap импортирует переменные из актуального `.env` без дополнительной обработки: шаблон `env.example` теперь содержит развёрнутые значения вместо ссылок вида `VAR=${OTHER_VAR}`, но для некоторых переменных — например, `CRM_JWT_ACCESS_SECRET=${CRM_JWT_BASE_SECRET}` и `CRM_JWT_REFRESH_SECRET=${CRM_JWT_BASE_SECRET}` — такие ссылки сохранены намеренно, чтобы не дублировать базовый секрет. `scripts/bootstrap-local.sh` экспортирует `.env` в окружение и корректно раскрывает все `${...}`-подстановки, поэтому в процессы попадают уже вычисленные значения. После изменения `.env` перезапустите `./scripts/bootstrap-local.sh`, чтобы обновлённые значения попали в контейнеры и дочерние процессы. При необходимости запустить прикладные сервисы на хосте вызовите `./scripts/bootstrap-local.sh --with-backend --skip-backend` (или установите `BOOTSTRAP_WITH_BACKEND=true` вместе с `BOOTSTRAP_SKIP_BACKEND=true`) — bootstrap пропустит профиль backend в Docker Compose, освободит порты и после миграций helper `scripts/start-backend.sh` создаст фоновые процессы, сохранив PID/логи в `.local/run/backend` и проверив отсутствие дублирующих запусков. Чтобы стартовать только часть сервисов, передайте аргумент `--service NAME` в `scripts/start-backend.sh` (можно передавать несколько имён через запятую или повторять флаг).
 
+Допустимые значения `NAME` синхронизированы со сценарием `scripts/start-backend.sh`, поэтому при изменении списка в скрипте обновляйте этот раздел документации:
+
+- `auth` — Spring Boot-сервис авторизации, запускаемый через `./gradlew bootRun` в `backend/auth`.
+- `crm-api` — FastAPI-приложение CRM, стартующее командой `poetry run crm-api` в `backend/crm`.
+- `crm-worker` — Celery-воркер CRM (`poetry run crm-worker worker -l info`) в `backend/crm`.
+- `gateway` — Node.js Gateway/BFF, запускаемый `pnpm start:dev` в `backend/gateway`.
+
+Если `scripts/start-backend.sh` изменится (например, появятся новые сервисы или команды запуска), скорректируйте перечень выше, чтобы документация оставалась источником истины.【F:scripts/start-backend.sh†L22-L41】
+
 Bootstrap также синхронизирует пароли PostgreSQL-ролей с текущими значениями переменных окружения при каждом запуске: если вы обновили секреты в `.env`, просто перезапустите скрипт, и роли получат новые пароли без ручных действий.
 
 По умолчанию перед запуском профиля backend скрипт пересобирает образы (`docker compose --profile backend up --build -d`), чтобы контейнеры использовали актуальный код. Отключить пересборку можно флагом `--skip-backend-build` или переменной окружения `BOOTSTRAP_SKIP_BACKEND_BUILD=true`. В обёртке `dev-up` доступны те же настройки: добавьте `--skip-backend-build` либо установите `DEV_UP_SKIP_BACKEND_BUILD=true`.
