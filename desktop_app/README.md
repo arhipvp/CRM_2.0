@@ -161,7 +161,7 @@ python main.py
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `http://localhost:8082/api/v1/auth/token` | Зарезервировано под будущую авторизацию (не используется в текущей сборке) |
+| POST | `http://localhost:8080/api/v1/auth/token`<br>`http://localhost:8081/api/auth/token` | Зарезервировано под будущую авторизацию (не используется в текущей сборке). Через Gateway (`8080`) используйте первую ссылку; для прямого обращения к Auth-сервису (`8081`) подходит вторая. |
 | GET | `http://localhost:8082/api/v1/clients` | List all clients |
 | GET | `http://localhost:8082/api/v1/clients/{id}` | Get specific client |
 | POST | `http://localhost:8082/api/v1/clients` | Create client |
