@@ -132,6 +132,48 @@ Content-Type: application/json
 - `422 validation_error` — нарушены ограничения схемы (`eventKey`, `recipients`, структура `payload`).
 - `500 notification_dispatch_failed` — внутренняя ошибка постановки задачи на доставку.
 
+### POST `/api/notifications/events`
+Принимает произвольные внешние события для трансляции в CRM. Дополнительные поля полезной нагрузки уточняйте по коду
+`NotificationEventsService.handle_incoming`, чтобы поддерживать документацию в актуальном состоянии.
+
+**Тело запроса** — объект `NotificationEventIngest`:
+
+| Поле | Тип | Обязательное | Описание |
+| --- | --- | --- | --- |
+| `id` | UUID | Да | Уникальный идентификатор события. |
+| `source` | string | Да | Человекочитаемый источник события (например, `telegram`, `crm-billing`). |
+| `type` | string | Да | Тип события; используется для маршрутизации и шаблонов. |
+| `time` | string (date-time) | Да | Время возникновения события в формате ISO 8601. |
+| `data` | object | Да | Полезная нагрузка события, произвольный JSON. |
+| `chatId` | string | Нет | Идентификатор чата-назначения; используется при ручной адресации Telegram. |
+
+**Пример запроса**
+
+```http
+POST /api/notifications/events HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "id": "c4ba5b61-62fb-4c4c-8f48-0a8eab808f1c",
+  "source": "crm-billing",
+  "type": "payment.received",
+  "time": "2024-08-01T12:34:56Z",
+  "data": {
+    "invoiceId": "inv-42",
+    "amount": 12500,
+    "currency": "RUB"
+  }
+}
+```
+
+**Ответ 202 Accepted** — событие принято и поставлено на обработку.
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `422 validation_error` — нарушены ограничения схемы (`NotificationEventIngest`).
+- `500 notification_event_failed` — ошибка доставки события до внутренних потребителей.
+
 ## SSE `GET /streams/notifications`
 Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
