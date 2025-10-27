@@ -135,7 +135,7 @@ Blue/green деплой без простоев
 
 Auth
 
-Язык: Kotlin (JVM 17)
+Язык: Kotlin (JVM 21)
 
 Фреймворк: Spring Boot (WebFlux + Security)
 
