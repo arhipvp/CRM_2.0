@@ -75,6 +75,15 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
    > ℹ️ Если в логах остаются только Redis/Consul/Postgres, повторно выполните `docker compose --env-file .env --profile backend up --build -d`, чтобы поднять профиль backend. Когда пересборка не нужна, добавьте `--skip-backend-build` к `bootstrap-local.sh`/`dev-up` и используйте `docker compose --profile backend up -d` вручную.
 9. Ожидание готовности сервисов профиля backend через helper `check_backend_services`, который анализирует `docker compose --profile backend ps --format json` либо табличный вывод `docker compose ps`. Для пропуска передайте `--skip-backend-wait` или `BOOTSTRAP_SKIP_BACKEND_WAIT=true`.
 10. `scripts/start-backend.sh` — запуск прикладных сервисов на хосте (Auth `./gradlew bootRun`, CRM API `poetry run crm-api`, CRM worker `poetry run crm-worker worker -l info`, Gateway `pnpm start:dev`). Шаг активируется только при комбинации `--with-backend --skip-backend` или переменных `BOOTSTRAP_WITH_BACKEND=true` и `BOOTSTRAP_SKIP_BACKEND=true`; PID, журналы сервисов и файл запуска по умолчанию сохраняются в `.local/run/backend`, повторный запуск проверяет наличие активных процессов. Опция `--service NAME` у `scripts/start-backend.sh` позволяет стартовать только выбранные сервисы (можно перечислять имена через запятую или повторять опцию для добавления новых значений).
+
+   Допустимые значения `NAME`:
+
+   - `auth`
+   - `crm-api`
+   - `crm-worker`
+   - `gateway`
+
+   Актуальный перечень выводится в справке `./scripts/start-backend.sh --help`, поэтому проверяйте его после обновлений скрипта.
 11. `scripts/load-seeds.sh` — загрузку seed-данных, если скрипт присутствует в репозитории.
 12. `scripts/check-local-infra.sh` — smoke-проверку PostgreSQL, Redis, Consul, RabbitMQ Management UI и /health Reports (при запущенном сервисе).
 13. Проверку REST/SSE API backend-профиля: Gateway (`/api/v1/health`, `/api/v1/streams/heartbeat`), Auth (`/actuator/health`), CRM (`/healthz`) и Documents (`/health`).
