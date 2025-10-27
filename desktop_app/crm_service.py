@@ -6,6 +6,16 @@ from config import (
     CRM_POLICIES_URL, CRM_TASKS_URL, CRM_USERS_URL
 )
 from logger import logger
+from priority_utils import normalize_priority
+
+
+def _normalize_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of task with normalized priority."""
+    if not isinstance(task, dict):
+        return task
+    normalized = task.copy()
+    normalized["priority"] = normalize_priority(task.get("priority"))
+    return normalized
 
 
 class CRMService:
@@ -311,9 +321,14 @@ class CRMService:
     def get_tasks(self) -> List[Dict[str, Any]]:
         """Fetch all tasks"""
         try:
-            tasks = self.api_client.get(CRM_TASKS_URL)
-            logger.info(f"Fetched {len(tasks)} tasks")
-            return tasks or []
+            response = self.api_client.get(CRM_TASKS_URL)
+            if isinstance(response, dict):
+                tasks = response.get("items", []) or []
+            else:
+                tasks = response or []
+            normalized_tasks = [_normalize_task(task) for task in tasks if isinstance(task, dict)]
+            logger.info(f"Fetched {len(normalized_tasks)} tasks")
+            return normalized_tasks
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             raise
@@ -337,6 +352,8 @@ class CRMService:
         try:
             url = f"{CRM_TASKS_URL}/{task_id}"
             task = self.api_client.get(url)
+            if task:
+                task = _normalize_task(task)
             logger.info(f"Fetched task: {task_id}")
             return task
         except Exception as e:
@@ -347,7 +364,11 @@ class CRMService:
         """Create new task"""
         try:
             data = {"title": title, **kwargs}
+            if "priority" in data:
+                data["priority"] = normalize_priority(data["priority"])
             task = self.api_client.post(CRM_TASKS_URL, data)
+            if task:
+                task = _normalize_task(task)
             logger.info(f"Created task: {title}")
             return task
         except Exception as e:
@@ -358,7 +379,12 @@ class CRMService:
         """Update task"""
         try:
             url = f"{CRM_TASKS_URL}/{task_id}"
-            task = self.api_client.patch(url, kwargs)
+            data = kwargs.copy()
+            if "priority" in data:
+                data["priority"] = normalize_priority(data["priority"])
+            task = self.api_client.patch(url, data)
+            if task:
+                task = _normalize_task(task)
             logger.info(f"Updated task: {task_id}")
             return task
         except Exception as e:
