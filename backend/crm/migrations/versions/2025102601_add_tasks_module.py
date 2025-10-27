@@ -8,6 +8,7 @@ Create Date: 2025-10-26 00:00:00.000000
 from __future__ import annotations
 
 from alembic import op
+from alembic.util import CommandError
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -23,6 +24,7 @@ def upgrade() -> None:
     bind = op.get_bind()
 
     current_user = bind.scalar(sa.text("SELECT current_user"))
+    current_database = bind.scalar(sa.text("SELECT current_database()"))
     schema_exists = bind.scalar(
         sa.text("SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'tasks')")
     )
@@ -77,7 +79,10 @@ def upgrade() -> None:
                 $$;
                 """
             )
-            return
+            raise CommandError(
+                "User %s lacks CREATE privilege on database %s required to create schema 'tasks'."
+                % (current_user, current_database)
+            )
 
         op.execute(
             sa.text("CREATE SCHEMA tasks AUTHORIZATION :owner").bindparams(owner=current_user)
@@ -100,7 +105,9 @@ def upgrade() -> None:
             $$;
             """
         )
-        return
+        raise CommandError(
+            "User %s lacks USAGE and CREATE privileges on schema 'tasks'." % current_user
+        )
 
     op.create_table(
         "task_statuses",
