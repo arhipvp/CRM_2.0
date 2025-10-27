@@ -27,6 +27,7 @@ class TasksTab:
         self.clients: List[Dict[str, Any]] = []  # Store clients for dialog dropdown
         self.all_clients: List[Dict[str, Any]] = []  # Store all clients for potential reuse
         self.users: List[Dict[str, Any]] = []  # Store executors for dialog dropdown
+        self.user_lookup: Dict[str, str] = {}  # Map user IDs to display names
         self.all_tasks: List[Dict[str, Any]] = []  # Store all tasks for filtering
 
         self._setup_ui()
@@ -63,7 +64,7 @@ class TasksTab:
             self.tree.heading(col, text=i18n(col), command=lambda c=col: self._on_tree_sort(c))
 
         self.tree.column("ID", width=50, anchor="center")
-        self.tree.column("Owner ID", width=100)
+        self.tree.column("Assignee ID", width=150)
         self.tree.column("Deleted", width=60)
         self.tree.column("Deal ID", width=100)
         self.tree.column("Client ID", width=100)
@@ -99,7 +100,7 @@ class TasksTab:
     def _on_tree_sort(self, col):
         display_map = {
             "ID": "id",
-            "Owner ID": "owner_id",
+            "Assignee ID": "assigneeId",
             "Deleted": "is_deleted",
             "Deal ID": "deal_id",
             "Client ID": "client_id",
@@ -153,6 +154,10 @@ class TasksTab:
         if not self.tree:
             return
 
+        if users is not None:
+            self.users = users or []
+            self.user_lookup = self._build_user_lookup(self.users)
+
         # Store all data for filtering
         normalized_tasks = [self._normalize_task(task) for task in (tasks or [])]
         self.all_tasks = normalized_tasks
@@ -162,8 +167,6 @@ class TasksTab:
         if clients is not None:
             self.clients = clients or []
             self.all_clients = clients or []
-        if users is not None:
-            self.users = users or []
         self._refresh_tree_display(self.all_tasks)
 
     def _refresh_tree_display(self, tasks_to_display: List[Dict[str, Any]]):
