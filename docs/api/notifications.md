@@ -1,10 +1,18 @@
 # CRM Notifications
 
 ## Общая информация
-- **Базовый URL:** `https://crm.internal/api/v1`
+- **Версионирование:** REST CRUD-методы работают под префиксом `https://crm.internal/api/v1`, системные события и потоковые каналы доступны по маршрутам `https://crm.internal/api/...` без `v1`.
 - **Аутентификация:** JWT CRM.
 - **Назначение:** доставка внутренних уведомлений и интеграция с Telegram-ботом; публичные события транслируются через SSE-канал `notifications`.
 - **Ограничения первой поставки:** управление настройками каналов выполняется административными инструментами CRM.
+
+### Системные маршруты
+
+| Маршрут | Метод | Описание |
+| --- | --- | --- |
+| `/api/notifications/events` | POST | Приём внешних событий (вебхуки, ручные интеграции). |
+| `/api/notifications/stream` | GET | SSE-поток уведомлений для Gateway и клиентских приложений. |
+| `/api/notifications/health` | GET | Health-check SSE-канала и подписки на события. |
 
 ## Шаблоны уведомлений
 
@@ -132,8 +140,8 @@ Content-Type: application/json
 - `422 validation_error` — нарушены ограничения схемы (`eventKey`, `recipients`, структура `payload`).
 - `500 notification_dispatch_failed` — внутренняя ошибка постановки задачи на доставку.
 
-## SSE `GET /streams/notifications`
-Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/v1/streams/notifications` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
+## SSE `GET /api/notifications/stream`
+Gateway проксирует поток уведомлений CRM. Канал доступен по маршруту `GET /api/notifications/stream` и требует тех же заголовков, что и другие SSE-каналы (`Accept: text/event-stream`, `Authorization: Bearer <JWT>`). Поведение описано в разделе [docs/api/streams.md](streams.md#канал-notifications).
 
 ### Формат событий
 Поток соответствует спецификации SSE. Каждое сообщение содержит `retry` с интервалом повторного подключения (по умолчанию 5 секунд) и два основных поля:
