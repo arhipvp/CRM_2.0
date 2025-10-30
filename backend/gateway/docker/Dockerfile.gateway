@@ -4,10 +4,11 @@ WORKDIR /app
 RUN corepack enable
 
 FROM base AS build
+ENV CI=true
 COPY backend/gateway/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY backend/gateway/package.json ./package.json
-RUN pnpm install --frozen-lockfile
 COPY backend/gateway ./
+RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
 FROM base AS runtime

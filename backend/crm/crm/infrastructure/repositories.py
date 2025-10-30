@@ -326,78 +326,7 @@ class PolicyRepository(BaseRepository[models.Policy]):
         return policy
 
 
-class PolicyDocumentRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
 
-    async def list(self, policy_id: UUID) -> list[models.PolicyDocument]:
-        stmt = (
-            select(models.PolicyDocument)
-            .join(models.Policy, models.Policy.id == models.PolicyDocument.policy_id)
-            .where(
-                models.Policy.id == policy_id,
-                models.Policy.is_deleted.is_(False),
-            )
-            .order_by(models.PolicyDocument.created_at.asc(), models.PolicyDocument.id.asc())
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def attach(
-        self,
-        policy_id: UUID,
-        document_id: UUID,
-    ) -> models.PolicyDocument | None:
-        policy_exists = await self.session.scalar(
-            select(models.Policy.id).where(
-                models.Policy.id == policy_id,
-                models.Policy.is_deleted.is_(False),
-            )
-        )
-        if policy_exists is None:
-            return None
-        entity = models.PolicyDocument(
-            policy_id=policy_id,
-            document_id=document_id,
-        )
-        self.session.add(entity)
-        try:
-            await self.session.commit()
-        except IntegrityError as exc:  # pragma: no cover - defensive guard
-            await self.session.rollback()
-            raise RepositoryError(self._map_integrity_error(exc)) from exc
-        await self.session.refresh(entity)
-        return entity
-
-    async def detach(
-        self,
-        policy_id: UUID,
-        document_id: UUID,
-    ) -> bool:
-        stmt = (
-            delete(models.PolicyDocument)
-            .where(
-                models.PolicyDocument.policy_id == policy_id,
-                models.PolicyDocument.document_id == document_id,
-            )
-            .returning(models.PolicyDocument.id)
-        )
-        result = await self.session.execute(stmt)
-        deleted_id = result.scalar_one_or_none()
-        if deleted_id is None:
-            await self.session.rollback()
-            return False
-        await self.session.commit()
-        return True
-
-    @staticmethod
-    def _map_integrity_error(exc: IntegrityError) -> str:
-        message = str(exc.orig)
-        if "ux_policy_documents_policy_document" in message:
-            return "document_already_linked"
-        if "fk_policy_documents_document_id" in message:
-            return "document_not_found"
-        return "policy_document_integrity_error"
 
 
 class TaskStatusRepository:

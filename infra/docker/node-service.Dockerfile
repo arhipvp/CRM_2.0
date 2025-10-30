@@ -7,6 +7,7 @@ RUN corepack enable
 
 FROM base AS deps
 ARG SERVICE_PATH
+ENV CI=true
 COPY ${SERVICE_PATH}/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY ${SERVICE_PATH}/package.json ./package.json
 RUN pnpm install --frozen-lockfile
@@ -16,8 +17,9 @@ ARG SERVICE_PATH
 ARG BUILD_COMMAND="pnpm run build"
 COPY ${SERVICE_PATH}/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY ${SERVICE_PATH}/package.json ./package.json
-COPY --from=deps /app/node_modules ./node_modules
 COPY ${SERVICE_PATH}/ ./
+ENV CI=true
+RUN pnpm install --frozen-lockfile
 RUN ${BUILD_COMMAND}
 
 FROM base AS production-deps

@@ -13,7 +13,6 @@ from crm.api.routers import (
     payments,
     permissions,
     policies,
-    policy_documents,
     tasks,
     notification_templates,
     notifications as notifications_router,
@@ -30,7 +29,6 @@ def get_api_router() -> APIRouter:
     router.include_router(deal_journal.router)
     router.include_router(permissions.router)
     router.include_router(policies.router)
-    router.include_router(policy_documents.router)
     router.include_router(tasks.router)
     router.include_router(payments.router)
     router.include_router(payment_incomes.router)

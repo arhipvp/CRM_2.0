@@ -169,8 +169,7 @@ async def get_deal_journal_service(
 
 async def get_policy_service(session: AsyncSession = Depends(get_db_session)) -> services.PolicyService:
     policy_repository = repositories.PolicyRepository(session)
-    documents_repository = repositories.PolicyDocumentRepository(session)
-    return services.PolicyService(policy_repository, documents_repository)
+    return services.PolicyService(policy_repository)
 
 
 async def get_calculation_service(
@@ -180,8 +179,7 @@ async def get_calculation_service(
     publisher = await get_events_publisher(request)
     calculation_repository = repositories.CalculationRepository(session)
     policy_repository = repositories.PolicyRepository(session)
-    policy_documents_repository = repositories.PolicyDocumentRepository(session)
-    policy_service = services.PolicyService(policy_repository, policy_documents_repository)
+    policy_service = services.PolicyService(policy_repository)
     return services.CalculationService(
         calculation_repository,
         policy_repository,

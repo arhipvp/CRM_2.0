@@ -85,7 +85,7 @@ def upgrade() -> None:
             )
 
         op.execute(
-            sa.text("CREATE SCHEMA tasks AUTHORIZATION :owner").bindparams(owner=current_user)
+            f"CREATE SCHEMA tasks AUTHORIZATION {current_user}"
         )
 
     has_required_privileges = bind.scalar(

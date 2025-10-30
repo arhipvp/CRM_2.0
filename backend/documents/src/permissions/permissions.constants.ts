@@ -1,3 +1,0 @@
-export const PERMISSIONS_SYNC_QUEUE = Symbol('PERMISSIONS_SYNC_QUEUE');
-export const PERMISSIONS_SYNC_QUEUE_NAME = Symbol('PERMISSIONS_SYNC_QUEUE_NAME');
-export const PERMISSIONS_SYNC_JOB = 'permissions.sync';
