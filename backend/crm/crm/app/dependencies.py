@@ -202,7 +202,7 @@ def _get_task_queue_redis() -> Redis:
     global _task_queue_redis
     if _task_queue_redis is None:
         _task_queue_redis = Redis.from_url(
-            settings.redis_url, encoding="utf-8", decode_responses=True
+            str(settings.redis_url), encoding="utf-8", decode_responses=True
         )
     return _task_queue_redis
 

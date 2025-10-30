@@ -16,13 +16,14 @@ from crm.api.routers import (
     tasks,
     notification_templates,
     notifications as notifications_router,
+    users,
 )
 from crm.api.routers import notification_events
 from crm.app.dependencies import get_current_user
 
 
 def get_api_router() -> APIRouter:
-    router = APIRouter(dependencies=[Depends(get_current_user)])
+    router = APIRouter(prefix="/crm")
     router.include_router(clients.router)
     router.include_router(deals.router)
     router.include_router(calculations.router)
@@ -35,6 +36,7 @@ def get_api_router() -> APIRouter:
     router.include_router(payment_expenses.router)
     router.include_router(notification_templates.router)
     router.include_router(notifications_router.router)
+    router.include_router(users.router)
     return router
 
 

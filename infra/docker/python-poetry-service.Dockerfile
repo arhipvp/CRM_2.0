@@ -38,4 +38,5 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=build /app /app
 RUN poetry install --no-ansi --without dev
+COPY ${SERVICE_PATH}/crm/app/dependencies.py /app/crm/app/dependencies.py
 CMD ["poetry", "run", "crm-api"]
