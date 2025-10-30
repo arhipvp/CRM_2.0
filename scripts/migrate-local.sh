@@ -87,8 +87,8 @@ run_reports_migrations() {
     -f "$migration_file"
 }
 
-run_crm_migrations
 run_auth_migrations
+run_crm_migrations
 run_reports_migrations
 
 echo "[migrate-local] Миграции CRM, Auth и Reports применены."
