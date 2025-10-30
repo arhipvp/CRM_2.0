@@ -240,6 +240,23 @@ REST-эндпоинты `POST /documents/{id}/upload` и `POST /documents/{id}/s
 
 **Ошибки:** `400 validation_error`, `404 folder_not_found`.
 
+### Таблица `permissions_sync_tasks`
+
+| Колонка | Тип | Назначение |
+| --- | --- | --- |
+| `id` | `uuid` | Первичный ключ, совпадает с `task_id`, возвращаемым API. Генерируется PostgreSQL (`gen_random_uuid()`). |
+| `owner_type` | `varchar(32)` | Тип сущности каталога (`client`, `deal`, `policy`, `payment`). |
+| `owner_id` | `uuid` | Идентификатор владельца каталога. |
+| `folder_path` | `varchar(1024)` | Относительный путь каталога в `DOCUMENTS_STORAGE_ROOT`. |
+| `job_id` | `varchar(255)` | Идентификатор задания BullMQ в очереди `documents.permissions.sync` (или другом имени из `DOCUMENTS_PERMISSIONS_SYNC_QUEUE_NAME`). |
+| `users` | `jsonb` | Список пользователей (UUID/почты), для которых пересобираются права. |
+| `created_at` | `timestamptz` | Время постановки задачи. |
+| `updated_at` | `timestamptz` | Последнее обновление записи. |
+
+Дополнительно созданы индексы по `job_id` и паре (`owner_type`, `owner_id`), чтобы быстро находить задачу по идентификатору BullMQ или сущности владельца.
+
+**Как отследить статус.** `job_id` позволяет найти задание в очереди BullMQ, которую сервис создаёт с именем `queues.permissionsSync.name` (по умолчанию `documents.permissions.sync`) и префиксом `DOCUMENTS_REDIS_PREFIX`. Подключитесь к Redis и используйте инструменты BullMQ (`Queue.getJob(job_id)`, Bull Board, `bullmq` CLI), указав это имя очереди — статус в ней отражает текущее состояние фоновой синхронизации. Дополнительный контекст (`folder_path`, список пользователей) можно получить из строки таблицы `permissions_sync_tasks` по `task_id`.
+
 ## Стандартные ошибки Documents API
 
 | Код | Сообщение | Описание |
