@@ -121,6 +121,14 @@ async def lifespan(app: FastAPI):
         yield {}
         return
 
+    # Initialize Redis connections to avoid blocking on first request
+    from crm.app.dependencies import init_redis_connections
+    try:
+        await init_redis_connections()
+        logger.info("Redis connections initialized")
+    except Exception as exc:
+        logger.warning("Failed to initialize some Redis connections: %s", exc)
+
     publisher = EventsPublisher(settings)
     task_publisher = TaskEventsPublisher(settings)
     try:

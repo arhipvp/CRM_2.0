@@ -202,6 +202,21 @@ class TasksTab:
             ))
 
     @staticmethod
+    def _build_user_lookup(users: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Build a lookup dictionary mapping user IDs to display names."""
+        lookup = {}
+        if not users:
+            return lookup
+
+        for user in users:
+            user_id = user.get("id")
+            user_name = user.get("name") or user.get("username") or "Unknown"
+            if user_id:
+                lookup[str(user_id)] = user_name
+
+        return lookup
+
+    @staticmethod
     def _normalize_task(task: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure task dictionary contains expected camelCase keys."""
         normalized = dict(task) if task else {}

@@ -8,7 +8,10 @@ from login_dialog import LoginDialog
 from api_client import APIClient, UnauthorizedException
 from auth_service import AuthService
 from crm_service import CRMService
-from logger import logger
+try:
+    from logger_enhanced import logger
+except ImportError:
+    from logger import logger
 from i18n import i18n
 from deals_tab import DealsTab
 from payments_tab import PaymentsTab

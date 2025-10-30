@@ -238,6 +238,18 @@ async def close_task_queues() -> None:
         _task_queue_redis = None
 
 
+async def init_redis_connections() -> None:
+    """Initialize Redis connections during startup to avoid blocking on first request."""
+    global _task_queue_redis, _task_reminder_queue, _task_delayed_queue
+    global _notifications_redis, _notification_dispatcher
+    try:
+        _ = get_delayed_task_queue()
+        _ = get_task_reminder_queue()
+        _ = get_notification_dispatcher()
+    except Exception:
+        pass  # Non-critical, will retry on first use if initialization fails
+
+
 def _get_notifications_redis() -> Redis:
     global _notifications_redis
     if _notifications_redis is None:
