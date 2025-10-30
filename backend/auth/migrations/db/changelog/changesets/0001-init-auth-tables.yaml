@@ -127,3 +127,9 @@ databaseChangeLog:
               - column:
                   name: description
                   value: Роль администратора платформы
+        - sql:
+            sql: |
+              GRANT SELECT ON TABLE auth.roles TO crm;
+              GRANT SELECT, REFERENCES ON TABLE auth.users TO crm;
+              GRANT SELECT ON TABLE auth.user_roles TO crm;
+              GRANT USAGE, SELECT ON SEQUENCE auth.user_roles_id_seq TO crm;
