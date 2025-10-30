@@ -32,6 +32,7 @@ class LiquibaseConfig(
             this.dataSource = dataSource
             changeLog = "classpath:db/changelog/db.changelog-master.yaml"
             contexts = "base"
+            defaultSchema = info.schema
         }
     }
 }
