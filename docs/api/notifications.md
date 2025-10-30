@@ -140,6 +140,32 @@ Content-Type: application/json
 - `422 validation_error` — нарушены ограничения схемы (`eventKey`, `recipients`, структура `payload`).
 - `500 notification_dispatch_failed` — внутренняя ошибка постановки задачи на доставку.
 
+### GET `/api/v1/notifications/{notification_id}` {#get-apiv1-notifications-notification_id}
+Возвращает актуальный статус уведомления и агрегированную информацию о попытках доставки.
+
+**Ответ 200** — объект `NotificationStatusResponse` (см. таблицу ниже).
+
+**Ошибки**
+- `401 unauthorized` — отсутствует или просрочен JWT.
+- `404 notification_not_found` — уведомление с указанным идентификатором не существует.
+
+#### Поля `NotificationStatusResponse`
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `id` | UUID | Идентификатор уведомления, совпадает со значением, возвращаемым при постановке через `POST /api/v1/notifications`. |
+| `status` | string | Текущий агрегированный статус (см. перечень `NotificationStatus` ниже). При поступлении подтверждения доставки от Telegram меняется на `delivered`, даже если базовый статус остаётся `processed`. |
+| `attempts` | integer | Количество зафиксированных попыток публикации в отдельные каналы доставки (RabbitMQ, Redis, внутренние события). Значение увеличивается при каждой записи попытки, описанной в разделе [GET `/api/v1/notifications/{notification_id}`](#get-apiv1-notifications-notification_id). |
+| `channels` | array[string] | Уникальный перечень каналов, по которым предпринимались попытки доставки (`rabbitmq`, `redis`, `events-service` и т. п.). Формируется по данным о попытках, возвращаемых эндпоинтом [GET `/api/v1/notifications/{notification_id}`](#get-apiv1-notifications-notification_id). |
+| `delivered_at` | string (date-time) \| null | Время подтверждённой доставки из Telegram (если вебхук доставки был получен). Отсутствует (`null`), пока подтверждение не поступило. |
+
+#### Значения `NotificationStatus`
+| Статус | Описание |
+| --- | --- |
+| `pending` | Уведомление создано и ожидает начала обработки. |
+| `queued` | Сообщение успешно опубликовано в очередь RabbitMQ и ожидает обработки воркерами доставки. |
+| `processed` | Все внутренние каналы (RabbitMQ, Redis, события) отработали успешно; сервис ожидает подтверждения конечной доставки. |
+| `failed` | Доставка не удалась: зафиксирована необработанная ошибка в одном из каналов или превышен лимит попыток. |
+
 ### POST `/api/notifications/events`
 Принимает произвольные внешние события для трансляции в CRM. Дополнительные поля полезной нагрузки уточняйте по коду
 `NotificationEventsService.handle_incoming`, чтобы поддерживать документацию в актуальном состоянии.
