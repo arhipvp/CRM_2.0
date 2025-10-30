@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
     id 'org.springframework.boot' version '3.5.6'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.liquibase.gradle' version '2.2.1'
 }
 
 java {
@@ -50,6 +51,11 @@ dependencies {
     testImplementation 'org.testcontainers:r2dbc:1.19.7'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    liquibaseRuntime sourceSets.main.output
+    liquibaseRuntime 'org.liquibase:liquibase-core'
+    liquibaseRuntime 'org.postgresql:postgresql'
+    liquibaseRuntime 'info.picocli:picocli:4.7.6'
 }
 
 kotlin {
@@ -67,6 +73,145 @@ sourceSets {
     }
 }
 
+def authDatabaseUrlProvider = providers.environmentVariable('AUTH_DATABASE_URL')
+
+liquibase {
+    activities {
+        main {
+            changelogFile 'migrations/db/changelog/db.changelog-master.yaml'
+            def databaseUrl = authDatabaseUrlProvider.orNull
+            if (databaseUrl) {
+                def info = this.parseAuthDatabaseUrl(databaseUrl)
+                url info['jdbcUrl']
+                if (info['username']) {
+                    username info['username']
+                }
+                if (info['password']) {
+                    password info['password']
+                }
+                defaultSchemaName info['schema'] ?: 'auth'
+            }
+        }
+    }
+    runList = 'main'
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requiresLiquibase = graph.allTasks.any { task ->
+        task.project == project && (
+            task.name.equalsIgnoreCase('update') ||
+                task.name.toLowerCase(java.util.Locale.ROOT).contains('liquibase')
+        )
+    }
+    if (requiresLiquibase) {
+        def databaseUrl = authDatabaseUrlProvider.orNull
+        if (!databaseUrl) {
+            throw new org.gradle.api.GradleException('Переменная окружения AUTH_DATABASE_URL должна быть установлена для запуска задач Liquibase.')
+        }
+        this.parseAuthDatabaseUrl(databaseUrl)
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+def parseAuthDatabaseUrl(String r2dbcUrl) {
+    if (r2dbcUrl == null || r2dbcUrl.trim().isEmpty()) {
+        throw new org.gradle.api.GradleException('AUTH_DATABASE_URL must be provided')
+    }
+
+    def withoutPrefix = r2dbcUrl.startsWith('r2dbc:') ? r2dbcUrl.substring('r2dbc:'.length()) : r2dbcUrl
+    def uri = new java.net.URI(withoutPrefix)
+    def userInfo = uri.getRawUserInfo()
+    def userInfoParts = userInfo ? userInfo.split(':', 2) : new String[0]
+    def username = userInfoParts.length > 0 ? decodeComponent(userInfoParts[0]) : null
+    def password = userInfoParts.length > 1 ? decodeComponent(userInfoParts[1]) : null
+    def port = uri.port == -1 ? 5432 : uri.port
+    def database = (uri.path ?: '').replaceAll('^/+', '')
+    def queryResult = parseQuery(uri)
+
+    def jdbcUrl = new StringBuilder()
+    jdbcUrl.append('jdbc:')
+    jdbcUrl.append(uri.scheme)
+    jdbcUrl.append('://')
+    jdbcUrl.append(uri.host)
+    jdbcUrl.append(':')
+    jdbcUrl.append(port)
+    jdbcUrl.append('/')
+    jdbcUrl.append(database)
+    if (queryResult.query) {
+        jdbcUrl.append('?')
+        jdbcUrl.append(queryResult.query)
+    }
+
+    return [
+        jdbcUrl: jdbcUrl.toString(),
+        username: username,
+        password: password,
+        schema : queryResult.schema
+    ]
+}
+
+def parseQuery(java.net.URI uri) {
+    def rawQuery = uri.getRawQuery()
+    if (!rawQuery) {
+        return [query: '', schema: null]
+    }
+
+    def parameters = rawQuery.split('&')
+        .findAll { it }
+        .collect { parameter ->
+            def parts = parameter.split('=', 2)
+            def rawKey = parts.length > 0 ? parts[0] : null
+            if (!rawKey) {
+                return null
+            }
+            def key = decodeComponent(rawKey)
+            def value = parts.length > 1 ? decodeComponent(parts[1]) : null
+            [key: key, value: value]
+        }
+        .findAll { it }
+
+    def schema = parameters.findResult { param ->
+        switch (param.key.toLowerCase(java.util.Locale.ROOT)) {
+            case 'schema':
+            case 'currentschema':
+                return param.value?.trim() ? param.value : null
+            case 'search_path':
+                return param.value?.split(',')
+                    ?.collect { it.trim().replaceAll('^"|"$', '') }
+                    ?.find { it }
+            default:
+                return null
+        }
+    }
+
+    def updatedParameters = parameters.collect { param ->
+        switch (param.key.toLowerCase(java.util.Locale.ROOT)) {
+            case 'schema':
+                return [key: 'currentSchema', value: param.value]
+            default:
+                return param
+        }
+    }
+
+    def query = updatedParameters.collect { param ->
+        def encodedKey = encodeComponent(param.key)
+        if (param.value != null) {
+            def encodedValue = encodeComponent(param.value)
+            return "${encodedKey}=${encodedValue}"
+        }
+        return encodedKey
+    }.join('&')
+
+    return [query: query, schema: schema]
+}
+
+def decodeComponent(String value) {
+    return java.net.URLDecoder.decode(value.replace('+', '%2B'), java.nio.charset.StandardCharsets.UTF_8)
+}
+
+def encodeComponent(String value) {
+    return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8)
 }
