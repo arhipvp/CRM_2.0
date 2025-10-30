@@ -33,7 +33,9 @@
 
 `public_url` возвращается, только если настроена публикация каталога: сервис использует ссылку, полученную от драйвера хранилища, либо собирает её из `DOCUMENTS_STORAGE_PUBLIC_BASE_URL` (первый приоритет) или `DOCUMENTS_FOLDERS_WEB_BASE_URL` (резервный базовый URL). Если публичная ссылка недоступна, поле будет `null`.
 
-**Ошибки:** `400 validation_error`, `404 owner_not_found`, `409 folder_exists`.
+**Ошибки:** `400 validation_error`, `409 folder_exists`.
+
+> Проверка существования владельца выполняется на стороне CRM до обращения к Documents API, поэтому маршрут не возвращает `owner_not_found`.
 
 ### GET `/api/v1/folders/{owner_type}/{owner_id}`
 Возвращает метаданные каталога сущности.
