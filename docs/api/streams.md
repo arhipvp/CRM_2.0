@@ -12,7 +12,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 | `GATEWAY_UPSTREAM_CRM_SSE_URL` | Внутренний SSE-канал CRM для публичного стрима `deals`. | `http://localhost:8082/streams` |
 | `GATEWAY_UPSTREAM_CRM_SERVICE_NAME` | Имя CRM в сервис-дискавери/трассировке (используется в метриках и логах). | `crm-service` |
 | `GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL` | Базовый URL REST-роутов уведомлений CRM. | `http://localhost:8082/api/v1` |
-| `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` | Внутренний SSE-канал уведомлений CRM для стрима `notifications`. | `http://localhost:8082/streams` |
+| `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` | Внутренний SSE-канал уведомлений CRM для стрима `notifications`. | `http://localhost:8082/api/v1/streams` |
 | `GATEWAY_UPSTREAM_NOTIFICATIONS_SERVICE_NAME` | Имя сервиса уведомлений в сервис-дискавери/трассировке. | `crm-service` |
 
 Полные значения приведены в [`env.example`](../../env.example#L224-L227) и [`env.example`](../../env.example#L310-L317). Переопределяйте параметры при развертывании в нестандартной сети (другие хосты/порты CRM), при вынесении уведомлений в отдельный сервис, а также при изменении политик таймаутов и мониторинга, чтобы согласовать Gateway с фактической конфигурацией upstream.
@@ -69,7 +69,7 @@ Gateway публикует события через Server-Sent Events (SSE) д
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** ретрансляция внутренних уведомлений CRM и откликов Telegram-бота (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
-- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/streams`). Для рабочей среды переопределите переменную, установив фактический адрес `http://localhost:8082/api/notifications/stream`.
+- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/api/v1/streams`). Без переопределения переменной поток не работает, потому что фактический маршрут CRM — `GET http://localhost:8082/api/notifications/stream`, и именно его следует задать в `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`.
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
 - **Инструкция по настройке:** задайте `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` в `.env` и `infra/docker-compose.yml`, чтобы Gateway подключался к правильному upstream-роуту уведомлений.
 
