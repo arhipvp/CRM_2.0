@@ -97,7 +97,7 @@ sudo setfacl -m g:crm-ops:rwx /var/lib/crm/documents
 - `GET /documents/:id` — детали документа.
 - `POST /documents` — создать запись, получить `upload_url` и `expires_in`. По умолчанию добавляет задание `documents.upload`.
 - `PATCH /documents/:id` — обновить метаданные.
-- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, сервис ставит задачу очистки файла и отзывает ACL/группы. Повторный вызов вернёт `409 already_deleted`.
+- `DELETE /documents/:id` — мягкое удаление: запись помечается как удалённая, `storageService.revokeDocument` удаляет файл из хранилища, без постановки задач в очереди и без пересборки ACL. Повторный вызов вернёт `409 already_deleted`.
 - `POST /documents/:id/upload` — переотправить документ в очередь загрузки (повторная выдача подписанного URL).
 - `POST /documents/:id/complete` — подтвердить завершение загрузки, зафиксировать размер/хэш и поставить задачу синхронизации (`documents.sync`).
 - `POST /documents/:id/sync` — актуализировать метаданные из файловой системы или объектного хранилища.
