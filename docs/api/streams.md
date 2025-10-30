@@ -2,6 +2,21 @@
 
 Gateway публикует события через Server-Sent Events (SSE) для клиентов веб-интерфейса. Подключение выполняется по заголовкам `Accept: text/event-stream` и (при необходимости) `Authorization: Bearer <JWT>`.
 
+| Переменная | Назначение | Значение по умолчанию |
+| --- | --- | --- |
+| `GATEWAY_UPSTREAM_TIMEOUT` | Максимальное время ожидания ответа upstream перед обрывом соединения. | `5000` мс |
+| `GATEWAY_UPSTREAM_SSE_RECONNECT_DELAY` | Задержка между попытками переподключения к upstream SSE. | `3000` мс |
+| `GATEWAY_UPSTREAM_SSE_HEARTBEAT_INTERVAL` | Интервал отправки heartbeat-событий Gateway в downstream и обновления состояния Redis. | `15000` мс |
+| `GATEWAY_UPSTREAM_SSE_HEARTBEAT_TTL` | TTL ключей мониторинга heartbeat в Redis; после превышения поток считается неактивным. | `60` с |
+| `GATEWAY_UPSTREAM_CRM_BASE_URL` | Базовый URL REST-роутов CRM, используемый Gateway для проксирования. | `http://localhost:8082/api/v1` |
+| `GATEWAY_UPSTREAM_CRM_SSE_URL` | Внутренний SSE-канал CRM для публичного стрима `deals`. | `http://localhost:8082/streams` |
+| `GATEWAY_UPSTREAM_CRM_SERVICE_NAME` | Имя CRM в сервис-дискавери/трассировке (используется в метриках и логах). | `crm-service` |
+| `GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL` | Базовый URL REST-роутов уведомлений CRM. | `http://localhost:8082/api/v1` |
+| `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` | Внутренний SSE-канал уведомлений CRM для стрима `notifications`. | `http://localhost:8082/streams` |
+| `GATEWAY_UPSTREAM_NOTIFICATIONS_SERVICE_NAME` | Имя сервиса уведомлений в сервис-дискавери/трассировке. | `crm-service` |
+
+Полные значения приведены в [`env.example`](../../env.example#L224-L227) и [`env.example`](../../env.example#L310-L317). Переопределяйте параметры при развертывании в нестандартной сети (другие хосты/порты CRM), при вынесении уведомлений в отдельный сервис, а также при изменении политик таймаутов и мониторинга, чтобы согласовать Gateway с фактической конфигурацией upstream.
+
 ## Общие правила
 - Соединение поддерживается на уровне Gateway: `GET /api/v1/streams/{channel}`.
 - Gateway передаёт upstream-заголовок `Last-Event-ID` и сохраняет полученные идентификаторы событий в Redis, что позволяет клиентам возобновлять поток после обрыва соединения.【F:backend/gateway/src/sse/upstream-sse.service.ts†L22-L165】
@@ -54,9 +69,9 @@ Gateway публикует события через Server-Sent Events (SSE) д
 ## Канал `notifications`
 - **Маршрут:** `GET /api/v1/streams/notifications`
 - **Назначение:** ретрансляция внутренних уведомлений CRM и откликов Telegram-бота (`GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL`).
-- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/api/notifications/stream`).
+- **Upstream:** CRM предоставляет `GET ${GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL}` (по умолчанию `http://localhost:8082/streams`). Для рабочей среды переопределите переменную, установив фактический адрес `http://localhost:8082/api/notifications/stream`.
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
-- **Примечание:** upstream публикуется без префикса `/api/v1`, поскольку роутер уведомлений подключается напрямую с префиксом `/api` в `crm.app.main`.【F:backend/crm/crm/app/main.py†L121-L127】
+- **Инструкция по настройке:** задайте `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` в `.env` и `infra/docker-compose.yml`, чтобы Gateway подключался к правильному upstream-роуту уведомлений.
 
 ## Канал `heartbeat`
 - **Маршрут:** `GET /api/v1/streams/heartbeat`
