@@ -357,9 +357,9 @@ Content-Type: application/json
 | 400 | `validation_error` | Ошибка валидации. |
 | 401 | `unauthorized` | Неверный токен. |
 | 403 | `forbidden` | Нет прав на операцию. |
-| 404 | `not_found` | Ресурс не найден. |
+| 404 | `task_not_found`, `deal_not_found` | Ресурс не найден (задача, связанная сделка для SLA и т.п.). |
 | 409 | `conflict` | Конфликт статусов. |
 | 429 | `rate_limited` | Ограничение по напоминаниям. |
 | 500 | `internal_error` | Внутренняя ошибка сервиса. |
 
-> Обратите внимание, что сервис задач всегда возвращает код ошибки в поле `code`, при этом HTTP-статус остаётся `400`. Конкретная причина (например, `task_deal_not_found`, `task_policy_not_found`, `task_payment_not_found`) определяется логикой `_handle_task_error` и `TaskRepository._map_task_integrity_error`.
+> Сервис задач всегда возвращает структурированный ответ с полями `statusCode`, `code` и `message`, при этом HTTP-статус совпадает со значением `statusCode` и не ограничивается `400`. Например, операции с несуществующей задачей (чтение, обновление, планирование, создание напоминаний) возвращают `404 task_not_found`, а в SLA-эндпоинте при отсутствии сделки приходит `404 deal_not_found`. Бизнес-ошибки обрабатываются хендлером `_handle_task_error` в `tasks.py`: он преобразует `TaskServiceError` в `HTTPException`, сохраняет оригинальный `code`, подставляет соответствующий статус (`400`, `409` и т.д.) и добавляет `details`. Коды интеграционных ограничений (например, `task_deal_not_found`, `task_policy_not_found`, `task_payment_not_found`) формируются в `TaskRepository._map_task_integrity_error` и также проходят через этот механизм.
