@@ -73,6 +73,23 @@ Gateway публикует события через Server-Sent Events (SSE) д
 - **Особенности:** идентичны каналу CRM, за исключением ключа Redis (`${REDIS_HEARTBEAT_PREFIX}:notifications`).
 - **Инструкция по настройке:** задайте `GATEWAY_UPSTREAM_NOTIFICATIONS_SSE_URL` в `.env` и `infra/docker-compose.yml`, чтобы Gateway подключался к правильному upstream-роуту уведомлений.
 
+Пример подключения к публичному каналу через Gateway:
+
+```bash
+curl -N \
+  -H "Accept: text/event-stream" \
+  -H "Authorization: Bearer <JWT>" \
+  https://gateway.example.com/api/v1/streams/notifications
+```
+
+```bash
+http --stream GET https://gateway.example.com/api/v1/streams/notifications \
+  Accept:text/event-stream \
+  "Authorization:Bearer <JWT>"
+```
+
+В ответ поток отдаёт регулярные `event: heartbeat` с таймстампом для контроля соединения и доменные события уведомлений (`event: notification.*`, `data: { ... }`), транслируемые из upstream.
+
 ## Канал `heartbeat`
 - **Маршрут:** `GET /api/v1/streams/heartbeat`
 - **Назначение:** проверка доступности Gateway; события генерируются самим Gateway каждые 15 секунд и не требуют upstream-подключения.【F:backend/gateway/src/sse/sse.controller.ts†L4-L18】
