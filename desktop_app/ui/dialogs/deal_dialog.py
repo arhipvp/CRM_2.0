@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, Sequence
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
@@ -16,11 +16,14 @@ from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
     QLineEdit,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
 )
 
 from api.client import APIClientError
 from core.app_context import AppContext
-from models import Client, Deal
+from models import Client, Deal, Payment, Policy, Task
 from ui.dialogs.client_dialog import ClientDialog
 
 
@@ -69,6 +72,8 @@ class DealDialog(QDialog):
         form.addRow("Next review *", self.next_review_edit)
         form.addRow("Client *", client_row)
 
+        self.tabs: Optional[QTabWidget] = None
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
             parent=self,
@@ -105,6 +110,10 @@ class DealDialog(QDialog):
                     self.client_combo.setCurrentIndex(idx)
             self.client_combo.setEnabled(False)
             self.add_client_button.setVisible(False)
+
+            self.tabs = QTabWidget(self)
+            form.addRow(self.tabs)
+            self._init_related_tabs(deal)
 
     def _handle_add_client(self) -> None:
         dialog = ClientDialog(parent=self)
@@ -165,4 +174,147 @@ class DealDialog(QDialog):
             changes["next_review_at"] = new_date.isoformat()
 
         return changes
+
+    # ---- related data -----------------------------------------------------
+    def _init_related_tabs(self, deal: Deal) -> None:
+        assert self.tabs is not None
+
+        self._policies_table = self._create_table(
+            ["Policy", "Status", "Premium", "From", "To"]
+        )
+        self.tabs.addTab(self._policies_table, "Policies")
+
+        self._payments_table = self._create_table(
+            ["Policy", "Seq", "Status", "Planned date", "Planned amount"]
+        )
+        self.tabs.addTab(self._payments_table, "Payments")
+
+        self._tasks_table = self._create_table(
+            ["Title", "Status", "Due", "Assignee"]
+        )
+        self.tabs.addTab(self._tasks_table, "Tasks")
+
+        self._finance_table = self._create_table(
+            ["Policy", "Incomes", "Expenses", "Net"]
+        )
+        self.tabs.addTab(self._finance_table, "Finance")
+
+        self._load_related_data(deal)
+
+    def _load_related_data(self, deal: Deal) -> None:
+        try:
+            policies = [
+                policy
+                for policy in self._context.api.fetch_policies()
+                if policy.deal_id == deal.id
+            ]
+        except APIClientError as exc:
+            QMessageBox.warning(self, "Load policies", str(exc))
+            policies = []
+
+        self._populate_table(
+            self._policies_table,
+            [
+                (
+                    policy.policy_number,
+                    policy.status or "",
+                    _format_money(policy.premium),
+                    policy.effective_from.isoformat()
+                    if policy.effective_from
+                    else "",
+                    policy.effective_to.isoformat() if policy.effective_to else "",
+                )
+                for policy in policies
+            ],
+        )
+
+        payments: list[Payment] = []
+        for policy in policies:
+            try:
+                payments.extend(
+                    self._context.api.fetch_payments(deal.id, policy.id)
+                )
+            except APIClientError:
+                continue
+
+        policy_map: Dict[UUID, str] = {policy.id: policy.policy_number for policy in policies}
+        self._populate_table(
+            self._payments_table,
+            [
+                (
+                    policy_map.get(payment.policy_id, ""),
+                    str(payment.sequence),
+                    payment.status or "",
+                    payment.planned_date.isoformat() if payment.planned_date else "",
+                    _format_money(payment.planned_amount),
+                )
+                for payment in payments
+            ],
+        )
+
+        try:
+            tasks = [
+                task
+                for task in self._context.api.fetch_tasks()
+                if task.deal_id == deal.id
+            ]
+        except APIClientError as exc:
+            QMessageBox.warning(self, "Load tasks", str(exc))
+            tasks = []
+
+        self._populate_table(
+            self._tasks_table,
+            [
+                (
+                    task.title,
+                    task.status_name or task.status_code or "",
+                    task.due_at.strftime("%Y-%m-%d %H:%M") if task.due_at else "",
+                    str(task.assignee_id or "")[:8],
+                )
+                for task in tasks
+            ],
+        )
+
+        finance_rows = []
+        for policy in policies:
+            policy_payments = [
+                payment for payment in payments if payment.policy_id == policy.id
+            ]
+            incomes = sum(payment.incomes_total or 0 for payment in policy_payments)
+            expenses = sum(payment.expenses_total or 0 for payment in policy_payments)
+            net = sum(payment.net_total or 0 for payment in policy_payments)
+            finance_rows.append(
+                (
+                    policy.policy_number,
+                    _format_money(incomes),
+                    _format_money(expenses),
+                    _format_money(net),
+                )
+            )
+        self._populate_table(self._finance_table, finance_rows)
+
+    @staticmethod
+    def _create_table(columns: Sequence[str]) -> QTableWidget:
+        table = QTableWidget()
+        table.setColumnCount(len(columns))
+        table.setHorizontalHeaderLabels(columns)
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectRows)
+        table.setSelectionMode(QTableWidget.NoSelection)
+        return table
+
+    @staticmethod
+    def _populate_table(table: QTableWidget, rows: Sequence[Sequence[str]]) -> None:
+        table.setRowCount(len(rows))
+        for row_idx, row in enumerate(rows):
+            for col_idx, value in enumerate(row):
+                item = QTableWidgetItem(value)
+                table.setItem(row_idx, col_idx, item)
+
+
+def _format_money(value: Optional[float]) -> str:
+    if value is None:
+        return ""
+    return f"{value:,.2f}"
 
