@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Sequence
 
+from uuid import UUID
+
 from PySide6.QtWidgets import QMessageBox
 
 from api.client import APIClientError
@@ -30,12 +32,13 @@ class PoliciesTab(BaseTableTab):
                 _("Owner ID"),
                 _("Created"),
                 _("Updated"),
+                _("Deleted"),
             ],
             title=_("Policies"),
             parent=parent,
             enable_add=False,
             enable_edit=False,
-            enable_delete=False,
+            enable_delete=True,
         )
         self._context = context
         self._worker_pool = WorkerPool()
@@ -98,6 +101,52 @@ class PoliciesTab(BaseTableTab):
             # No cache available
             self.operation_error.emit(error_message)
 
+    def on_delete(self, index: int, row: Sequence[str]) -> None:
+        """Handle delete policy action.
+
+        Args:
+            index: Row index in table
+            row: Row values from table
+        """
+        policy = self._context.cache.policies[UUID(row[0])]
+        confirmation = QMessageBox.question(
+            self,
+            _("Delete policy"),
+            _("Delete policy \"{}\"?").format(policy.policy_number),
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if confirmation != QMessageBox.Yes:
+            return
+
+        self.data_loading.emit(True)
+
+        def delete_policy_task() -> None:
+            self._context.api.delete_policy(policy.id)
+
+        worker = Worker(delete_policy_task)
+        worker.finished.connect(self._on_policy_deleted)
+        worker.error.connect(self._on_delete_error)
+        self._worker_pool.start("delete_policy", worker)
+
+    def _on_policy_deleted(self, result: Any) -> None:
+        """Handle successful policy deletion.
+
+        Args:
+            result: Result from API (usually None)
+        """
+        self.data_loading.emit(False)
+        self.load_data()
+        QMessageBox.information(self, _("Success"), _("Policy removed."))
+
+    def _on_delete_error(self, error_message: str) -> None:
+        """Handle policy deletion error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(_("Failed to delete policy: {}").format(error_message))
+
     def _to_rows(self, policies: list[Policy]):
         for policy in policies:
             client_name = self._context.get_client_name(policy.client_id)
@@ -121,4 +170,5 @@ class PoliciesTab(BaseTableTab):
                 str(policy.owner_id) if policy.owner_id else "",
                 created,
                 updated,
+                _("Yes") if policy.is_deleted else _("No"),
             )

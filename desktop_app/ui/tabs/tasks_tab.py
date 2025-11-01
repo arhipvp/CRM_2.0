@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Sequence
 
+from uuid import UUID
+
 from PySide6.QtWidgets import QMessageBox
 
 from api.client import APIClientError
@@ -18,12 +20,12 @@ logger = logging.getLogger(__name__)
 class TasksTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=[_("ID"), _("Title"), _("Description"), _("Status"), _("Assignee"), _("Author"), _("Deal"), _("Policy"), _("Due"), _("Created"), _("Updated")],
+            columns=[_("ID"), _("Title"), _("Description"), _("Status"), _("Assignee"), _("Author"), _("Deal"), _("Policy"), _("Due"), _("Created"), _("Updated"), _("Deleted")],
             title=_("Tasks"),
             parent=parent,
             enable_add=False,
             enable_edit=False,
-            enable_delete=False,
+            enable_delete=True,
         )
         self._context = context
         self._worker_pool = WorkerPool()
@@ -76,6 +78,52 @@ class TasksTab(BaseTableTab):
             # No cache available
             self.operation_error.emit(error_message)
 
+    def on_delete(self, index: int, row: Sequence[str]) -> None:
+        """Handle delete task action.
+
+        Args:
+            index: Row index in table
+            row: Row values from table
+        """
+        task = self._context.cache.tasks[UUID(row[0])]
+        confirmation = QMessageBox.question(
+            self,
+            _("Delete task"),
+            _("Delete task \"{}\"?").format(task.title),
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if confirmation != QMessageBox.Yes:
+            return
+
+        self.data_loading.emit(True)
+
+        def delete_task_task() -> None:
+            self._context.api.delete_task(task.id)
+
+        worker = Worker(delete_task_task)
+        worker.finished.connect(self._on_task_deleted)
+        worker.error.connect(self._on_delete_error)
+        self._worker_pool.start("delete_task", worker)
+
+    def _on_task_deleted(self, result: Any) -> None:
+        """Handle successful task deletion.
+
+        Args:
+            result: Result from API (usually None)
+        """
+        self.data_loading.emit(False)
+        self.load_data()
+        QMessageBox.information(self, _("Success"), _("Task removed."))
+
+    def _on_delete_error(self, error_message: str) -> None:
+        """Handle task deletion error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(_("Failed to delete task: {}").format(error_message))
+
     def _to_rows(self, tasks: list[Task]):
         for task in tasks:
             # Get deal and policy titles for display
@@ -94,4 +142,5 @@ class TasksTab(BaseTableTab):
                 task.due_at.strftime("%Y-%m-%d %H:%M") if task.due_at else "",
                 task.created_at.strftime("%Y-%m-%d %H:%M") if task.created_at else "",
                 task.updated_at.strftime("%Y-%m-%d %H:%M") if task.updated_at else "",
+                _("Yes") if task.is_deleted else _("No"),
             )

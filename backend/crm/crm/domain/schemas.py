@@ -40,6 +40,7 @@ class ClientUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     status: Optional[str] = None
+    is_deleted: Optional[bool] = None
 
 
 class ClientRead(ORMModel, ClientBase):
@@ -47,6 +48,7 @@ class ClientRead(ORMModel, ClientBase):
     owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
 
 
 class DealBase(BaseModel):
@@ -66,6 +68,7 @@ class DealUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     next_review_at: Optional[date] = Field(default=PydanticUndefined)
+    is_deleted: Optional[bool] = None
 
     @field_validator("next_review_at", mode="before")
     @classmethod
@@ -132,6 +135,7 @@ class DealRead(ORMModel, DealBase):
     owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
 
     @computed_field
     @property
@@ -211,6 +215,7 @@ class PolicyUpdate(BaseModel):
     premium: Optional[float] = None
     effective_from: Optional[date] = None
     effective_to: Optional[date] = None
+    is_deleted: Optional[bool] = None
 
 
 class PolicyRead(ORMModel, PolicyBase):
@@ -221,6 +226,7 @@ class PolicyRead(ORMModel, PolicyBase):
     owner_id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
 
 
 class PolicyDocumentLink(BaseModel):

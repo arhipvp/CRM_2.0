@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BaseAPIModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    deleted_at: Optional[datetime] = Field(default=None, alias="deletedAt")
+    is_deleted: bool = Field(default=False, alias="isDeleted")
 
 
 class Client(BaseAPIModel):

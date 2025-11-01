@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
 
@@ -116,7 +117,7 @@ class APIClient:
     # ----- public API: clients ---------------------------------------------
     def fetch_clients(self) -> List[Client]:
         data = self._get("/clients")
-        return [Client.model_validate(item) for item in data]  # type: ignore[arg-type]
+        return [Client.model_validate(item) for item in data if not item.get("isDeleted")]
 
     def create_client(self, payload: Dict[str, Optional[str]]) -> Client:
         response = self._request("POST", "/clients", json=payload)
@@ -127,12 +128,15 @@ class APIClient:
         return Client.model_validate(response.json())
 
     def delete_client(self, client_id: UUID) -> None:
-        self._request("DELETE", f"/clients/{client_id}")
+        payload = {
+            "is_deleted": True,
+        }
+        self._request("PATCH", f"/clients/{client_id}", json=payload)
 
     # ----- public API: deals -----------------------------------------------
     def fetch_deals(self) -> List[Deal]:
         data = self._get("/deals")
-        return [Deal.model_validate(item) for item in data]  # type: ignore[arg-type]
+        return [Deal.model_validate(item) for item in data if not item.get("isDeleted")]
 
     def create_deal(self, payload: Dict[str, object]) -> Deal:
         response = self._request("POST", "/deals", json=payload)
@@ -143,16 +147,31 @@ class APIClient:
         return Deal.model_validate(response.json())
 
     def delete_deal(self, deal_id: UUID) -> None:
-        self._request("DELETE", f"/deals/{deal_id}")
+        payload = {
+            "is_deleted": True,
+        }
+        self._request("PATCH", f"/deals/{deal_id}", json=payload)
+
+    def delete_policy(self, policy_id: UUID) -> None:
+        payload = {
+            "is_deleted": True,
+        }
+        self._request("PATCH", f"/policies/{policy_id}", json=payload)
+
+    def delete_task(self, task_id: UUID) -> None:
+        payload = {
+            "status": "cancelled",
+        }
+        self._request("PATCH", f"/tasks/{task_id}", json=payload)
 
     # ----- public API: policies / payments / tasks -------------------------
     def fetch_policies(self) -> List[Policy]:
         data = self._get("/policies")
-        return [Policy.model_validate(item) for item in data]  # type: ignore[arg-type]
+        return [Policy.model_validate(item) for item in data if not item.get("isDeleted")]
 
     def fetch_tasks(self) -> List[Task]:
         data = self._get("/tasks")
-        return [Task.model_validate(item) for item in data]  # type: ignore[arg-type]
+        return [Task.model_validate(item) for item in data if item.get("status") != "cancelled"]
 
     def fetch_payments(self, deal_id: UUID, policy_id: UUID) -> List[Payment]:
         path = f"/deals/{deal_id}/policies/{policy_id}/payments"

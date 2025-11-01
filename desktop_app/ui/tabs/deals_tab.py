@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from typing import Any, Sequence
 
+from uuid import UUID
+
 from PySide6.QtWidgets import QMessageBox, QDialog
 
 from api.client import APIClientError
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 class DealsTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=[_("ID"), _("Title"), _("Description"), _("Client"), _("Status"), _("Stage"), _("Next review"), _("Owner ID"), _("Created"), _("Updated")],
+            columns=[_("ID"), _("Title"), _("Description"), _("Client"), _("Status"), _("Stage"), _("Next review"), _("Owner ID"), _("Created"), _("Updated"), _("Deleted")],
             title=_("Deals"),
             parent=parent,
         )
@@ -190,7 +192,7 @@ class DealsTab(BaseTableTab):
             index: Row index in table
             row: Row values from table
         """
-        deal = self._deals[index]
+        deal = self._context.cache.deals[UUID(row[0])]
         confirmation = QMessageBox.question(
             self,
             _("Delete deal"),
@@ -254,4 +256,5 @@ class DealsTab(BaseTableTab):
                 str(deal.owner_id) if deal.owner_id else "",
                 created,
                 updated,
+                _("Yes") if deal.is_deleted else _("No"),
             )

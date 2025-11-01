@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Sequence
 
+from uuid import UUID
+
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from api.client import APIClientError
@@ -174,14 +176,7 @@ class ClientsTab(BaseTableTab):
         self.data_loading.emit(False)
         self.operation_error.emit(_("Failed to update client: {}").format(error_message))
 
-    def on_delete(self, index: int, row: Sequence[str]) -> None:
-        """Handle delete client action.
-
-        Args:
-            index: Row index in table
-            row: Row values from table
-        """
-        client = self._clients[index]
+        client = self._context.cache.clients[UUID(row[0])]
         confirmation = QMessageBox.question(
             self,
             _("Delete client"),
@@ -234,5 +229,5 @@ class ClientsTab(BaseTableTab):
                 str(client.owner_id) if client.owner_id else "",
                 client.created_at.strftime("%Y-%m-%d %H:%M") if client.created_at else "",
                 client.updated_at.strftime("%Y-%m-%d %H:%M") if client.updated_at else "",
-                "No",  # is_deleted field not in model, assuming not deleted if present
+                _("Yes") if client.is_deleted else _("No"),
             )
