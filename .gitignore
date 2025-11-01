@@ -36,3 +36,6 @@ logs/
 
 # Claude Code local settings (agents should be tracked)
 .claude/settings.local.json
+
+# Test credentials (temporary, for development only)
+.test_credentials
