@@ -178,17 +178,20 @@ class TestAuthService:
         mock_post.return_value = mock_response
 
         service = AuthService(base_url="http://localhost:8000")
-        result = service.login("testuser", "testpass")
+        result = service.login("test@example.com", "testpass")
 
         assert result is True
         assert service.is_authenticated
         assert service.token is not None
         assert service.token.access_token == "new_token_123"
 
-        # Verify POST request was made to correct endpoint
+        # Verify POST request was made to correct endpoint with correct payload
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert "/auth/token" in call_args[0][0]
+        assert "/token" in call_args[0][0]
+        # Verify JSON payload contains email field
+        assert call_args[1]["json"]["email"] == "test@example.com"
+        assert call_args[1]["json"]["password"] == "testpass"
 
     @patch("core.auth_service.httpx.Client.post")
     def test_auth_service_login_invalid_credentials(self, mock_post: Mock) -> None:

@@ -39,10 +39,10 @@ class LoginDialog(QDialog):
         title_label = QLabel("Sign In", self)
         title_label.setProperty("sectionTitle", True)
 
-        # Username field
-        username_label = QLabel("Username:", self)
+        # Email field
+        username_label = QLabel("Email:", self)
         self.username_input = QLineEdit(self)
-        self.username_input.setPlaceholderText("Enter your username")
+        self.username_input.setPlaceholderText("Enter your email address")
         self.username_input.setFocus()
 
         # Password field

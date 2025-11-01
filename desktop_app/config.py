@@ -21,6 +21,7 @@ def _normalize_base_url(raw_url: str | None) -> str:
 @dataclass(slots=True)
 class Settings:
     api_base_url: str = "http://localhost:8080/api/v1/crm"
+    auth_base_url: str = "http://localhost:8080/api/v1/auth"
     api_timeout: float = 10.0
     log_level: str = "INFO"
     journal_author_id: str | None = None
@@ -34,6 +35,7 @@ def get_settings(env_path: Path | None = None) -> Settings:
         load_dotenv(env_path)
 
     api_base_url = _normalize_base_url(os.getenv("DESKTOP_API_BASE_URL"))
+    auth_base_url = os.getenv("DESKTOP_AUTH_BASE_URL", "http://localhost:8080/api/v1/auth").rstrip("/")
     timeout_env = os.getenv("DESKTOP_API_TIMEOUT", "10")
     try:
         api_timeout = float(timeout_env)
@@ -42,6 +44,7 @@ def get_settings(env_path: Path | None = None) -> Settings:
 
     settings = Settings(
         api_base_url=api_base_url,
+        auth_base_url=auth_base_url,
         api_timeout=api_timeout,
         log_level=os.getenv("DESKTOP_LOG_LEVEL", "INFO").upper(),
         journal_author_id=os.getenv("DESKTOP_JOURNAL_AUTHOR_ID"),

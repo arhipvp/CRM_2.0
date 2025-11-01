@@ -71,26 +71,26 @@ class AuthService:
 
     def login(self, username: str, password: str) -> bool:
         """
-        Authenticate user with username and password.
+        Authenticate user with email and password.
 
         Args:
-            username: Username for authentication
+            username: Email address for authentication (treated as email)
             password: Password for authentication
 
         Returns:
             True if authentication successful, False otherwise
         """
         try:
-            # Prepare login payload (form data for OAuth2 compatible endpoint)
+            # Prepare login payload - Auth service expects email and password as JSON
             payload = {
-                "username": username,
+                "email": username,  # Username field actually contains email
                 "password": password,
             }
 
-            # Make POST request to /auth/token endpoint
+            # Make POST request to /token endpoint
             response = self._http_client.post(
-                f"{self.base_url}/auth/token",
-                data=payload,
+                f"{self.base_url}/token",
+                json=payload,
             )
             response.raise_for_status()
 

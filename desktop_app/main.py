@@ -26,7 +26,7 @@ def main() -> int:
 
     # Create authentication service
     auth_service = AuthService(
-        base_url=settings.api_base_url,
+        base_url=settings.auth_base_url,
         timeout=settings.api_timeout,
     )
 
