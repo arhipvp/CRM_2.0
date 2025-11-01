@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Callable, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
 
 import httpx
@@ -13,8 +13,14 @@ class APIClientError(RuntimeError):
 
 
 class APIClient:
-    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 10.0,
+        get_auth_header: Optional[Callable[[], dict[str, str]]] = None,
+    ) -> None:
         self._client = httpx.Client(base_url=base_url, timeout=timeout)
+        self._get_auth_header = get_auth_header or (lambda: {})
 
     def close(self) -> None:
         self._client.close()
@@ -22,6 +28,13 @@ class APIClient:
     # ----- internal helpers -------------------------------------------------
     def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:
+            # Add authentication header if available
+            headers = kwargs.get("headers", {})
+            auth_header = self._get_auth_header()
+            if auth_header:
+                headers.update(auth_header)
+                kwargs["headers"] = headers
+
             response = self._client.request(method, url, **kwargs)
             response.raise_for_status()
             return response

@@ -6,6 +6,7 @@ from uuid import UUID
 
 from api.client import APIClient
 from config import Settings, get_settings
+from core.auth_service import AuthService
 from models import Client, Deal, Policy, Task
 
 
@@ -18,11 +19,16 @@ class DataCache:
 
 
 class AppContext:
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Settings | None = None, auth_service: AuthService | None = None) -> None:
         self.settings = settings or get_settings()
+        self.auth_service = auth_service or AuthService(
+            base_url=self.settings.api_base_url,
+            timeout=self.settings.api_timeout,
+        )
         self.api = APIClient(
             base_url=self.settings.api_base_url,
             timeout=self.settings.api_timeout,
+            get_auth_header=self.auth_service.get_auth_header,
         )
         self.cache = DataCache()
 
@@ -86,6 +92,7 @@ class AppContext:
 
     def close(self) -> None:
         self.api.close()
+        self.auth_service.close()
 
 
 _GLOBAL_CONTEXT: AppContext | None = None
