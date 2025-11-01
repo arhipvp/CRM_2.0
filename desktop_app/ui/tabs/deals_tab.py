@@ -75,7 +75,17 @@ class DealsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(error_message)
+
+        # Try to show cached data if available
+        cached_deals = list(self._context.cache.deals.values())
+        if cached_deals:
+            logger.warning("API error, showing cached data: %s", error_message)
+            self._deals = cached_deals
+            self.populate(self._to_rows(cached_deals))
+            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+        else:
+            # No cache available
+            self.operation_error.emit(error_message)
 
     def on_add(self) -> None:
         """Handle add deal action."""

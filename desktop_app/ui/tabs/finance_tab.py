@@ -87,7 +87,18 @@ class FinanceTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(error_message)
+
+        # Try to show cached data if available
+        # For finance tab, we show cached policies and their payments
+        cached_policies = list(self._context.cache.policies.values())
+        if cached_policies:
+            logger.warning("API error, showing cached data: %s", error_message)
+            # Create empty payments list for cached display (just show policies)
+            self.populate(self._to_rows([]))
+            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+        else:
+            # No cache available
+            self.operation_error.emit(error_message)
 
     def _to_rows(self, payments: list[Payment]):
         for payment in payments:

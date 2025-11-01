@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+import time
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID
 
 import httpx
 
 from models import Client, Deal, Payment, Policy, StatCounters, Task
+
+logger = logging.getLogger(__name__)
 
 
 class APIClientError(RuntimeError):
@@ -26,20 +30,85 @@ class APIClient:
         self._client.close()
 
     # ----- internal helpers -------------------------------------------------
-    def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
-        try:
-            # Add authentication header if available
-            headers = kwargs.get("headers", {})
-            auth_header = self._get_auth_header()
-            if auth_header:
-                headers.update(auth_header)
-                kwargs["headers"] = headers
+    def _request(
+        self,
+        method: str,
+        url: str,
+        max_retries: int = 3,
+        **kwargs,
+    ) -> httpx.Response:
+        """
+        Make HTTP request with automatic retry on network errors.
 
-            response = self._client.request(method, url, **kwargs)
-            response.raise_for_status()
-            return response
-        except httpx.HTTPError as exc:  # pragma: no cover - network errors
-            raise APIClientError(str(exc)) from exc
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: Request URL
+            max_retries: Maximum number of retry attempts (default 3)
+            **kwargs: Additional arguments to pass to httpx
+
+        Returns:
+            HTTP response
+
+        Raises:
+            APIClientError: If request fails after all retries
+        """
+        # Add authentication header if available
+        headers = kwargs.get("headers", {})
+        auth_header = self._get_auth_header()
+        if auth_header:
+            headers.update(auth_header)
+            kwargs["headers"] = headers
+
+        last_exception = None
+        for attempt in range(max_retries):
+            try:
+                response = self._client.request(method, url, **kwargs)
+                response.raise_for_status()
+                return response
+
+            except httpx.HTTPStatusError as exc:
+                # Don't retry on 4xx errors (client errors) except 429 (rate limited)
+                if 400 <= exc.response.status_code < 500 and exc.response.status_code != 429:
+                    logger.error("Client error %d: %s", exc.response.status_code, url)
+                    raise APIClientError(str(exc)) from exc
+
+                # Retry on 5xx errors (server errors) and 429 (rate limited)
+                last_exception = exc
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(
+                        "Server error %d on %s, retrying in %ds (attempt %d/%d)",
+                        exc.response.status_code,
+                        url,
+                        wait_time,
+                        attempt + 1,
+                        max_retries,
+                    )
+                    time.sleep(wait_time)
+
+            except (httpx.NetworkError, httpx.TimeoutException) as exc:
+                # Retry on network and timeout errors
+                last_exception = exc
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt)
+                    logger.warning(
+                        "Network error on %s: %s, retrying in %ds (attempt %d/%d)",
+                        url,
+                        str(exc),
+                        wait_time,
+                        attempt + 1,
+                        max_retries,
+                    )
+                    time.sleep(wait_time)
+
+            except httpx.HTTPError as exc:
+                # Other HTTP errors - don't retry
+                logger.error("HTTP error: %s", exc)
+                raise APIClientError(str(exc)) from exc
+
+        # All retries exhausted
+        logger.error("Failed after %d retries: %s", max_retries, last_exception)
+        raise APIClientError(f"Request failed after {max_retries} retries: {last_exception}") from last_exception
 
     def _get(self, url: str, params: dict | None = None) -> dict | list:
         return self._request("GET", url, params=params).json()

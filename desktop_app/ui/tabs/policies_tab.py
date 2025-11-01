@@ -82,7 +82,16 @@ class PoliciesTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(error_message)
+
+        # Try to show cached data if available
+        cached_policies = list(self._context.cache.policies.values())
+        if cached_policies:
+            logger.warning("API error, showing cached data: %s", error_message)
+            self.populate(self._to_rows(cached_policies))
+            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+        else:
+            # No cache available
+            self.operation_error.emit(error_message)
 
     def _to_rows(self, policies: list[Policy]):
         for policy in policies:

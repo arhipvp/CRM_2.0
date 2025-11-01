@@ -61,7 +61,17 @@ class ClientsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(error_message)
+
+        # Try to show cached data if available
+        cached_clients = list(self._context.cache.clients.values())
+        if cached_clients:
+            logger.warning("API error, showing cached data: %s", error_message)
+            self._clients = cached_clients
+            self.populate(self._to_rows(cached_clients))
+            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+        else:
+            # No cache available
+            self.operation_error.emit(error_message)
 
     def on_add(self) -> None:
         """Handle add client action."""
