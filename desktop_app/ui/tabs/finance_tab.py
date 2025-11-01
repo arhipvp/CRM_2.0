@@ -1,35 +1,40 @@
 from __future__ import annotations
 
+from typing import Sequence
+
 from PySide6.QtWidgets import QMessageBox
 
 from api.client import APIClientError
 from core.app_context import AppContext
-from models import Payment
+from models import Payment, Policy
 from ui.base_table import BaseTableTab
 
 
 def _format_money(value: float | None) -> str:
     if value is None:
         return ""
-    return f"{value:,.2f}".replace(",", " ")
+    return f"{value:,.2f}"
 
 
 class FinanceTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
-                "Сделка",
-                "Полис",
-                "Очередь",
-                "Статус",
-                "Дата",
-                "План",
-                "Доход",
-                "Расход",
-                "Итого",
+                "Deal",
+                "Policy",
+                "Seq",
+                "Status",
+                "Date",
+                "Planned",
+                "Incomes",
+                "Expenses",
+                "Net",
             ],
-            title="Финансы",
+            title="Finance",
             parent=parent,
+            enable_add=False,
+            enable_edit=False,
+            enable_delete=False,
         )
         self._context = context
 
@@ -38,7 +43,7 @@ class FinanceTab(BaseTableTab):
             policies = self._context.api.fetch_policies()
             payments = self._context.api.fetch_payments_for_policies(policies)
         except APIClientError as exc:
-            QMessageBox.warning(self, "Ошибка загрузки", str(exc))
+            QMessageBox.warning(self, "Load error", str(exc))
             return
 
         self._context.update_policies(policies)
@@ -59,3 +64,4 @@ class FinanceTab(BaseTableTab):
                 _format_money(payment.expenses_total),
                 _format_money(payment.net_total),
             )
+

@@ -14,7 +14,7 @@ class HomeTab(QWidget):
         self._context = context
         self._stats = StatCounters()
 
-        self.header_label = QLabel("Быстрые показатели", self)
+        self.header_label = QLabel("Quick stats", self)
         self.header_label.setProperty("sectionTitle", True)
 
         self.clients_label = QLabel("", self)
@@ -31,7 +31,7 @@ class HomeTab(QWidget):
             label.setAlignment(Qt.AlignmentFlag.AlignLeft)
             label.setProperty("statLabel", True)
 
-        self.refresh_button = QPushButton("Обновить", self)
+        self.refresh_button = QPushButton("Refresh", self)
         self.refresh_button.clicked.connect(self.refresh_stats)  # type: ignore[arg-type]
 
         layout = QVBoxLayout(self)
@@ -49,13 +49,12 @@ class HomeTab(QWidget):
         try:
             self._stats = self._context.api.fetch_stats()
         except APIClientError:
-            # Use cached stats if available
             pass
         self._render()
 
     def _render(self) -> None:
-        self.clients_label.setText(f"Клиентов: {self._stats.clients}")
-        self.deals_label.setText(f"Сделок: {self._stats.deals}")
-        self.policies_label.setText(f"Полисов: {self._stats.policies}")
-        self.tasks_label.setText(f"Задач: {self._stats.tasks}")
+        self.clients_label.setText(f"Clients: {self._stats.clients}")
+        self.deals_label.setText(f"Deals: {self._stats.deals}")
+        self.policies_label.setText(f"Policies: {self._stats.policies}")
+        self.tasks_label.setText(f"Tasks: {self._stats.tasks}")
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Sequence
+
 from PySide6.QtWidgets import QMessageBox
 
 from api.client import APIClientError
@@ -11,16 +13,12 @@ from ui.base_table import BaseTableTab
 class TasksTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=[
-                "Название",
-                "Описание",
-                "Статус",
-                "Исполнитель",
-                "Дедлайн",
-                "Создана",
-            ],
-            title="Задачи",
+            columns=["Title", "Description", "Status", "Assignee", "Due", "Created"],
+            title="Tasks",
             parent=parent,
+            enable_add=False,
+            enable_edit=False,
+            enable_delete=False,
         )
         self._context = context
 
@@ -28,7 +26,7 @@ class TasksTab(BaseTableTab):
         try:
             tasks = self._context.api.fetch_tasks()
         except APIClientError as exc:
-            QMessageBox.warning(self, "Ошибка загрузки", str(exc))
+            QMessageBox.warning(self, "Load error", str(exc))
             return
 
         self._context.update_tasks(tasks)

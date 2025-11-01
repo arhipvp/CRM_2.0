@@ -46,14 +46,14 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         self.setMenuBar(menu_bar)
 
-        file_menu = QMenu("Файл", self)
-        exit_action = QAction("Выход", self)
+        file_menu = QMenu("File", self)
+        exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)  # type: ignore[arg-type]
         file_menu.addAction(exit_action)
         menu_bar.addMenu(file_menu)
 
-        view_menu = QMenu("Вид", self)
-        refresh_action = QAction("Обновить текущую вкладку", self)
+        view_menu = QMenu("View", self)
+        refresh_action = QAction("Refresh current tab", self)
         refresh_action.setShortcut("F5")
         refresh_action.triggered.connect(self.refresh_current_tab)  # type: ignore[arg-type]
         view_menu.addAction(refresh_action)
@@ -67,12 +67,12 @@ class MainWindow(QMainWindow):
         self.finance_tab = FinanceTab(context=self._context, parent=self)
         self.tasks_tab = TasksTab(context=self._context, parent=self)
 
-        self.tab_widget.addTab(self.home_tab, "Главная")
-        self.tab_widget.addTab(self.clients_tab, "Клиенты")
-        self.tab_widget.addTab(self.deals_tab, "Сделки")
-        self.tab_widget.addTab(self.policies_tab, "Полисы")
-        self.tab_widget.addTab(self.finance_tab, "Финансы")
-        self.tab_widget.addTab(self.tasks_tab, "Задачи")
+        self.tab_widget.addTab(self.home_tab, "Dashboard")
+        self.tab_widget.addTab(self.clients_tab, "Clients")
+        self.tab_widget.addTab(self.deals_tab, "Deals")
+        self.tab_widget.addTab(self.policies_tab, "Policies")
+        self.tab_widget.addTab(self.finance_tab, "Finance")
+        self.tab_widget.addTab(self.tasks_tab, "Tasks")
 
         for tab in (
             self.clients_tab,
@@ -91,12 +91,12 @@ class MainWindow(QMainWindow):
             try:
                 widget.load_data()  # type: ignore[call-arg] - runtime check
             except Exception as exc:  # pragma: no cover - unexpected errors
-                logger.exception("Ошибка обновления вкладки: %s", exc)
-                QMessageBox.critical(self, "Ошибка", str(exc))
+                logger.exception("Refresh error: %s", exc)
+                QMessageBox.critical(self, "Error", str(exc))
 
     # ----- signals ----------------------------------------------------------
     def _on_tab_data_loaded(self, count: int) -> None:
-        self.status_bar.showMessage(f"Записей загружено: {count}", 5000)
+        self.status_bar.showMessage(f"Rows loaded: {count}", 5000)
 
     def _on_tab_changed(self, index: int) -> None:
         widget = self.tab_widget.widget(index)

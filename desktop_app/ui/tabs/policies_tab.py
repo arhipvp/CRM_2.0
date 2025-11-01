@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Sequence
+
 from PySide6.QtWidgets import QMessageBox
 
 from api.client import APIClientError
@@ -12,16 +14,19 @@ class PoliciesTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
-                "Номер",
-                "Клиент",
-                "Сделка",
-                "Статус",
-                "Премия",
-                "Действует с",
-                "Действует до",
+                "Policy number",
+                "Client",
+                "Deal",
+                "Status",
+                "Premium",
+                "Effective from",
+                "Effective to",
             ],
-            title="Полисы",
+            title="Policies",
             parent=parent,
+            enable_add=False,
+            enable_edit=False,
+            enable_delete=False,
         )
         self._context = context
 
@@ -31,7 +36,7 @@ class PoliciesTab(BaseTableTab):
             clients = self._context.api.fetch_clients()
             deals = self._context.api.fetch_deals()
         except APIClientError as exc:
-            QMessageBox.warning(self, "Ошибка загрузки", str(exc))
+            QMessageBox.warning(self, "Load error", str(exc))
             return
 
         self._context.update_policies(policies)
