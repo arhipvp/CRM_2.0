@@ -24,12 +24,16 @@ class FinanceTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
+                "ID",
                 "Deal",
                 "Policy",
                 "Seq",
                 "Status",
-                "Date",
-                "Planned",
+                "Planned Date",
+                "Actual Date",
+                "Planned Amount",
+                "Currency",
+                "Comment",
                 "Incomes",
                 "Expenses",
                 "Net",
@@ -105,12 +109,16 @@ class FinanceTab(BaseTableTab):
             policy_number = self._context.get_policy_number(payment.policy_id)
             deal_title = self._context.get_deal_title(payment.deal_id)
             yield (
+                str(payment.id),
                 deal_title,
                 policy_number,
                 str(payment.sequence),
                 payment.status or "",
                 payment.planned_date.isoformat() if payment.planned_date else "",
+                payment.actual_date.isoformat() if payment.actual_date else "",
                 _format_money(payment.planned_amount),
+                payment.currency or "",
+                payment.comment or "",
                 _format_money(payment.incomes_total),
                 _format_money(payment.expenses_total),
                 _format_money(payment.net_total),

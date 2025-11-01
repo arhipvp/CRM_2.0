@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TasksTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["Title", "Description", "Status", "Assignee", "Due", "Created"],
+            columns=["ID", "Title", "Description", "Status", "Assignee", "Author", "Deal", "Policy", "Due", "Created", "Updated"],
             title="Tasks",
             parent=parent,
             enable_add=False,
@@ -75,14 +75,22 @@ class TasksTab(BaseTableTab):
             # No cache available
             self.operation_error.emit(error_message)
 
-    @staticmethod
-    def _to_rows(tasks: list[Task]):
+    def _to_rows(self, tasks: list[Task]):
         for task in tasks:
+            # Get deal and policy titles for display
+            deal_title = self._context.get_deal_title(task.deal_id) if task.deal_id else ""
+            policy_number = self._context.get_policy_number(task.policy_id) if task.policy_id else ""
+
             yield (
+                str(task.id),
                 task.title,
                 task.description or "",
                 task.status_name or task.status_code or "",
-                str(task.assignee_id or "")[:8],
+                str(task.assignee_id) if task.assignee_id else "",
+                str(task.author_id) if task.author_id else "",
+                deal_title,
+                policy_number,
                 task.due_at.strftime("%Y-%m-%d %H:%M") if task.due_at else "",
                 task.created_at.strftime("%Y-%m-%d %H:%M") if task.created_at else "",
+                task.updated_at.strftime("%Y-%m-%d %H:%M") if task.updated_at else "",
             )

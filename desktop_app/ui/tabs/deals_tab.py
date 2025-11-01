@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DealsTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["Title", "Client", "Status", "Next review", "Created"],
+            columns=["ID", "Title", "Description", "Client", "Status", "Stage", "Next review", "Owner ID", "Created", "Updated"],
             title="Deals",
             parent=parent,
         )
@@ -239,10 +239,18 @@ class DealsTab(BaseTableTab):
             created = (
                 deal.created_at.strftime("%Y-%m-%d %H:%M") if isinstance(deal.created_at, datetime) else ""
             )
+            updated = (
+                deal.updated_at.strftime("%Y-%m-%d %H:%M") if isinstance(deal.updated_at, datetime) else ""
+            )
             yield (
+                str(deal.id),
                 deal.title,
+                deal.description or "",
                 client_name,
                 deal.status or "",
+                deal.stage or "",
                 next_review,
+                str(deal.owner_id) if deal.owner_id else "",
                 created,
+                updated,
             )

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ClientsTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["Name", "Email", "Phone", "Status", "Created", "Updated"],
+            columns=["ID", "Name", "Email", "Phone", "Status", "Owner ID", "Created", "Updated", "Deleted"],
             title="Clients",
             parent=parent,
         )
@@ -225,10 +225,13 @@ class ClientsTab(BaseTableTab):
     def _to_rows(clients: list[Client]):
         for client in clients:
             yield (
+                str(client.id),
                 client.name,
                 client.email or "",
                 client.phone or "",
                 client.status or "",
+                str(client.owner_id) if client.owner_id else "",
                 client.created_at.strftime("%Y-%m-%d %H:%M") if client.created_at else "",
                 client.updated_at.strftime("%Y-%m-%d %H:%M") if client.updated_at else "",
+                "No",  # is_deleted field not in model, assuming not deleted if present
             )

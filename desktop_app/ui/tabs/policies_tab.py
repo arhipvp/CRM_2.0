@@ -18,6 +18,7 @@ class PoliciesTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
+                "ID",
                 "Policy number",
                 "Client",
                 "Deal",
@@ -25,6 +26,9 @@ class PoliciesTab(BaseTableTab):
                 "Premium",
                 "Effective from",
                 "Effective to",
+                "Owner ID",
+                "Created",
+                "Updated",
             ],
             title="Policies",
             parent=parent,
@@ -98,7 +102,14 @@ class PoliciesTab(BaseTableTab):
             client_name = self._context.get_client_name(policy.client_id)
             deal_title = self._context.get_deal_title(policy.deal_id)
             premium = f"{policy.premium:,.2f}" if policy.premium is not None else ""
+            created = (
+                policy.created_at.strftime("%Y-%m-%d %H:%M") if policy.created_at else ""
+            )
+            updated = (
+                policy.updated_at.strftime("%Y-%m-%d %H:%M") if policy.updated_at else ""
+            )
             yield (
+                str(policy.id),
                 policy.policy_number,
                 client_name,
                 deal_title,
@@ -106,4 +117,7 @@ class PoliciesTab(BaseTableTab):
                 premium,
                 policy.effective_from.isoformat() if policy.effective_from else "",
                 policy.effective_to.isoformat() if policy.effective_to else "",
+                str(policy.owner_id) if policy.owner_id else "",
+                created,
+                updated,
             )
