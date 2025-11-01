@@ -65,7 +65,7 @@ class AuthService:
 
     def get_auth_header(self) -> dict[str, str]:
         """Get Authorization header for API requests."""
-        if not self.token:
+        if not self.token or not self.token.access_token:
             return {}
         return {"Authorization": f"{self.token.token_type} {self.token.access_token}"}
 
@@ -95,11 +95,12 @@ class AuthService:
             response.raise_for_status()
 
             # Parse response and extract token
+            # Auth service returns camelCase: accessToken, tokenType, expiresIn
             data = response.json()
             self._token = AuthToken(
-                access_token=data.get("access_token", ""),
-                token_type=data.get("token_type", "Bearer"),
-                expires_in=data.get("expires_in"),
+                access_token=data.get("accessToken", ""),
+                token_type=data.get("tokenType", "Bearer"),
+                expires_in=data.get("expiresIn"),
             )
 
             logger.info("User authenticated successfully: %s", username)

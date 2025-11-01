@@ -168,12 +168,12 @@ class TestAuthService:
     @patch("core.auth_service.httpx.Client.post")
     def test_auth_service_login_success(self, mock_post: Mock) -> None:
         """Test successful login."""
-        # Mock successful response
+        # Mock successful response - Auth service uses camelCase
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "access_token": "new_token_123",
-            "token_type": "Bearer",
-            "expires_in": 3600,
+            "accessToken": "new_token_123",
+            "tokenType": "Bearer",
+            "expiresIn": 3600,
         }
         mock_post.return_value = mock_response
 
