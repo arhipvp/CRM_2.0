@@ -180,22 +180,22 @@ class DealDialog(QDialog):
         assert self.tabs is not None
 
         self._policies_table = self._create_table(
-            ["Policy", "Status", "Premium", "From", "To"]
+            ["ID", "Policy #", "Client", "Status", "Premium", "Effective From", "Effective To", "Owner ID", "Created", "Updated"]
         )
         self.tabs.addTab(self._policies_table, "Policies")
 
         self._payments_table = self._create_table(
-            ["Policy", "Seq", "Status", "Planned date", "Planned amount"]
+            ["ID", "Policy #", "Seq", "Status", "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment", "Incomes", "Expenses", "Net"]
         )
         self.tabs.addTab(self._payments_table, "Payments")
 
         self._tasks_table = self._create_table(
-            ["Title", "Status", "Due", "Assignee"]
+            ["ID", "Title", "Description", "Status", "Assignee", "Author", "Policy", "Due", "Created", "Updated"]
         )
         self.tabs.addTab(self._tasks_table, "Tasks")
 
         self._finance_table = self._create_table(
-            ["Policy", "Incomes", "Expenses", "Net"]
+            ["ID", "Policy #", "Incomes", "Expenses", "Net"]
         )
         self.tabs.addTab(self._finance_table, "Finance")
 
@@ -216,13 +216,18 @@ class DealDialog(QDialog):
             self._policies_table,
             [
                 (
+                    str(policy.id),
                     policy.policy_number,
+                    self._context.get_client_name(policy.client_id),
                     policy.status or "",
                     _format_money(policy.premium),
                     policy.effective_from.isoformat()
                     if policy.effective_from
                     else "",
                     policy.effective_to.isoformat() if policy.effective_to else "",
+                    str(policy.owner_id) if policy.owner_id else "",
+                    policy.created_at.strftime("%Y-%m-%d %H:%M") if policy.created_at else "",
+                    policy.updated_at.strftime("%Y-%m-%d %H:%M") if policy.updated_at else "",
                 )
                 for policy in policies
             ],
@@ -242,11 +247,18 @@ class DealDialog(QDialog):
             self._payments_table,
             [
                 (
+                    str(payment.id),
                     policy_map.get(payment.policy_id, ""),
                     str(payment.sequence),
                     payment.status or "",
                     payment.planned_date.isoformat() if payment.planned_date else "",
+                    payment.actual_date.isoformat() if payment.actual_date else "",
                     _format_money(payment.planned_amount),
+                    payment.currency or "",
+                    payment.comment or "",
+                    _format_money(payment.incomes_total),
+                    _format_money(payment.expenses_total),
+                    _format_money(payment.net_total),
                 )
                 for payment in payments
             ],
@@ -266,10 +278,16 @@ class DealDialog(QDialog):
             self._tasks_table,
             [
                 (
+                    str(task.id),
                     task.title,
+                    task.description or "",
                     task.status_name or task.status_code or "",
+                    str(task.assignee_id) if task.assignee_id else "",
+                    str(task.author_id) if task.author_id else "",
+                    self._context.get_policy_number(task.policy_id) if task.policy_id else "",
                     task.due_at.strftime("%Y-%m-%d %H:%M") if task.due_at else "",
-                    str(task.assignee_id or "")[:8],
+                    task.created_at.strftime("%Y-%m-%d %H:%M") if task.created_at else "",
+                    task.updated_at.strftime("%Y-%m-%d %H:%M") if task.updated_at else "",
                 )
                 for task in tasks
             ],
@@ -285,6 +303,7 @@ class DealDialog(QDialog):
             net = sum(payment.net_total or 0 for payment in policy_payments)
             finance_rows.append(
                 (
+                    str(policy.id),
                     policy.policy_number,
                     _format_money(incomes),
                     _format_money(expenses),
