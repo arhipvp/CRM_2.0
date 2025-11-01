@@ -98,10 +98,10 @@ class AppContext:
 _GLOBAL_CONTEXT: AppContext | None = None
 
 
-def init_app_context(settings: Settings | None = None) -> AppContext:
+def init_app_context(settings: Settings | None = None, auth_service: AuthService | None = None) -> AppContext:
     global _GLOBAL_CONTEXT
     if _GLOBAL_CONTEXT is None:
-        _GLOBAL_CONTEXT = AppContext(settings)
+        _GLOBAL_CONTEXT = AppContext(settings, auth_service)
     return _GLOBAL_CONTEXT
 
 
