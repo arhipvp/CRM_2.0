@@ -81,7 +81,7 @@ class BaseTableTab(QWidget):
         self.data_loading.connect(self._on_loading_state_changed)  # type: ignore[arg-type]
         self.operation_error.connect(self._on_operation_error)  # type: ignore[arg-type]
 
-        self.set_action_visibility(add=enable_add, edit=enable_edit, delete=delete)
+        self.set_action_visibility(add=enable_add, edit=enable_edit, delete=enable_delete)
         self._update_action_state()
 
     # ----- hooks ------------------------------------------------------------
