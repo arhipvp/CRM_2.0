@@ -1,63 +1,50 @@
-"""Configuration module for desktop app"""
+from __future__ import annotations
+
 import os
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
 
-def normalize_api_base_url(raw_url: Optional[str]) -> Optional[str]:
-    """Normalize the API base URL expected by the desktop application.
-
-    Gateway проксирует CRM под путём ``/api/v1/crm``. Разработчики часто
-    прокидывают ``DESKTOP_API_BASE_URL`` без суффикса ``/crm`` (``/api/v1``),
-    что приводит к обращению к корневому пространству Gateway и 404 на CRM
-    эндпоинтах. Функция дописывает ``/crm`` только если путь явно заканчивается
-    на ``/api/v1`` и суффикс отсутствует. Остальные значения возвращаются без
-    изменений, чтобы поддерживать прямые подключения к CRM без Gateway.
-    """
-
+def _normalize_base_url(raw_url: str | None) -> str:
     if not raw_url:
-        return raw_url
+        return "http://localhost:8080/api/v1/crm"
 
     normalized = raw_url.rstrip("/")
-
     if normalized.endswith("/api/v1") and not normalized.endswith("/api/v1/crm"):
         normalized = f"{normalized}/crm"
-
     return normalized
 
 
-# Load environment variables
-load_dotenv()
+@dataclass(slots=True)
+class Settings:
+    api_base_url: str = "http://localhost:8080/api/v1/crm"
+    api_timeout: float = 10.0
+    log_level: str = "INFO"
+    journal_author_id: str | None = None
 
-# API Configuration
-# Используем CRM API напрямую без авторизации (для разработки)
-API_BASE_URL = normalize_api_base_url(
-    os.getenv("DESKTOP_API_BASE_URL", "http://localhost:8082/api/v1")
-)
-API_TIMEOUT = int(os.getenv("DESKTOP_API_TIMEOUT", "10"))
 
-# Deal journal configuration
-DEFAULT_JOURNAL_AUTHOR_ID = os.getenv("DESKTOP_JOURNAL_AUTHOR_ID")
+@lru_cache(maxsize=1)
+def get_settings(env_path: Path | None = None) -> Settings:
+    """Load application settings from .env (once)."""
+    env_path = env_path or Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
 
-# Service URLs
-AUTH_TOKEN_URL = f"{API_BASE_URL}/auth/token"
-CRM_CLIENTS_URL = f"{API_BASE_URL}/clients"
-CRM_DEALS_URL = f"{API_BASE_URL}/deals"
-CRM_PAYMENTS_URL = f"{API_BASE_URL}/payments"
-CRM_POLICIES_URL = f"{API_BASE_URL}/policies"
-CRM_TASKS_URL = f"{API_BASE_URL}/tasks"
-CRM_USERS_URL = f"{API_BASE_URL}/users"
+    api_base_url = _normalize_base_url(os.getenv("DESKTOP_API_BASE_URL"))
+    timeout_env = os.getenv("DESKTOP_API_TIMEOUT", "10")
+    try:
+        api_timeout = float(timeout_env)
+    except ValueError:
+        api_timeout = 10.0
 
-# Documents configuration
-DEAL_DOCUMENTS_ROOT = Path(
-    os.getenv(
-        "DESKTOP_DEAL_DOCUMENTS_ROOT",
-        Path.cwd() / "deal_documents",
+    settings = Settings(
+        api_base_url=api_base_url,
+        api_timeout=api_timeout,
+        log_level=os.getenv("DESKTOP_LOG_LEVEL", "INFO").upper(),
+        journal_author_id=os.getenv("DESKTOP_JOURNAL_AUTHOR_ID"),
     )
-)
-DEAL_DOCUMENTS_ROOT.mkdir(parents=True, exist_ok=True)
+    return settings
 
-# Logging Configuration
-LOG_LEVEL = os.getenv("DESKTOP_LOG_LEVEL", "INFO")

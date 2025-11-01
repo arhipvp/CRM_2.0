@@ -100,7 +100,12 @@ export class RestProxyService {
 
       const headerKey = key.toLowerCase();
 
-      if (headerKey === 'host' || HOP_BY_HOP_HEADERS.has(headerKey)) {
+      if (
+        headerKey === 'host' ||
+        HOP_BY_HOP_HEADERS.has(headerKey) ||
+        headerKey === 'content-length' ||
+        headerKey === 'expect'
+      ) {
         return;
       }
 
