@@ -10,6 +10,7 @@ from core.app_context import AppContext
 from models import Task
 from ui.base_table import BaseTableTab
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,8 @@ logger = logging.getLogger(__name__)
 class TasksTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["ID", "Title", "Description", "Status", "Assignee", "Author", "Deal", "Policy", "Due", "Created", "Updated"],
-            title="Tasks",
+            columns=[_("ID"), _("Title"), _("Description"), _("Status"), _("Assignee"), _("Author"), _("Deal"), _("Policy"), _("Due"), _("Created"), _("Updated")],
+            title=_("Tasks"),
             parent=parent,
             enable_add=False,
             enable_edit=False,
@@ -51,7 +52,7 @@ class TasksTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(tasks, list):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_tasks(tasks)
@@ -70,7 +71,7 @@ class TasksTab(BaseTableTab):
         if cached_tasks:
             logger.warning("API error, showing cached data: %s", error_message)
             self.populate(self._to_rows(cached_tasks))
-            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+            self.operation_error.emit(_("Showing cached data (network error: {})").format(error_message))
         else:
             # No cache available
             self.operation_error.emit(error_message)

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.app_context import AppContext, get_app_context
+from i18n import _
 from ui.tabs.clients_tab import ClientsTab
 from ui.tabs.deals_tab import DealsTab
 from ui.tabs.finance_tab import FinanceTab
@@ -29,7 +30,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._context = context or get_app_context()
 
-        self.setWindowTitle("CRM Desktop")
+        self.setWindowTitle(_("CRM Desktop"))
         self.resize(1280, 800)
         self.setMinimumSize(900, 600)
 
@@ -46,14 +47,14 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         self.setMenuBar(menu_bar)
 
-        file_menu = QMenu("File", self)
-        exit_action = QAction("Exit", self)
+        file_menu = QMenu(_("File"), self)
+        exit_action = QAction(_("Exit"), self)
         exit_action.triggered.connect(self.close)  # type: ignore[arg-type]
         file_menu.addAction(exit_action)
         menu_bar.addMenu(file_menu)
 
-        view_menu = QMenu("View", self)
-        refresh_action = QAction("Refresh current tab", self)
+        view_menu = QMenu(_("View"), self)
+        refresh_action = QAction(_("Refresh current tab"), self)
         refresh_action.setShortcut("F5")
         refresh_action.triggered.connect(self.refresh_current_tab)  # type: ignore[arg-type]
         view_menu.addAction(refresh_action)
@@ -67,12 +68,12 @@ class MainWindow(QMainWindow):
         self.finance_tab = FinanceTab(context=self._context, parent=self)
         self.tasks_tab = TasksTab(context=self._context, parent=self)
 
-        self.tab_widget.addTab(self.home_tab, "Dashboard")
-        self.tab_widget.addTab(self.clients_tab, "Clients")
-        self.tab_widget.addTab(self.deals_tab, "Deals")
-        self.tab_widget.addTab(self.policies_tab, "Policies")
-        self.tab_widget.addTab(self.finance_tab, "Finance")
-        self.tab_widget.addTab(self.tasks_tab, "Tasks")
+        self.tab_widget.addTab(self.home_tab, _("Dashboard"))
+        self.tab_widget.addTab(self.clients_tab, _("Clients"))
+        self.tab_widget.addTab(self.deals_tab, _("Deals"))
+        self.tab_widget.addTab(self.policies_tab, _("Policies"))
+        self.tab_widget.addTab(self.finance_tab, _("Finance"))
+        self.tab_widget.addTab(self.tasks_tab, _("Tasks"))
 
         for tab in (
             self.clients_tab,
@@ -92,11 +93,11 @@ class MainWindow(QMainWindow):
                 widget.load_data()  # type: ignore[call-arg] - runtime check
             except Exception as exc:  # pragma: no cover - unexpected errors
                 logger.exception("Refresh error: %s", exc)
-                QMessageBox.critical(self, "Error", str(exc))
+                QMessageBox.critical(self, _("Error"), str(exc))
 
     # ----- signals ----------------------------------------------------------
     def _on_tab_data_loaded(self, count: int) -> None:
-        self.status_bar.showMessage(f"Rows loaded: {count}", 5000)
+        self.status_bar.showMessage(_("Rows loaded: {}").format(count), 5000)
 
     def _on_tab_changed(self, index: int) -> None:
         widget = self.tab_widget.widget(index)

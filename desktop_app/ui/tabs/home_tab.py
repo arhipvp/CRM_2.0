@@ -10,6 +10,7 @@ from api.client import APIClientError
 from core.app_context import AppContext
 from models import StatCounters
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class HomeTab(QWidget):
         self._stats = StatCounters()
         self._worker_pool = WorkerPool()
 
-        self.header_label = QLabel("Quick stats", self)
+        self.header_label = QLabel(_("Quick stats"), self)
         self.header_label.setProperty("sectionTitle", True)
 
         self.clients_label = QLabel("", self)
@@ -41,7 +42,7 @@ class HomeTab(QWidget):
             label.setAlignment(Qt.AlignmentFlag.AlignLeft)
             label.setProperty("statLabel", True)
 
-        self.refresh_button = QPushButton("Refresh", self)
+        self.refresh_button = QPushButton(_("Refresh"), self)
         self.refresh_button.clicked.connect(self.refresh_stats)  # type: ignore[arg-type]
 
         layout = QVBoxLayout(self)
@@ -62,7 +63,7 @@ class HomeTab(QWidget):
             return
 
         self.refresh_button.setEnabled(False)
-        self.refresh_button.setText("Loading...")
+        self.refresh_button.setText(_("Loading..."))
 
         def load_stats_task() -> StatCounters:
             return self._context.api.fetch_stats()
@@ -79,7 +80,7 @@ class HomeTab(QWidget):
             stats: StatCounters object from API
         """
         self.refresh_button.setEnabled(True)
-        self.refresh_button.setText("Refresh")
+        self.refresh_button.setText(_("Refresh"))
 
         if isinstance(stats, StatCounters):
             self._stats = stats
@@ -96,13 +97,13 @@ class HomeTab(QWidget):
             error_message: Error description
         """
         self.refresh_button.setEnabled(True)
-        self.refresh_button.setText("Refresh")
+        self.refresh_button.setText(_("Refresh"))
         logger.error("Stats load error: %s", error_message)
         # Show current stats anyway, even if load failed
 
     def _render(self) -> None:
         """Render stats on the UI."""
-        self.clients_label.setText(f"Clients: {self._stats.clients}")
-        self.deals_label.setText(f"Deals: {self._stats.deals}")
-        self.policies_label.setText(f"Policies: {self._stats.policies}")
-        self.tasks_label.setText(f"Tasks: {self._stats.tasks}")
+        self.clients_label.setText(_("Clients:") + f" {self._stats.clients}")
+        self.deals_label.setText(_("Deals:") + f" {self._stats.deals}")
+        self.policies_label.setText(_("Policies:") + f" {self._stats.policies}")
+        self.tasks_label.setText(_("Tasks:") + f" {self._stats.tasks}")

@@ -12,6 +12,7 @@ from models import Client, Deal
 from ui.base_table import BaseTableTab
 from ui.dialogs.deal_dialog import DealDialog
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,8 @@ logger = logging.getLogger(__name__)
 class DealsTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["ID", "Title", "Description", "Client", "Status", "Stage", "Next review", "Owner ID", "Created", "Updated"],
-            title="Deals",
+            columns=[_("ID"), _("Title"), _("Description"), _("Client"), _("Status"), _("Stage"), _("Next review"), _("Owner ID"), _("Created"), _("Updated")],
+            title=_("Deals"),
             parent=parent,
         )
         self._context = context
@@ -54,12 +55,12 @@ class DealsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(result, tuple) or len(result) != 2:
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         deals, clients = result
         if not isinstance(deals, list) or not isinstance(clients, list):
-            self.operation_error.emit("Invalid response types")
+            self.operation_error.emit(_("Invalid response types"))
             return
 
         self._deals = deals
@@ -82,7 +83,7 @@ class DealsTab(BaseTableTab):
             logger.warning("API error, showing cached data: %s", error_message)
             self._deals = cached_deals
             self.populate(self._to_rows(cached_deals))
-            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+            self.operation_error.emit(_("Showing cached data (network error: {})").format(error_message))
         else:
             # No cache available
             self.operation_error.emit(error_message)
@@ -90,7 +91,7 @@ class DealsTab(BaseTableTab):
     def on_add(self) -> None:
         """Handle add deal action."""
         if not self._clients:
-            QMessageBox.warning(self, "Create deal", "Create a client first.")
+            QMessageBox.warning(self, _("Create deal"), _("Create a client first."))
             return
 
         dialog = DealDialog(parent=self, context=self._context, clients=self._clients)
@@ -116,12 +117,12 @@ class DealsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(deal, Deal):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_deals([deal])
         self.load_data()
-        QMessageBox.information(self, "Success", "Deal successfully created.")
+        QMessageBox.information(self, _("Success"), _("Deal successfully created."))
 
     def _on_create_error(self, error_message: str) -> None:
         """Handle deal creation error.
@@ -130,7 +131,7 @@ class DealsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to create deal: {error_message}")
+        self.operation_error.emit(_("Failed to create deal: {}").format(error_message))
 
     def on_edit(self, index: int, row: Sequence[str]) -> None:
         """Handle edit deal action.
@@ -166,12 +167,12 @@ class DealsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(updated_deal, Deal):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_deals([updated_deal])
         self.load_data()
-        QMessageBox.information(self, "Success", "Deal updated.")
+        QMessageBox.information(self, _("Success"), _("Deal updated."))
 
     def _on_update_error(self, error_message: str) -> None:
         """Handle deal update error.
@@ -180,7 +181,7 @@ class DealsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to update deal: {error_message}")
+        self.operation_error.emit(_("Failed to update deal: {}").format(error_message))
 
     def on_delete(self, index: int, row: Sequence[str]) -> None:
         """Handle delete deal action.
@@ -192,8 +193,8 @@ class DealsTab(BaseTableTab):
         deal = self._deals[index]
         confirmation = QMessageBox.question(
             self,
-            "Delete deal",
-            f"Delete deal \"{deal.title}\"?",
+            _("Delete deal"),
+            _("Delete deal \"{}\"?").format(deal.title),
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirmation != QMessageBox.Yes:
@@ -217,7 +218,7 @@ class DealsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         self.load_data()
-        QMessageBox.information(self, "Success", "Deal removed.")
+        QMessageBox.information(self, _("Success"), _("Deal removed."))
 
     def _on_delete_error(self, error_message: str) -> None:
         """Handle deal deletion error.
@@ -226,7 +227,7 @@ class DealsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to delete deal: {error_message}")
+        self.operation_error.emit(_("Failed to delete deal: {}").format(error_message))
 
     def _to_rows(self, deals: list[Deal]):
         for deal in deals:

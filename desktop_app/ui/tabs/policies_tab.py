@@ -10,6 +10,7 @@ from core.app_context import AppContext
 from models import Policy
 from ui.base_table import BaseTableTab
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +19,19 @@ class PoliciesTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
-                "ID",
-                "Policy number",
-                "Client",
-                "Deal",
-                "Status",
-                "Premium",
-                "Effective from",
-                "Effective to",
-                "Owner ID",
-                "Created",
-                "Updated",
+                _("ID"),
+                _("Policy number"),
+                _("Client"),
+                _("Deal"),
+                _("Status"),
+                _("Premium"),
+                _("Effective from"),
+                _("Effective to"),
+                _("Owner ID"),
+                _("Created"),
+                _("Updated"),
             ],
-            title="Policies",
+            title=_("Policies"),
             parent=parent,
             enable_add=False,
             enable_edit=False,
@@ -66,12 +67,12 @@ class PoliciesTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(result, tuple) or len(result) != 3:
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         policies, clients, deals = result
         if not isinstance(policies, list):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_policies(policies)
@@ -92,7 +93,7 @@ class PoliciesTab(BaseTableTab):
         if cached_policies:
             logger.warning("API error, showing cached data: %s", error_message)
             self.populate(self._to_rows(cached_policies))
-            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+            self.operation_error.emit(_("Showing cached data (network error: {})").format(error_message))
         else:
             # No cache available
             self.operation_error.emit(error_message)

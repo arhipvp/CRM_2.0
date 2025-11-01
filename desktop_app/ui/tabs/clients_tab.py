@@ -11,6 +11,7 @@ from models import Client
 from ui.base_table import BaseTableTab
 from ui.dialogs.client_dialog import ClientDialog
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,8 @@ logger = logging.getLogger(__name__)
 class ClientsTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
-            columns=["ID", "Name", "Email", "Phone", "Status", "Owner ID", "Created", "Updated", "Deleted"],
-            title="Clients",
+            columns=[_("ID"), _("Name"), _("Email"), _("Phone"), _("Status"), _("Owner ID"), _("Created"), _("Updated"), _("Deleted")],
+            title=_("Clients"),
             parent=parent,
         )
         self._context = context
@@ -47,7 +48,7 @@ class ClientsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(clients, list):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._clients = clients
@@ -68,7 +69,7 @@ class ClientsTab(BaseTableTab):
             logger.warning("API error, showing cached data: %s", error_message)
             self._clients = cached_clients
             self.populate(self._to_rows(cached_clients))
-            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+            self.operation_error.emit(_("Showing cached data (network error: {})").format(error_message))
         else:
             # No cache available
             self.operation_error.emit(error_message)
@@ -97,12 +98,12 @@ class ClientsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(client, Client):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_clients([client])
         self.load_data()
-        QMessageBox.information(self, "Success", "Client successfully created.")
+        QMessageBox.information(self, _("Success"), _("Client successfully created."))
 
     def _on_create_error(self, error_message: str) -> None:
         """Handle client creation error.
@@ -111,7 +112,7 @@ class ClientsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to create client: {error_message}")
+        self.operation_error.emit(_("Failed to create client: {}").format(error_message))
 
     def on_edit(self, index: int, row: Sequence[str]) -> None:
         """Handle edit client action.
@@ -157,12 +158,12 @@ class ClientsTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(updated_client, Client):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_clients([updated_client])
         self.load_data()
-        QMessageBox.information(self, "Success", "Client data updated.")
+        QMessageBox.information(self, _("Success"), _("Client data updated."))
 
     def _on_update_error(self, error_message: str) -> None:
         """Handle client update error.
@@ -171,7 +172,7 @@ class ClientsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to update client: {error_message}")
+        self.operation_error.emit(_("Failed to update client: {}").format(error_message))
 
     def on_delete(self, index: int, row: Sequence[str]) -> None:
         """Handle delete client action.
@@ -183,8 +184,8 @@ class ClientsTab(BaseTableTab):
         client = self._clients[index]
         confirmation = QMessageBox.question(
             self,
-            "Delete client",
-            f"Delete client \"{client.name}\"?",
+            _("Delete client"),
+            _("Delete client \"{}\"?").format(client.name),
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirmation != QMessageBox.Yes:
@@ -210,7 +211,7 @@ class ClientsTab(BaseTableTab):
         # Note: Store client_id before deletion for cache cleanup
         # This is handled by storing client_id in the task
         self.load_data()
-        QMessageBox.information(self, "Success", "Client removed.")
+        QMessageBox.information(self, _("Success"), _("Client removed."))
 
     def _on_delete_error(self, error_message: str) -> None:
         """Handle client deletion error.
@@ -219,7 +220,7 @@ class ClientsTab(BaseTableTab):
             error_message: Error description
         """
         self.data_loading.emit(False)
-        self.operation_error.emit(f"Failed to delete client: {error_message}")
+        self.operation_error.emit(_("Failed to delete client: {}").format(error_message))
 
     @staticmethod
     def _to_rows(clients: list[Client]):

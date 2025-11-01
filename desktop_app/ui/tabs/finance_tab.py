@@ -10,6 +10,7 @@ from core.app_context import AppContext
 from models import Payment, Policy
 from ui.base_table import BaseTableTab
 from ui.worker import Worker, WorkerPool
+from i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +25,21 @@ class FinanceTab(BaseTableTab):
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(
             columns=[
-                "ID",
-                "Deal",
-                "Policy",
-                "Seq",
-                "Status",
-                "Planned Date",
-                "Actual Date",
-                "Planned Amount",
-                "Currency",
-                "Comment",
-                "Incomes",
-                "Expenses",
-                "Net",
+                _("ID"),
+                _("Deal"),
+                _("Policy"),
+                _("Seq"),
+                _("Status"),
+                _("Planned Date"),
+                _("Actual Date"),
+                _("Planned Amount"),
+                _("Currency"),
+                _("Comment"),
+                _("Incomes"),
+                _("Expenses"),
+                _("Net"),
             ],
-            title="Finance",
+            title=_("Finance"),
             parent=parent,
             enable_add=False,
             enable_edit=False,
@@ -73,12 +74,12 @@ class FinanceTab(BaseTableTab):
         """
         self.data_loading.emit(False)
         if not isinstance(result, tuple) or len(result) != 2:
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         policies, payments = result
         if not isinstance(payments, list):
-            self.operation_error.emit("Invalid response type")
+            self.operation_error.emit(_("Invalid response type"))
             return
 
         self._context.update_policies(policies)
@@ -99,7 +100,7 @@ class FinanceTab(BaseTableTab):
             logger.warning("API error, showing cached data: %s", error_message)
             # Create empty payments list for cached display (just show policies)
             self.populate(self._to_rows([]))
-            self.operation_error.emit(f"Showing cached data (network error: {error_message})")
+            self.operation_error.emit(_("Showing cached data (network error: {})").format(error_message))
         else:
             # No cache available
             self.operation_error.emit(error_message)

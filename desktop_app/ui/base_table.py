@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from i18n import _
+
 logger = logging.getLogger(__name__)
 
 
@@ -200,5 +202,5 @@ class BaseTableTab(QWidget):
             error_message: Description of error
         """
         logger.error("Operation error: %s", error_message)
-        QMessageBox.critical(self, "Error", f"Operation failed: {error_message}")
+        QMessageBox.critical(self, _("Error"), _("Operation failed: {}").format(error_message))
 

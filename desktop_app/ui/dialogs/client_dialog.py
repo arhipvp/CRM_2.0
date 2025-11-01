@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from models import Client
+from i18n import _
 
 
 class ClientDialog(QDialog):
@@ -26,7 +27,7 @@ class ClientDialog(QDialog):
 
         form = QFormLayout(self)
         form.addRow("Название *", self.name_edit)
-        form.addRow("Email", self.email_edit)
+        form.addRow(_("Email"), self.email_edit)
         form.addRow("Телефон", self.phone_edit)
         form.addRow("Статус", self.status_edit)
 
@@ -48,7 +49,7 @@ class ClientDialog(QDialog):
                 self.status_edit.setText(client.status)
 
         if not self.status_edit.text():
-            self.status_edit.setText("active")
+            self.status_edit.setText(_("active"))
 
     def _on_accept(self) -> None:
         if not self.name_edit.text().strip():

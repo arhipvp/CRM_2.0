@@ -25,6 +25,7 @@ from api.client import APIClientError
 from core.app_context import AppContext
 from models import Client, Deal, Payment, Policy, Task
 from ui.dialogs.client_dialog import ClientDialog
+from i18n import _
 
 
 class DealDialog(QDialog):
@@ -39,7 +40,7 @@ class DealDialog(QDialog):
         deal: Deal | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("New deal" if deal is None else "Edit deal")
+        self.setWindowTitle(_("New deal") if deal is None else _("Edit deal"))
         self._context = context
         self._deal = deal
 
@@ -56,7 +57,7 @@ class DealDialog(QDialog):
         for client in self._clients:
             self.client_combo.addItem(client.name, client.id)
 
-        self.add_client_button = QPushButton("Add client", self)
+        self.add_client_button = QPushButton(_("Add client"), self)
         self.add_client_button.clicked.connect(self._handle_add_client)
 
         client_row = QWidget(self)
@@ -66,11 +67,11 @@ class DealDialog(QDialog):
         row_layout.addWidget(self.add_client_button)
 
         form = QFormLayout(self)
-        form.addRow("Title *", self.title_edit)
-        form.addRow("Description", self.description_edit)
-        form.addRow("Status", self.status_combo)
-        form.addRow("Next review *", self.next_review_edit)
-        form.addRow("Client *", client_row)
+        form.addRow(_("Title *"), self.title_edit)
+        form.addRow(_("Description"), self.description_edit)
+        form.addRow(_("Status"), self.status_combo)
+        form.addRow(_("Next review *"), self.next_review_edit)
+        form.addRow(_("Client *"), client_row)
 
         self.tabs: Optional[QTabWidget] = None
 
@@ -122,7 +123,7 @@ class DealDialog(QDialog):
         try:
             client = self._context.api.create_client(dialog.payload())
         except APIClientError as exc:
-            QMessageBox.critical(self, "Create client", str(exc))
+            QMessageBox.critical(self, _("Create client"), str(exc))
             return
 
         self._context.update_clients([client])
@@ -132,13 +133,13 @@ class DealDialog(QDialog):
 
     def _on_accept(self) -> None:
         if not self.title_edit.text().strip():
-            QMessageBox.warning(self, "Validation", "Enter a deal title.")
+            QMessageBox.warning(self, _("Validation"), _("Enter a deal title."))
             return
         if self.client_combo.currentIndex() < 0:
-            QMessageBox.warning(self, "Validation", "Select a client.")
+            QMessageBox.warning(self, _("Validation"), _("Select a client."))
             return
         if not self.next_review_edit.date().isValid():
-            QMessageBox.warning(self, "Validation", "Select a review date.")
+            QMessageBox.warning(self, _("Validation"), _("Select a review date."))
             return
         self.accept()
 
@@ -180,24 +181,24 @@ class DealDialog(QDialog):
         assert self.tabs is not None
 
         self._policies_table = self._create_table(
-            ["ID", "Policy #", "Client", "Status", "Premium", "Effective From", "Effective To", "Owner ID", "Created", "Updated"]
+            [_("ID"), _("Policy #"), _("Client"), _("Status"), _("Premium"), _("Effective From"), _("Effective To"), _("Owner ID"), _("Created"), _("Updated")]
         )
-        self.tabs.addTab(self._policies_table, "Policies")
+        self.tabs.addTab(self._policies_table, _("Policies"))
 
         self._payments_table = self._create_table(
-            ["ID", "Policy #", "Seq", "Status", "Planned Date", "Actual Date", "Planned Amount", "Currency", "Comment", "Incomes", "Expenses", "Net"]
+            [_("ID"), _("Policy #"), _("Seq"), _("Status"), _("Planned Date"), _("Actual Date"), _("Planned Amount"), _("Currency"), _("Comment"), _("Incomes"), _("Expenses"), _("Net")]
         )
-        self.tabs.addTab(self._payments_table, "Payments")
+        self.tabs.addTab(self._payments_table, _("Payments"))
 
         self._tasks_table = self._create_table(
-            ["ID", "Title", "Description", "Status", "Assignee", "Author", "Policy", "Due", "Created", "Updated"]
+            [_("ID"), _("Title"), _("Description"), _("Status"), _("Assignee"), _("Author"), _("Policy"), _("Due"), _("Created"), _("Updated")]
         )
-        self.tabs.addTab(self._tasks_table, "Tasks")
+        self.tabs.addTab(self._tasks_table, _("Tasks"))
 
         self._finance_table = self._create_table(
-            ["ID", "Policy #", "Incomes", "Expenses", "Net"]
+            [_("ID"), _("Policy #"), _("Incomes"), _("Expenses"), _("Net")]
         )
-        self.tabs.addTab(self._finance_table, "Finance")
+        self.tabs.addTab(self._finance_table, _("Finance"))
 
         self._load_related_data(deal)
 
@@ -209,7 +210,7 @@ class DealDialog(QDialog):
                 if policy.deal_id == deal.id
             ]
         except APIClientError as exc:
-            QMessageBox.warning(self, "Load policies", str(exc))
+            QMessageBox.warning(self, _("Load policies"), str(exc))
             policies = []
 
         self._populate_table(
@@ -271,7 +272,7 @@ class DealDialog(QDialog):
                 if task.deal_id == deal.id
             ]
         except APIClientError as exc:
-            QMessageBox.warning(self, "Load tasks", str(exc))
+            QMessageBox.warning(self, _("Load tasks"), str(exc))
             tasks = []
 
         self._populate_table(
