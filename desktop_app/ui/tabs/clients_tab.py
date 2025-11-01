@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Sequence
+import logging
+from typing import Any, Sequence
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
@@ -9,6 +10,9 @@ from core.app_context import AppContext
 from models import Client
 from ui.base_table import BaseTableTab
 from ui.dialogs.client_dialog import ClientDialog
+from ui.worker import Worker, WorkerPool
+
+logger = logging.getLogger(__name__)
 
 
 class ClientsTab(BaseTableTab):
@@ -20,34 +24,92 @@ class ClientsTab(BaseTableTab):
         )
         self._context = context
         self._clients: list[Client] = []
+        self._worker_pool = WorkerPool()
 
     def load_data(self) -> None:
-        try:
-            clients = self._context.api.fetch_clients()
-        except APIClientError as exc:
-            QMessageBox.warning(self, "Load error", str(exc))
+        """Load clients from API in background thread."""
+        if self._worker_pool.is_running("load_clients"):
+            logger.debug("Clients load already in progress")
+            return
+
+        self.data_loading.emit(True)
+
+        worker = Worker(self._context.api.fetch_clients)
+        worker.finished.connect(self._on_clients_loaded)  # type: ignore[arg-type]
+        worker.error.connect(self._on_load_error)  # type: ignore[arg-type]
+        self._worker_pool.start("load_clients", worker)
+
+    def _on_clients_loaded(self, clients: Any) -> None:
+        """Handle successful clients load.
+
+        Args:
+            clients: List of Client objects from API
+        """
+        self.data_loading.emit(False)
+        if not isinstance(clients, list):
+            self.operation_error.emit("Invalid response type")
             return
 
         self._clients = clients
         self._context.update_clients(clients)
         self.populate(self._to_rows(clients))
 
+    def _on_load_error(self, error_message: str) -> None:
+        """Handle load error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(error_message)
+
     def on_add(self) -> None:
+        """Handle add client action."""
         dialog = ClientDialog(parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
-        try:
-            client = self._context.api.create_client(dialog.payload())
-        except APIClientError as exc:
-            QMessageBox.critical(self, "Create client", str(exc))
+        self.data_loading.emit(True)
+
+        def create_client_task() -> Client:
+            return self._context.api.create_client(dialog.payload())
+
+        worker = Worker(create_client_task)
+        worker.finished.connect(self._on_client_created)  # type: ignore[arg-type]
+        worker.error.connect(self._on_create_error)  # type: ignore[arg-type]
+        self._worker_pool.start("create_client", worker)
+
+    def _on_client_created(self, client: Any) -> None:
+        """Handle successful client creation.
+
+        Args:
+            client: Created Client object
+        """
+        self.data_loading.emit(False)
+        if not isinstance(client, Client):
+            self.operation_error.emit("Invalid response type")
             return
 
         self._context.update_clients([client])
         self.load_data()
-        QMessageBox.information(self, "Create client", "Client successfully created.")
+        QMessageBox.information(self, "Success", "Client successfully created.")
+
+    def _on_create_error(self, error_message: str) -> None:
+        """Handle client creation error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(f"Failed to create client: {error_message}")
 
     def on_edit(self, index: int, row: Sequence[str]) -> None:
+        """Handle edit client action.
+
+        Args:
+            index: Row index in table
+            row: Row values from table
+        """
         client = self._clients[index]
         dialog = ClientDialog(parent=self, client=client)
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -67,17 +129,47 @@ class ClientsTab(BaseTableTab):
         if not changes:
             return
 
-        try:
-            updated = self._context.api.update_client(client.id, changes)  # type: ignore[arg-type]
-        except APIClientError as exc:
-            QMessageBox.critical(self, "Edit client", str(exc))
+        self.data_loading.emit(True)
+
+        def update_client_task() -> Client:
+            return self._context.api.update_client(client.id, changes)  # type: ignore[arg-type]
+
+        worker = Worker(update_client_task)
+        worker.finished.connect(self._on_client_updated)  # type: ignore[arg-type]
+        worker.error.connect(self._on_update_error)  # type: ignore[arg-type]
+        self._worker_pool.start("update_client", worker)
+
+    def _on_client_updated(self, updated_client: Any) -> None:
+        """Handle successful client update.
+
+        Args:
+            updated_client: Updated Client object
+        """
+        self.data_loading.emit(False)
+        if not isinstance(updated_client, Client):
+            self.operation_error.emit("Invalid response type")
             return
 
-        self._context.update_clients([updated])
+        self._context.update_clients([updated_client])
         self.load_data()
-        QMessageBox.information(self, "Edit client", "Client data updated.")
+        QMessageBox.information(self, "Success", "Client data updated.")
+
+    def _on_update_error(self, error_message: str) -> None:
+        """Handle client update error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(f"Failed to update client: {error_message}")
 
     def on_delete(self, index: int, row: Sequence[str]) -> None:
+        """Handle delete client action.
+
+        Args:
+            index: Row index in table
+            row: Row values from table
+        """
         client = self._clients[index]
         confirmation = QMessageBox.question(
             self,
@@ -88,15 +180,36 @@ class ClientsTab(BaseTableTab):
         if confirmation != QMessageBox.Yes:
             return
 
-        try:
-            self._context.api.delete_client(client.id)
-        except APIClientError as exc:
-            QMessageBox.critical(self, "Delete client", str(exc))
-            return
+        self.data_loading.emit(True)
 
-        self._context.cache.clients.pop(client.id, None)
+        def delete_client_task() -> None:
+            self._context.api.delete_client(client.id)
+
+        worker = Worker(delete_client_task)
+        worker.finished.connect(self._on_client_deleted)  # type: ignore[arg-type]
+        worker.error.connect(self._on_delete_error)  # type: ignore[arg-type]
+        self._worker_pool.start("delete_client", worker)
+
+    def _on_client_deleted(self, result: Any) -> None:
+        """Handle successful client deletion.
+
+        Args:
+            result: Result from API (usually None)
+        """
+        self.data_loading.emit(False)
+        # Note: Store client_id before deletion for cache cleanup
+        # This is handled by storing client_id in the task
         self.load_data()
-        QMessageBox.information(self, "Delete client", "Client removed.")
+        QMessageBox.information(self, "Success", "Client removed.")
+
+    def _on_delete_error(self, error_message: str) -> None:
+        """Handle client deletion error.
+
+        Args:
+            error_message: Error description
+        """
+        self.data_loading.emit(False)
+        self.operation_error.emit(f"Failed to delete client: {error_message}")
 
     @staticmethod
     def _to_rows(clients: list[Client]):

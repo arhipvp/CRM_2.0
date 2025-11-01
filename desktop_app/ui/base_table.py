@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Sequence
 
 from PySide6.QtCore import Qt, Signal
@@ -14,9 +15,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class BaseTableTab(QWidget):
     data_loaded = Signal(int)
+    data_loading = Signal(bool)  # True = loading started, False = loading finished
+    operation_error = Signal(str)  # Error message
 
     def __init__(
         self,
@@ -72,7 +77,11 @@ class BaseTableTab(QWidget):
         self.delete_button.clicked.connect(self._handle_delete)  # type: ignore[arg-type]
         self.refresh_button.clicked.connect(self.refresh)  # type: ignore[arg-type]
 
-        self.set_action_visibility(add=enable_add, edit=enable_edit, delete=enable_delete)
+        # Connect loading state signals
+        self.data_loading.connect(self._on_loading_state_changed)  # type: ignore[arg-type]
+        self.operation_error.connect(self._on_operation_error)  # type: ignore[arg-type]
+
+        self.set_action_visibility(add=enable_add, edit=enable_edit, delete=delete)
         self._update_action_state()
 
     # ----- hooks ------------------------------------------------------------
@@ -165,4 +174,31 @@ class BaseTableTab(QWidget):
         self.edit_button.setVisible(edit)
         self.delete_button.setVisible(delete)
         self._update_action_state()
+
+    # ----- signal handlers --------------------------------------------------
+    def _on_loading_state_changed(self, is_loading: bool) -> None:
+        """Handle loading state changes.
+
+        Args:
+            is_loading: True if loading started, False if finished
+        """
+        self.add_button.setEnabled(not is_loading)
+        self.edit_button.setEnabled(not is_loading)
+        self.delete_button.setEnabled(not is_loading)
+        self.refresh_button.setEnabled(not is_loading)
+        self.table.setEnabled(not is_loading)
+
+        if is_loading:
+            self.refresh_button.setText("Загрузка...")
+        else:
+            self.refresh_button.setText("Обновить")
+
+    def _on_operation_error(self, error_message: str) -> None:
+        """Handle operation errors.
+
+        Args:
+            error_message: Description of error
+        """
+        logger.error("Operation error: %s", error_message)
+        QMessageBox.critical(self, "Error", f"Operation failed: {error_message}")
 

@@ -1,18 +1,28 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+import logging
+from typing import Any
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
 from api.client import APIClientError
 from core.app_context import AppContext
 from models import StatCounters
+from ui.worker import Worker, WorkerPool
+
+logger = logging.getLogger(__name__)
 
 
 class HomeTab(QWidget):
+    # Signal to allow main window to refresh stats when tab becomes active
+    stats_refreshing = Signal()
+
     def __init__(self, *, context: AppContext, parent=None) -> None:
         super().__init__(parent)
         self._context = context
         self._stats = StatCounters()
+        self._worker_pool = WorkerPool()
 
         self.header_label = QLabel("Quick stats", self)
         self.header_label.setProperty("sectionTitle", True)
@@ -46,15 +56,53 @@ class HomeTab(QWidget):
         self.refresh_stats()
 
     def refresh_stats(self) -> None:
-        try:
-            self._stats = self._context.api.fetch_stats()
-        except APIClientError:
-            pass
+        """Load stats from API in background thread."""
+        if self._worker_pool.is_running("load_stats"):
+            logger.debug("Stats load already in progress")
+            return
+
+        self.refresh_button.setEnabled(False)
+        self.refresh_button.setText("Loading...")
+
+        def load_stats_task() -> StatCounters:
+            return self._context.api.fetch_stats()
+
+        worker = Worker(load_stats_task)
+        worker.finished.connect(self._on_stats_loaded)  # type: ignore[arg-type]
+        worker.error.connect(self._on_stats_error)  # type: ignore[arg-type]
+        self._worker_pool.start("load_stats", worker)
+
+    def _on_stats_loaded(self, stats: Any) -> None:
+        """Handle successful stats load.
+
+        Args:
+            stats: StatCounters object from API
+        """
+        self.refresh_button.setEnabled(True)
+        self.refresh_button.setText("Refresh")
+
+        if isinstance(stats, StatCounters):
+            self._stats = stats
+            logger.debug("Stats loaded: %s", stats)
+        else:
+            logger.error("Invalid stats type: %s", type(stats))
+
         self._render()
 
+    def _on_stats_error(self, error_message: str) -> None:
+        """Handle stats load error.
+
+        Args:
+            error_message: Error description
+        """
+        self.refresh_button.setEnabled(True)
+        self.refresh_button.setText("Refresh")
+        logger.error("Stats load error: %s", error_message)
+        # Show current stats anyway, even if load failed
+
     def _render(self) -> None:
+        """Render stats on the UI."""
         self.clients_label.setText(f"Clients: {self._stats.clients}")
         self.deals_label.setText(f"Deals: {self._stats.deals}")
         self.policies_label.setText(f"Policies: {self._stats.policies}")
         self.tasks_label.setText(f"Tasks: {self._stats.tasks}")
-
