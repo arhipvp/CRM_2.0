@@ -59,7 +59,11 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
 
-  const uniqueOwners = useMemo(() => [...new Set(deals.map(deal => deal.owner))].sort(), [deals]);
+  const uniqueOwners = useMemo(
+    () =>
+      [...new Set(deals.map(deal => deal.owner).filter((owner): owner is string => Boolean(owner)))].sort(),
+    [deals]
+  );
 
   const filteredAndSortedDeals = useMemo(() => {
     let processedDeals = [...deals];
@@ -143,7 +147,11 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
               <label htmlFor="owner-filter" className="sr-only">Ответственный</label>
               <select id="owner-filter" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} className="w-full bg-slate-100 border-transparent rounded-md text-sm p-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
                 <option value="all">Все ответственные</option>
-                {uniqueOwners.map(owner => <option key={owner} value={owner}>{owner}</option>)}
+                {uniqueOwners.map(owner => (
+                  <option key={owner} value={owner}>
+                    {owner}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
