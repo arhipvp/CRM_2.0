@@ -48,21 +48,38 @@ class AdminBootstrapRunner(
                 val existingUser = userService.findByEmail(email)
                 val userId = if (existingUser == null) {
                     logger.info("Creating bootstrap admin user {}", email)
-                    val created = userService.register(RegisterRequest(email = email, password = password))
-                    created.id
+                    try {
+                        val created = userService.register(RegisterRequest(email = email, password = password))
+                        created.id
+                    } catch (error: Exception) {
+                        logger.error("Failed to create bootstrap user: {}", error.message)
+                        return@runBlocking
+                    }
                 } else {
                     logger.info("Bootstrap user {} already exists", email)
                     existingUser.id
                 }
 
                 configuredRoles.forEach { roleName ->
-                    val role = roleService.ensureRole(roleName)
-                    val alreadyAssigned = userRoleRepository.existsByUserIdAndRoleId(userId, role.id)
-                    if (!alreadyAssigned) {
-                        userRoleRepository.save(UserRole(userId = userId, roleId = role.id))
-                        logger.info("Assigned role {} to user {}", role.name, email)
+                    try {
+                        val role = roleService.ensureRole(roleName)
+                        val alreadyAssigned = userRoleRepository.existsByUserIdAndRoleId(userId, role.id)
+                        if (!alreadyAssigned) {
+                            try {
+                                userRoleRepository.save(UserRole(userId = userId, roleId = role.id))
+                                logger.info("Assigned role {} to user {}", role.name, email)
+                            } catch (error: Exception) {
+                                logger.warn("Failed to assign role {} to user {}: {}", role.name, email, error.message)
+                            }
+                        } else {
+                            logger.debug("Role {} already assigned to user {}", role.name, email)
+                        }
+                    } catch (error: Exception) {
+                        logger.warn("Failed to ensure role {}: {}", roleName, error.message)
                     }
                 }
+
+                logger.info("Bootstrap completed successfully for user {}", email)
             } catch (error: Exception) {
                 logger.error("Failed to run auth bootstrap: {}", error.message, error)
             }
