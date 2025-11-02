@@ -384,7 +384,7 @@ const AppWrapper: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={() => {}} />;
+    return <Login />;
   }
 
   return <AppContent />;

@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
-import { login } from '../services/authApi';
-
-interface LoginProps {
-  onLoginSuccess: () => void;
-}
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Login компонент для аутентификации пользователя
  * Используется на экране входа до того как пользователь получит доступ к приложению
  */
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+export const Login: React.FC = () => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,11 +25,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         return;
       }
 
-      // Выполняем вход
-      await login({ email, password });
-
-      // После успешной аутентификации вызываем callback
-      onLoginSuccess();
+      // Выполняем вход через Auth Context
+      await login(email, password);
+      // AuthContext автоматически обновит состояние isAuthenticated
     } catch (err: any) {
       console.error('Login error:', err);
 
