@@ -17,7 +17,7 @@ const formatCurrency = (amount: number) =>
   }).format(amount);
 
 const getClientName = (clientId: string, clients: Client[]) =>
-  clients.find((client) => client.id === clientId)?.name || 'Неизвестный клиент';
+  clients.find((client) => client.id === clientId)?.name || 'РќРµРёР·РІРµСЃС‚РЅС‹Р№ РєР»РёРµРЅС‚';
 
 const getPaymentStatusInfo = (
   policyId: string,
@@ -26,7 +26,7 @@ const getPaymentStatusInfo = (
   const policyPayments = payments.filter((payment) => payment.policyId === policyId);
 
   if (policyPayments.length === 0) {
-    return { code: 'none', text: 'Нет платежей', className: 'bg-slate-100 text-slate-600' };
+    return { code: 'none', text: 'РќРµС‚ РїР»Р°С‚РµР¶РµР№', className: 'bg-slate-100 text-slate-600' };
   }
 
   const statuses = policyPayments.map((payment) => normalizePaymentStatus(payment.status));
@@ -47,7 +47,7 @@ const getPaymentStatusInfo = (
 
 const getDaysNoun = (days: number): string => {
   const cases = [2, 0, 1, 1, 1, 2];
-  const titles = ['день', 'дня', 'дней'];
+  const titles = ['РґРµРЅСЊ', 'РґРЅСЏ', 'РґРЅРµР№'];
   const number = Math.abs(days);
   return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
 };
@@ -231,13 +231,17 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
     setSortConfig({ key, direction });
   };
 
-  const uniquePolicyTypes = useMemo(() => [...new Set(policies.map((policy) => policy.type))], [policies]);
+  const uniquePolicyTypes = useMemo(() => {
+    // Deduplicate and filter out empty/invalid policy types
+    const types = new Set(policies.map((policy) => policy.type).filter(Boolean));
+    return Array.from(types);
+  }, [policies]);
 
   const paymentStatusFilterOptions = useMemo(
     () => [
-      { value: 'all' as const, label: 'Все' },
+      { value: 'all' as const, label: 'Р’СЃРµ' },
       ...paymentStatusOptions,
-      { value: 'none' as const, label: 'Нет платежей' },
+      { value: 'none' as const, label: 'РќРµС‚ РїР»Р°С‚РµР¶РµР№' },
     ],
     [],
   );
@@ -253,11 +257,11 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
     <div className="p-8 overflow-y-auto h-full">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-slate-800">
-          Полисы ({filteredAndSortedPolicies.length})
+          РџРѕР»РёСЃС‹ ({filteredAndSortedPolicies.length})
         </h1>
         <div className="w-full max-w-sm">
           <label htmlFor="search-policies" className="sr-only">
-            Поиск
+            РџРѕРёСЃРє
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -277,7 +281,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
             <input
               id="search-policies"
               type="text"
-              placeholder="Поиск по номеру, клиенту, контрагенту..."
+              placeholder="РџРѕРёСЃРє РїРѕ РЅРѕРјРµСЂСѓ, РєР»РёРµРЅС‚Сѓ, РєРѕРЅС‚СЂР°РіРµРЅС‚Сѓ..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full bg-white border-slate-300 rounded-md text-sm p-2 pl-10 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
@@ -290,7 +294,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
-              {['Номер полиса / Контрагент', 'Клиент', 'Тип', 'Дата начала', 'Дата окончания', 'Премия', 'Статус платежей'].map(
+              {['РќРѕРјРµСЂ РїРѕР»РёСЃР° / РєРѕРЅС‚СЂР°РіРµРЅС‚', 'РљР»РёРµРЅС‚', 'РўРёРї', 'Р”Р°С‚Р° РЅР°С‡Р°Р»Р°', 'Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ', 'РџСЂРµРјРёСЏ', 'РЎС‚Р°С‚СѓСЃ РїР»Р°С‚РµР¶Р°'].map(
                 (header, index) => {
                   const keys: SortKeys[] = [
                     'policyNumber',
@@ -328,7 +332,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
                   onChange={handleFilterChange}
                   className="w-full text-sm p-1 border border-slate-300 rounded-md"
                 >
-                  <option value="all">Все</option>
+                  <option value="all">Р’СЃРµ</option>
                   {uniquePolicyTypes.map((type) => (
                     <option key={type} value={type}>
                       {type}
@@ -391,7 +395,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
                     <PaymentStatusBadge statusInfo={policy.paymentStatusInfo} />
                     {policy.isDueForRenewal && policy.daysUntilRenewal !== null && (
                       <span className="text-xs text-orange-600 font-medium">
-                        Продление через {policy.daysUntilRenewal} {getDaysNoun(policy.daysUntilRenewal)}
+                        РџСЂРѕРґР»РµРЅРёРµ С‡РµСЂРµР· {policy.daysUntilRenewal} {getDaysNoun(policy.daysUntilRenewal)}
                       </span>
                     )}
                   </div>
@@ -402,7 +406,7 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
         </table>
         {filteredAndSortedPolicies.length === 0 && (
           <p className="text-center text-sm text-slate-500 py-8">
-            Полисы, соответствующие фильтрам, не найдены.
+            РџРѕР»РёСЃС‹, РїРѕРґС…РѕРґСЏС‰РёРµ РїРѕРґ С„РёР»СЊС‚СЂС‹, РЅРµ РЅР°Р№РґРµРЅС‹.
           </p>
         )}
       </div>
