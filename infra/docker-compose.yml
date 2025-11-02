@@ -356,6 +356,40 @@ services:
       - infra
     profiles: ["backend"]
 
+  frontend:
+    build:
+      context: ..
+      dockerfile: ./frontend/Dockerfile
+      target: ${FRONTEND_TARGET:-dev}
+      args:
+        - NODE_ENV=development
+    container_name: crm-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://gateway:8080/api/v1}
+      VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-http://gateway:8080}
+      VITE_DEBUG_MODE: ${VITE_DEBUG_MODE:-false}
+      VITE_LOG_REQUESTS: ${VITE_LOG_REQUESTS:-false}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      # Hot-reload для разработки
+      - ../frontend:/app:cached
+      - /app/node_modules
+      - /app/dist
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - infra
+    profiles: ["backend"]
+
 volumes:
   postgres_data:
   redis_data:

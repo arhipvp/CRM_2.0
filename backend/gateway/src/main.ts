@@ -16,10 +16,28 @@ async function bootstrap(): Promise<void> {
   app.useLogger(logger);
   app.use(helmet());
   app.use(compression());
-  app.enableCors({
-    origin: true,
-    credentials: true
-  });
+
+  const configService = app.get(ConfigService);
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+
+  // CORS конфигурация
+  const corsOptions = nodeEnv === 'production'
+    ? {
+        origin: configService.get<string>('CORS_ORIGINS', 'http://localhost:3000').split(','),
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        optionsSuccessStatus: 200,
+      }
+    : {
+        origin: true,
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        optionsSuccessStatus: 200,
+      };
+
+  app.enableCors(corsOptions);
   app.setGlobalPrefix('api');
   app.enableVersioning({
     type: VersioningType.URI
@@ -32,7 +50,6 @@ async function bootstrap(): Promise<void> {
     })
   );
 
-  const configService = app.get(ConfigService);
   const port = configService.get<number>('http.port', { infer: true }) ?? 8080;
   const host = configService.get<string>('http.host', { infer: true }) ?? '0.0.0.0';
 
