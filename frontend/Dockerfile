@@ -27,8 +27,8 @@ WORKDIR /app
 # Копируем package.json
 COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* frontend/npm-shrinkwrap.json* ./
 
-# Устанавливаем зависимости
-RUN npm install
+# Устанавливаем зависимости (используем package-lock.json если доступен)
+RUN npm ci 2>/dev/null || npm install
 
 # Копируем исходный код
 COPY frontend/ .
