@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Iterable, Optional, Sequence
+from uuid import UUID
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QLabel,
     QWidget,
     QHBoxLayout,
     QLineEdit,
@@ -25,6 +27,9 @@ from api.client import APIClientError
 from core.app_context import AppContext
 from models import Client, Deal, Payment, Policy, Task
 from ui.dialogs.client_dialog import ClientDialog
+from ui.dialogs.payment_dialog import PaymentDialog
+from ui.dialogs.policy_dialog import PolicyDialog
+from ui.dialogs.task_dialog import TaskDialog
 from i18n import _
 
 
@@ -43,6 +48,9 @@ class DealDialog(QDialog):
         self.setWindowTitle(_("New deal") if deal is None else _("Edit deal"))
         self._context = context
         self._deal = deal
+        self._policies: list[Policy] = []
+        self._payments: list[Payment] = []
+        self._tasks: list[Task] = []
 
         self.title_edit = QLineEdit(self)
         self.description_edit = QPlainTextEdit(self)
@@ -74,6 +82,7 @@ class DealDialog(QDialog):
         form.addRow(_("Client *"), client_row)
 
         self.tabs: Optional[QTabWidget] = None
+        self._actions_widget: Optional[QWidget] = None
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
@@ -112,9 +121,16 @@ class DealDialog(QDialog):
             self.client_combo.setEnabled(False)
             self.add_client_button.setVisible(False)
 
+            self._actions_widget = QWidget(self)
+            actions_layout = QHBoxLayout(self._actions_widget)
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            self._create_action_buttons(actions_layout)
+            form.addRow(self._actions_widget)
+
             self.tabs = QTabWidget(self)
             form.addRow(self.tabs)
-            self._init_related_tabs(deal)
+            self._build_tab_widgets()
+            self._refresh_related_data()
 
     def _handle_add_client(self) -> None:
         dialog = ClientDialog(parent=self)
@@ -177,41 +193,111 @@ class DealDialog(QDialog):
         return changes
 
     # ---- related data -----------------------------------------------------
-    def _init_related_tabs(self, deal: Deal) -> None:
-        assert self.tabs is not None
+    def _create_action_buttons(self, layout: QHBoxLayout) -> None:
+        self._create_task_button = QPushButton(_("Создать задачу"), self)
+        self._create_task_button.clicked.connect(self._handle_create_task)
+        layout.addWidget(self._create_task_button)
+
+        self._create_policy_button = QPushButton(_("Добавить полис"), self)
+        self._create_policy_button.clicked.connect(self._handle_create_policy)
+        layout.addWidget(self._create_policy_button)
+
+        self._create_payment_button = QPushButton(_("Добавить платеж"), self)
+        self._create_payment_button.clicked.connect(self._handle_create_payment)
+        layout.addWidget(self._create_payment_button)
+
+        self._refresh_button = QPushButton(_("Обновить"), self)
+        self._refresh_button.clicked.connect(self._refresh_related_data)
+        layout.addWidget(self._refresh_button)
+
+        layout.addStretch(1)
+
+    def _build_tab_widgets(self) -> None:
+        if self.tabs is None:
+            return
+
+        self._summary_widget = QWidget(self.tabs)
+        summary_layout = QFormLayout(self._summary_widget)
+        summary_layout.setContentsMargins(0, 0, 0, 0)
+        self._summary_labels: dict[str, QLabel] = {}
+        for key, title in [
+            ("status", _("Статус")),
+            ("stage", _("Этап")),
+            ("next_review", _("Следующая проверка")),
+            ("client", _("Клиент")),
+            ("policies_count", _("Полисов")),
+            ("payments_total", _("Плановые выплаты")),
+            ("net_total", _("Финансовый результат")),
+            ("open_tasks", _("Открытые задачи")),
+            ("created", _("Создано")),
+            ("updated", _("Обновлено")),
+        ]:
+            label = QLabel("", self._summary_widget)
+            label.setWordWrap(True)
+            self._summary_labels[key] = label
+            summary_layout.addRow(title, label)
+        self.tabs.addTab(self._summary_widget, _("Сводка"))
+
+        self._client_widget = QWidget(self.tabs)
+        client_layout = QFormLayout(self._client_widget)
+        client_layout.setContentsMargins(0, 0, 0, 0)
+        self._client_labels: dict[str, QLabel] = {}
+        for key, title in [
+            ("name", _("Имя клиента")),
+            ("email", _("Email")),
+            ("phone", _("Телефон")),
+            ("client_status", _("Статус клиента")),
+            ("owner", _("Ответственный за сделку")),
+        ]:
+            label = QLabel("", self._client_widget)
+            label.setWordWrap(True)
+            self._client_labels[key] = label
+            client_layout.addRow(title, label)
+        self.tabs.addTab(self._client_widget, _("Контакты"))
+
+        self._documents_widget = QPlainTextEdit(self.tabs)
+        self._documents_widget.setReadOnly(True)
+        self._documents_widget.setObjectName("documentsTab")
+        self._documents_widget.setPlainText(_("Данные загружаются..."))
+        self.tabs.addTab(self._documents_widget, _("Документы"))
+
+        self._history_widget = QPlainTextEdit(self.tabs)
+        self._history_widget.setReadOnly(True)
+        self._history_widget.setObjectName("historyTab")
+        self._history_widget.setPlainText(_("Данные загружаются..."))
+        self.tabs.addTab(self._history_widget, _("История"))
 
         self._policies_table = self._create_table(
             [_("ID"), _("Policy #"), _("Client"), _("Status"), _("Premium"), _("Effective From"), _("Effective To"), _("Owner ID"), _("Created"), _("Updated")]
         )
-        self.tabs.addTab(self._policies_table, _("Policies"))
+        self.tabs.addTab(self._policies_table, _("Полисы"))
 
         self._payments_table = self._create_table(
             [_("ID"), _("Policy #"), _("Seq"), _("Status"), _("Planned Date"), _("Actual Date"), _("Planned Amount"), _("Currency"), _("Comment"), _("Incomes"), _("Expenses"), _("Net")]
         )
-        self.tabs.addTab(self._payments_table, _("Payments"))
+        self.tabs.addTab(self._payments_table, _("Платежи"))
 
         self._tasks_table = self._create_table(
             [_("ID"), _("Title"), _("Description"), _("Status"), _("Assignee"), _("Author"), _("Policy"), _("Due"), _("Created"), _("Updated")]
         )
-        self.tabs.addTab(self._tasks_table, _("Tasks"))
+        self.tabs.addTab(self._tasks_table, _("Задачи"))
 
         self._finance_table = self._create_table(
             [_("ID"), _("Policy #"), _("Incomes"), _("Expenses"), _("Net")]
         )
-        self.tabs.addTab(self._finance_table, _("Finance"))
+        self.tabs.addTab(self._finance_table, _("Финансы"))
 
-        self._load_related_data(deal)
+    def _refresh_related_data(self) -> None:
+        if self._deal is None or self.tabs is None:
+            return
 
-    def _load_related_data(self, deal: Deal) -> None:
-        try:
-            policies = [
-                policy
-                for policy in self._context.api.fetch_policies()
-                if policy.deal_id == deal.id
-            ]
-        except APIClientError as exc:
-            QMessageBox.warning(self, _("Load policies"), str(exc))
-            policies = []
+        policies, payments, tasks = self._load_related_entities(self._deal)
+        self._policies = policies
+        self._payments = payments
+        self._tasks = tasks
+
+        self._context.update_policies(policies)
+        self._context.update_tasks(tasks)
 
         self._populate_table(
             self._policies_table,
@@ -222,28 +308,17 @@ class DealDialog(QDialog):
                     self._context.get_client_name(policy.client_id),
                     policy.status or "",
                     _format_money(policy.premium),
-                    policy.effective_from.isoformat()
-                    if policy.effective_from
-                    else "",
+                    policy.effective_from.isoformat() if policy.effective_from else "",
                     policy.effective_to.isoformat() if policy.effective_to else "",
                     str(policy.owner_id) if policy.owner_id else "",
                     policy.created_at.strftime("%Y-%m-%d %H:%M") if policy.created_at else "",
                     policy.updated_at.strftime("%Y-%m-%d %H:%M") if policy.updated_at else "",
                 )
-                for policy in policies
+                for policy in self._policies
             ],
         )
 
-        payments: list[Payment] = []
-        for policy in policies:
-            try:
-                payments.extend(
-                    self._context.api.fetch_payments(deal.id, policy.id)
-                )
-            except APIClientError:
-                continue
-
-        policy_map: Dict[UUID, str] = {policy.id: policy.policy_number for policy in policies}
+        policy_map: Dict[UUID, str] = {policy.id: policy.policy_number for policy in self._policies}
         self._populate_table(
             self._payments_table,
             [
@@ -261,19 +336,9 @@ class DealDialog(QDialog):
                     _format_money(payment.expenses_total),
                     _format_money(payment.net_total),
                 )
-                for payment in payments
+                for payment in self._payments
             ],
         )
-
-        try:
-            tasks = [
-                task
-                for task in self._context.api.fetch_tasks()
-                if task.deal_id == deal.id
-            ]
-        except APIClientError as exc:
-            QMessageBox.warning(self, _("Load tasks"), str(exc))
-            tasks = []
 
         self._populate_table(
             self._tasks_table,
@@ -290,15 +355,13 @@ class DealDialog(QDialog):
                     task.created_at.strftime("%Y-%m-%d %H:%M") if task.created_at else "",
                     task.updated_at.strftime("%Y-%m-%d %H:%M") if task.updated_at else "",
                 )
-                for task in tasks
+                for task in self._tasks
             ],
         )
 
         finance_rows = []
-        for policy in policies:
-            policy_payments = [
-                payment for payment in payments if payment.policy_id == policy.id
-            ]
+        for policy in self._policies:
+            policy_payments = [payment for payment in self._payments if payment.policy_id == policy.id]
             incomes = sum(payment.incomes_total or 0 for payment in policy_payments)
             expenses = sum(payment.expenses_total or 0 for payment in policy_payments)
             net = sum(payment.net_total or 0 for payment in policy_payments)
@@ -312,6 +375,264 @@ class DealDialog(QDialog):
                 )
             )
         self._populate_table(self._finance_table, finance_rows)
+
+        self._update_summary_tab()
+        self._update_contacts_tab()
+        self._update_documents_tab()
+        self._update_history_tab()
+        self._update_action_states()
+
+    def _load_related_entities(self, deal: Deal) -> tuple[list[Policy], list[Payment], list[Task]]:
+        try:
+            policies = [policy for policy in self._context.api.fetch_policies() if policy.deal_id == deal.id]
+        except APIClientError as exc:
+            QMessageBox.warning(self, _("Load policies"), str(exc))
+            policies = []
+
+        payments: list[Payment] = []
+        payment_errors: set[str] = set()
+        for policy in policies:
+            try:
+                payments.extend(self._context.api.fetch_payments(deal.id, policy.id))
+            except APIClientError as exc:
+                payment_errors.add(str(exc))
+        if payment_errors:
+            QMessageBox.warning(self, _("Load payments"), "\n".join(payment_errors))
+
+        try:
+            tasks = [task for task in self._context.api.fetch_tasks() if task.deal_id == deal.id]
+        except APIClientError as exc:
+            QMessageBox.warning(self, _("Load tasks"), str(exc))
+            tasks = []
+
+        return policies, payments, tasks
+
+    def _update_summary_tab(self) -> None:
+        if self._deal is None or not hasattr(self, "_summary_labels"):
+            return
+        total_planned = sum(payment.planned_amount or 0 for payment in self._payments)
+        total_net = sum(payment.net_total or 0 for payment in self._payments)
+        open_tasks = len(
+            [
+                task
+                for task in self._tasks
+                if (task.status_code or "").lower() not in {"completed", "cancelled"}
+            ]
+        )
+
+        summary_values = {
+            "status": self._deal.status or _("Не указано"),
+            "stage": self._deal.stage or _("Не указано"),
+            "next_review": self._deal.next_review_at.strftime("%Y-%m-%d") if self._deal.next_review_at else _("Не запланировано"),
+            "client": self._context.get_client_name(self._deal.client_id),
+            "policies_count": str(len(self._policies)),
+            "payments_total": _format_money(total_planned),
+            "net_total": _format_money(total_net),
+            "open_tasks": str(open_tasks),
+            "created": self._format_datetime(self._deal.created_at),
+            "updated": self._format_datetime(self._deal.updated_at),
+        }
+
+        for key, value in summary_values.items():
+            label = self._summary_labels.get(key)
+            if label is not None:
+                label.setText(value)
+
+    def _update_contacts_tab(self) -> None:
+        if self._deal is None or not hasattr(self, "_client_labels"):
+            return
+        client = self._resolve_client(self._deal.client_id)
+        self._client_labels["name"].setText(client.name if client else self._context.get_client_name(self._deal.client_id))
+        self._client_labels["email"].setText(client.email or _("Не указано") if client else _("Не указано"))
+        self._client_labels["phone"].setText(client.phone or _("Не указано") if client else _("Не указано"))
+        self._client_labels["client_status"].setText(client.status or _("Не указано") if client else _("Не указано"))
+        owner_value = str(self._deal.owner_id) if self._deal.owner_id else _("Не назначен")
+        self._client_labels["owner"].setText(owner_value)
+
+    def _update_documents_tab(self) -> None:
+        if not hasattr(self, "_documents_widget"):
+            return
+        lines = [
+            _("Полисов: {}").format(len(self._policies)),
+            _("Платежей: {}").format(len(self._payments)),
+            _("Для просмотра связанных документов используйте модуль документооборота."),
+        ]
+        self._documents_widget.setPlainText("\n".join(lines))
+
+    def _update_history_tab(self) -> None:
+        if not hasattr(self, "_history_widget"):
+            return
+        if not self._tasks:
+            self._history_widget.setPlainText(_("Нет активности по сделке."))
+            return
+
+        sorted_tasks = sorted(
+            self._tasks,
+            key=lambda task: (task.updated_at or task.created_at or datetime.min),
+            reverse=True,
+        )
+        lines = []
+        for task in sorted_tasks[:10]:
+            timestamp = self._format_datetime(task.updated_at or task.created_at)
+            status = task.status_name or task.status_code or ""
+            lines.append(f"{timestamp} — {task.title} [{status}]")
+        self._history_widget.setPlainText("\n".join(lines))
+
+    def _update_action_states(self) -> None:
+        if self._deal is None:
+            return
+        if hasattr(self, "_create_policy_button"):
+            self._create_policy_button.setEnabled(bool(self._clients))
+        if hasattr(self, "_create_payment_button"):
+            self._create_payment_button.setEnabled(bool(self._policies))
+
+    def _handle_create_task(self) -> None:
+        if self._deal is None:
+            return
+
+        dialog = TaskDialog(
+            context=self._context,
+            clients=self._clients,
+            deals=[self._deal],
+            policies=self._policies,
+            status_options=[policy.status for policy in self._policies if policy.status],
+            parent=self,
+        )
+
+        deal_index = dialog.deal_combo.findData(self._deal.id)
+        if deal_index >= 0:
+            dialog.deal_combo.setCurrentIndex(deal_index)
+        if self._deal.client_id:
+            client_index = dialog.client_combo.findData(self._deal.client_id)
+            if client_index >= 0:
+                dialog.client_combo.setCurrentIndex(client_index)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        payload = dialog.payload()
+        if payload is None:
+            return
+
+        context_payload = dict(payload.get("context") or {})
+        context_payload.setdefault("dealId", str(self._deal.id))
+        if self._deal.client_id:
+            context_payload.setdefault("clientId", str(self._deal.client_id))
+        payload["context"] = context_payload
+
+        try:
+            task = self._context.api.create_task(payload)
+        except APIClientError as exc:
+            QMessageBox.critical(self, _("Создание задачи"), str(exc))
+            return
+
+        self._context.update_tasks([task])
+        QMessageBox.information(self, _("Success"), _("Task created."))
+        self._refresh_related_data()
+
+    def _handle_create_policy(self) -> None:
+        if self._deal is None:
+            return
+
+        dialog = PolicyDialog(
+            context=self._context,
+            clients=self._clients,
+            deals=[self._deal],
+            status_options=[policy.status for policy in self._policies if policy.status],
+            parent=self,
+        )
+
+        if self._deal.client_id:
+            client_index = dialog.client_combo.findData(self._deal.client_id)
+            if client_index >= 0:
+                dialog.client_combo.setCurrentIndex(client_index)
+        deal_index = dialog.deal_combo.findData(self._deal.id)
+        if deal_index >= 0:
+            dialog.deal_combo.setCurrentIndex(deal_index)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        payload = dialog.payload()
+        if payload is None:
+            return
+
+        payload.setdefault("deal_id", str(self._deal.id))
+        if self._deal.client_id:
+            payload.setdefault("client_id", str(self._deal.client_id))
+
+        try:
+            policy = self._context.api.create_policy(payload)
+        except APIClientError as exc:
+            QMessageBox.critical(self, _("Добавление полиса"), str(exc))
+            return
+
+        self._context.update_policies([policy])
+        QMessageBox.information(self, _("Success"), _("Policy created."))
+        self._refresh_related_data()
+
+    def _handle_create_payment(self) -> None:
+        if self._deal is None:
+            return
+        if not self._policies:
+            QMessageBox.information(self, _("Добавление платежа"), _("Сначала создайте полис для сделки."))
+            return
+
+        dialog = PaymentDialog(
+            context=self._context,
+            policies=self._policies,
+            deals=[self._deal],
+            parent=self,
+        )
+
+        if dialog.policy_combo.count() > 1:
+            dialog.policy_combo.setCurrentIndex(1)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        payload_info = dialog.create_payload()
+        if payload_info is None:
+            return
+
+        deal_id, policy_id, payload = payload_info
+        try:
+            payment = self._context.api.create_payment(deal_id, policy_id, payload)
+        except APIClientError as exc:
+            QMessageBox.critical(self, _("Добавление платежа"), str(exc))
+            return
+
+        QMessageBox.information(self, _("Success"), _("Payment created."))
+        self._refresh_related_data()
+
+    def _resolve_client(self, client_id: Optional[UUID]) -> Optional[Client]:
+        if client_id is None:
+            return None
+        for client in self._clients:
+            if client.id == client_id:
+                return client
+        cached = self._context.cache.clients.get(client_id)
+        if cached is not None:
+            if all(existing.id != client_id for existing in self._clients):
+                self._clients.append(cached)
+            return cached
+        try:
+            clients = self._context.api.fetch_clients()
+            self._context.update_clients(clients)
+            for client in clients:
+                if client.id == client_id:
+                    if all(existing.id != client_id for existing in self._clients):
+                        self._clients.append(client)
+                    return client
+        except APIClientError:
+            return cached
+        return cached
+
+    @staticmethod
+    def _format_datetime(value: Optional[datetime]) -> str:
+        if value is None:
+            return _("Не указано")
+        return value.strftime("%Y-%m-%d %H:%M")
 
     @staticmethod
     def _create_table(columns: Sequence[str]) -> QTableWidget:
@@ -337,4 +658,3 @@ def _format_money(value: Optional[float]) -> str:
     if value is None:
         return ""
     return f"{value:,.2f}"
-
