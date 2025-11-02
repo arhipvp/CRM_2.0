@@ -115,6 +115,9 @@ class DealService:
         metrics = await self.repository.stage_metrics(filters)
         return [schemas.DealStageMetric(**item) for item in metrics]
 
+    async def delete_deal(self, deal_id: UUID) -> None:
+        await self.repository.delete(deal_id)
+
 
 class DealJournalService:
     def __init__(
@@ -1998,6 +2001,55 @@ class NotificationService:
         notification_id: UUID,
         attempt_number: int,
         channel: str,
+        status: str,
+        metadata: dict[str, Any],
+        error: str | None = None,
+    ) -> None:
+        await self.attempts.create(
+            {
+                "notification_id": notification_id,
+                "attempt_number": attempt_number,
+                "channel": channel,
+                "status": status,
+                "delivery_metadata": metadata,
+                "error": error,
+            }
+        )
+        update_payload: dict[str, Any] = {
+            "attempts_count": attempt_number,
+            "last_attempt_at": datetime.now(timezone.utc),
+        }
+        if status == "failure":
+            update_payload["last_error"] = error
+        else:
+            update_payload["last_error"] = None
+        await self.repository.update(notification_id, update_payload)
+
+    async def _execute_with_retry(
+        self,
+        channel: str,
+        operation: callable,
+    ) -> None:
+        attempt = 0
+        last_error: Exception | None = None
+        while attempt < self.retry_attempts:
+            attempt += 1
+            try:
+                await operation()
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc if isinstance(exc, Exception) else Exception(str(exc))
+                if attempt >= self.retry_attempts:
+                    break
+                delay = max(self.retry_delay_ms, 0) / 1000.0
+                if delay:
+                    await asyncio.sleep(delay)
+                self.logger.warning(
+                    "Channel %s attempt %s failed: %s", channel, attempt, exc
+                )
+        if last_error is None:
+            last_error = NotificationDispatchError("operation_failed")
+        raise last_error
         status: str,
         metadata: dict[str, Any],
         error: str | None = None,

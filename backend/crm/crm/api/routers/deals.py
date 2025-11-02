@@ -121,6 +121,14 @@ async def update_deal(
     return deal
 
 
+@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_deal(
+    deal_id: UUID,
+    service: Annotated[DealService, Depends(get_deal_service)],
+) -> None:
+    await service.delete_deal(deal_id)
+
+
 @router.patch("/{deal_id}/stage", response_model=schemas.DealRead)
 async def update_deal_stage(
     deal_id: UUID,

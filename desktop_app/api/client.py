@@ -147,10 +147,7 @@ class APIClient:
         return Deal.model_validate(response.json())
 
     def delete_deal(self, deal_id: UUID) -> None:
-        payload = {
-            "is_deleted": True,
-        }
-        self._request("PATCH", f"/deals/{deal_id}", json=payload)
+        self._request("DELETE", f"/deals/{deal_id}")
 
     def delete_policy(self, policy_id: UUID) -> None:
         payload = {
