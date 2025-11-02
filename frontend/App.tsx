@@ -335,11 +335,7 @@ const Dashboard: React.FC = () => {
       if (installments.length > 0) {
         const createdPayments = await Promise.all(
           installments.map((inst) =>
-            crmApi.createPayment(dealId, createdPolicy.id, {
-              ...inst,
-              clientId: policyClientId,
-              status: normalizePaymentStatus('pending'),
-            }),
+            crmApi.createPayment(dealId, createdPolicy.id, inst),
           ),
         );
 
@@ -367,11 +363,7 @@ const Dashboard: React.FC = () => {
     }
 
     try {
-      const createdPayment = await crmApi.createPayment(policy.dealId, policyId, {
-        ...paymentData,
-        clientId: policy.clientId,
-        status: normalizePaymentStatus(paymentData.status),
-      });
+      const createdPayment = await crmApi.createPayment(policy.dealId, policyId, paymentData);
 
       setPayments((prev) => [
         ...prev,

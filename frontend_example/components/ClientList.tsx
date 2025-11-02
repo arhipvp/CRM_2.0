@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Client, Deal, DealStatus, Task } from '../types';
+import { Client, Deal, DealStatus } from '../types';
 
 interface DealListProps {
   deals: Deal[];
   clients: Client[];
-  tasks: Task[];
   selectedDealId: string | null;
   onSelectDeal: (deal: Deal) => void;
   onUpdateReviewDate: (dealId: string, newDate: string) => void;
@@ -22,20 +21,12 @@ const getClient = (clientId: string, clients: Client[]) => {
 
 const StatusBadge: React.FC<{ status: DealStatus }> = ({ status }) => {
   const statusClasses: Record<DealStatus, string> = {
-    'draft': 'bg-blue-100 text-blue-800',
-    'in_progress': 'bg-purple-100 text-purple-800',
-    'proposal': 'bg-yellow-100 text-yellow-800',
-    'negotiation': 'bg-orange-100 text-orange-800',
-    'contract': 'bg-green-100 text-green-800',
-    'closed': 'bg-red-100 text-red-800',
     'Новая': 'bg-blue-100 text-blue-800',
     'Расчет': 'bg-purple-100 text-purple-800',
     'Переговоры': 'bg-yellow-100 text-yellow-800',
     'Оформление': 'bg-orange-100 text-orange-800',
     'Ожидает продления': 'bg-green-100 text-green-800',
     'Закрыта': 'bg-red-100 text-red-800',
-    'won': 'bg-green-100 text-green-800',
-    'lost': 'bg-red-100 text-red-800',
   };
   return <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusClasses[status]}`}>{status}</span>;
 };
@@ -54,25 +45,21 @@ const DateButton: React.FC<{ onClick: () => void; children: React.ReactNode }> =
 );
 
 const ALL_STATUSES: DealStatus[] = [
-  'draft',
-  'in_progress',
-  'proposal',
-  'negotiation',
-  'contract',
-  'closed',
+  'Новая',
+  'Расчет',
+  'Переговоры',
+  'Оформление',
+  'Ожидает продления',
+  'Закрыта',
 ];
 
-export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selectedDealId, onSelectDeal, onUpdateReviewDate }) => {
+export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDealId, onSelectDeal, onUpdateReviewDate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date-desc');
 
-  const uniqueOwners = useMemo(
-    () =>
-      [...new Set(deals.map(deal => deal.owner).filter((owner): owner is string => Boolean(owner)))].sort(),
-    [deals]
-  );
+  const uniqueOwners = useMemo(() => [...new Set(deals.map(deal => deal.owner))].sort(), [deals]);
 
   const filteredAndSortedDeals = useMemo(() => {
     let processedDeals = [...deals];
@@ -88,13 +75,11 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
                 client?.name,
                 client?.email,
                 client?.phone,
-                ...tasks
-                  .filter(task => task.dealId === deal.id)
-                  .map(t => t.description || ''),
-                ...(deal.notes ?? []).map(n => n.content),
-                ...(deal.quotes ?? []).map(q => `${q.insurer} ${q.comments ?? ''}`),
-                ...(deal.files ?? []).map(f => f.name),
-                ...(deal.chat ?? []).map(c => c.text),
+                ...deal.tasks.map(t => t.description),
+                ...deal.notes.map(n => n.content),
+                ...deal.quotes.map(q => `${q.insurer} ${q.comments}`),
+                ...deal.files.map(f => f.name),
+                ...deal.chat.map(c => c.text),
             ].filter(Boolean).join(' ').toLowerCase();
 
             return searchCorpus.includes(lowercasedQuery);
@@ -158,11 +143,7 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
               <label htmlFor="owner-filter" className="sr-only">Ответственный</label>
               <select id="owner-filter" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} className="w-full bg-slate-100 border-transparent rounded-md text-sm p-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
                 <option value="all">Все ответственные</option>
-                {uniqueOwners.map(owner => (
-                  <option key={owner} value={owner}>
-                    {owner}
-                  </option>
-                ))}
+                {uniqueOwners.map(owner => <option key={owner} value={owner}>{owner}</option>)}
               </select>
             </div>
             <div>
@@ -180,21 +161,13 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
             const client = getClient(deal.clientId, clients);
             return (
               <li key={deal.id}>
-                <div
+                <button
                   onClick={() => onSelectDeal(deal)}
-                  className={`w-full text-left p-3 rounded-lg flex items-start transition-colors duration-150 cursor-pointer ${
+                  className={`w-full text-left p-3 rounded-lg flex items-start transition-colors duration-150 ${
                     selectedDealId === deal.id
                       ? 'bg-sky-100'
                       : 'hover:bg-slate-100'
                   }`}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectDeal(deal);
-                    }
-                  }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
@@ -228,7 +201,7 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
                         </div>
                     </div>
                   </div>
-                </div>
+                </button>
               </li>
             );
           })}

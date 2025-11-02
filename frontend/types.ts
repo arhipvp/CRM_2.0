@@ -3,6 +3,39 @@
  * Синхронизированы с backend API (Gateway преобразует snake_case → camelCase)
  */
 
+/**
+ * Стандартный ответ API
+ */
+export interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message?: string;
+  timestamp?: string;
+}
+
+/**
+ * Paginated ответ от API
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+/**
+ * SSE событие от сервера
+ */
+export interface SSEEvent {
+  type: string;
+  event: string;
+  data: any;
+  timestamp?: string;
+}
+
 // Deal статусы (русский для UI, но соответствуют backend)
 export type DealStatus = 'Новая' | 'Расчет' | 'Переговоры' | 'Оформление' | 'Ожидает продления' | 'Закрыта' | 'draft' | 'in_progress' | 'proposal' | 'negotiation' | 'contract' | 'won' | 'lost' | 'closed';
 
@@ -100,7 +133,8 @@ export interface Policy {
   // Опциональные поля
   carBrand?: string;
   carModel?: string;
-  vin?: string;\n  salesChannel?: string;
+  vin?: string;
+  salesChannel?: string;
   notes?: string;
 }
 

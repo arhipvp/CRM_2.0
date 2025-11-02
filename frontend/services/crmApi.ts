@@ -237,7 +237,7 @@ export async function fetchPayments(dealId: string, policyId: string): Promise<P
 export async function createPayment(
   dealId: string,
   policyId: string,
-  payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>
+  payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'policyId' | 'clientId' | 'status'>
 ): Promise<Payment> {
   try {
     const response = await apiClient.post<Payment>(
