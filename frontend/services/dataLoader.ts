@@ -41,13 +41,20 @@ export async function loadDataWithFallback(): Promise<DataLoadResult> {
       activityLog: (deal as any).activityLog ?? [],
     }));
 
-    // Загрузить платежи для каждого полиса
-    const paymentsResponses = await Promise.all(
+    // Загрузить платежи для каждого полиса (с таймаутом)
+    const paymentTimeout = 10000; // 10 сек на каждый запрос платежей
+    const paymentsResponses = await Promise.allSettled(
       policiesData
         .filter((policy) => Boolean(policy.dealId))
         .map(async (policy) => {
           try {
-            return await crmApi.fetchPayments(policy.dealId as string, policy.id);
+            // Добавляем таймаут для каждого запроса
+            return await Promise.race([
+              crmApi.fetchPayments(policy.dealId as string, policy.id),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Payment fetch timeout')), paymentTimeout)
+              ),
+            ]);
           } catch (paymentError) {
             console.warn(`Failed to fetch payments for policy ${policy.id}:`, paymentError);
             return [];
@@ -55,7 +62,10 @@ export async function loadDataWithFallback(): Promise<DataLoadResult> {
         }),
     );
 
-    const payments = paymentsResponses.flat();
+    const payments = paymentsResponses
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => (result as PromiseFulfilledResult<any>).value)
+      .flat();
 
     // Если получили какие-то данные - используем их
     if (clientsData.length > 0 || dealsData.length > 0) {

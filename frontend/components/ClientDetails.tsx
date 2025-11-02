@@ -217,7 +217,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
   onAddFinancialTransaction,
   onAddChatMessage,
 }) => {
-  const [activeTab, setActiveTab] = useState('�����');
+  const [activeTab, setActiveTab] = useState('Обзор');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState(deal?.title || '');
   const [showAddQuote, setShowAddQuote] = useState(false);
@@ -435,14 +435,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
     });
   };
 
-  const TABS = ['�����', '������', '�������', '���', '�����', '������', '�������', '�������', '�������'];
+  const TABS = ['Обзор', 'Задачи', 'Расчеты', 'Чат', 'Файлы', 'Полисы', 'Финансы', 'Заметки', 'История'];
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case '�����':
+      case 'Обзор':
         return <p className="text-slate-600 whitespace-pre-wrap">{deal.summary}</p>;
-      
-      case '������':
+
+      case 'Задачи':
         return (
           <div>
             <form onSubmit={handleTaskSubmit} className="mb-6 p-4 bg-slate-50 rounded-lg space-y-3">
@@ -543,7 +543,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
           </div>
         );
 
-      case '�������':
+      case 'Расчеты':
         return (
           <div>
             <button onClick={() => setShowAddQuote(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">�������� ������</button>
@@ -571,8 +571,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
             </div>
           </div>
         );
-        
-      case '���': {
+
+      case 'Чат': {
         const currentUser = '������������'; // Hardcoded for example purposes
         return (
           <>
@@ -615,7 +615,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         );
       }
 
-      case '�����':
+      case 'Файлы':
         return (
           <div>
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
@@ -631,8 +631,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
             </ul>
           </div>
         );
-      
-      case '������':
+
+      case 'Полисы':
         const headers: { label: string, key: string }[] = [
             { label: '�����', key: 'policyNumber' },
             { label: '����������', key: 'counterparty' },
@@ -708,9 +708,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
             </div>
         );
 
-      case '�������':
-        const totalIncome = dealFinancials.filter(f => f.type === '�����').reduce((sum, f) => sum + f.amount, 0);
-        const totalExpense = dealFinancials.filter(f => f.type === '������').reduce((sum, f) => sum + f.amount, 0);
+      case 'Финансы':
+        const totalIncome = dealFinancials.filter(f => f.type === 'Доход').reduce((sum, f) => sum + f.amount, 0);
+        const totalExpense = dealFinancials.filter(f => f.type === 'Расход').reduce((sum, f) => sum + f.amount, 0);
         return (
             <div>
                  <button onClick={() => setShowAddFinancial(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">�������� ��������</button>
@@ -732,8 +732,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                  </ul>
             </div>
         )
-        
-      case '�������':
+
+      case 'Заметки':
         return (
           <div>
             <form onSubmit={handleNoteSubmit} className="mb-4">
@@ -762,7 +762,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
           </div>
         );
 
-      case '�������':
+      case 'История':
           return (
               <ul className="space-y-4">
                   {deal.activityLog.map(log => (
