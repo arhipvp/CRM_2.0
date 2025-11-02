@@ -88,7 +88,7 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
                 client?.name,
                 client?.email,
                 client?.phone,
-                ...tasks
+                ...(tasks || [])
                   .filter(task => task.dealId === deal.id)
                   .map(t => t.description || ''),
                 ...(deal.notes ?? []).map(n => n.content),

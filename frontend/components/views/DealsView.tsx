@@ -44,10 +44,10 @@ export const DealsView: React.FC<DealsViewProps> = (props) => {
     onSelectDeal,
     onUpdateReviewDate,
   } = props;
-  
+
   const selectedClient = selectedDeal ? clients.find(c => c.id === selectedDeal.clientId) || null : null;
-  const dealPolicies = selectedDeal ? policies.filter(p => p.dealId === selectedDeal.id) : [];
-  const dealTasks = selectedDeal ? tasks.filter(task => task.dealId === selectedDeal.id) : [];
+  const dealPolicies = selectedDeal ? (policies || []).filter(p => p.dealId === selectedDeal.id) : [];
+  const dealTasks = selectedDeal ? (tasks || []).filter(task => task.dealId === selectedDeal.id) : [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">

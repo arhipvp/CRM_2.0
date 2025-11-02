@@ -491,6 +491,7 @@ const Dashboard: React.FC = () => {
             deals={deals}
             clients={clients}
             policies={policies}
+            tasks={tasks}
             payments={payments}
             financialTransactions={financialTransactions}
             selectedDeal={selectedDeal}
