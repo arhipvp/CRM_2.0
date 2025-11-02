@@ -147,7 +147,10 @@ class APIClient:
         return Deal.model_validate(response.json())
 
     def delete_deal(self, deal_id: UUID) -> None:
-        self._request("DELETE", f"/deals/{deal_id}")
+        payload = {
+            "is_deleted": True,
+        }
+        self._request("PATCH", f"/deals/{deal_id}", json=payload)
 
     def delete_policy(self, policy_id: UUID) -> None:
         payload = {
@@ -209,4 +212,3 @@ class APIClient:
 
     def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover
         self.close()
-

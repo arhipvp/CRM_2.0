@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import ValidationError
 
 from crm.app.dependencies import get_deal_service
@@ -121,12 +121,18 @@ async def update_deal(
     return deal
 
 
-@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
+# FastAPI requires Response class for 204 so default JSONResponse is not used.
+@router.delete(
+    "/{deal_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_deal(
     deal_id: UUID,
     service: Annotated[DealService, Depends(get_deal_service)],
-) -> None:
+) -> Response:
     await service.delete_deal(deal_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{deal_id}/stage", response_model=schemas.DealRead)
