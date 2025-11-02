@@ -8,59 +8,58 @@
 ## Этап 1: Инфраструктура и конфигурация (2-3 дня)
 
 ### 1.1 Docker интеграция
-- Создать `frontend/Dockerfile` (multi-stage build: dev + production)
-- Добавить сервис `frontend` в `infra/docker-compose.yml`
-- Настроить volumes для hot-reload в dev режиме
-- Добавить health check для frontend контейнера
+- [x] Создать/актуализировать `frontend/Dockerfile` (multi-stage build: dev + production)
+- [x] Обновить сервис `frontend` в `infra/docker-compose.yml`
+- [x] Настроить volumes для hot-reload в dev режиме
+- [x] Добавить health check для frontend контейнера
 
 ### 1.2 Конфигурация окружения
-- Создать `frontend/.env.development` и `.env.production`
-- Настроить переменные: `VITE_API_BASE_URL`, `VITE_GATEWAY_URL`
-- Обновить `vite.config.ts` с proxy для `/api` → Gateway (8080)
+- [x] Создать `frontend/.env.development` и `.env.production`
+- [x] Настроить переменные: `VITE_API_BASE_URL`, `VITE_GATEWAY_URL`
+- [x] Обновить `vite.config.ts` с proxy для `/api` → Gateway (8080)
 
 ### 1.3 CORS и Gateway
-- Настроить CORS в `backend/gateway/src/main.ts`:
+- [x] Настроить CORS в `backend/gateway/src/main.ts`:
   - origin: `http://localhost:3000` (dev), production URL
   - credentials: true
   - allowedHeaders: Authorization, Content-Type
-- Проверить преобразование snake_case ↔ camelCase в Gateway
+- [x] Проверить преобразование snake_case ↔ camelCase в Gateway
 
 ### 1.4 Исправление проблемы загрузки скриптов
-- Исправить проблему с Dockerfile (COPY не находит package.json)
-  - Убедиться что build context правильный в docker-compose.yml
-  - Проверить что COPY пути корректны относительно build context
-  - Использовать абсолютные пути или правильные относительные пути в Dockerfile
-- Решить проблему с инициализацией PostCSS при первом старте
-  - npm install должен выполнять @tailwindcss/postcss установку правильно
-  - Проверить что все dependencies правильно указаны в package.json
+- [x] Исправить проблему с Dockerfile (COPY не находит package.json)
+  - [x] Убедиться что build context правильный в docker-compose.yml
+  - [x] Проверить что COPY пути корректны относительно build context
+  - [x] Использовать абсолютные пути или правильные относительные пути в Dockerfile
+- [x] Решить проблему с инициализацией PostCSS при первом старте
+  - [x] npm install должен выполнять @tailwindcss/postcss установку правильно
+  - [x] Проверить что все dependencies правильно указаны в package.json
 
 ---
 
 ## Этап 2: API клиент и типизация (2-3 дня)
 
 ### 2.1 HTTP клиент
-- Создать `frontend/services/apiClient.ts`:
-  - axios с baseURL из env
-  - Interceptors для JWT токенов
-  - Refresh token логика
-  - Обработка 401/403 с редиректом на login
-  - Централизованная обработка ошибок
+- [x] Создать `frontend/services/apiClient.ts`:
+  - [x] axios с baseURL из env
+  - [x] Interceptors для JWT токенов
+  - [x] Refresh token логика
+  - [x] Обработка 401/403 с редиректом на login
+  - [x] Централизованная обработка ошибок
 
 ### 2.2 Синхронизация типов
-- Обновить `frontend/types.ts` под backend схемы:
-  - Client, Deal, Policy, Payment, Quote, Task
-  - Привести к camelCase (Gateway преобразует)
-  - Добавить типы для API responses: `ApiResponse<T>`, `PaginatedResponse<T>`
-  - Типы для SSE событий
+- [x] Обновить `frontend/types.ts` под backend схемы:
+  - [x] Client, Deal, Policy, Payment, Quote, Task
+  - [ ] Добавить типы для API responses: `ApiResponse<T>`, `PaginatedResponse<T>`
+  - [ ] Типы для SSE событий
 
 ### 2.3 API методы
-- Создать `frontend/services/crmApi.ts`:
-  - **Clients**: `fetchClients()`, `createClient()`, `updateClient()`, `getClient(id)`
-  - **Deals**: `fetchDeals()`, `createDeal()`, `updateDeal()`, `getDeal(id)`, `getDealJournal(id)`, `addJournalEntry()`
-  - **Policies**: `fetchPolicies()`, `createPolicy()`, `updatePolicy()`
-  - **Payments**: `fetchPayments()`, `createPayment()`, `updatePayment()`, `deletePayment()`
-  - **Quotes**: `fetchQuotes()`, `createQuote()`
-  - **Tasks**: `fetchTasks()`, `createTask()`, `updateTask()`
+- [x] Создать `frontend/services/crmApi.ts`:
+  - [x] **Clients**: `fetchClients()`, `createClient()`, `updateClient()`, `getClient(id)`
+  - [x] **Deals**: `fetchDeals()`, `createDeal()`, `updateDeal()`, `getDeal(id)`
+  - [x] **Policies**: базовые CRUD операции
+  - [x] **Payments**: CRUD + доходы/расходы
+  - [x] **Tasks**: получение/создание/обновление
+- [ ] Добавить методы журнала сделок и котировок (после реализации на backend)
 
 ---
 

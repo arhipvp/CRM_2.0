@@ -358,8 +358,8 @@ services:
 
   frontend:
     build:
-      context: ..
-      dockerfile: ./frontend/Dockerfile
+      context: ../frontend
+      dockerfile: Dockerfile
       target: ${FRONTEND_TARGET:-dev}
       args:
         - NODE_ENV=development
@@ -371,17 +371,14 @@ services:
       VITE_DEBUG_MODE: ${VITE_DEBUG_MODE:-false}
       VITE_LOG_REQUESTS: ${VITE_LOG_REQUESTS:-false}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_CONTAINER_PORT:-3000}"
     volumes:
-      # Hot-reload для разработки
-      - ../frontend:/app:cached
-      - /app/node_modules
-      - /app/dist
+      - ../frontend:/app
     depends_on:
       gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${FRONTEND_CONTAINER_PORT:-3000}/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

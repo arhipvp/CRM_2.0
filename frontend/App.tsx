@@ -60,7 +60,18 @@ const AppContent: React.FC = () => {
         ]);
 
         setClients(clientsData);
-        setDeals(dealsData);
+
+        const normalizedDeals: Deal[] = dealsData.map((deal) => ({
+          ...deal,
+          tasks: (deal as any).tasks ?? [],
+          notes: (deal as any).notes ?? [],
+          quotes: (deal as any).quotes ?? [],
+          files: (deal as any).files ?? [],
+          chat: (deal as any).chat ?? [],
+          activityLog: (deal as any).activityLog ?? [],
+        }));
+
+        setDeals(normalizedDeals);
         setPolicies(policiesData);
 
         if (dealsData.length > 0) {
@@ -189,15 +200,21 @@ const AppContent: React.FC = () => {
     const handleAddTask = (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => {
         setDeals(prev => prev.map(d => {
             if (d.id !== dealId) return d;
-            const newTask: Task = { ...taskData, id: `task-${Date.now()}`, completed: false };
-            return { ...d, tasks: [...d.tasks, newTask] };
+            const newTask: Task = { ...taskData, id: `task-${Date.now()}`, completed: false, dealId };
+            return { ...d, tasks: [...(d.tasks ?? []), newTask] };
         }));
     };
 
     const handleToggleTask = (dealId: string, taskId: string) => {
          setDeals(prev => prev.map(d => {
             if (d.id !== dealId) return d;
-            return { ...d, tasks: d.tasks.map(t => t.id === taskId ? {...t, completed: !t.completed} : t) };
+            const currentTasks = d.tasks ?? [];
+            return {
+              ...d,
+              tasks: currentTasks.map(t =>
+                t.id === taskId ? { ...t, completed: !t.completed } : t
+              ),
+            };
         }));
     };
 

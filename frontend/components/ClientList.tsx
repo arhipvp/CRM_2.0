@@ -75,11 +75,11 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
                 client?.name,
                 client?.email,
                 client?.phone,
-                ...deal.tasks.map(t => t.description),
-                ...deal.notes.map(n => n.content),
-                ...deal.quotes.map(q => `${q.insurer} ${q.comments}`),
-                ...deal.files.map(f => f.name),
-                ...deal.chat.map(c => c.text),
+                ...(deal.tasks ?? []).map(t => t.description || ''),
+                ...(deal.notes ?? []).map(n => n.content),
+                ...(deal.quotes ?? []).map(q => `${q.insurer} ${q.comments ?? ''}`),
+                ...(deal.files ?? []).map(f => f.name),
+                ...(deal.chat ?? []).map(c => c.text),
             ].filter(Boolean).join(' ').toLowerCase();
 
             return searchCorpus.includes(lowercasedQuery);

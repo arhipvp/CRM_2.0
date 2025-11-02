@@ -33,7 +33,14 @@ const normalizeUrl = (url: string, defaultValue: string): string => {
     return defaultValue;
   }
 
-  return url.replace(/\/$/, '');
+  let normalized = url.replace(/\/$/, '');
+
+  // Исторически для CRM указывали baseURL вида `/api/v1/crm`, хотя сегмент `crm`
+  // уже добавляется на стороне gateway (`/api/v1/crm/*`). Чтобы не получать
+  // 404 от upstream, принудительно сворачиваем такой хвост до `/api/v1`.
+  normalized = normalized.replace(/\/api\/v1\/crm$/i, '/api/v1');
+
+  return normalized;
 };
 
 export default registerAs('upstreams', (): UpstreamsConfig => {

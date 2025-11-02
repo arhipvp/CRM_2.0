@@ -4,36 +4,21 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    const gatewayUrl = env.VITE_GATEWAY_URL ?? 'http://localhost:8080';
     return {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        // Proxy для API во время разработки
+        // Proxy ��� API �� ����� ����������
         proxy: {
           '/api': {
-            target: 'http://localhost:8080',
+            target: gatewayUrl,
             changeOrigin: true,
-            // rewrite: (path) => path.replace(/^\/api/, '/api'),
-            ws: true, // WebSocket поддержка для SSE
-            configure: (proxy, _options) => {
-              proxy.on('error', (err, _req, _res) => {
-                console.log('proxy error', err);
-              });
-              proxy.on('proxyReq', (_proxyReq, req, _res) => {
-                console.log('Sending Request to the Target:', req.method, req.url);
-              });
-              proxy.on('proxyRes', (_proxyRes, req, _res) => {
-                console.log('Received Response from the Target:', req.url);
-              });
-            },
+            ws: false,
           },
         },
       },
       plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
@@ -41,3 +26,4 @@ export default defineConfig(({ mode }) => {
       }
     };
 });
+

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Deal, Client, Task, Policy } from '../../types';
+import { Deal, Client, Policy } from '../../types';
 
 interface TasksViewProps {
   deals: Deal[];
@@ -7,16 +7,25 @@ interface TasksViewProps {
   policies: Policy[];
 }
 
-interface EnrichedTask extends Task {
+interface EnrichedTask {
+    id: string;
+    description: string;
+    assignee: string;
+    completed: boolean;
+    dueDate?: string;
     dealTitle: string;
     clientName: string;
 }
 
 const RENEWAL_REMINDER_DAYS = 30;
 
-const TaskCard: React.FC<{ task: EnrichedTask }> = ({ task }) => (
+const TaskCard: React.FC<{ task: EnrichedTask }> = ({ task }) => {
+    const assigneeLabel = task.assignee || 'Не назначен';
+    const dueDateLabel = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
+
+    return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-start space-x-4">
-        <input type="checkbox" defaultChecked={task.completed} className="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500 mt-1" />
+        <input type="checkbox" defaultChecked={task.completed} className="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500 mt-1" disabled />
         <div className="flex-1">
             <p className={`font-medium ${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{task.description}</p>
             <div className="text-sm text-slate-500 mt-1">
@@ -30,12 +39,13 @@ const TaskCard: React.FC<{ task: EnrichedTask }> = ({ task }) => (
                 <span>{task.clientName}</span>
             </div>
              <div className="text-xs text-slate-400 mt-2 flex items-center space-x-4">
-                <span className={`font-bold px-2 py-0.5 rounded-full ${task.assignee.includes('Продавец') ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{task.assignee}</span>
-                <span>Срок: {task.dueDate}</span>
+                <span className={`font-bold px-2 py-0.5 rounded-full ${assigneeLabel.includes('Продавец') ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{assigneeLabel}</span>
+                <span>Срок: {dueDateLabel}</span>
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export const TasksView: React.FC<TasksViewProps> = ({ deals, clients, policies }) => {
     const [filters, setFilters] = useState({ assignee: 'all', clientName: '' });
@@ -50,7 +60,11 @@ export const TasksView: React.FC<TasksViewProps> = ({ deals, clients, policies }
 
         const renewalReminders = policies
             .filter(policy => {
-                const endDate = new Date(policy.endDate);
+                const rawEndDate = (policy as any).effectiveTo ?? (policy as any).effective_to ?? policy.endDate;
+                if (!rawEndDate) {
+                    return false;
+                }
+                const endDate = new Date(rawEndDate);
                 return endDate >= today && endDate <= reminderLimit;
             })
             .map(policy => ({
@@ -58,41 +72,63 @@ export const TasksView: React.FC<TasksViewProps> = ({ deals, clients, policies }
                 description: `Подготовить продление полиса №${policy.policyNumber}`,
                 completed: false,
                 assignee: deals.find(d => d.id === policy.dealId)?.owner || 'Не назначен',
-                dueDate: policy.endDate,
+                dueDate: (policy as any).effectiveTo ?? (policy as any).effective_to ?? policy.endDate,
                 dealTitle: 'Продление полиса',
                 clientName: clients.find(c => c.id === policy.clientId)?.name || 'N/A'
             }));
 
         // Get tasks from deals
         const dealTasks: EnrichedTask[] = deals.flatMap(deal =>
-            deal.tasks.map(task => ({
-                ...task,
-                dealTitle: deal.title,
-                clientName: clients.find(c => c.id === deal.clientId)?.name || 'N/A'
-            }))
+            (deal.tasks ?? []).map(task => {
+                const description = task.description || task.title || 'Задача без описания';
+                const assignee = task.assignee || task.assigneeName || 'Не назначен';
+                const dueDate = task.dueDate || task.dueAt || task.scheduledFor;
+                const completed = task.completed ?? task.status === 'completed' ?? task.statusCode === 'completed';
+
+                return {
+                    id: task.id || `task-${Math.random().toString(36).slice(2)}`,
+                    description,
+                    assignee,
+                    completed: Boolean(completed),
+                    dueDate,
+                    dealTitle: deal.title,
+                    clientName: clients.find(c => c.id === deal.clientId)?.name || 'N/A',
+                };
+            })
         );
 
         return [...renewalReminders, ...dealTasks];
     }, [deals, clients, policies]);
     
-    const uniqueAssignees = useMemo(() => [...new Set(combinedTasks.map(t => t.assignee))].sort(), [combinedTasks]);
+    const uniqueAssignees = useMemo(() => [...new Set(combinedTasks.map(t => t.assignee || 'Не назначен'))].sort(), [combinedTasks]);
 
     const filteredAndSortedTasks = useMemo(() => {
         let processedTasks = [...combinedTasks];
         
         processedTasks = processedTasks.filter(t =>
-            (filters.assignee === 'all' || t.assignee === filters.assignee) &&
+            (filters.assignee === 'all' || (t.assignee || 'Не назначен') === filters.assignee) &&
             t.clientName.toLowerCase().includes(filters.clientName.toLowerCase().trim())
         );
 
         processedTasks.sort((a, b) => {
+            const parseDate = (value?: string) => {
+                if (!value) return NaN;
+                const timestamp = Date.parse(value);
+                return Number.isNaN(timestamp) ? NaN : timestamp;
+            };
+
+            const dateA = parseDate(a.dueDate);
+            const dateB = parseDate(b.dueDate);
+
             switch (sortBy) {
                 case 'dueDate-asc':
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    return (Number.isNaN(dateA) ? Number.POSITIVE_INFINITY : dateA) -
+                        (Number.isNaN(dateB) ? Number.POSITIVE_INFINITY : dateB);
                 case 'dueDate-desc':
-                    return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+                    return (Number.isNaN(dateB) ? Number.NEGATIVE_INFINITY : dateB) -
+                        (Number.isNaN(dateA) ? Number.NEGATIVE_INFINITY : dateA);
                 case 'assignee':
-                    return a.assignee.localeCompare(b.assignee);
+                    return (a.assignee || '').localeCompare(b.assignee || '');
                 case 'clientName':
                     return a.clientName.localeCompare(b.clientName);
                 default:

@@ -28,17 +28,13 @@ export type FinancialTransactionType = 'Доход' | 'Расход' | 'income' 
 export interface Client {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  status?: ClientStatus;
+  email?: string;
+  phone?: string;
+  status: ClientStatus;
   ownerId?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-  isDeleted?: boolean;
-  // Опциональные поля
-  address?: string;
-  birthDate?: string;
-  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
 }
 
 /**
@@ -50,24 +46,22 @@ export interface Deal {
   title: string;
   description?: string;
   clientId: string;
-  ownerId?: string;
-  status?: DealStatus;
+  ownerId?: string | null;
+  owner?: string | null;
+  status: DealStatus;
   stage?: DealStage;
-  nextReviewAt?: string;
+  nextReviewAt: string;
   nextReviewDate?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  isDeleted?: boolean;
-  // Опциональные поля для mock data
-  notes?: string;
-  owner?: string;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
   summary?: string;
-  assistant?: string;
-  tasks?: any[];
-  quotes?: any[];
-  files?: any[];
-  chat?: any[];
-  activityLog?: any[];
+  tasks?: Task[];
+  notes?: Note[];
+  quotes?: Quote[];
+  files?: FileAttachment[];
+  chat?: ChatMessage[];
+  activityLog?: ActivityLog[];
 }
 
 /**
@@ -155,9 +149,13 @@ export interface Task {
   dealId?: string;
   clientId?: string;
   status?: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  statusCode?: string;
   priority?: 'low' | 'medium' | 'high';
   assigneeId?: string;
+  assigneeName?: string;
   dueDate?: string;
+  dueAt?: string;
+  scheduledFor?: string;
   createdAt?: string;
   updatedAt?: string;
   isDeleted?: boolean;

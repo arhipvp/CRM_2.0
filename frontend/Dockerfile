@@ -1,55 +1,46 @@
-# Multi-stage build для React Frontend
-# Build context: проект корня (C:\Dev\CRM_2.0)
-# Dockerfile path: frontend/Dockerfile
+# syntax=docker/dockerfile:1
 
-# Stage 1: Build
+##
+## Build stage
+##
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Копируем package.json и package-lock.json из frontend
-COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* frontend/npm-shrinkwrap.json* ./
+COPY package*.json ./
 
-# Устанавливаем зависимости
-RUN npm install --ci 2>/dev/null || npm install
+RUN npm ci
 
-# Копируем исходный код frontend
-COPY frontend/ .
+COPY . .
 
-# Собираем приложение
 RUN npm run build
 
-# Stage 2: Runtime (development)
+##
+## Development runtime
+##
 FROM node:20-alpine AS dev
 
 WORKDIR /app
 
-# Копируем package.json
-COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* frontend/npm-shrinkwrap.json* ./
+COPY package*.json ./
 
-# Устанавливаем зависимости (используем package-lock.json если доступен)
-RUN npm ci 2>/dev/null || npm install
+RUN npm install
 
-# Копируем исходный код
-COPY frontend/ .
+COPY . .
 
-# Экспортируем порт
 EXPOSE 3000
 
-# Команда запуска в dev режиме
 CMD ["npm", "run", "dev"]
 
-# Stage 3: Runtime (production)
+##
+## Production runtime
+##
 FROM nginx:alpine AS prod
 
-# Копируем Nginx конфигурацию
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Копируем собранное приложение из builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Экспортируем порт
 EXPOSE 80
 
-# Nginx будет работать в foreground режиме
 CMD ["nginx", "-g", "daemon off;"]
