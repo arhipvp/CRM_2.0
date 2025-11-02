@@ -41,17 +41,58 @@ async function decodeAudioData(
 
 // --- Gemini API Service ---
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy init: only create when API key is available
+let ai: any = null;
+let audioContext: AudioContext | null = null;
 
-const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-  sampleRate: 24000,
-});
+const initializeGemini = () => {
+  if (ai) return ai;
+
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.warn('[TTS] No GEMINI_API_KEY found, TTS will use fallback (Web Speech API)');
+    return null;
+  }
+
+  try {
+    ai = new GoogleGenAI({ apiKey });
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+      sampleRate: 24000,
+    });
+    return ai;
+  } catch (error) {
+    console.warn('[TTS] Failed to initialize GoogleGenAI:', error);
+    return null;
+  }
+};
+
+/**
+ * Fallback TTS using Web Speech API (browser native)
+ */
+const fallbackTTS = async (text: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ru-RU';
+    utterance.onend = () => resolve();
+    utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
+    window.speechSynthesis.speak(utterance);
+  });
+};
 
 export const generateAndPlayAudio = async (text: string): Promise<void> => {
   if (!text.trim()) return;
 
+  const client = initializeGemini();
+
+  // Fallback: use Web Speech API if Gemini not available
+  if (!client || !audioContext) {
+    console.log('[TTS] Using Web Speech API fallback');
+    return fallbackTTS(text);
+  }
+
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
       config: {
@@ -66,7 +107,7 @@ export const generateAndPlayAudio = async (text: string): Promise<void> => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
-    if (base64Audio) {
+    if (base64Audio && audioContext) {
       const audioBytes = decode(base64Audio);
       const audioBuffer = await decodeAudioData(
         audioBytes,
@@ -83,8 +124,10 @@ export const generateAndPlayAudio = async (text: string): Promise<void> => {
       throw new Error("No audio data received from API.");
     }
   } catch (error) {
-    console.error("Error generating or playing audio:", error);
-    throw error;
+    console.error("Error generating or playing audio via Gemini:", error);
+    // Fallback to Web Speech API on error
+    console.log('[TTS] Falling back to Web Speech API after Gemini error');
+    return fallbackTTS(text);
   }
 };
 
