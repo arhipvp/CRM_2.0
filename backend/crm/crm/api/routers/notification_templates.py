@@ -8,7 +8,7 @@ from crm.domain import schemas, services
 router = APIRouter(prefix="/templates", tags=["notification-templates"])
 
 
-@router.get("", response_model=list[schemas.NotificationTemplateRead])
+@router.get("/", response_model=list[schemas.NotificationTemplateRead])
 async def list_templates(
     channel: schemas.NotificationTemplateChannel | None = Query(default=None),
     active: bool | None = Query(default=None),
@@ -18,8 +18,15 @@ async def list_templates(
     templates = await service.list_templates(filters)
     return list(templates)
 
+router.add_api_route(
+    "",
+    list_templates,
+    methods=["GET"],
+    response_model=list[schemas.NotificationTemplateRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.NotificationTemplateRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.NotificationTemplateRead, status_code=status.HTTP_201_CREATED)
 async def create_template(
     payload: schemas.NotificationTemplateCreate,
     service: services.NotificationTemplateService = Depends(get_notification_template_service),
@@ -31,3 +38,13 @@ async def create_template(
             status_code=status.HTTP_409_CONFLICT,
             detail="template_conflict",
         ) from exc
+
+
+router.add_api_route(
+    "",
+    create_template,
+    methods=["POST"],
+    response_model=schemas.NotificationTemplateRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)

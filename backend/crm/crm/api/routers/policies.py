@@ -12,19 +12,35 @@ from crm.domain.services import PolicyService
 router = APIRouter(prefix="/policies", tags=["policies"])
 
 
-@router.get("", response_model=list[schemas.PolicyRead])
+@router.get("/", response_model=list[schemas.PolicyRead])
 async def list_policies(
     service: Annotated[PolicyService, Depends(get_policy_service)],
 ) -> list[schemas.PolicyRead]:
     return list(await service.list_policies())
 
+router.add_api_route(
+    "",
+    list_policies,
+    methods=["GET"],
+    response_model=list[schemas.PolicyRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.PolicyRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.PolicyRead, status_code=status.HTTP_201_CREATED)
 async def create_policy(
     payload: schemas.PolicyCreate,
     service: Annotated[PolicyService, Depends(get_policy_service)],
 ) -> schemas.PolicyRead:
     return await service.create_policy(payload)
+
+router.add_api_route(
+    "",
+    create_policy,
+    methods=["POST"],
+    response_model=schemas.PolicyRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 
 @router.get("/{policy_id}", response_model=schemas.PolicyRead)

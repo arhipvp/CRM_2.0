@@ -12,7 +12,7 @@ from crm.domain.services import DealJournalService
 router = APIRouter(prefix="/deals/{deal_id}/journal", tags=["deal-journal"])
 
 
-@router.get("", response_model=schemas.DealJournalEntryList)
+@router.get("/", response_model=schemas.DealJournalEntryList)
 async def list_deal_journal(
     deal_id: UUID,
     *,
@@ -22,8 +22,15 @@ async def list_deal_journal(
 ) -> schemas.DealJournalEntryList:
     return await service.list_entries(deal_id, limit=limit, offset=offset)
 
+router.add_api_route(
+    "",
+    list_deal_journal,
+    methods=["GET"],
+    response_model=schemas.DealJournalEntryList,
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.DealJournalEntryRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.DealJournalEntryRead, status_code=status.HTTP_201_CREATED)
 async def append_deal_journal_entry(
     deal_id: UUID,
     payload: schemas.DealJournalEntryCreate,
@@ -33,3 +40,13 @@ async def append_deal_journal_entry(
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="deal_not_found")
     return entry
+
+
+router.add_api_route(
+    "",
+    append_deal_journal_entry,
+    methods=["POST"],
+    response_model=schemas.DealJournalEntryRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)

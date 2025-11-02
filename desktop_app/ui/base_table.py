@@ -50,10 +50,10 @@ class BaseTableTab(QWidget):
         self.table.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
         self.table.selectionModel().selectionChanged.connect(self._update_action_state)
 
-        self.add_button = QPushButton("Добавить", self)
-        self.edit_button = QPushButton("Изменить", self)
-        self.delete_button = QPushButton("Удалить", self)
-        self.refresh_button = QPushButton("Обновить", self)
+        self.add_button = QPushButton(_("Добавить"), self)
+        self.edit_button = QPushButton(_("Изменить"), self)
+        self.delete_button = QPushButton(_("Удалить"), self)
+        self.refresh_button = QPushButton(_("Обновить"), self)
 
         for button in (
             self.add_button,
@@ -94,25 +94,13 @@ class BaseTableTab(QWidget):
         self.load_data()
 
     def on_add(self) -> None:
-        QMessageBox.information(
-            self,
-            "Действие недоступно",
-            "Функция добавления пока не реализована.",
-        )
+        QMessageBox.information(self, _("Действие недоступно"), _("Функция ещё не реализована."))
 
     def on_edit(self, index: int, row: Sequence[str]) -> None:
-        QMessageBox.information(
-            self,
-            "Действие недоступно",
-            "Функция изменения пока не реализована.",
-        )
+        QMessageBox.information(self, _("Действие недоступно"), _("Функция ещё не реализована."))
 
     def on_delete(self, index: int, row: Sequence[str]) -> None:
-        QMessageBox.information(
-            self,
-            "Действие недоступно",
-            "Функция удаления пока не реализована.",
-        )
+        QMessageBox.information(self, _("Действие недоступно"), _("Функция ещё не реализована."))
 
     # ----- handlers ---------------------------------------------------------
     def _handle_add(self) -> None:
@@ -121,7 +109,7 @@ class BaseTableTab(QWidget):
     def _handle_edit(self) -> None:
         index = self.get_selected_index()
         if index is None:
-            QMessageBox.warning(self, "Выбор строки", "Выберите запись для изменения.")
+            QMessageBox.warning(self, _("Нужен выбор строки"), _("Выберите запись для изменения."))
             return
         row = self.get_selected_row_values(index)
         self.on_edit(index, row)
@@ -129,7 +117,7 @@ class BaseTableTab(QWidget):
     def _handle_delete(self) -> None:
         index = self.get_selected_index()
         if index is None:
-            QMessageBox.warning(self, "Выбор строки", "Выберите запись для удаления.")
+            QMessageBox.warning(self, _("Нужен выбор строки"), _("Выберите запись для удаления."))
             return
         row = self.get_selected_row_values(index)
         self.on_delete(index, row)
@@ -191,9 +179,9 @@ class BaseTableTab(QWidget):
         self.table.setEnabled(not is_loading)
 
         if is_loading:
-            self.refresh_button.setText("Загрузка...")
+            self.refresh_button.setText(_("Загрузка..."))
         else:
-            self.refresh_button.setText("Обновить")
+            self.refresh_button.setText(_("Обновить"))
 
     def _on_operation_error(self, error_message: str) -> None:
         """Handle operation errors.
@@ -203,4 +191,3 @@ class BaseTableTab(QWidget):
         """
         logger.error("Operation error: %s", error_message)
         QMessageBox.critical(self, _("Error"), _("Operation failed: {}").format(error_message))
-

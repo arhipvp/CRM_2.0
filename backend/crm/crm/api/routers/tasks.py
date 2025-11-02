@@ -66,7 +66,7 @@ def _handle_task_error(exc: TaskServiceError) -> None:
     raise HTTPException(status_code=http_status, detail=detail)
 
 
-@router.get("", response_model=list[schemas.TaskRead])
+@router.get("/", response_model=list[schemas.TaskRead])
 async def list_tasks(
     service: Annotated[TaskService, Depends(get_task_service)],
     assignee_id: Annotated[UUID | None, Query(alias="assigneeId")] = None,
@@ -89,8 +89,15 @@ async def list_tasks(
     tasks = await service.list_tasks(filters)
     return list(tasks)
 
+router.add_api_route(
+    "",
+    list_tasks,
+    methods=["GET"],
+    response_model=list[schemas.TaskRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
 async def create_task(
     payload: schemas.TaskCreate,
     service: Annotated[TaskService, Depends(get_task_service)],
@@ -100,6 +107,14 @@ async def create_task(
     except TaskServiceError as exc:
         _handle_task_error(exc)
 
+router.add_api_route(
+    "",
+    create_task,
+    methods=["POST"],
+    response_model=schemas.TaskRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 @router.get("/{task_id}", response_model=schemas.TaskRead)
 async def get_task(

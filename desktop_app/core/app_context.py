@@ -90,6 +90,15 @@ class AppContext:
         policy = self.get_policy(policy_id)
         return policy.policy_number if policy else ""
 
+    def get_current_user_id(self) -> Optional[UUID]:
+        token = self.auth_service.token
+        if token is None or not token.user_id:
+            return None
+        try:
+            return UUID(str(token.user_id))
+        except ValueError:
+            return None
+
     def close(self) -> None:
         self.api.close()
         self.auth_service.close()

@@ -152,11 +152,29 @@ class APIClient:
         }
         self._request("PATCH", f"/deals/{deal_id}", json=payload)
 
+    # ----- public API: policies ---------------------------------------------
+    def create_policy(self, payload: Dict[str, object]) -> Policy:
+        response = self._request("POST", "/policies", json=payload)
+        return Policy.model_validate(response.json())
+
+    def update_policy(self, policy_id: UUID, payload: Dict[str, object]) -> Policy:
+        response = self._request("PATCH", f"/policies/{policy_id}", json=payload)
+        return Policy.model_validate(response.json())
+
     def delete_policy(self, policy_id: UUID) -> None:
         payload = {
             "is_deleted": True,
         }
         self._request("PATCH", f"/policies/{policy_id}", json=payload)
+
+    # ----- public API: tasks ------------------------------------------------
+    def create_task(self, payload: Dict[str, object]) -> Task:
+        response = self._request("POST", "/tasks", json=payload)
+        return Task.model_validate(response.json())
+
+    def update_task(self, task_id: UUID, payload: Dict[str, object]) -> Task:
+        response = self._request("PATCH", f"/tasks/{task_id}", json=payload)
+        return Task.model_validate(response.json())
 
     def delete_task(self, task_id: UUID) -> None:
         payload = {
@@ -180,7 +198,30 @@ class APIClient:
             items: Sequence[dict] = data.get("items", [])  # type: ignore[assignment]
         else:
             items = data  # pragma: no cover - fallback for alternative schemas
-        return [Payment.model_validate(item) for item in items]
+        filtered_items = [
+            item for item in items if not isinstance(item, dict) or not item.get("isDeleted")
+        ]
+        return [Payment.model_validate(item) for item in filtered_items]
+
+    def create_payment(self, deal_id: UUID, policy_id: UUID, payload: Dict[str, object]) -> Payment:
+        path = f"/deals/{deal_id}/policies/{policy_id}/payments"
+        response = self._request("POST", path, json=payload)
+        return Payment.model_validate(response.json())
+
+    def update_payment(
+        self,
+        deal_id: UUID,
+        policy_id: UUID,
+        payment_id: UUID,
+        payload: Dict[str, object],
+    ) -> Payment:
+        path = f"/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}"
+        response = self._request("PATCH", path, json=payload)
+        return Payment.model_validate(response.json())
+
+    def delete_payment(self, deal_id: UUID, policy_id: UUID, payment_id: UUID) -> None:
+        path = f"/deals/{deal_id}/policies/{policy_id}/payments/{payment_id}"
+        self._request("DELETE", path)
 
     def fetch_payments_for_policies(self, policies: Iterable[Policy]) -> List[Payment]:
         payments: list[Payment] = []

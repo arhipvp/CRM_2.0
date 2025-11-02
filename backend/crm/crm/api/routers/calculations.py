@@ -14,7 +14,7 @@ from crm.infrastructure.repositories import RepositoryError
 router = APIRouter(prefix="/deals/{deal_id}/calculations", tags=["calculations"])
 
 
-@router.get("", response_model=list[schemas.CalculationRead])
+@router.get("/", response_model=list[schemas.CalculationRead])
 async def list_calculations(
     deal_id: UUID,
     *,
@@ -34,8 +34,15 @@ async def list_calculations(
         )
     )
 
+router.add_api_route(
+    "",
+    list_calculations,
+    methods=["GET"],
+    response_model=list[schemas.CalculationRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.CalculationRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.CalculationRead, status_code=status.HTTP_201_CREATED)
 async def create_calculation(
     deal_id: UUID,
     payload: schemas.CalculationCreate,
@@ -46,6 +53,16 @@ async def create_calculation(
     except RepositoryError as exc:
         status_code = status.HTTP_404_NOT_FOUND if str(exc) == "deal_not_found" else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+router.add_api_route(
+    "",
+    create_calculation,
+    methods=["POST"],
+    response_model=schemas.CalculationRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 
 @router.get("/{calculation_id}", response_model=schemas.CalculationRead)

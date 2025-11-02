@@ -839,6 +839,7 @@ class PaymentIncomeRead(ORMModel, PaymentIncomeBase):
     updated_by_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
 
 
 class PaymentExpenseRead(ORMModel, PaymentExpenseBase):
@@ -848,6 +849,7 @@ class PaymentExpenseRead(ORMModel, PaymentExpenseBase):
     updated_by_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
 
 
 class PaymentRead(ORMModel, PaymentBase):
@@ -856,6 +858,7 @@ class PaymentRead(ORMModel, PaymentBase):
     policy_id: UUID
     sequence: int
     status: str
+    is_deleted: bool
     created_by_id: Optional[UUID] = None
     updated_by_id: Optional[UUID] = None
     incomes_total: Decimal = Field(decimal_places=2, max_digits=14)

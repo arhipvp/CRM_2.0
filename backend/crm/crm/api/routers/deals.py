@@ -66,7 +66,7 @@ def _build_deal_filters(
         ) from exc
 
 
-@router.get("", response_model=list[schemas.DealRead])
+@router.get("/", response_model=list[schemas.DealRead])
 async def list_deals(
     service: Annotated[DealService, Depends(get_deal_service)],
     stage: Annotated[str | None, Query()] = None,
@@ -77,13 +77,29 @@ async def list_deals(
     filters = _build_deal_filters(stage, manager, period, search)
     return list(await service.list_deals(filters))
 
+router.add_api_route(
+    "",
+    list_deals,
+    methods=["GET"],
+    response_model=list[schemas.DealRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.DealRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.DealRead, status_code=status.HTTP_201_CREATED)
 async def create_deal(
     payload: schemas.DealCreate,
     service: Annotated[DealService, Depends(get_deal_service)],
 ) -> schemas.DealRead:
     return await service.create_deal(payload)
+
+router.add_api_route(
+    "",
+    create_deal,
+    methods=["POST"],
+    response_model=schemas.DealRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 
 @router.get("/stage-metrics", response_model=list[schemas.DealStageMetric])

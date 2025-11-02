@@ -10,7 +10,7 @@ from crm.domain import schemas, services
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/", status_code=status.HTTP_202_ACCEPTED)
 async def enqueue_notification(
     payload: schemas.NotificationCreate,
     service: services.NotificationService = Depends(get_notification_service),
@@ -29,6 +29,13 @@ async def enqueue_notification(
         ) from exc
     return {"notification_id": str(notification.id)}
 
+router.add_api_route(
+    "",
+    enqueue_notification,
+    methods=["POST"],
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
 
 @router.get("/{notification_id}", response_model=schemas.NotificationStatusResponse)
 async def get_notification_status(

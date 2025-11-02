@@ -152,6 +152,7 @@ async def test_payments_flow(api_client, configure_environment):
     payment = schemas.PaymentRead.model_validate(payment_resp.json())
     assert payment.status == "scheduled"
     assert payment.incomes_total == 0
+    assert not payment.is_deleted
 
     income_payload = {
         "amount": "400.00",
@@ -241,6 +242,8 @@ async def test_payments_flow(api_client, configure_environment):
     final_payment = schemas.PaymentRead.model_validate(final_payment_resp.json())
     assert final_payment.expenses_total == 0
     assert final_payment.net_total == 1100
+    assert len(final_payment.expenses) == 0
+    assert not final_payment.is_deleted
 
     delete_payment_resp = await api_client.delete(
         f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
@@ -317,6 +320,16 @@ async def test_income_deleted_event_contains_deleted_by(api_client, configure_en
         params={"deleted_by_id": str(deleted_by_id)},
     )
     assert delete_resp.status_code == 204
+
+    payment_after_delete_resp = await api_client.get(
+        f"/api/v1/deals/{deal.id}/policies/{policy.id}/payments/{payment.id}",
+        headers=headers,
+        params={"include[]": ["incomes"]},
+    )
+    assert payment_after_delete_resp.status_code == 200
+    payment_after_delete = schemas.PaymentRead.model_validate(payment_after_delete_resp.json())
+    assert payment_after_delete.incomes_total == 0
+    assert payment_after_delete.incomes == []
 
     events = await _collect_events(events_queue)
     await channel.close()

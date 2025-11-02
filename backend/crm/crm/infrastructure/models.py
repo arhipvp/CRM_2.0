@@ -47,9 +47,12 @@ class TimestampMixin:
     )
 
 
-class OwnershipMixin:
-    owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+class SoftDeleteMixin:
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class OwnershipMixin(SoftDeleteMixin):
+    owner_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
 
 
 class Client(CRMBase, TimestampMixin, OwnershipMixin):
@@ -335,7 +338,7 @@ Index(
 )
 
 
-class Payment(CRMBase, TimestampMixin):
+class Payment(CRMBase, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "payments"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -377,10 +380,11 @@ class Payment(CRMBase, TimestampMixin):
     __table_args__ = (
         Index("ux_payments_policy_sequence", "policy_id", "sequence", unique=True),
         Index("ix_payments_status", "status"),
+        Index("ix_payments_is_deleted", "is_deleted"),
     )
 
 
-class PaymentIncome(CRMBase, TimestampMixin):
+class PaymentIncome(CRMBase, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "payment_incomes"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -397,8 +401,10 @@ class PaymentIncome(CRMBase, TimestampMixin):
 
     payment: Mapped[Payment] = relationship(back_populates="incomes")
 
+    __table_args__ = (Index("ix_payment_incomes_is_deleted", "is_deleted"),)
 
-class PaymentExpense(CRMBase, TimestampMixin):
+
+class PaymentExpense(CRMBase, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "payment_expenses"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -414,6 +420,8 @@ class PaymentExpense(CRMBase, TimestampMixin):
     updated_by_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     payment: Mapped[Payment] = relationship(back_populates="expenses")
+
+    __table_args__ = (Index("ix_payment_expenses_is_deleted", "is_deleted"),)
 
 
 

@@ -12,19 +12,35 @@ from crm.domain.services import ClientService
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 
-@router.get("", response_model=list[schemas.ClientRead])
+@router.get("/", response_model=list[schemas.ClientRead])
 async def list_clients(
     service: Annotated[ClientService, Depends(get_client_service)],
 ) -> list[schemas.ClientRead]:
     return list(await service.list_clients())
 
+router.add_api_route(
+    "",
+    list_clients,
+    methods=["GET"],
+    response_model=list[schemas.ClientRead],
+    include_in_schema=False,
+)
 
-@router.post("", response_model=schemas.ClientRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.ClientRead, status_code=status.HTTP_201_CREATED)
 async def create_client(
     payload: schemas.ClientCreate,
     service: Annotated[ClientService, Depends(get_client_service)],
 ) -> schemas.ClientRead:
     return await service.create_client(payload)
+
+router.add_api_route(
+    "",
+    create_client,
+    methods=["POST"],
+    response_model=schemas.ClientRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 
 @router.get("/{client_id}", response_model=schemas.ClientRead)

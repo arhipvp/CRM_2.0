@@ -1053,7 +1053,7 @@ class PaymentService:
             return False
         incomes_total = Decimal(payment.incomes_total or 0)
         expenses_total = Decimal(payment.expenses_total or 0)
-        if incomes_total > 0 or expenses_total > 0:
+        if payment.status not in {"paid", "cancelled"} and (incomes_total > 0 or expenses_total > 0):
             raise repositories.RepositoryError("payment_has_transactions")
         await self.payments.delete_payment(payment)
         await self._publish_payment_event(
@@ -1064,6 +1064,7 @@ class PaymentService:
                 policy_id=payment.policy_id,
                 sequence=payment.sequence,
                 status=payment.status,
+                is_deleted=payment.is_deleted,
                 planned_date=payment.planned_date,
                 planned_amount=Decimal(payment.planned_amount),
                 currency=payment.currency,
@@ -1341,6 +1342,7 @@ class PaymentService:
             policy_id=payment.policy_id,
             sequence=payment.sequence,
             status=payment.status,
+            is_deleted=payment.is_deleted,
             planned_date=payment.planned_date,
             planned_amount=Decimal(payment.planned_amount),
             currency=payment.currency,

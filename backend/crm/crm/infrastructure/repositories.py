@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Generic, Iterable, Sequence, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from crm.domain import schemas
 from crm.infrastructure import models
@@ -598,11 +598,24 @@ class PaymentRepository:
             .where(
                 models.Payment.deal_id == deal_id,
                 models.Payment.policy_id == policy_id,
+                models.Payment.is_deleted.is_(False),
             )
             .order_by(models.Payment.sequence.asc(), models.Payment.created_at.asc())
         )
         if statuses:
             stmt = stmt.where(models.Payment.status.in_(list(statuses)))
+        stmt = stmt.options(
+            with_loader_criteria(
+                models.PaymentIncome,
+                models.PaymentIncome.is_deleted.is_(False),
+                include_aliases=True,
+            ),
+            with_loader_criteria(
+                models.PaymentExpense,
+                models.PaymentExpense.is_deleted.is_(False),
+                include_aliases=True,
+            ),
+        )
         if include_incomes:
             stmt = stmt.options(selectinload(models.Payment.incomes))
         if include_expenses:
@@ -613,6 +626,7 @@ class PaymentRepository:
             .where(
                 models.Payment.deal_id == deal_id,
                 models.Payment.policy_id == policy_id,
+                models.Payment.is_deleted.is_(False),
             )
         )
         if statuses:
@@ -636,6 +650,19 @@ class PaymentRepository:
             models.Payment.deal_id == deal_id,
             models.Payment.policy_id == policy_id,
             models.Payment.id == payment_id,
+            models.Payment.is_deleted.is_(False),
+        )
+        stmt = stmt.options(
+            with_loader_criteria(
+                models.PaymentIncome,
+                models.PaymentIncome.is_deleted.is_(False),
+                include_aliases=True,
+            ),
+            with_loader_criteria(
+                models.PaymentExpense,
+                models.PaymentExpense.is_deleted.is_(False),
+                include_aliases=True,
+            ),
         )
         if include_incomes:
             stmt = stmt.options(selectinload(models.Payment.incomes))
@@ -675,18 +702,21 @@ class PaymentRepository:
         return payment
 
     async def delete_payment(self, payment: models.Payment) -> None:
-        await self.session.delete(payment)
+        payment.is_deleted = True
         await self.session.commit()
+        await self.session.refresh(payment)
 
     async def recalculate_totals(self, payment: models.Payment) -> models.Payment:
         incomes_total = await self.session.scalar(
             select(func.coalesce(func.sum(models.PaymentIncome.amount), 0)).where(
-                models.PaymentIncome.payment_id == payment.id
+                models.PaymentIncome.payment_id == payment.id,
+                models.PaymentIncome.is_deleted.is_(False),
             )
         )
         expenses_total = await self.session.scalar(
             select(func.coalesce(func.sum(models.PaymentExpense.amount), 0)).where(
-                models.PaymentExpense.payment_id == payment.id
+                models.PaymentExpense.payment_id == payment.id,
+                models.PaymentExpense.is_deleted.is_(False),
             )
         )
         income_value = Decimal(incomes_total or 0)
@@ -746,6 +776,7 @@ class PaymentIncomeRepository:
         stmt = select(models.PaymentIncome).where(
             models.PaymentIncome.payment_id == payment_id,
             models.PaymentIncome.id == income_id,
+            models.PaymentIncome.is_deleted.is_(False),
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -762,8 +793,9 @@ class PaymentIncomeRepository:
         return income
 
     async def delete_income(self, income: models.PaymentIncome) -> None:
-        await self.session.delete(income)
+        income.is_deleted = True
         await self.session.commit()
+        await self.session.refresh(income)
 
 
 class PaymentExpenseRepository:
@@ -789,6 +821,7 @@ class PaymentExpenseRepository:
         stmt = select(models.PaymentExpense).where(
             models.PaymentExpense.payment_id == payment_id,
             models.PaymentExpense.id == expense_id,
+            models.PaymentExpense.is_deleted.is_(False),
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -805,8 +838,9 @@ class PaymentExpenseRepository:
         return expense
 
     async def delete_expense(self, expense: models.PaymentExpense) -> None:
-        await self.session.delete(expense)
+        expense.is_deleted = True
         await self.session.commit()
+        await self.session.refresh(expense)
 
 
 class PermissionSyncJobRepository:

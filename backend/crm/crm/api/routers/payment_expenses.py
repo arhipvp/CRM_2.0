@@ -24,7 +24,7 @@ def _handle_repository_error(exc: RepositoryError) -> None:
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
 
 
-@router.post("", response_model=schemas.PaymentExpenseRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.PaymentExpenseRead, status_code=status.HTTP_201_CREATED)
 async def create_expense(
     deal_id: UUID,
     policy_id: UUID,
@@ -40,6 +40,14 @@ async def create_expense(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payment_not_found")
     return expense
 
+router.add_api_route(
+    "",
+    create_expense,
+    methods=["POST"],
+    response_model=schemas.PaymentExpenseRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 
 @router.patch("/{expense_id}", response_model=schemas.PaymentExpenseRead)
 async def update_expense(
