@@ -59,21 +59,27 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Карточка входа */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden backdrop-blur">
           {/* Заголовок */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">CRM</h1>
-            <p className="text-blue-100">Управление страховыми полисами</p>
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-10 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4">
+              <svg className="w-8 h-8 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+            </div>
+            <h1 className="text-4xl font-bold text-white mb-1">CRM</h1>
+            <p className="text-blue-100 text-sm font-medium">Управление страховыми полисами</p>
           </div>
 
           {/* Содержимое */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {/* Ошибка */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm flex items-start gap-3">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm flex items-start gap-3 animate-shake">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
@@ -83,8 +89,8 @@ export const Login: React.FC = () => {
 
             {/* Email поле */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                Email
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-3">
+                Email адрес
               </label>
               <input
                 type="email"
@@ -92,7 +98,8 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={handleEmailChange}
                 disabled={isLoading}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition"
+                autoComplete="email"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition bg-slate-50 hover:bg-white"
                 placeholder="example@example.com"
                 autoFocus
               />
@@ -100,7 +107,7 @@ export const Login: React.FC = () => {
 
             {/* Password поле */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-3">
                 Пароль
               </label>
               <div className="relative">
@@ -110,14 +117,15 @@ export const Login: React.FC = () => {
                   value={password}
                   onChange={handlePasswordChange}
                   disabled={isLoading}
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition pr-10"
+                  autoComplete="current-password"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition pr-10 bg-slate-50 hover:bg-white"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:cursor-not-allowed"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:cursor-not-allowed transition"
                 >
                   {showPassword ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -138,7 +146,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-2.5 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
             >
               {isLoading && (
                 <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -150,16 +158,16 @@ export const Login: React.FC = () => {
             </button>
 
             {/* Информационное сообщение */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
-              <p className="font-semibold mb-2">Тестовые учётные данные:</p>
-              <p>Email: <code className="bg-white px-2 py-1 rounded">test@example.com</code></p>
-              <p>Пароль: <code className="bg-white px-2 py-1 rounded">password</code></p>
+            <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
+              <p className="font-semibold text-slate-700 mb-2">Тестовые учётные данные:</p>
+              <p className="text-slate-600">Email: <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">test@example.com</code></p>
+              <p className="text-slate-600 mt-1">Пароль: <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">password</code></p>
             </div>
           </form>
 
           {/* Подвал */}
-          <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-center text-xs text-slate-500">
-            <p>© 2025 CRM для страховых брокеров. Все права защищены.</p>
+          <div className="bg-slate-50 px-8 py-4 border-t border-slate-200 text-center text-xs text-slate-500">
+            <p>© 2025 CRM Страхового Брокера. Все права защищены.</p>
           </div>
         </div>
       </div>
