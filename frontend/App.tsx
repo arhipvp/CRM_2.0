@@ -1,5 +1,10 @@
-// Fix: Implemented the main App component with state management, data handlers, and mock data.
+/**
+ * Main App component with authentication and state management
+ * Uses Auth Context for authentication state
+ */
 import React, { useState, useMemo, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Login } from './components/Login';
 import { MainLayout } from './components/MainLayout';
 import { DealsView } from './components/views/DealsView';
 import { ClientsView } from './components/views/ClientsView';
@@ -19,8 +24,12 @@ import * as crmApi from './services/crmApi';
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
 type Modal = 'addDeal' | 'addClient' | { type: 'editClient'; client: Client } | null;
 
+/**
+ * Main content component (requires authentication)
+ */
+const AppContent: React.FC = () => {
+  const { logout } = useAuth();
 
-const App: React.FC = () => {
   const [view, setView] = useState<View>('deals');
   const [modal, setModal] = useState<Modal>(null);
 
@@ -60,8 +69,6 @@ const App: React.FC = () => {
       } catch (err: any) {
         console.error('Failed to load data:', err);
         setError('Ошибка загрузки данных. Пожалуйста, проверьте соединение с API.');
-        // Fallback to mock data if API fails
-        // const { clients, deals, policies, payments, financialTransactions } = generateMockData();
       } finally {
         setLoading(false);
       }
@@ -69,7 +76,7 @@ const App: React.FC = () => {
 
     loadData();
   }, []);
-  
+
   const selectedDeal = useMemo(() => {
     if (!selectedDealId) return null;
     return deals.find(d => d.id === selectedDealId) || null;
@@ -80,7 +87,7 @@ const App: React.FC = () => {
   const handleUpdateReviewDate = (dealId: string, newDate: string) => {
     setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, nextReviewDate: newDate } : d));
   };
-  
+
   const handleUpdateDealStatus = (dealId: string, newStatus: DealStatus, reason?: string) => {
       setDeals(prevDeals => prevDeals.map(d => {
           if (d.id !== dealId) return d;
@@ -97,11 +104,11 @@ const App: React.FC = () => {
           return newDeal;
       }));
   };
-  
+
   const handleUpdateDealTitle = (dealId: string, newTitle: string) => {
       setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, title: newTitle } : d));
   };
-  
+
   const handleUpdateDealClient = (dealId: string, newClientId: string) => {
       setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, clientId: newClientId } : d));
   };
@@ -113,7 +120,7 @@ const App: React.FC = () => {
       return { ...d, notes: [...d.notes, newNote] };
     }));
   };
-  
+
   const onUpdateNoteStatus = (dealId: string, noteId: string, status: 'active' | 'archived') => {
       setDeals(prevDeals => prevDeals.map(d => {
           if (d.id !== dealId) return d;
@@ -135,7 +142,7 @@ const App: React.FC = () => {
           return { ...d, quotes: d.quotes.filter(q => q.id !== quoteId) };
       }));
   };
-  
+
   const handleAddFile = (dealId: string, file: File) => {
       setDeals(prevDeals => prevDeals.map(d => {
           if (d.id !== dealId) return d;
@@ -143,28 +150,30 @@ const App: React.FC = () => {
           return { ...d, files: [...d.files, newFile] };
       }));
   };
-  
+
   const handleDeleteFile = (dealId: string, fileId: string) => {
        setDeals(prevDeals => prevDeals.map(d => {
           if (d.id !== dealId) return d;
           return { ...d, files: d.files.filter(f => f.id !== fileId) };
       }));
   };
-  
+
     const handleAddPolicy = (dealId: string, policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>, installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>, policyClientId: string) => {
         const newPolicyId = `policy-${Date.now()}`;
         const newPolicy: Policy = { ...policyData, id: newPolicyId, clientId: policyClientId, dealId };
-        const newPayments: Payment[] = installments.map((inst, index) => ({
-            ...inst,
-            id: `payment-${newPolicyId}-${index}`,
-            policyId: newPolicyId,
-            clientId: policyClientId,
-            status: 'Ожидает'
-        }));
+        const newPayments: Payment[] = installments.map((inst, index) => (
+            {
+                ...inst,
+                id: `payment-${newPolicyId}-${index}`,
+                policyId: newPolicyId,
+                clientId: policyClientId,
+                status: 'Ожидает'
+            }
+        ));
         setPolicies(prev => [...prev, newPolicy]);
         setPayments(prev => [...prev, ...newPayments]);
     };
-    
+
     const handleAddPayment = (policyId: string, paymentData: Omit<Payment, 'id' | 'policyId' | 'clientId'>) => {
         const policy = policies.find(p => p.id === policyId);
         if (!policy) return;
@@ -176,7 +185,7 @@ const App: React.FC = () => {
         };
         setPayments(prev => [...prev, newPayment]);
     };
-    
+
     const handleAddTask = (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => {
         setDeals(prev => prev.map(d => {
             if (d.id !== dealId) return d;
@@ -184,19 +193,19 @@ const App: React.FC = () => {
             return { ...d, tasks: [...d.tasks, newTask] };
         }));
     };
-    
+
     const handleToggleTask = (dealId: string, taskId: string) => {
          setDeals(prev => prev.map(d => {
             if (d.id !== dealId) return d;
             return { ...d, tasks: d.tasks.map(t => t.id === taskId ? {...t, completed: !t.completed} : t) };
         }));
     };
-    
+
     const handleAddFinancialTransaction = (transactionData: Omit<FinancialTransaction, 'id'>) => {
         const newTransaction = { ...transactionData, id: `fin-${Date.now()}` };
         setFinancialTransactions(prev => [...prev, newTransaction]);
     };
-    
+
     const handleAddChatMessage = (dealId: string, text: string) => {
         setDeals(prev => prev.map(d => {
             if (d.id !== dealId) return d;
@@ -254,7 +263,7 @@ const App: React.FC = () => {
   const renderView = () => {
     switch(view) {
       case 'deals':
-        return <DealsView 
+        return <DealsView
             deals={deals}
             clients={clients}
             policies={policies}
@@ -327,9 +336,15 @@ const App: React.FC = () => {
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2"
           >
             Попробовать снова
+          </button>
+          <button
+            onClick={() => logout()}
+            className="bg-slate-500 text-white px-4 py-2 rounded hover:bg-slate-600"
+          >
+            Выход
           </button>
         </div>
       </div>
@@ -348,6 +363,41 @@ const App: React.FC = () => {
       </MainLayout>
       {renderModal()}
     </div>
+  );
+};
+
+/**
+ * Login wrapper component
+ */
+const AppWrapper: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Проверяю аутентификацию...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={() => {}} />;
+  }
+
+  return <AppContent />;
+};
+
+/**
+ * Main App component with AuthProvider
+ */
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppWrapper />
+    </AuthProvider>
   );
 };
 
