@@ -161,13 +161,21 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
             const client = getClient(deal.clientId, clients);
             return (
               <li key={deal.id}>
-                <button
+                <div
                   onClick={() => onSelectDeal(deal)}
-                  className={`w-full text-left p-3 rounded-lg flex items-start transition-colors duration-150 ${
+                  className={`w-full text-left p-3 rounded-lg flex items-start transition-colors duration-150 cursor-pointer ${
                     selectedDealId === deal.id
                       ? 'bg-sky-100'
                       : 'hover:bg-slate-100'
                   }`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectDeal(deal);
+                    }
+                  }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
@@ -201,7 +209,7 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
                         </div>
                     </div>
                   </div>
-                </button>
+                </div>
               </li>
             );
           })}
