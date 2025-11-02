@@ -38,6 +38,7 @@ import {
   Task,
 } from './types';
 import * as crmApi from './services/crmApi';
+import { loadDataWithFallback, createDealWithFallback, createClientWithFallback, createPolicyWithFallback, createPaymentWithFallback, updateClientWithFallback } from './services/dataLoader';
 import { normalizePaymentStatus } from './utils/paymentStatus';
 
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
@@ -123,58 +124,43 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const [clientsData, dealsData, policiesData, tasksData] = await Promise.all([
-          crmApi.fetchClients({ limit: 100 }),
-          crmApi.fetchDeals({ limit: 100 }),
-          crmApi.fetchPolicies({ limit: 100 }),
-          crmApi.fetchTasks({ limit: 100 }),
-        ]);
+        const data = await loadDataWithFallback();
 
-        setClients(clientsData);
+        setClients(data.clients);
 
-        const normalizedDeals: Deal[] = dealsData.map((deal) => ({
+        const normalizedDeals: Deal[] = data.deals.map((deal) => ({
           ...deal,
-          tasks: (deal as any).tasks ?? [],
-          notes: (deal as any).notes ?? [],
-          quotes: (deal as any).quotes ?? [],
-          files: (deal as any).files ?? [],
-          chat: (deal as any).chat ?? [],
-          activityLog: (deal as any).activityLog ?? [],
+          tasks: deal.tasks ?? [],
+          notes: deal.notes ?? [],
+          quotes: deal.quotes ?? [],
+          files: deal.files ?? [],
+          chat: deal.chat ?? [],
+          activityLog: deal.activityLog ?? [],
         }));
 
         setDeals(normalizedDeals);
+        setPolicies(data.policies);
 
-        setPolicies(policiesData);
-
-        const paymentsResponses = await Promise.all(
-          policiesData
-            .filter((policy) => Boolean(policy.dealId))
-            .map(async (policy) => {
-              try {
-                return await crmApi.fetchPayments(policy.dealId as string, policy.id);
-              } catch (paymentError) {
-                console.error(`Failed to fetch payments for policy ${policy.id}:`, paymentError);
-                return [];
-              }
-            }),
-        );
-
-        const normalizedPayments = paymentsResponses
-          .flat()
-          .map((payment) => ({
-            ...payment,
-            status: normalizePaymentStatus(payment.status),
-          }));
+        const normalizedPayments = data.payments.map((payment) => ({
+          ...payment,
+          status: normalizePaymentStatus(payment.status),
+        }));
 
         setPayments(normalizedPayments);
-        setTasks(tasksData);
+        setFinancialTransactions(data.financialTransactions);
+        setTasks(data.tasks);
 
-        if (dealsData.length > 0) {
-          setSelectedDealId(dealsData[0].id);
+        if (data.isMocked) {
+          console.warn('[App] Using mock data - backend API is not available');
+          setError('⚠️ Данные из demo режима (backend недоступен)');
+        }
+
+        if (normalizedDeals.length > 0) {
+          setSelectedDealId(normalizedDeals[0].id);
         }
       } catch (err: any) {
         console.error('Failed to load data:', err);
-        setError('Ошибка загрузки данных. Пожалуйста, проверьте соединение с API.');
+        setError('Ошибка загрузки данных.');
       } finally {
         setLoading(false);
       }
