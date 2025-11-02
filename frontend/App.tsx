@@ -14,7 +14,7 @@ import { EditClientForm } from './components/EditClientForm';
 import {
   Client, Deal, Policy, Payment, FinancialTransaction, DealStatus, Quote, Task
 } from './types';
-import { generateMockData } from './services/geminiService';
+import * as crmApi from './services/crmApi';
 
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
 type Modal = 'addDeal' | 'addClient' | { type: 'editClient'; client: Client } | null;
@@ -29,21 +29,45 @@ const App: React.FC = () => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [financialTransactions, setFinancialTransactions] = useState<FinancialTransaction[]>([]);
-  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
 
-  const ALL_USERS = useMemo(() => [...new Set(deals.map(deal => deal.owner))], [deals]);
+  const ALL_USERS = useMemo(() => [...new Set(deals.map(deal => deal.owner).filter(Boolean))], [deals]);
 
+  // Загружаем реальные данные из API при монтировании компонента
   useEffect(() => {
-    const { clients, deals, policies, payments, financialTransactions } = generateMockData();
-    setClients(clients);
-    setDeals(deals);
-    setPolicies(policies);
-    setPayments(payments);
-    setFinancialTransactions(financialTransactions);
-    if (deals.length > 0) {
-      setSelectedDealId(deals[0].id);
-    }
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Загружаем данные параллельно
+        const [clientsData, dealsData, policiesData] = await Promise.all([
+          crmApi.fetchClients({ limit: 100 }),
+          crmApi.fetchDeals({ limit: 100 }),
+          crmApi.fetchPolicies({ limit: 100 }),
+        ]);
+
+        setClients(clientsData);
+        setDeals(dealsData);
+        setPolicies(policiesData);
+
+        if (dealsData.length > 0) {
+          setSelectedDealId(dealsData[0].id);
+        }
+      } catch (err: any) {
+        console.error('Failed to load data:', err);
+        setError('Ошибка загрузки данных. Пожалуйста, проверьте соединение с API.');
+        // Fallback to mock data if API fails
+        // const { clients, deals, policies, payments, financialTransactions } = generateMockData();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
   
   const selectedDeal = useMemo(() => {
@@ -280,6 +304,36 @@ const App: React.FC = () => {
       if (modal === 'addClient') return <AddClientForm onAddClient={handleAddClient} onClose={() => setModal(null)} />;
       if (typeof modal === 'object' && modal.type === 'editClient') return <EditClientForm client={modal.client} onUpdateClient={handleUpdateClient} onClose={() => setModal(null)} />;
       return null;
+  }
+
+  // Loading состояние
+  if (loading) {
+    return (
+      <div className="h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Загружаю данные...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error состояние
+  if (error) {
+    return (
+      <div className="h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center bg-white p-6 rounded-lg shadow-lg max-w-md">
+          <p className="text-red-600 font-semibold mb-2">⚠️ Ошибка</p>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
