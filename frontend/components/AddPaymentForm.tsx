@@ -1,32 +1,46 @@
 import React, { useState } from 'react';
 import { Payment } from '../types';
+import { normalizePaymentStatus, paymentStatusOptions } from '../utils/paymentStatus';
 
 interface AddPaymentFormProps {
   policyId: string;
-  onAddPayment: (paymentData: Omit<Payment, 'id' | 'clientId' | 'policyId'>) => void;
+  onAddPayment: (paymentData: Omit<Payment, 'id' | 'clientId' | 'policyId'>) => Promise<void>;
   onClose: () => void;
 }
-
-const PAYMENT_STATUSES: Payment['status'][] = ['Ожидает', 'Оплачен', 'Просрочен'];
 
 export const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ policyId, onAddPayment, onClose }) => {
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [status, setStatus] = useState<Payment['status']>('Ожидает');
+  const [status, setStatus] = useState<Payment['status']>('pending');
   const [error, setError] = useState('');
+  const [isSubmitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !dueDate) {
       setError('Пожалуйста, заполните все обязательные поля: Сумма и Срок оплаты.');
       return;
     }
-    onAddPayment({
-      amount: parseFloat(amount) || 0,
-      dueDate,
-      status,
-    });
-    onClose();
+    setError('');
+    setSubmitting(true);
+
+    try {
+      await onAddPayment({
+        amount: parseFloat(amount) || 0,
+        dueDate,
+        status: normalizePaymentStatus(status),
+      });
+      onClose();
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось создать платеж. Попробуйте ещё раз.';
+      setError(typeof message === 'string' ? message : 'Не удалось создать платеж.');
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   const inputStyle = "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring focus:ring-sky-200 focus:ring-opacity-50 text-sm";
@@ -56,15 +70,37 @@ export const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ policyId, onAddP
           </div>
           <div>
             <label htmlFor="status" className={labelStyle}>Статус</label>
-            <select id="status" value={status} onChange={(e) => setStatus(e.target.value as Payment['status'])} className={inputStyle}>
-              {PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            <select
+              id="status"
+              value={normalizePaymentStatus(status)}
+              onChange={(e) => setStatus(e.target.value as Payment['status'])}
+              className={inputStyle}
+            >
+              {paymentStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
         <div className="flex justify-end pt-4 space-x-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">Отмена</button>
-          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700">Добавить</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-60"
+            disabled={isSubmitting}
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700 disabled:opacity-60"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Сохраняю…' : 'Добавить'}
+          </button>
         </div>
       </form>
     </div>

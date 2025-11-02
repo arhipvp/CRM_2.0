@@ -6,6 +6,8 @@
 import { apiClient } from './apiClient';
 import type {
   Client,
+  ClientCreateInput,
+  ClientUpdateInput,
   Deal,
   Policy,
   Payment,
@@ -53,7 +55,7 @@ export async function getClient(clientId: string): Promise<Client> {
 /**
  * Создать нового клиента
  */
-export async function createClient(client: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>): Promise<Client> {
+export async function createClient(client: ClientCreateInput): Promise<Client> {
   try {
     const response = await apiClient.post<Client>(`/crm/clients`, client);
     return response.data;
@@ -66,7 +68,7 @@ export async function createClient(client: Omit<Client, 'id' | 'createdAt' | 'up
 /**
  * Обновить клиента
  */
-export async function updateClient(clientId: string, updates: Partial<Client>): Promise<Client> {
+export async function updateClient(clientId: string, updates: ClientUpdateInput): Promise<Client> {
   try {
     const response = await apiClient.patch<Client>(`/crm/clients/${clientId}`, updates);
     return response.data;

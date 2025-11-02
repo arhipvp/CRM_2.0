@@ -81,10 +81,10 @@
   - Валидация полей
   - Error handling (неверные credentials, connection errors)
   - "Запомнить меня" (localStorage vs sessionStorage)
-- Обновить `App.tsx`:
-  - Обернуть в `<AuthProvider>`
-  - Protected routes: редирект на `/login` если не авторизован
-  - Public routes: `/login`
+- [x] Обновить `App.tsx`:
+    - [x] Обернуть в `<AuthProvider>`
+    - [x] Protected routes: редирект на `/login` если не авторизован
+    - [x] Public routes: `/login`
 
 ### 3.3 Роли и права (опционально)
 - Получать роли пользователя из Auth сервиса
@@ -103,15 +103,19 @@
   - Error states с retry кнопкой
 
 ### 4.2 CRUD операции по компонентам
-- **ClientsView.tsx**:
-  - `useEffect` → `crmApi.fetchClients()`
-  - Create/Edit формы → `crmApi.createClient()` / `updateClient()`
-  - Оптимистичные обновления UI
+  - **ClientsView.tsx**:
+    - [x] `useEffect` → `crmApi.fetchClients()`
+    - [x] Create/Edit формы → `crmApi.createClient()` / `updateClient()`
+    - [ ] Оптимистичные обновления UI
 - **DealsView.tsx**:
   - Аналогично для deals
   - Добавить загрузку journal entries
-- **PoliciesView.tsx**, **PaymentsView.tsx**, **TasksView.tsx**:
-  - Полная миграция на API
+- **PoliciesView.tsx**:
+    - [x] Полная миграция на API
+- **PaymentsView.tsx**:
+    - [x] Полная миграция на API
+- **TasksView.tsx**:
+    - [x] Перевести на `crmApi.fetchTasks()`, убрать зависимость от `deal.tasks`
 
 ### 4.3 Обработка ошибок
 - Создать `frontend/components/ErrorBoundary.tsx`

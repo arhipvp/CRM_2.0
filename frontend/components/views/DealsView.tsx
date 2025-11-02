@@ -9,6 +9,7 @@ interface DealsViewProps {
   deals: Deal[];
   clients: Client[];
   policies: Policy[];
+  tasks: Task[];
   payments: Payment[];
   financialTransactions: FinancialTransaction[];
   selectedDeal: Deal | null;
@@ -27,8 +28,8 @@ interface DealsViewProps {
   onDeleteFile: (dealId: string, fileId: string) => void;
   onAddPolicy: (dealId: string, policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>, installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>, policyClientId: string) => void;
   onAddPayment: (policyId: string, paymentData: Omit<Payment, 'id' | 'policyId' | 'clientId'>) => void;
-  onAddTask: (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => void;
-  onToggleTask: (dealId: string, taskId: string) => void;
+  onAddTask: (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => Promise<void>;
+  onToggleTask: (dealId: string, taskId: string) => Promise<void>;
   onAddFinancialTransaction: (transactionData: Omit<FinancialTransaction, 'id'>) => void;
   onAddChatMessage: (dealId: string, text: string) => void;
 }
@@ -38,6 +39,7 @@ export const DealsView: React.FC<DealsViewProps> = (props) => {
     deals,
     clients,
     policies,
+    tasks,
     selectedDeal,
     onSelectDeal,
     onUpdateReviewDate,
@@ -45,6 +47,7 @@ export const DealsView: React.FC<DealsViewProps> = (props) => {
   
   const selectedClient = selectedDeal ? clients.find(c => c.id === selectedDeal.clientId) || null : null;
   const dealPolicies = selectedDeal ? policies.filter(p => p.dealId === selectedDeal.id) : [];
+  const dealTasks = selectedDeal ? tasks.filter(task => task.dealId === selectedDeal.id) : [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
@@ -52,6 +55,7 @@ export const DealsView: React.FC<DealsViewProps> = (props) => {
         <DealList
           deals={deals}
           clients={clients}
+          tasks={tasks}
           selectedDealId={selectedDeal?.id || null}
           onSelectDeal={onSelectDeal}
           onUpdateReviewDate={onUpdateReviewDate}
@@ -63,6 +67,7 @@ export const DealsView: React.FC<DealsViewProps> = (props) => {
           deal={selectedDeal}
           client={selectedClient}
           policies={dealPolicies}
+          tasks={dealTasks}
           allClients={clients}
         />
       </div>

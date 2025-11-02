@@ -1,8 +1,17 @@
 /**
- * Main App component with authentication and state management
- * Uses Auth Context for authentication state
+ * Основной компонент приложения с роутингом и проверкой аутентификации
  */
 import React, { useState, useMemo, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login } from './components/Login';
 import { MainLayout } from './components/MainLayout';
@@ -17,25 +26,85 @@ import { AddDealForm } from './components/AddDealForm';
 import { AddClientForm } from './components/AddClientForm';
 import { EditClientForm } from './components/EditClientForm';
 import {
-  Client, Deal, Policy, Payment, FinancialTransaction, DealStatus, Quote, Task
+  Client,
+  ClientCreateInput,
+  ClientUpdateInput,
+  Deal,
+  Policy,
+  Payment,
+  FinancialTransaction,
+  DealStatus,
+  Quote,
+  Task,
 } from './types';
 import * as crmApi from './services/crmApi';
+import { normalizePaymentStatus } from './utils/paymentStatus';
 
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
 type Modal = 'addDeal' | 'addClient' | { type: 'editClient'; client: Client } | null;
 
-/**
- * Main content component (requires authentication)
- */
-const AppContent: React.FC = () => {
-  const { logout } = useAuth();
+const AVAILABLE_VIEWS: View[] = ['deals', 'clients', 'policies', 'payments', 'finance', 'tasks', 'settings'];
 
-  const [view, setView] = useState<View>('deals');
+const resolveView = (value?: string): View => {
+  if (!value) {
+    return 'deals';
+  }
+  return AVAILABLE_VIEWS.includes(value as View) ? (value as View) : 'deals';
+};
+
+const LoadingScreen: React.FC<{ message: string }> = ({ message }) => (
+  <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p className="text-gray-600">{message}</p>
+    </div>
+  </div>
+);
+
+/**
+ * Компонент, защищающий приватные маршруты
+ */
+const RequireAuth: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return <LoadingScreen message="Проверяю аутентификацию..." />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <Outlet />;
+};
+
+/**
+ * Основной layout авторизованной части приложения
+ */
+const Dashboard: React.FC = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const { view: viewParam } = useParams<{ view?: string }>();
+  const currentView = useMemo(() => resolveView(viewParam), [viewParam]);
+
+  /**
+   * Если маршрут не указан или некорректен — перенаправляем на /deals
+   */
+  useEffect(() => {
+    if (!viewParam) {
+      navigate('/deals', { replace: true });
+    } else if (!AVAILABLE_VIEWS.includes(viewParam as View)) {
+      navigate('/deals', { replace: true });
+    }
+  }, [viewParam, navigate]);
+
   const [modal, setModal] = useState<Modal>(null);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [financialTransactions, setFinancialTransactions] = useState<FinancialTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -43,20 +112,22 @@ const AppContent: React.FC = () => {
 
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
 
-  const ALL_USERS = useMemo(() => [...new Set(deals.map(deal => deal.owner).filter(Boolean))], [deals]);
+  const ALL_USERS = useMemo(
+    () => [...new Set(deals.map((deal) => deal.owner).filter(Boolean))],
+    [deals],
+  );
 
-  // Загружаем реальные данные из API при монтировании компонента
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Загружаем данные параллельно
-        const [clientsData, dealsData, policiesData] = await Promise.all([
+        const [clientsData, dealsData, policiesData, tasksData] = await Promise.all([
           crmApi.fetchClients({ limit: 100 }),
           crmApi.fetchDeals({ limit: 100 }),
           crmApi.fetchPolicies({ limit: 100 }),
+          crmApi.fetchTasks({ limit: 100 }),
         ]);
 
         setClients(clientsData);
@@ -72,7 +143,31 @@ const AppContent: React.FC = () => {
         }));
 
         setDeals(normalizedDeals);
+
         setPolicies(policiesData);
+
+        const paymentsResponses = await Promise.all(
+          policiesData
+            .filter((policy) => Boolean(policy.dealId))
+            .map(async (policy) => {
+              try {
+                return await crmApi.fetchPayments(policy.dealId as string, policy.id);
+              } catch (paymentError) {
+                console.error(`Failed to fetch payments for policy ${policy.id}:`, paymentError);
+                return [];
+              }
+            }),
+        );
+
+        const normalizedPayments = paymentsResponses
+          .flat()
+          .map((payment) => ({
+            ...payment,
+            status: normalizePaymentStatus(payment.status),
+          }));
+
+        setPayments(normalizedPayments);
+        setTasks(tasksData);
 
         if (dealsData.length > 0) {
           setSelectedDealId(dealsData[0].id);
@@ -88,199 +183,333 @@ const AppContent: React.FC = () => {
     loadData();
   }, []);
 
+  const handleNavigate = (view: View) => {
+    navigate(view === 'deals' ? '/deals' : `/${view}`);
+  };
+
   const selectedDeal = useMemo(() => {
     if (!selectedDealId) return null;
-    return deals.find(d => d.id === selectedDealId) || null;
+    return deals.find((d) => d.id === selectedDealId) || null;
   }, [selectedDealId, deals]);
 
   const handleSelectDeal = (deal: Deal) => setSelectedDealId(deal.id);
 
   const handleUpdateReviewDate = (dealId: string, newDate: string) => {
-    setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, nextReviewDate: newDate } : d));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) => (d.id === dealId ? { ...d, nextReviewDate: newDate } : d)),
+    );
   };
 
   const handleUpdateDealStatus = (dealId: string, newStatus: DealStatus, reason?: string) => {
-      setDeals(prevDeals => prevDeals.map(d => {
-          if (d.id !== dealId) return d;
-          const newDeal = { ...d, status: newStatus };
-          if (newStatus === 'Закрыта' && reason) {
-              const newNote = {
-                  id: `note-${Date.now()}`,
-                  content: `Сделка закрыта. Причина: ${reason}`,
-                  createdAt: new Date().toLocaleDateString('ru-RU'),
-                  status: 'archived' as const
-              };
-              newDeal.notes = [...newDeal.notes, newNote];
-          }
-          return newDeal;
-      }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) => {
+        if (d.id !== dealId) return d;
+        const newDeal = { ...d, status: newStatus };
+        if (newStatus === 'Закрыта' && reason) {
+          const newNote = {
+            id: `note-${Date.now()}`,
+            content: `Сделка закрыта. Причина: ${reason}`,
+            createdAt: new Date().toLocaleDateString('ru-RU'),
+            status: 'archived' as const,
+          };
+          newDeal.notes = [...newDeal.notes, newNote];
+        }
+        return newDeal;
+      }),
+    );
   };
 
   const handleUpdateDealTitle = (dealId: string, newTitle: string) => {
-      setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, title: newTitle } : d));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) => (d.id === dealId ? { ...d, title: newTitle } : d)),
+    );
   };
 
-  const handleUpdateDealClient = (dealId: string, newClientId: string) => {
-      setDeals(prevDeals => prevDeals.map(d => d.id === dealId ? { ...d, clientId: newClientId } : d));
+  const handleUpdateDealClient = (dealId: string, clientId: string) => {
+    setDeals((prevDeals) =>
+      prevDeals.map((d) => (d.id === dealId ? { ...d, clientId } : d)),
+    );
   };
 
   const handleAddNote = (dealId: string, content: string) => {
-    setDeals(prevDeals => prevDeals.map(d => {
-      if (d.id !== dealId) return d;
-      const newNote = { id: `note-${Date.now()}`, content, createdAt: new Date().toLocaleDateString('ru-RU'), status: 'active' as const };
-      return { ...d, notes: [...d.notes, newNote] };
-    }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) =>
+        d.id === dealId
+          ? {
+              ...d,
+              notes: [
+                ...(d.notes ?? []),
+                {
+                  id: `note-${Date.now()}`,
+                  content,
+                  createdAt: new Date().toLocaleDateString('ru-RU'),
+                  status: 'active' as const,
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   };
 
   const onUpdateNoteStatus = (dealId: string, noteId: string, status: 'active' | 'archived') => {
-      setDeals(prevDeals => prevDeals.map(d => {
-          if (d.id !== dealId) return d;
-          return { ...d, notes: d.notes.map(n => n.id === noteId ? {...n, status} : n) };
-      }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) => {
+        if (d.id !== dealId) return d;
+        return {
+          ...d,
+          notes: (d.notes ?? []).map((note) =>
+            note.id === noteId ? { ...note, status } : note,
+          ),
+        };
+      }),
+    );
   };
 
   const handleAddQuote = (dealId: string, quoteData: Omit<Quote, 'id'>) => {
-    setDeals(prevDeals => prevDeals.map(d => {
-        if (d.id !== dealId) return d;
-        const newQuote = { ...quoteData, id: `quote-${Date.now()}` };
-        return { ...d, quotes: [...d.quotes, newQuote] };
-    }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) =>
+        d.id === dealId
+          ? { ...d, quotes: [...(d.quotes ?? []), { ...quoteData, id: `quote-${Date.now()}` }] }
+          : d,
+      ),
+    );
   };
 
   const handleDeleteQuote = (dealId: string, quoteId: string) => {
-      setDeals(prevDeals => prevDeals.map(d => {
-          if (d.id !== dealId) return d;
-          return { ...d, quotes: d.quotes.filter(q => q.id !== quoteId) };
-      }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) =>
+        d.id === dealId
+          ? { ...d, quotes: (d.quotes ?? []).filter((quote) => quote.id !== quoteId) }
+          : d,
+      ),
+    );
   };
 
   const handleAddFile = (dealId: string, file: File) => {
-      setDeals(prevDeals => prevDeals.map(d => {
-          if (d.id !== dealId) return d;
-          const newFile = { id: `file-${Date.now()}`, name: file.name, size: file.size, url: '#' };
-          return { ...d, files: [...d.files, newFile] };
-      }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) =>
+        d.id === dealId
+          ? {
+              ...d,
+              files: [
+                ...(d.files ?? []),
+                {
+                  id: `file-${Date.now()}`,
+                  name: file.name,
+                  size: file.size,
+                  url: '#',
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   };
 
   const handleDeleteFile = (dealId: string, fileId: string) => {
-       setDeals(prevDeals => prevDeals.map(d => {
-          if (d.id !== dealId) return d;
-          return { ...d, files: d.files.filter(f => f.id !== fileId) };
-      }));
+    setDeals((prevDeals) =>
+      prevDeals.map((d) =>
+        d.id === dealId
+          ? { ...d, files: (d.files ?? []).filter((file) => file.id !== fileId) }
+          : d,
+      ),
+    );
   };
 
-    const handleAddPolicy = (dealId: string, policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>, installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>, policyClientId: string) => {
-        const newPolicyId = `policy-${Date.now()}`;
-        const newPolicy: Policy = { ...policyData, id: newPolicyId, clientId: policyClientId, dealId };
-        const newPayments: Payment[] = installments.map((inst, index) => (
-            {
-                ...inst,
-                id: `payment-${newPolicyId}-${index}`,
-                policyId: newPolicyId,
-                clientId: policyClientId,
-                status: 'Ожидает'
-            }
-        ));
-        setPolicies(prev => [...prev, newPolicy]);
-        setPayments(prev => [...prev, ...newPayments]);
-    };
+  const handleAddPolicy = async (
+    dealId: string,
+    policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>,
+    installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>,
+    policyClientId: string,
+  ) => {
+    try {
+      const createdPolicy = await crmApi.createPolicy({
+        ...policyData,
+        clientId: policyClientId,
+        dealId,
+      });
 
-    const handleAddPayment = (policyId: string, paymentData: Omit<Payment, 'id' | 'policyId' | 'clientId'>) => {
-        const policy = policies.find(p => p.id === policyId);
-        if (!policy) return;
-        const newPayment: Payment = {
-            ...paymentData,
-            id: `payment-${Date.now()}`,
-            policyId,
-            clientId: policy.clientId
+      setPolicies((prev) => [createdPolicy, ...prev]);
+
+      if (installments.length > 0) {
+        const createdPayments = await Promise.all(
+          installments.map((inst) =>
+            crmApi.createPayment(dealId, createdPolicy.id, {
+              ...inst,
+              clientId: policyClientId,
+              status: normalizePaymentStatus('pending'),
+            }),
+          ),
+        );
+
+        setPayments((prev) => [
+          ...prev,
+          ...createdPayments.map((payment) => ({
+            ...payment,
+            status: normalizePaymentStatus(payment.status),
+          })),
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to create policy:', error);
+      throw error;
+    }
+  };
+
+  const handleAddPayment = async (
+    policyId: string,
+    paymentData: Omit<Payment, 'id' | 'policyId' | 'clientId'>,
+  ) => {
+    const policy = policies.find((p) => p.id === policyId);
+    if (!policy || !policy.dealId) {
+      throw new Error('Не удалось определить сделку для выбранного полиса.');
+    }
+
+    try {
+      const createdPayment = await crmApi.createPayment(policy.dealId, policyId, {
+        ...paymentData,
+        clientId: policy.clientId,
+        status: normalizePaymentStatus(paymentData.status),
+      });
+
+      setPayments((prev) => [
+        ...prev,
+        {
+          ...createdPayment,
+          status: normalizePaymentStatus(createdPayment.status),
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to create payment:', error);
+      throw error;
+    }
+  };
+
+  const handleAddTask = async (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => {
+    const relatedDeal = deals.find((d) => d.id === dealId);
+    try {
+      const payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'> = {
+        ...taskData,
+        dealId,
+        clientId: taskData.clientId ?? relatedDeal?.clientId,
+        title: taskData.title ?? taskData.description ?? 'Задача',
+        description: taskData.description,
+        assignee: taskData.assignee,
+        assigneeName: taskData.assignee,
+        dueDate: taskData.dueDate,
+        scheduledFor: taskData.scheduledFor,
+        status: 'open',
+      };
+
+      const createdTask = await crmApi.createTask(payload);
+      setTasks((prev) => [createdTask, ...prev]);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      throw error;
+    }
+  };
+
+  const handleToggleTask = async (dealId: string, taskId: string) => {
+    const existingTask = tasks.find((task) => task.id === taskId);
+    if (!existingTask) {
+      return;
+    }
+
+    const nextCompleted = !existingTask.completed;
+
+    try {
+      const updatedTask = await crmApi.updateTask(taskId, {
+        completed: nextCompleted,
+        status: nextCompleted ? 'completed' : 'open',
+      });
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? updatedTask : task)));
+    } catch (error) {
+      console.error(`Failed to toggle task ${taskId}:`, error);
+      throw error;
+    }
+  };
+
+  const handleAddFinancialTransaction = (transactionData: Omit<FinancialTransaction, 'id'>) => {
+    const newTransaction = { ...transactionData, id: `fin-${Date.now()}` };
+    setFinancialTransactions((prev) => [...prev, newTransaction]);
+  };
+
+  const handleAddChatMessage = (dealId: string, text: string) => {
+    setDeals((prev) =>
+      prev.map((d) => {
+        if (d.id !== dealId) return d;
+        const newMessage = {
+          id: `chat-${Date.now()}`,
+          text,
+          sender: 'Пользователь',
+          timestamp: new Date().toISOString(),
         };
-        setPayments(prev => [...prev, newPayment]);
-    };
+        return { ...d, chat: [...(d.chat ?? []), newMessage] };
+      }),
+    );
+  };
 
-    const handleAddTask = (dealId: string, taskData: Omit<Task, 'id' | 'completed'>) => {
-        setDeals(prev => prev.map(d => {
-            if (d.id !== dealId) return d;
-            const newTask: Task = { ...taskData, id: `task-${Date.now()}`, completed: false, dealId };
-            return { ...d, tasks: [...(d.tasks ?? []), newTask] };
-        }));
-    };
+  const handleMarkAsPaid = (transactionId: string, paymentDate: string) => {
+    setFinancialTransactions((prev) =>
+      prev.map((t) => (t.id === transactionId ? { ...t, paymentDate } : t)),
+    );
+  };
 
-    const handleToggleTask = (dealId: string, taskId: string) => {
-         setDeals(prev => prev.map(d => {
-            if (d.id !== dealId) return d;
-            const currentTasks = d.tasks ?? [];
-            return {
-              ...d,
-              tasks: currentTasks.map(t =>
-                t.id === taskId ? { ...t, completed: !t.completed } : t
-              ),
-            };
-        }));
-    };
+  const handleUpdateAmount = (transactionId: string, newAmount: number) => {
+    setFinancialTransactions((prev) =>
+      prev.map((t) => (t.id === transactionId ? { ...t, amount: newAmount } : t)),
+    );
+  };
 
-    const handleAddFinancialTransaction = (transactionData: Omit<FinancialTransaction, 'id'>) => {
-        const newTransaction = { ...transactionData, id: `fin-${Date.now()}` };
-        setFinancialTransactions(prev => [...prev, newTransaction]);
-    };
+  const handleSelectDealFromClientView = (dealId: string) => {
+    setSelectedDealId(dealId);
+    navigate('/deals');
+  };
 
-    const handleAddChatMessage = (dealId: string, text: string) => {
-        setDeals(prev => prev.map(d => {
-            if (d.id !== dealId) return d;
-            const newMessage = { id: `chat-${Date.now()}`, text, sender: 'Пользователь', timestamp: new Date().toISOString() };
-            return { ...d, chat: [...d.chat, newMessage] };
-        }));
-    };
+  const handleAddClient = async (clientData: ClientCreateInput) => {
+    const createdClient = await crmApi.createClient(clientData);
+    setClients((prev) => [createdClient, ...prev]);
+  };
 
-    const handleMarkAsPaid = (transactionId: string, paymentDate: string) => {
-        setFinancialTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, paymentDate } : t));
-    };
+  const handleUpdateClient = async (clientId: string, updates: ClientUpdateInput) => {
+    const updatedClient = await crmApi.updateClient(clientId, updates);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? updatedClient : c)));
+  };
 
-    const handleUpdateAmount = (transactionId: string, newAmount: number) => {
-        setFinancialTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, amount: newAmount } : t));
+  const handleAddDeal = (data: { title: string; clientId: string }) => {
+    const newDeal: Deal = {
+      id: `deal-${Date.now()}`,
+      title: data.title,
+      clientId: data.clientId,
+      status: 'Новая' as DealStatus,
+      owner: 'Продавец 1',
+      summary: 'Новая сделка, детали не заполнены.',
+      nextReviewDate: new Date().toISOString().split('T')[0],
+      tasks: [],
+      notes: [],
+      quotes: [],
+      files: [],
+      chat: [],
+      activityLog: [],
+      description: '',
+      ownerId: null,
+      nextReviewAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isDeleted: false,
     };
+    setDeals((prev) => [newDeal, ...prev]);
+    setSelectedDealId(newDeal.id);
+    setModal(null);
+    navigate('/deals');
+  };
 
-    const handleSelectDealFromClientView = (dealId: string) => {
-        setSelectedDealId(dealId);
-        setView('deals');
-    };
-
-    const handleAddClient = (clientData: Omit<Client, 'id'>) => {
-        const newClient: Client = { ...clientData, id: `client-${Date.now()}`};
-        setClients(prev => [...prev, newClient]);
-        setModal(null);
-    };
-
-    const handleUpdateClient = (clientData: Client) => {
-        setClients(prev => prev.map(c => c.id === clientData.id ? clientData : c));
-        setModal(null);
-    };
-
-    const handleAddDeal = (data: { title: string; clientId: string }) => {
-        const newDeal: Deal = {
-            id: `deal-${Date.now()}`,
-            title: data.title,
-            clientId: data.clientId,
-            status: 'Новая',
-            owner: 'Продавец 1',
-            summary: 'Новая сделка, детали не заполнены.',
-            nextReviewDate: new Date().toISOString().split('T')[0],
-            tasks: [],
-            notes: [],
-            quotes: [],
-            files: [],
-            chat: [],
-            activityLog: [],
-        };
-        setDeals(prev => [newDeal, ...prev]);
-        setSelectedDealId(newDeal.id);
-        setModal(null);
-        setView('deals');
-    };
-
-  const renderView = () => {
-    switch(view) {
+  const renderView = (view: View) => {
+    switch (view) {
       case 'deals':
-        return <DealsView
+        return (
+          <DealsView
             deals={deals}
             clients={clients}
             policies={policies}
@@ -306,17 +535,34 @@ const AppContent: React.FC = () => {
             onToggleTask={handleToggleTask}
             onAddFinancialTransaction={handleAddFinancialTransaction}
             onAddChatMessage={handleAddChatMessage}
-        />;
+          />
+        );
       case 'clients':
-        return <ClientsView clients={clients} deals={deals} onEditClient={(client) => setModal({ type: 'editClient', client })} onSelectDeal={handleSelectDealFromClientView} />;
+        return (
+          <ClientsView
+            clients={clients}
+            deals={deals}
+            onEditClient={(client) => setModal({ type: 'editClient', client })}
+            onSelectDeal={handleSelectDealFromClientView}
+          />
+        );
       case 'policies':
         return <PoliciesView policies={policies} clients={clients} payments={payments} />;
       case 'payments':
         return <PaymentsView payments={payments} policies={policies} clients={clients} />;
       case 'finance':
-        return <FinanceView financialTransactions={financialTransactions} policies={policies} deals={deals} clients={clients} onMarkAsPaid={handleMarkAsPaid} onUpdateAmount={handleUpdateAmount}/>;
+        return (
+          <FinanceView
+            financialTransactions={financialTransactions}
+            policies={policies}
+            deals={deals}
+            clients={clients}
+            onMarkAsPaid={handleMarkAsPaid}
+            onUpdateAmount={handleUpdateAmount}
+          />
+        );
       case 'tasks':
-        return <TasksView deals={deals} clients={clients} policies={policies} />;
+        return <TasksView deals={deals} clients={clients} policies={policies} tasks={tasks} />;
       case 'settings':
         return <SettingsView />;
       default:
@@ -325,26 +571,26 @@ const AppContent: React.FC = () => {
   };
 
   const renderModal = () => {
-      if (!modal) return null;
-      if (modal === 'addDeal') return <AddDealForm clients={clients} onAddDeal={handleAddDeal} onClose={() => setModal(null)} />;
-      if (modal === 'addClient') return <AddClientForm onAddClient={handleAddClient} onClose={() => setModal(null)} />;
-      if (typeof modal === 'object' && modal.type === 'editClient') return <EditClientForm client={modal.client} onUpdateClient={handleUpdateClient} onClose={() => setModal(null)} />;
-      return null;
-  }
+    if (!modal) return null;
+    if (modal === 'addDeal')
+      return <AddDealForm clients={clients} onAddDeal={handleAddDeal} onClose={() => setModal(null)} />;
+    if (modal === 'addClient')
+      return <AddClientForm onAddClient={handleAddClient} onClose={() => setModal(null)} />;
+    if (typeof modal === 'object' && modal.type === 'editClient')
+      return (
+        <EditClientForm
+          client={modal.client}
+          onUpdateClient={handleUpdateClient}
+          onClose={() => setModal(null)}
+        />
+      );
+    return null;
+  };
 
-  // Loading состояние
   if (loading) {
-    return (
-      <div className="h-screen bg-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загружаю данные...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Загружаю данные..." />;
   }
 
-  // Error состояние
   if (error) {
     return (
       <div className="h-screen bg-slate-100 flex items-center justify-center">
@@ -361,7 +607,7 @@ const AppContent: React.FC = () => {
             onClick={() => logout()}
             className="bg-slate-500 text-white px-4 py-2 rounded hover:bg-slate-600"
           >
-            Выход
+            Выйти
           </button>
         </div>
       </div>
@@ -371,12 +617,12 @@ const AppContent: React.FC = () => {
   return (
     <div className="h-screen bg-slate-100 font-sans">
       <MainLayout
-        activeView={view}
-        onNavigate={setView}
+        activeView={currentView}
+        onNavigate={handleNavigate}
         onAddDeal={() => setModal('addDeal')}
         onAddClient={() => setModal('addClient')}
       >
-        {renderView()}
+        {renderView(currentView)}
       </MainLayout>
       {renderModal()}
     </div>
@@ -384,38 +630,28 @@ const AppContent: React.FC = () => {
 };
 
 /**
- * Login wrapper component
+ * Отрисовка маршрутов приложения
  */
-const AppWrapper: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Проверяю аутентификацию...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
-  return <AppContent />;
-};
+const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="/login" element={<Login />} />
+    <Route element={<RequireAuth />}>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/:view" element={<Dashboard />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/deals" replace />} />
+  </Routes>
+);
 
 /**
- * Main App component with AuthProvider
+ * Точка входа приложения
  */
-const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <AppWrapper />
-    </AuthProvider>
-  );
-};
+const App: React.FC = () => (
+  <AuthProvider>
+    <Router>
+      <AppRoutes />
+    </Router>
+  </AuthProvider>
+);
 
 export default App;

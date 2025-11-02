@@ -3,15 +3,21 @@ import { Policy, Quote, Payment, Client } from '../types';
 
 interface AddPolicyFormProps {
   sourceQuote?: Quote;
+  dealId: string;
   dealClientId: string;
   clients: Client[];
-  onAddPolicy: (dealId: string, policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>, installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>, policyClientId: string) => void;
+  onAddPolicy: (
+    dealId: string,
+    policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>,
+    installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>,
+    policyClientId: string
+  ) => Promise<void>;
   onClose: () => void;
 }
 
 const POLICY_TYPES: Policy['type'][] = ['Авто', 'Имущество', 'Жизнь', 'Здоровье'];
 
-export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealClientId, clients, onAddPolicy, onClose }) => {
+export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealId, dealClientId, clients, onAddPolicy, onClose }) => {
   const [policyNumber, setPolicyNumber] = useState('');
   const [type, setType] = useState<Policy['type']>(sourceQuote?.insuranceType === 'КАСКО' ? 'Авто' : 'Имущество');
   const [startDate, setStartDate] = useState('');
@@ -23,6 +29,7 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealC
   const [vin, setVin] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const [installments, setInstallments] = useState([{ amount: sourceQuote?.premium.toString() || '', dueDate: '' }]);
   
@@ -69,7 +76,7 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealC
     setInstallments(newInstallments);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!policyClientId || !policyNumber.trim() || !counterparty.trim() || !salesChannel.trim() || !startDate || !endDate) {
       setError('Пожалуйста, заполните обязательные поля: Клиент, Номер полиса, Контрагент, Канал продажи и Период действия.');
@@ -80,19 +87,38 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealC
         .map(inst => ({...inst, amount: parseFloat(inst.amount) || 0}))
         .filter(inst => inst.amount > 0 && inst.dueDate);
 
-    onAddPolicy('', { // dealId is handled by the parent component
-      policyNumber,
-      type,
-      startDate,
-      endDate,
-      counterparty,
-      salesChannel,
-      carBrand: type === 'Авто' ? carBrand : undefined,
-      carModel: type === 'Авто' ? carModel : undefined,
-      vin: type === 'Авто' ? vin : undefined,
-      notes,
-    }, cleanedInstallments, policyClientId);
-    onClose();
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await onAddPolicy(
+        dealId,
+        {
+          policyNumber,
+          type,
+          startDate,
+          endDate,
+          counterparty,
+          salesChannel,
+          carBrand: type === 'Авто' ? carBrand : undefined,
+          carModel: type === 'Авто' ? carModel : undefined,
+          vin: type === 'Авто' ? vin : undefined,
+          notes,
+        },
+        cleanedInstallments,
+        policyClientId
+      );
+      onClose();
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось создать полис. Попробуйте ещё раз.';
+      setError(typeof message === 'string' ? message : 'Не удалось создать полис.');
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   const inputStyle = "block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring focus:ring-sky-200 focus:ring-opacity-50 text-sm disabled:bg-slate-100 disabled:text-slate-500";
@@ -242,8 +268,21 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealC
         </div>
 
         <div className="flex justify-end pt-4 space-x-2 border-t border-slate-200 mt-4">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">Отмена</button>
-          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700">Сохранить полис</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-60"
+            disabled={isSubmitting}
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700 disabled:opacity-60"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Сохраняю…' : 'Сохранить полис'}
+          </button>
         </div>
       </form>
     </div>

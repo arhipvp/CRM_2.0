@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Client, Deal, DealStatus } from '../types';
+import { Client, Deal, DealStatus, Task } from '../types';
 
 interface DealListProps {
   deals: Deal[];
   clients: Client[];
+  tasks: Task[];
   selectedDealId: string | null;
   onSelectDeal: (deal: Deal) => void;
   onUpdateReviewDate: (dealId: string, newDate: string) => void;
@@ -53,7 +54,7 @@ const ALL_STATUSES: DealStatus[] = [
   'Закрыта',
 ];
 
-export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDealId, onSelectDeal, onUpdateReviewDate }) => {
+export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selectedDealId, onSelectDeal, onUpdateReviewDate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
@@ -79,7 +80,9 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, selectedDeal
                 client?.name,
                 client?.email,
                 client?.phone,
-                ...(deal.tasks ?? []).map(t => t.description || ''),
+                ...tasks
+                  .filter(task => task.dealId === deal.id)
+                  .map(t => t.description || ''),
                 ...(deal.notes ?? []).map(n => n.content),
                 ...(deal.quotes ?? []).map(q => `${q.insurer} ${q.comments ?? ''}`),
                 ...(deal.files ?? []).map(f => f.name),

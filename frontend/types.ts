@@ -38,6 +38,22 @@ export interface Client {
 }
 
 /**
+ * Данные для создания клиента
+ */
+export interface ClientCreateInput {
+  name: string;
+  email?: string;
+  phone?: string;
+  status: ClientStatus;
+  ownerId?: string | null;
+}
+
+/**
+ * Поля для обновления клиента
+ */
+export type ClientUpdateInput = Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>>;
+
+/**
  * Сделка - контракт страхования с клиентом
  * Соответствует backend модели: /api/v1/crm/deals
  */
@@ -84,7 +100,7 @@ export interface Policy {
   // Опциональные поля
   carBrand?: string;
   carModel?: string;
-  vin?: string;
+  vin?: string;\n  salesChannel?: string;
   notes?: string;
 }
 

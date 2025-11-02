@@ -1,69 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * Login компонент для аутентификации пользователя
- * Используется на экране входа до того как пользователь получит доступ к приложению
- */
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, error: authError, clearError } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/deals';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, from, navigate]);
+
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    clearError();
+
+    if (!email.trim() || !password.trim()) {
+      setError('Введите email и пароль.');
+      return;
+    }
+
     setIsLoading(true);
-
     try {
-      if (!email.trim() || !password.trim()) {
-        setError('Email и пароль обязательны для заполнения.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Выполняем вход через Auth Context
-      await login(email, password);
-      // AuthContext автоматически обновит состояние isAuthenticated
+      await login(email.trim(), password);
+      navigate(from, { replace: true });
     } catch (err: any) {
-      console.error('Login error:', err);
-
-      // Обработка различных ошибок
-      if (err.response?.status === 401) {
+      if (!err?.response) {
+        setError('Не удалось связаться с сервером. Проверьте подключение.');
+      } else if (err.response.status === 401) {
         setError('Неверный email или пароль.');
-      } else if (err.response?.status === 400) {
-        setError('Пожалуйста, проверьте корректность введённых данных.');
-      } else if (err.message === 'Network Error' || !err.response) {
-        setError('Ошибка соединения с сервером. Проверьте интернет соединение.');
       } else {
-        setError(err.response?.data?.message || 'Ошибка входа. Пожалуйста, попробуйте снова.');
+        setError(err.response?.data?.message ?? 'Ошибка входа. Попробуйте ещё раз.');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    // Очищаем ошибку при редактировании
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
     if (error) setError('');
   };
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    // Очищаем ошибку при редактировании
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
     if (error) setError('');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Карточка входа */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden backdrop-blur">
-          {/* Заголовок */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-10 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4">
               <svg className="w-8 h-8 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -72,60 +75,54 @@ export const Login: React.FC = () => {
               </svg>
             </div>
             <h1 className="text-4xl font-bold text-white mb-1">CRM</h1>
-            <p className="text-blue-100 text-sm font-medium">Управление страховыми полисами</p>
+            <p className="text-blue-100 text-sm font-medium">Управление страховыми клиентами и полисами</p>
           </div>
 
-          {/* Содержимое */}
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            {/* Ошибка */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm flex items-start gap-3 animate-shake">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm flex items-start gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-7 3a1 1 0 10-2 0 1 1 0 002 0zm-1-8a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 <span>{error}</span>
               </div>
             )}
 
-            {/* Email поле */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-3">
-                Email адрес
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                Email
               </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={handleEmailChange}
-                disabled={isLoading}
-                autoComplete="email"
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition bg-slate-50 hover:bg-white"
-                placeholder="example@example.com"
-                autoFocus
-              />
+              <div className="mt-2 relative">
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  className="block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="qa.admin@example.com"
+                  autoComplete="username"
+                />
+              </div>
             </div>
 
-            {/* Password поле */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-3">
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-600 uppercase tracking-wide">
                 Пароль
               </label>
-              <div className="relative">
+              <div className="mt-2 relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
                   id="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={handlePasswordChange}
-                  disabled={isLoading}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className="block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="Введите пароль"
                   autoComplete="current-password"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:cursor-not-allowed transition pr-10 bg-slate-50 hover:bg-white"
-                  placeholder="••••••••"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:cursor-not-allowed transition"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-700"
                 >
                   {showPassword ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -142,7 +139,6 @@ export const Login: React.FC = () => {
               </div>
             </div>
 
-            {/* Кнопка входа */}
             <button
               type="submit"
               disabled={isLoading}
@@ -151,21 +147,29 @@ export const Login: React.FC = () => {
               {isLoading && (
                 <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938л3-2.647z"></path>
                 </svg>
               )}
-              {isLoading ? 'Вход...' : 'Войти'}
+              {isLoading ? 'Вхожу...' : 'Войти'}
             </button>
 
-            {/* Информационное сообщение */}
             <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
-              <p className="font-semibold text-slate-700 mb-2">Тестовые учётные данные:</p>
-              <p className="text-slate-600">Email: <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">test@example.com</code></p>
-              <p className="text-slate-600 mt-1">Пароль: <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">password</code></p>
+              <p className="font-semibold text-slate-700 mb-2">Тестовая учётная запись:</p>
+              <p className="text-slate-600">
+                Email:{' '}
+                <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">
+                  qa.admin@example.com
+                </code>
+              </p>
+              <p className="text-slate-600 mt-1">
+                Пароль:{' '}
+                <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">
+                  QaAdmin!234
+                </code>
+              </p>
             </div>
           </form>
 
-          {/* Подвал */}
           <div className="bg-slate-50 px-8 py-4 border-t border-slate-200 text-center text-xs text-slate-500">
             <p>© 2025 CRM Страхового Брокера. Все права защищены.</p>
           </div>
