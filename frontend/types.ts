@@ -42,11 +42,11 @@ export type DealStatus = 'Новая' | 'Расчет' | 'Переговоры' 
 // Стадии сделок
 export type DealStage = 'lead' | 'qualification' | 'negotiation' | 'proposal' | 'closing' | 'closed';
 
-// Типы полисов
-export type PolicyType = 'Авто' | 'Имущество' | 'Жизнь' | 'Здоровье' | 'Auto' | 'Property' | 'Life' | 'Health';
+// Статусы полисов (backend: draft, active, inactive, suspended, expired, или любой другой строковый статус)
+export type PolicyStatus = 'draft' | 'active' | 'inactive' | 'suspended' | 'expired' | string;
 
-// Статусы платежей
-export type PaymentStatus = 'Оплачен' | 'Просрочен' | 'Ожидает' | 'pending' | 'paid' | 'overdue' | 'cancelled';
+// Статусы платежей (соответствуют backend: scheduled, paid, cancelled, overdue)
+export type PaymentStatus = 'scheduled' | 'paid' | 'cancelled' | 'overdue';
 
 // Статусы клиентов
 export type ClientStatus = 'active' | 'inactive' | 'prospect';
@@ -118,78 +118,161 @@ export interface Deal {
 }
 
 /**
- * Полис страхования
- * Соответствует backend модели: /api/v1/crm/policies
+ * Полис страхования (ответ от API)
+ * Соответствует backend PolicyRead: /api/v1/policies
  */
-export interface Policy {
+export interface PolicyRead {
   id: string;
-  policyNumber: string;
-  type: PolicyType;
+  policyNumber: string; // Уникальный номер полиса, предоставляемый клиентом
+  clientId: string; // FK к клиенту
+  dealId?: string; // FK к сделке (опционально)
+  calculationId?: string; // FK к расчёту (опционально)
+  ownerId?: string; // ID владельца/пользователя, отвечающего за полис
+  status: PolicyStatus; // draft, active, inactive, suspended, expired, etc.
+  premium?: string; // Страховой взнос (опционально)
+  effectiveFrom?: string; // Дата начала действия (ISO date)
+  effectiveTo?: string; // Дата окончания действия (ISO date)
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Данные для создания полиса
+ */
+export interface PolicyCreate {
+  policyNumber: string; // Обязательный уникальный номер
   clientId: string;
   dealId?: string;
   ownerId?: string;
-  startDate?: string;
-  endDate?: string;
-  counterparty?: string;
-  createdAt: string;
-  updatedAt: string;
-  isDeleted: boolean;
-  // Опциональные поля
-  carBrand?: string;
-  carModel?: string;
-  vin?: string;
-  salesChannel?: string;
-  notes?: string;
+  status?: PolicyStatus; // По умолчанию 'draft'
+  premium?: string | number; // Страховой взнос
+  effectiveFrom?: string; // Дата начала действия
+  effectiveTo?: string; // Дата окончания действия
 }
 
 /**
- * Платёж по полису
- * Соответствует backend модели: /api/v1/crm/deals/{dealId}/policies/{policyId}/payments
+ * Данные для обновления полиса
  */
-export interface Payment {
-  id: string;
-  policyId: string;
+export interface PolicyUpdate {
+  policyNumber?: string;
+  status?: PolicyStatus;
+  premium?: string | number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  ownerId?: string;
   dealId?: string;
-  clientId?: string;
-  amount: number;
-  status: PaymentStatus;
-  dueDate?: string;
-  paidDate?: string;
-  createdAt: string;
-  updatedAt: string;
-  isDeleted: boolean;
-  // Доходы и расходы
-  incomes?: PaymentIncome[];
-  expenses?: PaymentExpense[];
 }
 
 /**
- * Доход по платежу
+ * Совместимость: для кода, использующего Policy (alias к PolicyRead)
  */
-export interface PaymentIncome {
+export type Policy = PolicyRead;
+
+/**
+ * Платёж по полису (ответ от API)
+ * Соответствует backend PaymentRead: /api/v1/crm/deals/{dealId}/policies/{policyId}/payments
+ * Поля: plannedAmount (string), plannedDate, currency, status, totals как строки
+ */
+export interface PaymentRead {
   id: string;
-  paymentId: string;
-  amount: number;
-  date: string;
-  description?: string;
+  dealId: string;
+  policyId: string;
+  sequence: number; // порядковый номер платежа
+  plannedDate: string; // ISO date
+  plannedAmount: string; // числовое значение как строка
+  currency: string; // "RUB" и т.п.
+  status: PaymentStatus; // scheduled, paid, cancelled, overdue
+  comment?: string;
+  actualDate?: string; // фактическая дата оплаты (null если не оплачен)
+  recordedById?: string; // ID пользователя, записавшего платёж
+  incomesTotal: string; // сумма доходов по платежу (строка)
+  expensesTotal: string; // сумма расходов по платежу (строка)
+  netTotal: string; // чистая прибыль (инкомсы - расходы)
+  incomes?: PaymentIncomeRead[];
+  expenses?: PaymentExpenseRead[];
   createdAt: string;
   updatedAt: string;
-  isDeleted: boolean;
 }
 
 /**
- * Расход по платежу
+ * Данные для создания платежа
  */
-export interface PaymentExpense {
+export interface PaymentCreate {
+  dealId: string;
+  policyId: string;
+  plannedDate: string; // ISO date
+  plannedAmount: number; // числовое значение
+  currency?: string; // по умолчанию "RUB"
+  comment?: string;
+}
+
+/**
+ * Данные для обновления платежа
+ */
+export interface PaymentUpdate {
+  plannedDate?: string;
+  plannedAmount?: number;
+  currency?: string;
+  status?: PaymentStatus;
+  comment?: string;
+  actualDate?: string;
+}
+
+/**
+ * Совместимость: для кода, использующего Payment (может быть alias к PaymentRead)
+ */
+export type Payment = PaymentRead;
+
+/**
+ * Доход по платежу (ответ от API)
+ */
+export interface PaymentIncomeRead {
   id: string;
   paymentId: string;
-  amount: number;
-  date: string;
-  category?: string;
-  description?: string;
+  amount: string; // строка
+  currency: string;
+  category: string; // категория дохода
+  postedAt: string; // ISO date when the income was posted
+  note?: string;
   createdAt: string;
   updatedAt: string;
-  isDeleted: boolean;
+}
+
+/**
+ * Данные для создания дохода по платежу
+ */
+export interface PaymentIncomeCreate {
+  amount: number;
+  currency?: string;
+  category: string;
+  postedAt: string;
+  note?: string;
+}
+
+/**
+ * Расход по платежу (ответ от API)
+ */
+export interface PaymentExpenseRead {
+  id: string;
+  paymentId: string;
+  amount: string; // строка
+  currency: string;
+  category: string; // категория расхода
+  postedAt: string; // ISO date when the expense was posted
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Данные для создания расхода по платежу
+ */
+export interface PaymentExpenseCreate {
+  amount: number;
+  currency?: string;
+  category: string;
+  postedAt: string;
+  note?: string;
 }
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Payment, Policy, Client } from '../../types';
+import type { PaymentRead, Policy, Client } from '../../types';
 import {
   normalizePaymentStatus,
   paymentStatusClassName,
@@ -8,13 +8,21 @@ import {
   PaymentStatusCode,
 } from '../../utils/paymentStatus';
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('ru-RU', {
+/**
+ * Форматирует сумму в валюту
+ * Может принимать как число, так и строку
+ */
+const formatCurrency = (amount: number | string, currency: string = 'RUB') => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(numAmount)) return '0.00 ' + currency;
+
+  return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
-    currency: 'RUB',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(numAmount);
+};
 
 const getClientName = (clientId: string, clients: Client[]) =>
   clients.find((client) => client.id === clientId)?.name || 'N/A';
@@ -22,19 +30,19 @@ const getClientName = (clientId: string, clients: Client[]) =>
 const getPolicyNumber = (policyId: string, policies: Policy[]) =>
   policies.find((policy) => policy.id === policyId)?.policyNumber || 'N/A';
 
-const StatusBadge: React.FC<{ status: Payment['status'] }> = ({ status }) => (
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
   <span className={`px-2 py-1 text-xs font-medium rounded-full ${paymentStatusClassName(status)}`}>
     {paymentStatusLabel(status)}
   </span>
 );
 
 interface PaymentsViewProps {
-  payments: Payment[];
+  payments: PaymentRead[];
   policies: Policy[];
   clients: Client[];
 }
 
-type EnrichedPayment = Payment & {
+type EnrichedPayment = PaymentRead & {
   clientName: string;
   policyNumber: string;
 };
@@ -46,12 +54,12 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
   const [filters, setFilters] = useState({
     clientName: '',
     policyNumber: '',
-    dueDate: '',
+    plannedDate: '',
     status: 'all' as StatusFilter,
   });
 
   const [sortConfig, setSortConfig] = useState<{ key: SortKeys; direction: 'ascending' | 'descending' } | null>({
-    key: 'dueDate',
+    key: 'plannedDate',
     direction: 'ascending',
   });
 
@@ -71,7 +79,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
       return (
         payment.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
         payment.policyNumber.toLowerCase().includes(filters.policyNumber.toLowerCase()) &&
-        (filters.dueDate ? payment.dueDate?.includes(filters.dueDate) : true) &&
+        (filters.plannedDate ? payment.plannedDate?.includes(filters.plannedDate) : true) &&
         (filters.status === 'all' || normalizedStatus === normalizePaymentStatus(filters.status))
       );
     });
@@ -82,9 +90,11 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
         const bValue = b[sortConfig.key];
 
         let comparison = 0;
-        if (sortConfig.key === 'amount') {
-          comparison = (aValue as number) - (bValue as number);
-        } else if (sortConfig.key === 'dueDate') {
+        if (sortConfig.key === 'plannedAmount') {
+          const aNum = typeof aValue === 'string' ? parseFloat(aValue) : (aValue as number);
+          const bNum = typeof bValue === 'string' ? parseFloat(bValue) : (bValue as number);
+          comparison = aNum - bNum;
+        } else if (sortConfig.key === 'plannedDate') {
           comparison =
             new Date(aValue as string).getTime() - new Date(bValue as string).getTime();
         } else {
@@ -121,8 +131,8 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
   const headers: { label: string; key: SortKeys }[] = [
     { label: 'Клиент', key: 'clientName' },
     { label: 'Номер полиса', key: 'policyNumber' },
-    { label: 'Сумма', key: 'amount' },
-    { label: 'Срок оплаты', key: 'dueDate' },
+    { label: 'Сумма платежа', key: 'plannedAmount' },
+    { label: 'Запланированная дата', key: 'plannedDate' },
     { label: 'Статус', key: 'status' },
   ];
 
@@ -174,7 +184,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
               <th className="p-2 font-normal">
                 <input
                   type="date"
-                  name="dueDate"
+                  name="plannedDate"
                   onChange={handleFilterChange}
                   className="w-full text-sm p-1 border border-slate-300 rounded-md"
                 />
@@ -206,10 +216,10 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ payments, policies, 
                   {payment.policyNumber}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-semibold">
-                  {formatCurrency(payment.amount)}
+                  {formatCurrency(payment.plannedAmount, payment.currency)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {payment.dueDate}
+                  {payment.plannedDate}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <StatusBadge status={payment.status} />

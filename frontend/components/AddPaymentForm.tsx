@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
-import { Payment } from '../types';
-import { normalizePaymentStatus, paymentStatusOptions } from '../utils/paymentStatus';
+import type { PaymentCreate } from '../types';
+import { paymentStatusOptions } from '../utils/paymentStatus';
 
 interface AddPaymentFormProps {
   policyId: string;
-  onAddPayment: (paymentData: Omit<Payment, 'id' | 'clientId' | 'policyId'>) => Promise<void>;
+  onAddPayment: (paymentData: Omit<PaymentCreate, 'dealId' | 'policyId'>) => Promise<void>;
   onClose: () => void;
 }
 
 export const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ policyId, onAddPayment, onClose }) => {
-  const [amount, setAmount] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [status, setStatus] = useState<Payment['status']>('pending');
+  const [plannedAmount, setPlannedAmount] = useState('');
+  const [plannedDate, setPlannedDate] = useState('');
+  const [currency, setCurrency] = useState('RUB');
+  const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !dueDate) {
-      setError('Пожалуйста, заполните все обязательные поля: Сумма и Срок оплаты.');
+    if (!plannedAmount || !plannedDate) {
+      setError('Пожалуйста, заполните все обязательные поля: Сумма и Запланированная дата.');
       return;
     }
     setError('');
@@ -26,9 +27,10 @@ export const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ policyId, onAddP
 
     try {
       await onAddPayment({
-        amount: parseFloat(amount) || 0,
-        dueDate,
-        status: normalizePaymentStatus(status),
+        plannedDate,
+        plannedAmount: parseFloat(plannedAmount) || 0,
+        currency,
+        comment: comment || undefined,
       });
       onClose();
     } catch (err: any) {
@@ -61,27 +63,50 @@ export const AddPaymentForm: React.FC<AddPaymentFormProps> = ({ policyId, onAddP
         
         <div className="space-y-4">
           <div>
-            <label htmlFor="amount" className={labelStyle}>Сумма*</label>
-            <input type="number" id="amount" placeholder="10000" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputStyle} />
+            <label htmlFor="plannedAmount" className={labelStyle}>Сумма платежа*</label>
+            <input
+              type="number"
+              id="plannedAmount"
+              placeholder="10000"
+              value={plannedAmount}
+              onChange={(e) => setPlannedAmount(e.target.value)}
+              className={inputStyle}
+              step="0.01"
+            />
           </div>
           <div>
-            <label htmlFor="dueDate" className={labelStyle}>Срок оплаты*</label>
-            <input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputStyle} />
+            <label htmlFor="plannedDate" className={labelStyle}>Запланированная дата*</label>
+            <input
+              type="date"
+              id="plannedDate"
+              value={plannedDate}
+              onChange={(e) => setPlannedDate(e.target.value)}
+              className={inputStyle}
+            />
           </div>
           <div>
-            <label htmlFor="status" className={labelStyle}>Статус</label>
+            <label htmlFor="currency" className={labelStyle}>Валюта</label>
             <select
-              id="status"
-              value={normalizePaymentStatus(status)}
-              onChange={(e) => setStatus(e.target.value as Payment['status'])}
+              id="currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
               className={inputStyle}
             >
-              {paymentStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <option value="RUB">RUB (Рубль)</option>
+              <option value="USD">USD (Доллар)</option>
+              <option value="EUR">EUR (Евро)</option>
             </select>
+          </div>
+          <div>
+            <label htmlFor="comment" className={labelStyle}>Комментарий</label>
+            <textarea
+              id="comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className={inputStyle}
+              rows={3}
+              placeholder="Дополнительная информация о платеже..."
+            />
           </div>
         </div>
 

@@ -139,7 +139,14 @@ export const generateAndPlayAudio = async (text: string): Promise<void> => {
   }
 };
 
-// Fix: Added mock data generation function.
+/**
+ * DEV-ONLY: Mock data generation function
+ * This function is isolated and NOT used in the main application flow.
+ * It can be used for testing and development purposes only.
+ * For production, use crmApi for all data operations.
+ *
+ * @deprecated Use crmApi.fetchClients, crmApi.fetchDeals etc. instead
+ */
 export const generateMockData = () => {
   const clients: Client[] = [
     {

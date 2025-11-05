@@ -10,11 +10,19 @@ import type {
   ClientUpdateInput,
   Deal,
   Policy,
+  PolicyRead,
+  PolicyCreate,
+  PolicyUpdate,
   Payment,
+  PaymentRead,
+  PaymentCreate,
+  PaymentUpdate,
+  PaymentIncomeRead,
+  PaymentIncomeCreate,
+  PaymentExpenseRead,
+  PaymentExpenseCreate,
   Task,
   Quote,
-  PaymentIncome,
-  PaymentExpense,
 } from '../types';
 
 /**
@@ -172,13 +180,13 @@ export async function addDealJournalEntry(dealId: string, entry: { content: stri
 /**
  * Получить список полисов
  */
-export async function fetchPolicies(query?: { limit?: number; offset?: number }): Promise<Policy[]> {
+export async function fetchPolicies(query?: { limit?: number; offset?: number }): Promise<PolicyRead[]> {
   try {
     const params = new URLSearchParams();
     if (query?.limit) params.append('limit', query.limit.toString());
     if (query?.offset) params.append('offset', query.offset.toString());
 
-    const response = await apiClient.get<Policy[]>(`/crm/policies?${params.toString()}`);
+    const response = await apiClient.get<PolicyRead[]>(`/crm/policies?${params.toString()}`);
     return response.data;
   } catch (error: any) {
     console.error('Failed to fetch policies:', error.response?.data || error.message);
@@ -188,10 +196,12 @@ export async function fetchPolicies(query?: { limit?: number; offset?: number })
 
 /**
  * Создать новый полис
+ * Требует: policyNumber (уникальный), clientId
+ * Опционально: dealId, ownerId, status, premium, effectiveFrom, effectiveTo
  */
-export async function createPolicy(policy: Omit<Policy, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>): Promise<Policy> {
+export async function createPolicy(policy: PolicyCreate): Promise<PolicyRead> {
   try {
-    const response = await apiClient.post<Policy>(`/crm/policies`, policy);
+    const response = await apiClient.post<PolicyRead>(`/crm/policies`, policy);
     return response.data;
   } catch (error: any) {
     console.error('Failed to create policy:', error.response?.data || error.message);
@@ -201,10 +211,11 @@ export async function createPolicy(policy: Omit<Policy, 'id' | 'createdAt' | 'up
 
 /**
  * Обновить полис
+ * Все поля опциональны
  */
-export async function updatePolicy(policyId: string, updates: Partial<Policy>): Promise<Policy> {
+export async function updatePolicy(policyId: string, updates: PolicyUpdate): Promise<PolicyRead> {
   try {
-    const response = await apiClient.patch<Policy>(`/crm/policies/${policyId}`, updates);
+    const response = await apiClient.patch<PolicyRead>(`/crm/policies/${policyId}`, updates);
     return response.data;
   } catch (error: any) {
     console.error(`Failed to update policy ${policyId}:`, error.response?.data || error.message);
@@ -218,13 +229,17 @@ export async function updatePolicy(policyId: string, updates: Partial<Policy>): 
 
 /**
  * Получить список платежей для полиса
+ * Backend возвращает { items: PaymentRead[], total: number }
+ * Преобразуем в массив PaymentRead[] для совместимости
  */
-export async function fetchPayments(dealId: string, policyId: string): Promise<Payment[]> {
+export async function fetchPayments(dealId: string, policyId: string): Promise<PaymentRead[]> {
   try {
-    const response = await apiClient.get<Payment[]>(
+    const response = await apiClient.get<{ items: PaymentRead[]; total: number }>(
       `/crm/deals/${dealId}/policies/${policyId}/payments`
     );
-    return response.data;
+    // Парсим response.data.items, если response - объект с items, или берём данные как есть
+    const items = response.data.items || response.data;
+    return Array.isArray(items) ? items : [];
   } catch (error: any) {
     console.error('Failed to fetch payments:', error.response?.data || error.message);
     throw error;
@@ -233,16 +248,22 @@ export async function fetchPayments(dealId: string, policyId: string): Promise<P
 
 /**
  * Создать новый платёж
+ * Используем PaymentCreate для создания (plannedDate, plannedAmount, currency, comment)
  */
 export async function createPayment(
   dealId: string,
   policyId: string,
-  payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted' | 'policyId' | 'clientId' | 'status'>
-): Promise<Payment> {
+  payment: Omit<PaymentCreate, 'dealId' | 'policyId'>
+): Promise<PaymentRead> {
   try {
-    const response = await apiClient.post<Payment>(
+    const payload: PaymentCreate = {
+      dealId,
+      policyId,
+      ...payment,
+    };
+    const response = await apiClient.post<PaymentRead>(
       `/crm/deals/${dealId}/policies/${policyId}/payments`,
-      payment
+      payload
     );
     return response.data;
   } catch (error: any) {
@@ -253,15 +274,16 @@ export async function createPayment(
 
 /**
  * Обновить платёж
+ * Используем PaymentUpdate для обновления (plannedDate, plannedAmount, currency, status, comment, actualDate)
  */
 export async function updatePayment(
   dealId: string,
   policyId: string,
   paymentId: string,
-  updates: Partial<Payment>
-): Promise<Payment> {
+  updates: PaymentUpdate
+): Promise<PaymentRead> {
   try {
-    const response = await apiClient.patch<Payment>(
+    const response = await apiClient.patch<PaymentRead>(
       `/crm/deals/${dealId}/policies/${policyId}/payments/${paymentId}`,
       updates
     );
@@ -287,9 +309,9 @@ export async function deletePayment(dealId: string, policyId: string, paymentId:
 /**
  * Получить доходы по платежу
  */
-export async function fetchPaymentIncomes(dealId: string, policyId: string, paymentId: string): Promise<PaymentIncome[]> {
+export async function fetchPaymentIncomes(dealId: string, policyId: string, paymentId: string): Promise<PaymentIncomeRead[]> {
   try {
-    const response = await apiClient.get<PaymentIncome[]>(
+    const response = await apiClient.get<PaymentIncomeRead[]>(
       `/crm/deals/${dealId}/policies/${policyId}/payments/${paymentId}/incomes`
     );
     return response.data;
@@ -300,16 +322,58 @@ export async function fetchPaymentIncomes(dealId: string, policyId: string, paym
 }
 
 /**
+ * Создать доход по платежу
+ */
+export async function createPaymentIncome(
+  dealId: string,
+  policyId: string,
+  paymentId: string,
+  income: PaymentIncomeCreate
+): Promise<PaymentIncomeRead> {
+  try {
+    const response = await apiClient.post<PaymentIncomeRead>(
+      `/crm/deals/${dealId}/policies/${policyId}/payments/${paymentId}/incomes`,
+      income
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to create payment income:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
  * Получить расходы по платежу
  */
-export async function fetchPaymentExpenses(dealId: string, policyId: string, paymentId: string): Promise<PaymentExpense[]> {
+export async function fetchPaymentExpenses(dealId: string, policyId: string, paymentId: string): Promise<PaymentExpenseRead[]> {
   try {
-    const response = await apiClient.get<PaymentExpense[]>(
+    const response = await apiClient.get<PaymentExpenseRead[]>(
       `/crm/deals/${dealId}/policies/${policyId}/payments/${paymentId}/expenses`
     );
     return response.data;
   } catch (error: any) {
     console.error('Failed to fetch payment expenses:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Создать расход по платежу
+ */
+export async function createPaymentExpense(
+  dealId: string,
+  policyId: string,
+  paymentId: string,
+  expense: PaymentExpenseCreate
+): Promise<PaymentExpenseRead> {
+  try {
+    const response = await apiClient.post<PaymentExpenseRead>(
+      `/crm/deals/${dealId}/policies/${policyId}/payments/${paymentId}/expenses`,
+      expense
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to create payment expense:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -361,4 +425,21 @@ export async function updateTask(taskId: string, updates: Partial<Task>): Promis
   }
 }
 
-export type { Client, Deal, Policy, Payment, Task, Quote, PaymentIncome, PaymentExpense };
+export type {
+  Client,
+  Deal,
+  Policy,
+  PolicyRead,
+  PolicyCreate,
+  PolicyUpdate,
+  Payment,
+  PaymentRead,
+  PaymentCreate,
+  PaymentUpdate,
+  PaymentIncomeRead,
+  PaymentIncomeCreate,
+  PaymentExpenseRead,
+  PaymentExpenseCreate,
+  Task,
+  Quote,
+};

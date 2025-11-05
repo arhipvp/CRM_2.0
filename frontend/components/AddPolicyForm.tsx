@@ -1,38 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Policy, Quote, Payment, Client } from '../types';
+import type { PolicyCreate, Quote, PaymentCreate, Client } from '../types';
 
 interface AddPolicyFormProps {
   sourceQuote?: Quote;
   dealId: string;
   dealClientId: string;
   clients: Client[];
+  users?: Array<{ id: string; name: string }>; // Список пользователей для выбора ownerId
   onAddPolicy: (
-    dealId: string,
-    policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>,
-    installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>,
+    policyData: PolicyCreate,
+    installments: Array<Omit<PaymentCreate, 'dealId' | 'policyId'>>,
     policyClientId: string
   ) => Promise<void>;
   onClose: () => void;
 }
 
-const POLICY_TYPES: Policy['type'][] = ['Авто', 'Имущество', 'Жизнь', 'Здоровье'];
-
-export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealId, dealClientId, clients, onAddPolicy, onClose }) => {
+export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealId, dealClientId, clients, users, onAddPolicy, onClose }) => {
   const [policyNumber, setPolicyNumber] = useState('');
-  const [type, setType] = useState<Policy['type']>(sourceQuote?.insuranceType === 'КАСКО' ? 'Авто' : 'Имущество');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [counterparty, setCounterparty] = useState(sourceQuote?.insurer || '');
-  const [salesChannel, setSalesChannel] = useState('');
-  const [carBrand, setCarBrand] = useState('');
-  const [carModel, setCarModel] = useState('');
-  const [vin, setVin] = useState('');
-  const [notes, setNotes] = useState('');
+  const [status, setStatus] = useState<string>('draft');
+  const [premium, setPremium] = useState(sourceQuote?.premium?.toString() || '');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [effectiveTo, setEffectiveTo] = useState('');
+  const [ownerId, setOwnerId] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setSubmitting] = useState(false);
 
-  const [installments, setInstallments] = useState([{ amount: sourceQuote?.premium.toString() || '', dueDate: '' }]);
-  
+  const [installments, setInstallments] = useState([{ plannedAmount: sourceQuote?.premium?.toString() || '', plannedDate: '' }]);
+
   const [policyClientId, setPolicyClientId] = useState(dealClientId);
   const [isClientSelectorOpen, setClientSelectorOpen] = useState(false);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
@@ -61,14 +55,14 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealI
     c.name.toLowerCase().includes(clientSearchQuery.toLowerCase())
   );
 
-  const handleInstallmentChange = (index: number, field: 'amount' | 'dueDate', value: string) => {
+  const handleInstallmentChange = (index: number, field: 'plannedAmount' | 'plannedDate', value: string) => {
     const newInstallments = [...installments];
     newInstallments[index][field] = value;
     setInstallments(newInstallments);
   };
 
   const handleAddInstallment = () => {
-    setInstallments([...installments, { amount: '', dueDate: '' }]);
+    setInstallments([...installments, { plannedAmount: '', plannedDate: '' }]);
   };
 
   const handleRemoveInstallment = (index: number) => {
@@ -78,36 +72,35 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!policyClientId || !policyNumber.trim() || !counterparty.trim() || !salesChannel.trim() || !startDate || !endDate) {
-      setError('Пожалуйста, заполните обязательные поля: Клиент, Номер полиса, Контрагент, Канал продажи и Период действия.');
+    if (!policyClientId || !policyNumber.trim() || !effectiveFrom || !effectiveTo) {
+      setError('Пожалуйста, заполните обязательные поля: Клиент, Номер полиса и Период действия.');
       return;
     }
 
     const cleanedInstallments = installments
-        .map(inst => ({...inst, amount: parseFloat(inst.amount) || 0}))
-        .filter(inst => inst.amount > 0 && inst.dueDate);
+        .map(inst => ({
+          plannedAmount: parseFloat(inst.plannedAmount) || 0,
+          plannedDate: inst.plannedDate,
+          currency: 'RUB',
+        }))
+        .filter(inst => inst.plannedAmount > 0 && inst.plannedDate);
 
     setSubmitting(true);
     setError('');
 
     try {
-      await onAddPolicy(
+      const policyData: PolicyCreate = {
+        policyNumber,
+        clientId: policyClientId,
         dealId,
-        {
-          policyNumber,
-          type,
-          startDate,
-          endDate,
-          counterparty,
-          salesChannel,
-          carBrand: type === 'Авто' ? carBrand : undefined,
-          carModel: type === 'Авто' ? carModel : undefined,
-          vin: type === 'Авто' ? vin : undefined,
-          notes,
-        },
-        cleanedInstallments,
-        policyClientId
-      );
+        status: status as any,
+        premium: premium ? parseFloat(premium) : undefined,
+        effectiveFrom,
+        effectiveTo,
+        ownerId: ownerId || undefined,
+      };
+
+      await onAddPolicy(policyData, cleanedInstallments, policyClientId);
       onClose();
     } catch (err: any) {
       const message =
@@ -201,55 +194,46 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealI
                     <input type="text" id="policyNumber" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} className={`${inputStyle} sm:col-span-2`} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                    <label htmlFor="type" className={labelStyle}>Тип</label>
-                    <select id="type" value={type} onChange={(e) => setType(e.target.value as Policy['type'])} className={`${inputStyle} sm:col-span-2`}>
-                        {POLICY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    <label htmlFor="status" className={labelStyle}>Статус</label>
+                    <select id="status" value={status} onChange={(e) => setStatus(e.target.value)} className={`${inputStyle} sm:col-span-2`}>
+                        <option value="draft">Черновик</option>
+                        <option value="active">Активный</option>
+                        <option value="inactive">Неактивный</option>
+                        <option value="suspended">Приостановлен</option>
+                        <option value="expired">Истёк</option>
                     </select>
                 </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                    <label htmlFor="startDate" className={labelStyle}>Период действия*</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
+                    <label htmlFor="premium" className={labelStyle}>Премия (взнос)</label>
+                    <input type="number" id="premium" value={premium} onChange={(e) => setPremium(e.target.value)} className={`${inputStyle} sm:col-span-2`} step="0.01" placeholder="0.00" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
+                    <label htmlFor="effectiveFrom" className={labelStyle}>Дата начала действия*</label>
                     <div className="grid grid-cols-2 gap-2 sm:col-span-2">
-                        <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputStyle} />
-                        <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputStyle} />
+                        <input type="date" id="effectiveFrom" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className={inputStyle} />
+                        <input type="date" id="effectiveTo" value={effectiveTo} onChange={(e) => setEffectiveTo(e.target.value)} className={inputStyle} />
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                    <label htmlFor="counterparty" className={labelStyle}>Контрагент*</label>
-                    <input type="text" id="counterparty" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} className={`${inputStyle} sm:col-span-2`} readOnly={!!sourceQuote} placeholder="напр., Ингосстрах" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                    <label htmlFor="salesChannel" className={labelStyle}>Канал продажи*</label>
-                    <input type="text" id="salesChannel" value={salesChannel} onChange={(e) => setSalesChannel(e.target.value)} className={`${inputStyle} sm:col-span-2`} placeholder="напр., Прямые продажи" />
-                </div>
+                {users && users.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
+                        <label htmlFor="ownerId" className={labelStyle}>Владелец полиса</label>
+                        <select id="ownerId" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className={`${inputStyle} sm:col-span-2`}>
+                            <option value="">Не выбран</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
-
-            {type === 'Авто' && (
-                <div className="pt-4 mt-4 border-t border-slate-200">
-                    <h3 className="text-md font-semibold text-slate-700 mb-3">Данные по автомобилю</h3>
-                     <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                           <label htmlFor="carBrand" className={labelStyle}>Марка</label>
-                           <input type="text" id="carBrand" value={carBrand} onChange={(e) => setCarBrand(e.target.value)} className={`${inputStyle} sm:col-span-2`} />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                           <label htmlFor="carModel" className={labelStyle}>Модель</label>
-                           <input type="text" id="carModel" value={carModel} onChange={(e) => setCarModel(e.target.value)} className={`${inputStyle} sm:col-span-2`} />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-x-4 gap-y-1">
-                           <label htmlFor="vin" className={labelStyle}>VIN</label>
-                           <input type="text" id="vin" value={vin} onChange={(e) => setVin(e.target.value)} className={`${inputStyle} sm:col-span-2`} />
-                        </div>
-                     </div>
-                </div>
-            )}
 
             <div className="pt-4 mt-4 border-t border-slate-200">
                 <h3 className="text-md font-semibold text-slate-700 mb-3">График платежей</h3>
                 <div className="space-y-2">
                     {installments.map((inst, index) => (
                         <div key={index} className="flex items-center gap-2">
-                            <input type="number" value={inst.amount} onChange={e => handleInstallmentChange(index, 'amount', e.target.value)} placeholder="Сумма" className={inputStyle} />
-                            <input type="date" value={inst.dueDate} onChange={e => handleInstallmentChange(index, 'dueDate', e.target.value)} className={inputStyle} />
+                            <input type="number" value={inst.plannedAmount} onChange={e => handleInstallmentChange(index, 'plannedAmount', e.target.value)} placeholder="Сумма" className={inputStyle} step="0.01" />
+                            <input type="date" value={inst.plannedDate} onChange={e => handleInstallmentChange(index, 'plannedDate', e.target.value)} className={inputStyle} />
                             <button type="button" onClick={() => handleRemoveInstallment(index)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-full flex-shrink-0" title="Удалить платеж">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
@@ -259,12 +243,6 @@ export const AddPolicyForm: React.FC<AddPolicyFormProps> = ({ sourceQuote, dealI
                 <button type="button" onClick={handleAddInstallment} className="mt-2 text-sm text-sky-600 font-semibold hover:text-sky-800">+ Добавить платеж</button>
             </div>
             
-            <div className="pt-4 mt-4 border-t border-slate-200">
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
-                    <label htmlFor="policy-notes" className={`${labelStyle} pt-1`}>Примечание</label>
-                    <textarea id="policy-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputStyle} sm:col-span-2`} rows={3} placeholder="Любая дополнительная информация по полису..."></textarea>
-                 </div>
-            </div>
         </div>
 
         <div className="flex justify-end pt-4 space-x-2 border-t border-slate-200 mt-4">

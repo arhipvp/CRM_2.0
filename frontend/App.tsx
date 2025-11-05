@@ -31,15 +31,17 @@ import {
   ClientUpdateInput,
   Deal,
   Policy,
+  PolicyCreate,
+  PolicyRead,
   Payment,
+  PaymentCreate,
   FinancialTransaction,
   DealStatus,
   Quote,
   Task,
 } from './types';
 import * as crmApi from './services/crmApi';
-import { loadDataWithFallback, createDealWithFallback, createClientWithFallback, createPolicyWithFallback, createPaymentWithFallback, updateClientWithFallback } from './services/dataLoader';
-import { normalizePaymentStatus } from './utils/paymentStatus';
+import { loadData } from './services/dataLoader';
 
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
 type Modal = 'addDeal' | 'addClient' | { type: 'editClient'; client: Client } | null;
@@ -119,12 +121,12 @@ const Dashboard: React.FC = () => {
   );
 
   useEffect(() => {
-    const loadData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const data = await loadDataWithFallback();
+        const data = await loadData();
 
         setClients(data.clients);
 
@@ -140,33 +142,25 @@ const Dashboard: React.FC = () => {
 
         setDeals(normalizedDeals);
         setPolicies(data.policies);
-
-        const normalizedPayments = data.payments.map((payment) => ({
-          ...payment,
-          status: normalizePaymentStatus(payment.status),
-        }));
-
-        setPayments(normalizedPayments);
+        setPayments(data.payments); // Платежи уже имеют правильный статус от API
         setFinancialTransactions(data.financialTransactions);
         setTasks(data.tasks);
-
-        if (data.isMocked) {
-          console.warn('[App] Using mock data - backend API is not available');
-          setError('⚠️ Данные из demo режима (backend недоступен)');
-        }
 
         if (normalizedDeals.length > 0) {
           setSelectedDealId(normalizedDeals[0].id);
         }
       } catch (err: any) {
-        console.error('Failed to load data:', err);
-        setError('Ошибка загрузки данных.');
+        console.error('[App] Failed to load data:', err);
+        setError(
+          `Ошибка загрузки данных: ${err?.message || 'неизвестная ошибка'}. ` +
+          'Проверьте подключение к серверу и попробуйте снова.'
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    fetchData();
   }, []);
 
   const handleNavigate = (view: View) => {
@@ -304,34 +298,28 @@ const Dashboard: React.FC = () => {
   };
 
   const handleAddPolicy = async (
-    dealId: string,
-    policyData: Omit<Policy, 'id' | 'clientId' | 'dealId'>,
-    installments: Array<Omit<Payment, 'id' | 'clientId' | 'policyId' | 'status'>>,
+    policyData: PolicyCreate,
+    installments: Array<Omit<PaymentCreate, 'dealId' | 'policyId'>>,
     policyClientId: string,
   ) => {
     try {
-      const createdPolicy = await crmApi.createPolicy({
-        ...policyData,
-        clientId: policyClientId,
-        dealId,
-      });
+      const createdPolicy = await crmApi.createPolicy(policyData);
 
       setPolicies((prev) => [createdPolicy, ...prev]);
 
-      if (installments.length > 0) {
+      if (installments.length > 0 && policyData.dealId) {
         const createdPayments = await Promise.all(
           installments.map((inst) =>
-            crmApi.createPayment(dealId, createdPolicy.id, inst),
+            crmApi.createPayment(policyData.dealId!, createdPolicy.id, {
+              ...inst,
+              plannedDate: inst.plannedDate,
+              plannedAmount: inst.plannedAmount,
+              currency: inst.currency || 'RUB',
+            }),
           ),
         );
 
-        setPayments((prev) => [
-          ...prev,
-          ...createdPayments.map((payment) => ({
-            ...payment,
-            status: normalizePaymentStatus(payment.status),
-          })),
-        ]);
+        setPayments((prev) => [...prev, ...createdPayments]);
       }
     } catch (error) {
       console.error('Failed to create policy:', error);
