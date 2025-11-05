@@ -9,24 +9,96 @@ interface LoginRequest {
   password: string;
 }
 
+/**
+ * Сырая структура ответа от backend (может содержать разные форматы ролей)
+ */
+interface RawUserResponse {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  roles?: string[] | { [key: string]: any }[] | string;
+}
+
+/**
+ * Нормализованная структура пользователя с гарантированным массивом ролей
+ */
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  roles: string[]; // Всегда массив строк, никогда не undefined
+}
+
 interface LoginResponse extends TokenResponse {
-  user?: {
-    id: string;
-    email: string;
-    roles?: string[];
-  };
+  user?: User;
 }
 
 interface RefreshTokenRequest {
   refreshToken: string;
 }
 
-interface User {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  roles?: string[];
+/**
+ * Преобразует различные форматы ролей в нормализованный массив строк
+ * @param rolesData - Данные о ролях от backend (может быть массив строк, объектов или строка)
+ * @returns Нормализованный массив строк с именами ролей
+ */
+function normalizeRoles(rolesData: any): string[] {
+  // Если undefined/null - возвращаем пустой массив
+  if (!rolesData) {
+    return [];
+  }
+
+  // Если это массив
+  if (Array.isArray(rolesData)) {
+    return rolesData
+      .map((role) => {
+        // Если элемент - строка, используем её
+        if (typeof role === 'string') {
+          return role.trim();
+        }
+        // Если элемент - объект, ищем поле 'name' или 'role' или конвертируем в строку
+        if (typeof role === 'object' && role !== null) {
+          return role.name || role.role || role.authority || String(role);
+        }
+        return String(role);
+      })
+      .filter((role) => role.length > 0); // Фильтруем пустые строки
+  }
+
+  // Если это строка, разбиваем по запятой
+  if (typeof rolesData === 'string') {
+    return rolesData
+      .split(',')
+      .map((role) => role.trim())
+      .filter((role) => role.length > 0);
+  }
+
+  // Если это объект (неожиданный формат), пытаемся извлечь значения
+  if (typeof rolesData === 'object') {
+    return Object.values(rolesData)
+      .map((val) => String(val))
+      .filter((val) => val.length > 0);
+  }
+
+  // Fallback - возвращаем пустой массив
+  return [];
+}
+
+/**
+ * Нормализует данные пользователя из различных источников
+ * @param rawUser - Сырые данные пользователя от backend
+ * @returns Нормализованный объект User с гарантированными полями
+ */
+function normalizeUser(rawUser: RawUserResponse): User {
+  return {
+    id: rawUser.id,
+    email: rawUser.email,
+    firstName: rawUser.firstName,
+    lastName: rawUser.lastName,
+    roles: normalizeRoles(rawUser.roles),
+  };
 }
 
 /**
@@ -34,8 +106,11 @@ interface User {
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   try {
-    const response = await apiClient.post<LoginResponse>('/auth/token', credentials);
-    const { accessToken, refreshToken } = response.data;
+    const response = await apiClient.post<{ accessToken: string; refreshToken?: string; user?: RawUserResponse }>(
+      '/auth/token',
+      credentials
+    );
+    const { accessToken, refreshToken, user: rawUser } = response.data;
 
     // Сохраняем токены
     apiClient.setAccessToken(accessToken);
@@ -43,7 +118,15 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
       apiClient.setRefreshToken(refreshToken);
     }
 
-    return response.data;
+    // Нормализуем данные пользователя если они есть
+    const normalizedUser = rawUser ? normalizeUser(rawUser) : undefined;
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: response.data.expiresIn,
+      user: normalizedUser,
+    };
   } catch (error: any) {
     console.error('Login failed:', error.response?.data || error.message);
     throw error;
@@ -102,11 +185,14 @@ export async function logout(): Promise<void> {
 
 /**
  * Получить информацию текущего пользователя
+ * Нормализует данные пользователя, включая массив ролей
  */
 export async function getCurrentUser(): Promise<User> {
   try {
-    const response = await apiClient.get<User>('/auth/me');
-    return response.data;
+    const response = await apiClient.get<RawUserResponse>('/auth/me');
+    const normalizedUser = normalizeUser(response.data);
+    console.log('Current user roles:', normalizedUser.roles);
+    return normalizedUser;
   } catch (error: any) {
     console.error('Failed to get current user:', error.response?.data || error.message);
     throw error;
@@ -134,4 +220,5 @@ export function getRefreshToken(): string | null {
   return apiClient.getRefreshToken();
 }
 
-export type { LoginRequest, LoginResponse, RefreshTokenRequest, User };
+export type { LoginRequest, LoginResponse, RefreshTokenRequest, User, RawUserResponse };
+export { normalizeRoles, normalizeUser };

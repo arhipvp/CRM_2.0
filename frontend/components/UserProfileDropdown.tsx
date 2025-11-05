@@ -28,6 +28,25 @@ export const UserProfileDropdown: React.FC = () => {
     ? `${user.firstName} ${user.lastName ?? ''}`.trim()
     : user?.email ?? 'Пользователь';
 
+  /**
+   * Форматирует роли для отображения
+   * Преобразует имена ролей в читаемый вид (ROLE_ADMIN → Admin)
+   */
+  const formatRolesForDisplay = (roles: string[] | undefined): string => {
+    if (!roles || roles.length === 0) {
+      return 'User';
+    }
+
+    return roles
+      .map((role) => {
+        // Удаляем префикс ROLE_ если есть
+        const roleName = role.replace(/^ROLE_/, '');
+        // Преобразуем в заглавный первый символ (Admin, User и т.д.)
+        return roleName.charAt(0).toUpperCase() + roleName.slice(1).toLowerCase();
+      })
+      .join(', ');
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -39,7 +58,7 @@ export const UserProfileDropdown: React.FC = () => {
         </div>
         <div className="text-left">
           <p className="font-semibold text-sm text-slate-800">{displayName}</p>
-          <p className="text-xs text-slate-500">{user?.roles?.join(', ') ?? 'ROLE_USER'}</p>
+          <p className="text-xs text-slate-500">{formatRolesForDisplay(user?.roles)}</p>
         </div>
       </button>
 

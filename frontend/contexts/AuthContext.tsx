@@ -72,9 +72,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authApi.login({ email, password });
 
-      // Если в ответе есть информация о пользователе, используем её
+      // Если в ответе есть информация о пользователе, используем её (она уже нормализована)
       if (response.user) {
         setUser(response.user);
+        console.log('User logged in with roles:', response.user.roles);
+      } else {
+        // Если пользователя нет в ответе, получим его отдельно
+        try {
+          const currentUser = await authApi.getCurrentUser();
+          setUser(currentUser);
+        } catch (err) {
+          console.warn('Could not load user info after login:', err);
+        }
       }
 
       setIsAuthenticated(true);
