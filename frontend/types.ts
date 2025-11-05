@@ -63,6 +63,9 @@ export interface Client {
   name: string;
   email?: string;
   phone?: string;
+  address?: string;
+  birthDate?: string;
+  notes?: string;
   status: ClientStatus;
   ownerId?: string | null;
   createdAt: string;
@@ -97,6 +100,7 @@ export interface Deal {
   clientId: string;
   ownerId?: string | null;
   owner?: string | null;
+  assistant?: string | null;
   status: DealStatus;
   stage?: DealStage;
   nextReviewAt: string;
