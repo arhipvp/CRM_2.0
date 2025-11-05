@@ -58,9 +58,20 @@ export async function refreshAccessToken(refreshToken: string): Promise<LoginRes
     const response = await apiClient.post<LoginResponse>('/auth/refresh', {
       refreshToken,
     });
-    const { accessToken } = response.data;
+    const { accessToken, refreshToken: newRefreshToken } = response.data;
 
     apiClient.setAccessToken(accessToken);
+
+    // Обновляем refresh token если backend его прислал
+    if (newRefreshToken && newRefreshToken.trim()) {
+      apiClient.setRefreshToken(newRefreshToken);
+      console.log('refreshAccessToken: both tokens updated successfully');
+    } else if (newRefreshToken === '') {
+      // Backend прислал пустой refreshToken - не перезаписываем
+      console.warn('Received empty refreshToken from server, keeping existing token');
+    } else {
+      console.log('refreshAccessToken: accessToken updated, refreshToken not provided by server');
+    }
 
     return response.data;
   } catch (error: any) {

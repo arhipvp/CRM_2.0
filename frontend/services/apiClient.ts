@@ -90,8 +90,19 @@ class ApiClient {
               { refreshToken }
             );
 
-            const { accessToken } = response.data;
+            const { accessToken, refreshToken: newRefreshToken } = response.data;
             this.setAccessToken(accessToken);
+
+            // Обновляем refresh token если backend его прислал
+            if (newRefreshToken && newRefreshToken.trim()) {
+              this.setRefreshToken(newRefreshToken);
+              console.log('Token refresh successful: accessToken and refreshToken updated');
+            } else if (newRefreshToken === '') {
+              // Backend прислал пустой refreshToken - не перезаписываем
+              console.warn('Received empty refreshToken from server, keeping existing token');
+            } else {
+              console.log('Token refresh successful: accessToken updated, refreshToken not provided');
+            }
 
             // Обновляем header оригинального запроса
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
