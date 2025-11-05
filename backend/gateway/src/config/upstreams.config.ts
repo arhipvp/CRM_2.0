@@ -40,6 +40,11 @@ const normalizeUrl = (url: string, defaultValue: string): string => {
   // 404 от upstream, принудительно сворачиваем такой хвост до `/api/v1`.
   normalized = normalized.replace(/\/api\/v1\/crm$/i, '/api/v1');
 
+  // Auth service requires `/api/auth` as the base URL (not just `/api`),
+  // so we ensure `/auth` is preserved and not stripped during normalization.
+  // If the URL ends with `/api` but is not `/api/auth`, leave it as is.
+  // The gateway will handle the routing correctly with the upstream base URL.
+
   return normalized;
 };
 
@@ -55,7 +60,7 @@ export default registerAs('upstreams', (): UpstreamsConfig => {
   );
   const authBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_AUTH_BASE_URL ?? '',
-    'http://localhost:8081/api'
+    'http://localhost:8081/api/auth'
   );
   const notificationsBase = normalizeUrl(
     process.env.GATEWAY_UPSTREAM_NOTIFICATIONS_BASE_URL ?? '',
