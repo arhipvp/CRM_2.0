@@ -200,6 +200,84 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 /**
+ * Анализирует ошибку и определяет, нужно ли очищать аутентификацию
+ *
+ * @param error - Ошибка от axios
+ * @returns Объект с информацией об ошибке и типом
+ *
+ * Возвращаемый объект содержит:
+ * - isAuthenticationInvalid: true если нужно выполнить logout (401, 403)
+ * - isNetworkError: true если ошибка сети/сервера (отсутствие response)
+ * - isServerError: true если 5xx ошибка
+ * - status: HTTP статус код
+ * - message: Пользовательское сообщение
+ * - userMessage: Сообщение для показа пользователю
+ */
+export interface ErrorAnalysis {
+  isAuthenticationInvalid: boolean;
+  isNetworkError: boolean;
+  isServerError: boolean;
+  status: number | null;
+  message: string;
+  userMessage: string;
+}
+
+export function analyzeAuthError(error: any): ErrorAnalysis {
+  const status = error?.response?.status;
+  const errorData = error?.response?.data;
+
+  // 401 Unauthorized или 403 Forbidden - аутентификация недействительна
+  if (status === 401 || status === 403) {
+    const message = errorData?.message || 'Authorization failed';
+    return {
+      isAuthenticationInvalid: true,
+      isNetworkError: false,
+      isServerError: false,
+      status,
+      message,
+      userMessage:
+        status === 401
+          ? 'Ваша сессия истекла. Пожалуйста, войдите снова.'
+          : 'Ваша учётная запись отключена. Пожалуйста, обратитесь в поддержку.',
+    };
+  }
+
+  // 5xx ошибки сервера
+  if (status && status >= 500) {
+    return {
+      isAuthenticationInvalid: false,
+      isNetworkError: false,
+      isServerError: true,
+      status,
+      message: `Server error: ${status}`,
+      userMessage: 'Сервер недоступен. Пожалуйста, попробуйте позже.',
+    };
+  }
+
+  // Ошибки сети (нет response или Network Error)
+  if (!error?.response || error?.message === 'Network Error') {
+    return {
+      isAuthenticationInvalid: false,
+      isNetworkError: true,
+      isServerError: false,
+      status: null,
+      message: error?.message || 'Network error',
+      userMessage: 'Ошибка соединения с сервером. Проверьте интернет соединение.',
+    };
+  }
+
+  // Другие ошибки (4xx, кроме 401/403)
+  return {
+    isAuthenticationInvalid: false,
+    isNetworkError: false,
+    isServerError: false,
+    status: status || null,
+    message: errorData?.message || error?.message || 'Unknown error',
+    userMessage: 'Произошла ошибка. Пожалуйста, попробуйте снова.',
+  };
+}
+
+/**
  * Проверить наличие валидного токена
  */
 export function isAuthenticated(): boolean {
@@ -220,5 +298,5 @@ export function getRefreshToken(): string | null {
   return apiClient.getRefreshToken();
 }
 
-export type { LoginRequest, LoginResponse, RefreshTokenRequest, User, RawUserResponse };
-export { normalizeRoles, normalizeUser };
+export type { LoginRequest, LoginResponse, RefreshTokenRequest, User, RawUserResponse, ErrorAnalysis };
+export { normalizeRoles, normalizeUser, analyzeAuthError };

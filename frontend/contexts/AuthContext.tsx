@@ -43,10 +43,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(currentUser);
             setIsAuthenticated(true);
           } catch (err) {
-            // Если не можем получить пользователя, очищаем токены
-            await authApi.logout();
-            setIsAuthenticated(false);
-            setUser(null);
+            // Анализируем ошибку
+            const errorAnalysis = authApi.analyzeAuthError(err);
+
+            if (errorAnalysis.isAuthenticationInvalid) {
+              // 401/403 - аутентификация недействительна, выполняем logout
+              console.warn('Authentication invalid:', errorAnalysis.message);
+              await authApi.logout();
+              setIsAuthenticated(false);
+              setUser(null);
+              setError(errorAnalysis.userMessage);
+            } else {
+              // Ошибка сети или сервера - сохраняем токены, показываем уведомление
+              console.warn('Failed to verify user due to network/server error:', errorAnalysis.message);
+              // Оставляем пользователя в состоянии "loading" до восстановления соединения
+              setError(errorAnalysis.userMessage);
+              // НЕ очищаем токены, оставляем isAuthenticated в неопределённом состоянии
+              // Это позволит пользователю видеть ошибку и попробовать снова
+            }
           }
         } else {
           // Нет токена
