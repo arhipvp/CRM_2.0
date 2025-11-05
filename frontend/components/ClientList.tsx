@@ -111,8 +111,8 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
 
     // Apply sorting
     processedDeals.sort((a, b) => {
-      const dateA = new Date(a.nextReviewDate).getTime();
-      const dateB = new Date(b.nextReviewDate).getTime();
+      const dateA = new Date(a.nextReviewAt).getTime();
+      const dateB = new Date(b.nextReviewAt).getTime();
       if (sortBy === 'date-desc') {
         return dateB - dateA;
       } else {
@@ -210,7 +210,7 @@ export const DealList: React.FC<DealListProps> = ({ deals, clients, tasks, selec
                                </svg>
                                <input
                                   type="date"
-                                  value={deal.nextReviewDate}
+                                  value={deal.nextReviewAt.split('T')[0]}
                                   onChange={(e) => {
                                     e.stopPropagation();
                                     onUpdateReviewDate(deal.id, e.target.value);

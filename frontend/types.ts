@@ -104,7 +104,6 @@ export interface Deal {
   status: DealStatus;
   stage?: DealStage;
   nextReviewAt: string;
-  nextReviewDate?: string;
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;

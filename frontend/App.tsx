@@ -176,7 +176,7 @@ const Dashboard: React.FC = () => {
 
   const handleUpdateReviewDate = (dealId: string, newDate: string) => {
     setDeals((prevDeals) =>
-      prevDeals.map((d) => (d.id === dealId ? { ...d, nextReviewDate: newDate } : d)),
+      prevDeals.map((d) => (d.id === dealId ? { ...d, nextReviewAt: new Date(newDate).toISOString() } : d)),
     );
   };
 
@@ -451,7 +451,6 @@ const Dashboard: React.FC = () => {
       status: 'Новая' as DealStatus,
       owner: 'Продавец 1',
       summary: 'Новая сделка, детали не заполнены.',
-      nextReviewDate: new Date().toISOString().split('T')[0],
       tasks: [],
       notes: [],
       quotes: [],

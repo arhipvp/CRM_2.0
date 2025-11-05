@@ -200,7 +200,6 @@ export const generateMockData = () => {
       status: "negotiation",
       stage: "proposal",
       nextReviewAt: "2024-08-15T00:00:00.000Z",
-      nextReviewDate: "2024-08-15",
       createdAt: "2023-12-20T13:45:00.000Z",
       updatedAt: "2024-07-26T16:05:00.000Z",
       isDeleted: false,
