@@ -63,6 +63,16 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 |                       | `--with-backend` / `DEV_UP_WITH_BACKEND=true` | Передать запуск `scripts/start-backend.sh`  |
 |                       | `--log-file PATH` / `DEV_UP_LOG_FILE` | Настроить путь журнала `dev-up`              |
 
+#### Перезапуск окружения с bootstrap администратора
+
+`./scripts/restart-project.sh` выключает все контейнеры (`docker compose --env-file .env down --remove-orphans` в каталоге `infra/`) и заново вызывает `./scripts/bootstrap-local.sh`, предварительно экспортируя `AUTH_BOOTSTRAP_ENABLED=true`. Скрипт читает актуальный `.env`, проверяет, что заполнены `AUTH_BOOTSTRAP_EMAIL`, `AUTH_BOOTSTRAP_PASSWORD` и `AUTH_BOOTSTRAP_ROLES`, и передаёт все аргументы напрямую в bootstrap (включая `--skip-backend-build`, `--skip-backend`, `--skip-backend-wait` и прочие флаги). Переменные окружения `BOOTSTRAP_*` остаются доступными без дополнительной настройки, поэтому сценарий совместим с обёрткой `dev-up` и ручными вызовами bootstrap.
+
+```bash
+./scripts/restart-project.sh --skip-backend-build
+```
+
+При отсутствии любой из переменных `AUTH_BOOTSTRAP_*` выполнение прерывается с сообщением о необходимости скорректировать `.env` (можно воспользоваться `scripts/sync-env.sh --non-interactive=overwrite` или обновить значения вручную). После успешного запуска bootstrap автоматически создаст администратора с параметрами из `.env`, поэтому не забывайте отключить `AUTH_BOOTSTRAP_ENABLED` в файле после входа в систему.
+
 Остальные опции (`--service`, переменные `START_BACKEND_*`) передаются в helper `scripts/start-backend.sh` и описаны в разделах про bootstrap и ручной запуск сервисов.
 
 Профиль `backend` включает Gateway, Auth, CRM, Documents и Frontend (Next.js UI). Скрипт запускает его отдельной командой и далее циклически опрашивает helper `check_backend_services`: при наличии поддержки `docker compose --profile backend ps --format json` используется JSON-вывод, для старых версий Compose включается автоматический разбор табличного отчёта `docker compose ps`. Дополнительно шаг контролирует результаты встроенных healthcheck-ов (`/api/v1/health`, `/healthz`, `/health`) и доступность UI (`/` на порту Frontend) и позволяет выключить профиль флагом `--skip-backend` или переменной `BOOTSTRAP_SKIP_BACKEND=true`. Если необходимо перейти к ручной проверке без ожидания healthcheck, передайте `--skip-backend-wait` или `BOOTSTRAP_SKIP_BACKEND_WAIT=true` — шаг попадёт в отчёт как `SKIP`. Если требуется запускать сервисы на хосте, добавляйте `--with-backend` вместе с `--skip-backend`, чтобы helper не столкнулся с занятыми портами и не пришлось вручную останавливать compose-профиль. Для ручного управления используйте `docker compose --env-file .env --profile backend up --build -d` / `down` в каталоге `infra/`, а флаг `--build` добавляйте только при необходимости пересборки образов.

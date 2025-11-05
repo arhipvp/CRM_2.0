@@ -38,6 +38,16 @@
 
 > ⚠️ `--with-backend` не отключает Docker Compose профиль `backend`: при запуске `dev-up` без `--skip-backend` контейнеры продолжат занимать порты. Добавляйте `--skip-backend`, если хотите переключиться на процессы `scripts/start-backend.sh` после миграций.
 
+### Перезапуск окружения
+
+`./scripts/restart-project.sh` полностью останавливает docker-compose окружение (`docker compose --env-file .env down --remove-orphans` в `infra/`) и заново запускает `./scripts/bootstrap-local.sh`, временно включая bootstrap администратора в Auth. Скрипт переиспользует актуальный `.env`, проверяет наличие `AUTH_BOOTSTRAP_EMAIL`, `AUTH_BOOTSTRAP_PASSWORD` и `AUTH_BOOTSTRAP_ROLES`, экспортирует `AUTH_BOOTSTRAP_ENABLED=true`, а затем передаёт все флаги напрямую в bootstrap (например, `--skip-backend-build` или `--skip-backend`). Это позволяет перезапустить инфраструктуру вместе с одноразовым bootstrap-администратором без ручных команд.
+
+```bash
+./scripts/restart-project.sh --skip-backend-build
+```
+
+Если хотя бы одна из переменных `AUTH_BOOTSTRAP_*` не заполнена, скрипт завершится с подсказкой обновить `.env` (при необходимости воспользуйтесь `scripts/sync-env.sh --non-interactive=overwrite` или отредактируйте значения вручную).
+
 Для остановки вспомогательных процессов, поднятых `scripts/start-backend.sh`, предусмотрен зеркальный `scripts/stop-backend.sh`. Скрипт читает PID-файлы из `.local/run/backend`, отправляет `SIGTERM` (с fallback на `SIGKILL`) и удаляет служебные файлы. Опция `--service <имя>` позволяет завершить только выбранные процессы, не затрагивая остальные, что удобно при частичном ручном запуске. При необходимости используйте `--log-file PATH` (или переменную `START_BACKEND_LOG_FILE`) для указания журнала запуска и `--clean-logs`, чтобы удалить накопленные логи; по умолчанию они остаются в `.local/run/backend` и пополняются при каждом старте helper-а. Для расследований инцидентов сохраняйте `start-backend.log` и файлы из `.local/run/backend/logs/` вместе с журналами bootstrap (`.local/logs/bootstrap/...`) — эти артефакты помогают воспроизвести последовательность действий.
 
 > ℹ️ Все вызовы Docker Compose в скриптах теперь включают `--env-file .env`. Поддерживайте корневой `.env` синхронизированным с `env.example` и актуальными секретами: `scripts/sync-env.sh --non-interactive` добавляет только отсутствующие файлы, поэтому для обновления существующих используйте `scripts/sync-env.sh --non-interactive=overwrite` или сверяйте значения вручную.
