@@ -45,10 +45,18 @@ async function decodeAudioData(
 let ai: any = null;
 let audioContext: AudioContext | null = null;
 
+const readGeminiApiKey = (): string | undefined => {
+  try {
+    return import.meta.env?.VITE_GEMINI_API_KEY;
+  } catch {
+    return undefined;
+  }
+};
+
 const initializeGemini = () => {
   if (ai) return ai;
 
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const apiKey = readGeminiApiKey();
 
   if (!apiKey) {
     console.warn('[TTS] No GEMINI_API_KEY found, TTS will use fallback (Web Speech API)');
