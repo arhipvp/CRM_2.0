@@ -115,4 +115,80 @@ class AuthApiTest @Autowired constructor(
         val newAccessToken = refreshResponse.responseBody?.let { objectMapper.readTree(it).get("accessToken")?.asText() }
         assertThat(newAccessToken).isNotBlank
     }
+
+    @Test
+    fun `should return 403 Forbidden when disabled user tries to login`() = runBlocking {
+        // Register a user
+        val registerRequest = RegisterRequest(email = "disabled@example.com", password = "SecureP@ssw0rd")
+
+        webTestClient.post()
+            .uri("/api/auth/register")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(registerRequest)
+            .exchange()
+            .expectStatus().isCreated
+
+        // Disable the user
+        val user = userRepository.findByEmail("disabled@example.com")
+        assertThat(user).isNotNull
+        userRepository.save(user!!.copy(enabled = false))
+
+        // Try to login with correct password - should fail with 403
+        webTestClient.post()
+            .uri("/api/auth/token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(TokenRequest(email = "disabled@example.com", password = "SecureP@ssw0rd"))
+            .exchange()
+            .expectStatus().isForbidden
+            .expectBody()
+            .jsonPath("$.message").value { message: String ->
+                assertThat(message).contains("User account is disabled")
+            }
+    }
+
+    @Test
+    fun `should return 403 Forbidden when disabled user tries to refresh token`() = runBlocking {
+        // Register and login user
+        val registerRequest = RegisterRequest(email = "disable-refresh@example.com", password = "SecureP@ssw0rd")
+
+        webTestClient.post()
+            .uri("/api/auth/register")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(registerRequest)
+            .exchange()
+            .expectStatus().isCreated
+
+        // Get tokens while user is enabled
+        val tokenResponse = webTestClient.post()
+            .uri("/api/auth/token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(TokenRequest(email = "disable-refresh@example.com", password = "SecureP@ssw0rd"))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.accessToken").isNotEmpty
+            .jsonPath("$.refreshToken").isNotEmpty
+            .returnResult()
+
+        val tokenJson = tokenResponse.responseBody?.let { objectMapper.readTree(it) }
+        val refreshToken = tokenJson?.get("refreshToken")?.asText()
+        assertThat(refreshToken).isNotBlank
+
+        // Disable the user
+        val user = userRepository.findByEmail("disable-refresh@example.com")
+        assertThat(user).isNotNull
+        userRepository.save(user!!.copy(enabled = false))
+
+        // Try to refresh with disabled user - should fail with 403
+        webTestClient.post()
+            .uri("/api/auth/refresh")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(mapOf("refreshToken" to refreshToken))
+            .exchange()
+            .expectStatus().isForbidden
+            .expectBody()
+            .jsonPath("$.message").value { message: String ->
+                assertThat(message).contains("User account is disabled")
+            }
+    }
 }

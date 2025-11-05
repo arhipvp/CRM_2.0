@@ -30,9 +30,16 @@ class TokenService(
     suspend fun issueTokens(request: TokenRequest): TokenResponse {
         val user = userService.findByEmail(request.email)
             ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials")
+
+        // Check if user is enabled before validating password
+        if (!user.enabled) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled")
+        }
+
         if (!userService.validatePassword(user, request.password)) {
             throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials")
         }
+
         val roles = roleService.getRolesForUser(user.id)
         val accessToken = encodeAccessToken(user, roles)
         val refreshToken = generateRefreshToken(user.id)
@@ -48,11 +55,20 @@ class TokenService(
         val key = refreshKey(refreshToken)
         val userId = redisTemplate.opsForValue().get(key).awaitSingleOrNull()
             ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired")
+
         val uuid = runCatching { UUID.fromString(userId) }.getOrElse {
             redisTemplate.delete(key).awaitSingleOrNull()
             throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token")
         }
+
         val user = userService.getUserEntity(uuid)
+
+        // Check if user is still enabled before refreshing tokens
+        if (!user.enabled) {
+            redisTemplate.delete(key).awaitSingleOrNull()
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled")
+        }
+
         val roles = roleService.getRolesForUser(uuid)
         val accessToken = encodeAccessToken(user, roles)
         val newRefresh = generateRefreshToken(uuid)
