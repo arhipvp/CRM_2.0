@@ -66,6 +66,12 @@ VITE_API_TIMEOUT=30000
 VITE_TOKEN_STORAGE=sessionStorage
 ```
 
+### PostCSS и Tailwind CSS
+
+- Конфигурация PostCSS вынесена в файл `postcss.config.cjs` и экспортируется через CommonJS (`module.exports`).
+- Формат `.cjs` обязателен, потому что проект собирается в ESM-режиме (`"type": "module"` в `package.json`), а Vite корректно подхватывает PostCSS конфиг только при явном CommonJS-экспорте.
+- Не переименовывайте файл обратно в `postcss.config.js` и не используйте `export default` — в этом случае Tailwind-директивы (`@tailwind base;`, `@tailwind utilities;` и т.п.) останутся «сырыми» в итоговом CSS.
+
 ## API Интеграция
 
 Frontend использует следующие API endpoints через Gateway:
