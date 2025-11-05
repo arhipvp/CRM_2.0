@@ -299,4 +299,4 @@ export function getRefreshToken(): string | null {
 }
 
 export type { LoginRequest, LoginResponse, RefreshTokenRequest, User, RawUserResponse, ErrorAnalysis };
-export { normalizeRoles, normalizeUser, analyzeAuthError };
+export { normalizeRoles, normalizeUser };
