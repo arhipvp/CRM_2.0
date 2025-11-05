@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality } from "@google/genai";
-import { Client, Deal, Policy, Payment, FinancialTransaction, DealStatus, PolicyType, PaymentStatus, FinancialTransactionType } from '../types';
+import { Client, Deal, Policy, Payment, FinancialTransaction } from '../types';
 
 // --- Audio Decoding Utilities ---
 
@@ -133,44 +133,307 @@ export const generateAndPlayAudio = async (text: string): Promise<void> => {
 
 // Fix: Added mock data generation function.
 export const generateMockData = () => {
-    const clients: Client[] = [
-        { id: 'c1', name: "ООО 'ТехноСтрой'", email: 'contact@technostroy.com', phone: '+7 (495) 123-45-67', address: 'г. Москва, ул. Строителей, 15', notes: 'Крупный клиент, важен высокий уровень сервиса.' },
-        { id: 'c2', name: 'Иванов Петр Сергеевич', email: 'ivanov.ps@email.com', phone: '+7 (916) 765-43-21', address: 'г. Москва, ул. Ленина, 10, кв. 5', birthDate: '1985-07-20' },
-        { id: 'c3', name: "ИП 'Сидорова Анна'", email: 'sidorova.anna@biz.net', phone: '+7 (926) 987-65-43', address: 'г. Москва, пр. Мира, 120' },
-    ];
+  const clients: Client[] = [
+    {
+      id: "c1",
+      name: "ООО «ТехноСтрой»",
+      email: "contact@technostroy.com",
+      phone: "+7 (495) 123-45-67",
+      address: "г. Москва, ул. Строителей, 15",
+      notes: "Крупный корпоративный клиент, ожидает персонального сопровождения.",
+      status: "active",
+      ownerId: "u1",
+      createdAt: "2023-11-05T09:15:00.000Z",
+      updatedAt: "2024-07-25T12:10:00.000Z",
+      isDeleted: false,
+    },
+    {
+      id: "c2",
+      name: "Иванов Петр Сергеевич",
+      email: "ivanov.ps@email.com",
+      phone: "+7 (916) 765-43-21",
+      address: "г. Москва, ул. Ленина, 10, кв. 5",
+      birthDate: "1985-07-20",
+      status: "active",
+      ownerId: "u2",
+      createdAt: "2024-02-18T11:30:00.000Z",
+      updatedAt: "2024-07-28T08:40:00.000Z",
+      isDeleted: false,
+    },
+    {
+      id: "c3",
+      name: "ИП «Сидорова Анна»",
+      email: "sidorova.anna@biz.net",
+      phone: "+7 (926) 987-65-43",
+      address: "г. Москва, пр. Мира, 120",
+      status: "prospect",
+      ownerId: "u3",
+      createdAt: "2024-03-05T10:05:00.000Z",
+      updatedAt: "2024-07-12T15:25:00.000Z",
+      isDeleted: false,
+    },
+  ];
 
-    const deals: Deal[] = [
+  const deals: Deal[] = [
+    {
+      id: "d1",
+      title: "Страхование автопарка (20 машин)",
+      clientId: "c1",
+      ownerId: "u1",
+      owner: "Мария Иванова",
+      assistant: "Ассистент 1",
+      status: "negotiation",
+      stage: "proposal",
+      nextReviewAt: "2024-08-15T00:00:00.000Z",
+      nextReviewDate: "2024-08-15",
+      createdAt: "2023-12-20T13:45:00.000Z",
+      updatedAt: "2024-07-26T16:05:00.000Z",
+      isDeleted: false,
+      summary:
+        "Продление годового контракта на страхование автопарка компании. Клиент ожидает скидку и улучшенный сервис урегулирования.",
+      tasks: [
         {
-            id: 'd1', title: 'Страхование автопарка (20 машин)', clientId: 'c1', status: 'Переговоры', owner: 'Продавец 1', assistant: 'Ассистент 1', summary: 'Продление годового контракта на страхование автопарка компании. Обсуждаются условия по КАСКО и ОСАГО. Клиент просит скидку 10%.', nextReviewDate: '2024-08-15',
-            tasks: [{ id: 't1', description: 'Подготовить финальное коммерческое предложение', completed: false, assignee: 'Продавец 1', dueDate: '2024-08-10' }],
-            notes: [{ id: 'n1', content: 'Клиент недоволен прошлогодним урегулированием убытка по машине A123BC77. Нужно сделать акцент на улучшении сервиса.', createdAt: '2024-08-01', status: 'active' }],
-            quotes: [{ id: 'q1', insurer: 'Ингосстрах', insuranceType: 'КАСКО', sumInsured: 25000000, premium: 1200000, deductible: '50 000 руб. по каждой машине', comments: 'Базовое предложение' }],
-            files: [{ id: 'f1', name: 'Список_ТС.xlsx', size: 15360, url: '#' }],
-            chat: [{ id: 'ch1', sender: 'Клиент', text: 'Добрый день! Ждем от вас обновленное предложение. Хотелось бы видеть более гибкие условия.', timestamp: '2024-08-02T10:30:00Z' }],
-            activityLog: [{ id: 'al1', timestamp: '2024-08-01T14:00:00Z', user: 'Продавец 1', action: 'Создана сделка' }],
+          id: "t1",
+          title: "Подготовить финальное коммерческое предложение",
+          description: "Актуализировать тарифы и учесть пожелания клиента по франшизе.",
+          dealId: "d1",
+          clientId: "c1",
+          status: "in_progress",
+          assignee: "Ассистент 1",
+          dueDate: "2024-08-10",
+          createdAt: "2024-07-20T08:00:00.000Z",
+          updatedAt: "2024-07-24T09:30:00.000Z",
+        },
+      ],
+      notes: [
+        {
+          id: "n1",
+          content:
+            "Клиент недоволен прошлогодним урегулированием убытка по машине A123BC77. Важно подчеркнуть изменения в SLA.",
+          dealId: "d1",
+          createdAt: "2024-07-01T09:10:00.000Z",
+          updatedAt: "2024-07-22T14:45:00.000Z",
+          status: "active",
+        },
+      ],
+      quotes: [
+        {
+          id: "q1",
+          dealId: "d1",
+          insurer: "Ингосстрах",
+          insuranceType: "Auto",
+          sumInsured: 25000000,
+          premium: 1200000,
+          deductible: "50 000 ₽ по каждому событию",
+          comments: "Базовое предложение",
+          createdAt: "2024-07-18T10:20:00.000Z",
+          updatedAt: "2024-07-25T11:15:00.000Z",
+          isDeleted: false,
+        },
+      ],
+      files: [
+        {
+          id: "f1",
+          name: "spisok_ts.xlsx",
+          size: 15360,
+          url: "#",
+          createdAt: "2024-07-19T07:55:00.000Z",
+        },
+      ],
+      chat: [
+        {
+          id: "ch1",
+          dealId: "d1",
+          sender: "client",
+          senderName: "Алексей Петров",
+          text: "Добрый день! Ждем обновленное предложение и финальные условия по франшизе.",
+          timestamp: "2024-07-23T10:30:00.000Z",
+        },
+      ],
+      activityLog: [
+        {
+          id: "al1",
+          dealId: "d1",
+          timestamp: "2023-12-20T13:45:00.000Z",
+          userId: "u1",
+          user: "Мария Иванова",
+          action: "created",
+          description: "Создана сделка и назначен ответственный менеджер.",
         },
         {
-            id: 'd2', title: 'Ипотечное страхование квартиры', clientId: 'c2', status: 'Оформление', owner: 'Продавец 2', summary: 'Клиент покупает квартиру в ипотеку от Сбербанка. Требуется страхование жизни, здоровья и имущества. Документы на финальной проверке.', nextReviewDate: '2024-08-05',
-            tasks: [{ id: 't2', description: 'Получить от клиента скан кредитного договора', completed: true, assignee: 'Ассистент 2', dueDate: '2024-08-01' }],
-            notes: [], quotes: [], files: [], chat: [], activityLog: []
+          id: "al2",
+          dealId: "d1",
+          timestamp: "2024-07-24T09:35:00.000Z",
+          userId: "u4",
+          user: "Ассистент 1",
+          action: "note_added",
+          description: "Добавлен комментарий по ожиданиям клиента.",
         },
+      ],
+    },
+    {
+      id: "d2",
+      title: "Ипотечное страхование квартиры",
+      clientId: "c2",
+      ownerId: "u2",
+      owner: "Сергей Козлов",
+      status: "contract",
+      stage: "closing",
+      nextReviewAt: "2024-08-05T00:00:00.000Z",
+      createdAt: "2024-05-11T10:00:00.000Z",
+      updatedAt: "2024-07-29T12:00:00.000Z",
+      isDeleted: false,
+      summary:
+        "Клиент оформляет ипотеку в Сбербанке, требуется пакет страхования жизни и имущества.",
+      tasks: [
         {
-            id: 'd3', title: 'КАСКО на новый автомобиль', clientId: 'c2', status: 'Новая', owner: 'Продавец 1', summary: 'Клиент приобрел новый автомобиль (BMW X5). Требуется расчет КАСКО с максимальным покрытием.', nextReviewDate: '2024-09-01',
-            tasks: [], notes: [], quotes: [], files: [], chat: [], activityLog: []
+          id: "t2",
+          title: "Получить скан кредитного договора",
+          description: "Уточнить корректность паспортных данных и сумму кредита.",
+          dealId: "d2",
+          clientId: "c2",
+          status: "completed",
+          assignee: "Ассистент 2",
+          dueDate: "2024-08-01",
+          completed: true,
+          createdAt: "2024-07-10T14:10:00.000Z",
+          updatedAt: "2024-07-31T09:15:00.000Z",
         },
-    ];
+      ],
+      notes: [],
+      quotes: [],
+      files: [],
+      chat: [],
+      activityLog: [
+        {
+          id: "al3",
+          dealId: "d2",
+          timestamp: "2024-07-29T12:00:00.000Z",
+          userId: "u2",
+          user: "Сергей Козлов",
+          action: "documents_verified",
+          description: "Пакет документов отправлен в страховую компанию.",
+        },
+      ],
+    },
+    {
+      id: "d3",
+      title: "КАСКО на новый автомобиль",
+      clientId: "c2",
+      ownerId: "u1",
+      owner: "Мария Иванова",
+      status: "Новая",
+      stage: "qualification",
+      nextReviewAt: "2024-09-01T00:00:00.000Z",
+      createdAt: "2024-07-15T08:20:00.000Z",
+      updatedAt: "2024-07-30T17:45:00.000Z",
+      isDeleted: false,
+      summary: "Клиент приобрел новый BMW X5 и запрашивает полный пакет КАСКО.",
+      tasks: [],
+      notes: [],
+      quotes: [],
+      files: [],
+      chat: [],
+      activityLog: [
+        {
+          id: "al4",
+          dealId: "d3",
+          timestamp: "2024-07-30T17:45:00.000Z",
+          userId: "u1",
+          user: "Мария Иванова",
+          action: "contact_made",
+          description: "Созвон с клиентом, уточнены параметры автомобиля.",
+        },
+      ],
+    },
+  ];
 
-    const policies: Policy[] = [
-        { id: 'p1', policyNumber: 'XXX-12345678', type: 'Имущество', startDate: '2023-09-01', endDate: '2024-08-31', counterparty: 'РЕСО-Гарантия', salesChannel: 'Прямые продажи', clientId: 'c3', dealId: 'd-past-1' },
-    ];
-    
-    const payments: Payment[] = [
-        { id: 'pay1', policyId: 'p1', clientId: 'c3', amount: 25000, dueDate: '2024-08-15', status: 'Ожидает' },
-    ];
-    
-    const financialTransactions: FinancialTransaction[] = [
-        { id: 'fin1', description: 'Комиссия от РЕСО по полису XXX-12345678', amount: 5000, type: 'Доход', date: '2024-08-20', policyId: 'p1', dealId: 'd-past-1' },
-    ];
+  const policies: Policy[] = [
+    {
+      id: "p1",
+      policyNumber: "XXX-12345678",
+      type: "Property",
+      clientId: "c1",
+      dealId: "d1",
+      ownerId: "u1",
+      startDate: "2024-01-01",
+      endDate: "2024-12-31",
+      counterparty: "РЕСО-Гарантия",
+      salesChannel: "Прямые продажи",
+      notes: "Полис покрывает склады и основное оборудование.",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-06-30T10:00:00.000Z",
+      isDeleted: false,
+    },
+    {
+      id: "p2",
+      policyNumber: "AUTO-90807060",
+      type: "Auto",
+      clientId: "c2",
+      dealId: "d2",
+      ownerId: "u2",
+      startDate: "2024-07-01",
+      endDate: "2025-06-30",
+      counterparty: "АльфаСтрахование",
+      salesChannel: "Партнерское агентство",
+      createdAt: "2024-07-01T09:00:00.000Z",
+      updatedAt: "2024-07-28T12:30:00.000Z",
+      isDeleted: false,
+    },
+  ];
 
-    return { clients, deals, policies, payments, financialTransactions };
+  const payments: Payment[] = [
+    {
+      id: "pay1",
+      policyId: "p1",
+      dealId: "d1",
+      clientId: "c1",
+      amount: 250000,
+      status: "paid",
+      dueDate: "2024-02-01",
+      paidDate: "2024-01-28",
+      createdAt: "2024-01-05T10:00:00.000Z",
+      updatedAt: "2024-01-28T15:45:00.000Z",
+      isDeleted: false,
+    },
+    {
+      id: "pay2",
+      policyId: "p2",
+      dealId: "d2",
+      clientId: "c2",
+      amount: 48000,
+      status: "pending",
+      dueDate: "2024-08-10",
+      createdAt: "2024-07-05T11:20:00.000Z",
+      updatedAt: "2024-07-29T12:00:00.000Z",
+      isDeleted: false,
+    },
+  ];
+
+  const financialTransactions: FinancialTransaction[] = [
+    {
+      id: "fin1",
+      description: "Комиссия брокера за продление полиса XXX-12345678",
+      amount: 50000,
+      type: "income",
+      date: "2024-01-30",
+      paymentDate: "2024-01-30",
+      dealId: "d1",
+      policyId: "p1",
+      createdAt: "2024-01-30T12:15:00.000Z",
+      updatedAt: "2024-01-30T12:15:00.000Z",
+    },
+    {
+      id: "fin2",
+      description: "Расход на маркетинг для привлечения клиента ИП «Сидорова Анна»",
+      amount: 12000,
+      type: "expense",
+      date: "2024-06-15",
+      dealId: "d3",
+      createdAt: "2024-06-15T09:00:00.000Z",
+      updatedAt: "2024-06-20T10:30:00.000Z",
+    },
+  ];
+
+  return { clients, deals, policies, payments, financialTransactions };
 };
