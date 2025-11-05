@@ -110,11 +110,15 @@ SUMMARY_MARKDOWN_FILE=""
 BOOTSTRAP_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 BOOTSTRAP_FINISHED_AT=""
 
-BACKEND_PROFILE_SERVICES=(gateway auth crm documents)
-BACKEND_PROFILE_SERVICES_DISPLAY="$(
-  IFS=', '
-  printf '%s' "${BACKEND_PROFILE_SERVICES[*]}"
-)"
+BACKEND_PROFILE_SERVICES=(gateway auth crm documents frontend)
+BACKEND_PROFILE_SERVICES_DISPLAY=""
+for backend_service in "${BACKEND_PROFILE_SERVICES[@]}"; do
+  if [[ -z "${BACKEND_PROFILE_SERVICES_DISPLAY}" ]]; then
+    BACKEND_PROFILE_SERVICES_DISPLAY="${backend_service}"
+  else
+    BACKEND_PROFILE_SERVICES_DISPLAY+=", ${backend_service}"
+  fi
+done
 BACKEND_PS_FORMAT_FALLBACK_LOGGED=false
 
 BOOTSTRAP_SKIP_BACKEND_FLAG="${BOOTSTRAP_SKIP_BACKEND:-false}"
@@ -210,6 +214,8 @@ def parse_table(raw: str):
                 entry["State"] = "dead"
             elif status_lower.startswith("down"):
                 entry["State"] = "down"
+            elif status_lower.startswith("configured"):
+                entry["State"] = "configured"
             else:
                 entry["State"] = status_lower.split(" ", 1)[0]
 
