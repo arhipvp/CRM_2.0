@@ -478,13 +478,13 @@ check_port_available() {
   fi
 
   if ! [[ "${port}" =~ ^[0-9]+$ ]]; then
-    log_error "Переменная ${var_name} содержит некорректное значение '${port}'. Обновите ${var_name} в ${ENV_FILE}."
+    log_error "Переменная ${var_name} содержит недопустимое значение '${port}'. Укажите для ${var_name} корректный номер порта в ${ENV_FILE}."
     return 1
   fi
 
   local port_num=$((10#${port}))
   if (( port_num < 1 || port_num > 65535 )); then
-    log_error "Переменная ${var_name} содержит некорректное значение '${port}'. Обновите ${var_name} в ${ENV_FILE}."
+    log_error "Переменная ${var_name} содержит недопустимый порт '${port}'. Скорректируйте ${var_name} в ${ENV_FILE}, указав значение в диапазоне 1-65535."
     return 1
   fi
 
@@ -549,13 +549,13 @@ PY
 
   case "$exit_code" in
     10)
-      log_error "Порт ${port}, заданный переменной ${var_name} в ${ENV_FILE}, уже используется. Измените ${var_name} в ${ENV_FILE} и повторите запуск."
+      log_error "Порт ${port}, заданный переменной ${var_name} в ${ENV_FILE}, уже используется. Выберите свободный порт и обновите ${var_name} в ${ENV_FILE}."
       ;;
     11)
-      log_error "Произошла внутренняя ошибка при проверке порта ${port} из переменной ${var_name}. Повторите попытку позже или проверьте настройки окружения."
+      log_error "Произошла внутренняя ошибка при проверке порта ${port} из переменной ${var_name}. Проверьте настройки и при необходимости скорректируйте ${var_name} в ${ENV_FILE}."
       ;;
     *)
-      log_error "Не удалось проверить порт ${port} из переменной ${var_name}. Проверьте настройки ${ENV_FILE}."
+      log_error "Не удалось проверить порт ${port} из переменной ${var_name}. Убедитесь, что значение корректно и при необходимости обновите ${var_name} в ${ENV_FILE}."
       ;;
   esac
   return 1
@@ -945,8 +945,20 @@ step_check_ports() {
   local port_vars=(
     POSTGRES_PORT
     RABBITMQ_PORT
+    RABBITMQ_MANAGEMENT_PORT
     REDIS_PORT
+    CONSUL_HTTP_PORT
+    CONSUL_GRPC_PORT
+    CONSUL_DNS_PORT
     PGADMIN_PORT
+    GATEWAY_SERVICE_PORT
+    AUTH_SERVICE_PORT
+    CRM_SERVICE_PORT
+    DOCUMENTS_SERVICE_PORT
+    BACKUP_SERVICE_PORT
+    REPORTS_SERVICE_PORT
+    TELEGRAM_BOT_SERVICE_PORT
+    FRONTEND_PORT
   )
 
   local checked=()

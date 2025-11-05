@@ -129,8 +129,9 @@ Bootstrap также синхронизирует пароли PostgreSQL-рол
 | 2. Auth | Управление пользователями, ролями и выдачей JWT-токенов.【F:docs/architecture.md†L5-L97】 | `8081` | [`backend/auth/README.md`](../backend/auth/README.md) |
 | 3. CRM / Deals | Клиенты, сделки, расчёты, полисы, встроенные задачи и уведомления CRM.【F:docs/architecture.md†L5-L97】 | `8082` | [`backend/crm/README.md`](../backend/crm/README.md) |
 | 4. Documents | Метаданные и локальное файловое хранилище документов.【F:docs/architecture.md†L9-L97】 | `8084` | [`backend/documents/README.md`](../backend/documents/README.md) |
-| 5. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
-| 6. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
+| 5. Frontend | Веб-интерфейс CRM на Next.js, подключающийся к Gateway.【F:infra/docker-compose.yml†L343-L381】 | `3000` | [`frontend/README.md`](../frontend/README.md) |
+| 6. Telegram Bot | Быстрые сценарии и уведомления в Telegram, webhook + RabbitMQ.【F:docs/architecture.md†L5-L97】 | `8089` | [`backend/telegram-bot/README.md`](../backend/telegram-bot/README.md) |
+| 7. Reports | FastAPI-сервис агрегированных отчётов и витрин на основе CRM.【F:backend/reports/README.md†L1-L40】 | `8087` | [`backend/reports/README.md`](../backend/reports/README.md) |
 
 > ℹ️ `bootstrap-local.sh` не генерирует `.env` с нуля и не запускает сервисы [`backend/telegram-bot`](../backend/telegram-bot/README.md#локальный-запуск) и [`backend/reports`](../backend/reports/README.md#локальный-запуск). Подготовьте окружение заранее через `scripts/sync-env.sh` и следуйте разделам [«Telegram Bot: быстрый старт»](#telegram-bot-быстрый-старт) и [«Reports: быстрый старт»](#reports-быстрый-старт), если требуется их локальный запуск.
 
