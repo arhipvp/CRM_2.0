@@ -118,6 +118,23 @@ docker run -p 3000:3000 crm-frontend:latest
 - **Stage 1 (builder)**: установка зависимостей и сборка
 - **Stage 2 (production)**: Nginx с оптимизированными настройками
 
+### Docker Compose
+
+Для локальной разработки через `infra/docker-compose.yml` добавлен именованный volume `frontend_node_modules:/app/node_modules`. Он сохраняет зависимости контейнера и предотвращает перезапись `node_modules` при монтировании каталога `../frontend:/app`. Убедитесь, что volume указан в секции `services.frontend.volumes`, а также объявлен в корневом блоке `volumes`:
+
+```yaml
+services:
+  frontend:
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules:/app/node_modules
+
+volumes:
+  frontend_node_modules: {}
+```
+
+Docker Compose создаёт volume автоматически при запуске `docker compose -f infra/docker-compose.yml up frontend --build`.
+
 ## Типизация
 
 Frontend полностью типизирован и синхронизирован с backend:
