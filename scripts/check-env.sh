@@ -143,7 +143,7 @@ if [[ ! -f "$ENV_EXAMPLE_FILE" ]]; then
   exit 1
 fi
 
-python3 - "$ROOT_DIR" "$ENV_EXAMPLE_FILE" "${ENV_FILES[@]}" <<'PY'
+python - "$ROOT_DIR" "$ENV_EXAMPLE_FILE" "${ENV_FILES[@]}" <<'PY'
 import os
 import re
 import sys
