@@ -1,32 +1,35 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `backend/` hosts the FastAPI service, split into `api/` (routers), `app/` (startup + dependencies), `domain/` (schemas & services), and `infrastructure/` (SQLAlchemy models, repositories, queues).
-- `desktop_app/` contains the PySide/UI client. Key modules: `api/` (HTTP client wrapper), `ui/` (tabs, widgets), and `models.py` for shared DTOs.
-- `.venv/` holds the local virtual environment; keep tooling changes inside `pyproject.toml` instead.
-- Tests live in `backend/tests/` (pytest) and `desktop_app/tests/` (pytest + Qt helpers).
+- `backend/` runs the FastAPI stack: `api/` for routers, `app/` for startup/deps, `domain/` for schemas + business services, `infrastructure/` for SQLAlchemy models, repos, and queues.
+- `desktop_app/` ships the PySide client: `api/` wraps HTTP calls, `ui/` hosts tabs/widgets, `models.py` holds shared DTOs.
+- Tests live in `backend/tests/` (pytest) and `desktop_app/tests/` (pytest with Qt helpers). Keep new fixtures alongside their target layers.
 
 ## Build, Test, and Development Commands
-- `poetry install` (run inside `backend/`) installs backend dependencies.
-- `poetry run uvicorn crm.app.main:app --reload` launches the API with hot reload.
-- `poetry run pytest` executes backend tests.
-- `pip install -r requirements.txt` (inside `desktop_app/`) prepares the desktop environment.
-- `python desktop_app/main.py` starts the desktop client.
-- `pytest desktop_app/tests` runs desktop tests.
+- Backend setup: `cd backend && poetry install`.
+- Run API: `poetry run uvicorn crm.app.main:app --reload`.
+- Backend tests: `poetry run pytest`.
+- Desktop deps: `cd desktop_app && pip install -r requirements.txt`.
+- Desktop client: `python desktop_app/main.py`.
+- Desktop tests: `pytest desktop_app/tests`.
 
 ## Coding Style & Naming Conventions
-- Use Black + isort formatting (`poetry run black . && poetry run isort .` in backend; `python -m black .` in desktop scope).
-- Stick to 4-space indentation; keep line length at 88 chars (Black default).
-- Follow snake_case for modules/functions, PascalCase for classes, and UPPER_CASE for constants.
-- For new FastAPI routers, name files `resource_name.py` and register them in `crm/api/router.py`.
+- Use 4-space indentation, 88-char lines, snake_case for modules/functions, PascalCase for classes, UPPER_CASE for constants.
+- Run formatters before committing: `poetry run black . && poetry run isort .` in `backend/`, `python -m black .` in `desktop_app/`.
+- New FastAPI routers follow `resource_name.py` and must be registered in `crm/api/router.py`.
 
 ## Testing Guidelines
-- Backend: pytest with async fixtures; name tests `test_<feature>.py` and functions `test_<behavior>`.
-- Desktop: focus on deterministic widget logic; mark GUI-heavy tests with `@pytest.mark.qt` for selective runs.
-- Strive for coverage on service/repository layers when touching data paths; add regression tests for bug fixes.
+- Prefer service/repository coverage when touching data paths; add regression tests for bug fixes.
+- Backend tests are async-friendly pytest modules named `test_<feature>.py` with functions `test_<behavior>`.
+- Desktop tests use pytest; mark GUI-heavy specs `@pytest.mark.qt` to keep headless runs stable.
 
 ## Commit & Pull Request Guidelines
-- Follow conventional-style messages: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:` observed in history.
-- Make commits scoped and reversible; include migrations or generated assets in the same commit when required.
-- PRs should describe context, highlight risky areas, list manual/automated test steps, and attach UI screenshots for visible changes.
-- Link Jira/Trello tasks (or GitHub issues) via `Closes #ID` when applicable.
+- Follow conventional commits (`feat:`, `fix:`, `chore:`, etc.); keep each commit scoped and reversible.
+- Include migrations or generated assets with the change that requires them.
+- PRs should describe context, highlight risky areas, list manual/automated test steps, and attach UI screenshots for visible updates.
+- Reference Jira/Trello or GitHub issues with `Closes #ID` where applicable.
+
+## Security & Configuration Tips
+- Keep tooling dependencies in `pyproject.toml`; avoid touching `.venv/`.
+- Do not commit secrets; rely on environment variables or `.env` files ignored by git.
+- When adding queues or external services, document required env vars in README or deployment notes.
