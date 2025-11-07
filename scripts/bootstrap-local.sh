@@ -982,6 +982,10 @@ step_sync_env() {
   (cd "${ROOT_DIR}" && ./scripts/sync-env.sh --non-interactive)
 }
 
+step_validate_env() {
+  (cd "${ROOT_DIR}" && ./scripts/check-env.sh --env-file "${ENV_FILE}")
+}
+
 step_compose_up() {
   load_env || return 1
   (
@@ -1235,6 +1239,7 @@ main() {
 
   run_step "Проверка зависимостей" step_check_dependencies
   run_step "Синхронизация .env" step_sync_env
+  run_step "Валидация .env" step_validate_env
 
   if [[ -f "${ENV_FILE}" ]]; then
     add_result "Проверка .env" "OK" "Файл найден" ""
