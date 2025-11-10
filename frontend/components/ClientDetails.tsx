@@ -48,7 +48,7 @@ const DEAL_STATUSES: DealStatus[] = [
 
 const getDaysNoun = (days: number): string => {
     const cases = [2, 0, 1, 1, 1, 2];
-    const titles = ['����', '���', '����'];
+    const titles = ['день', 'дня', 'дней'];
     const number = Math.abs(days);
     return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
 };
@@ -78,19 +78,19 @@ const TaskDueDateNotifier: React.FC<{ task: Task }> = ({ task }) => {
     if (daysRemaining < 0) {
         notification = {
             icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>,
-            message: `���������� �� ${Math.abs(daysRemaining)} ${getDaysNoun(Math.abs(daysRemaining))}`,
+            message: `Просрочено на ${Math.abs(daysRemaining)} ${getDaysNoun(Math.abs(daysRemaining))}`,
             colorClass: 'text-red-500',
         };
     } else if (daysRemaining === 0) {
         notification = {
             icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>,
-            message: '���� �������� �������',
+            message: 'Срок истекает сегодня',
             colorClass: 'text-red-500',
         };
     } else if (daysRemaining <= 3) {
         notification = {
             icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>,
-            message: `���� �������� ����� ${daysRemaining} ${getDaysNoun(daysRemaining)}`,
+            message: `Срок истекает через ${daysRemaining} ${getDaysNoun(daysRemaining)}`,
             colorClass: 'text-orange-500',
         };
     }
@@ -124,27 +124,27 @@ const CloseDealModal: React.FC<{
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-800">������� ������� ��������</h2>
+          <h2 className="text-xl font-bold text-slate-800">Закрытие сделки с причиной</h2>
            <button type="button" onClick={onClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-100">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        <p className="text-sm text-slate-600">��� ���������� ����� ��������� � ������� � ������� ������.</p>
+        <p className="text-sm text-slate-600">Мы сохраним эту причину в истории и отчётности CRM.</p>
         <div>
-          <label htmlFor="close_reason" className="sr-only">������� ��������</label>
+          <label htmlFor="close_reason" className="sr-only">Причина закрытия</label>
           <textarea
             id="close_reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500"
             rows={4}
-            placeholder="��������: ������ ������ ���������� ��-�� ����, ������ ������� �� �������������� ���� � �.�."
+            placeholder="Например: клиент отказался из-за цены, заказчик перенёс внедрение CRM и т.п."
             required
           />
         </div>
         <div className="flex justify-end pt-4 space-x-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">������</button>
-          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700">������� ������</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">Отмена</button>
+          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-lg hover:bg-sky-700">Закрыть сделку</button>
         </div>
       </form>
     </div>
@@ -303,13 +303,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
       setTaskAssignee(deal.owner);
       setEditingTitleValue(deal.title);
       setIsEditingTitle(false);
-      // ���������� ��������� ������ ��� ����� ������
+      // Сбрасываем раскрытые задачи при смене сделки
       setExpandedTasks(new Set());
     }
   }, [deal]);
 
   useEffect(() => {
-    if (activeTab === '���') {
+    if (activeTab === 'Чат') {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [deal?.chat, activeTab]);
@@ -333,8 +333,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
           <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-slate-900">��� ��������� ������</h3>
-          <p className="mt-1 text-sm text-slate-500">�������� ������ �� ������ �����, ����� ������� ������.</p>
+          <h3 className="mt-2 text-sm font-medium text-slate-900">Нет выбранной сделки</h3>
+          <p className="mt-1 text-sm text-slate-500">Выберите сделку на левой панели, чтобы увидеть детали.</p>
         </div>
       </div>
     );
@@ -394,7 +394,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         setTaskDueDate('');
         setTaskAssignee(deal.owner);
       } catch (error) {
-        console.error('�� ������� ������� ������:', error);
+        console.error('Не удалось создать задачу:', error);
       }
     }
   };
@@ -467,11 +467,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         return (
           <div>
             <form onSubmit={handleTaskSubmit} className="mb-6 p-4 bg-slate-50 rounded-lg space-y-3">
-              <h3 className="font-semibold text-slate-800">����� ������</h3>
+              <h3 className="font-semibold text-slate-800">Новая задача</h3>
               <textarea
                 value={taskDescription}
                 onChange={(e) => setTaskDescription(e.target.value)}
-                placeholder="�������� ������..."
+                placeholder="Опишите задачу..."
                 className="w-full border-slate-300 rounded-md"
                 rows={2}
               />
@@ -480,7 +480,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                   {allUsers.map(user => <option key={user} value={user}>{user}</option>)}
                 </select>
                 <input type="date" value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)} className="border-slate-300 rounded-md text-sm" />
-                <button type="submit" className="px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 ml-auto">��������</button>
+                <button type="submit" className="px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 ml-auto">Создать</button>
               </div>
             </form>
             <ul className="space-y-3">
@@ -500,7 +500,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                             onChange={(e) => {
                                 e.stopPropagation();
                                 onToggleTask(deal.id, task.id).catch((error) => {
-                                    console.error('�� ������� �������� ������:', error);
+                                    console.error('Не удалось обновить задачу:', error);
                                 });
                             }} 
                             onClick={(e) => e.stopPropagation()}
@@ -509,7 +509,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                         <div className="ml-3 flex-1 min-w-0">
                           <p className={`${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{task.description}</p>
                           <div className="flex items-center">
-                              <p className="text-xs text-slate-500">{task.assignee}, �� {task.dueDate}</p>
+                                <p className="text-xs text-slate-500">{task.assignee}, до {task.dueDate}</p>
                               <TaskDueDateNotifier task={task} />
                           </div>
                         </div>
@@ -527,7 +527,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                           <div className="pl-12 pr-4 pb-3 border-t border-slate-100 pt-3">
                               {task.subtasks && task.subtasks.length > 0 && (
                                   <div className="mb-3">
-                                      <h4 className="text-xs font-semibold text-slate-600 mb-2">���������:</h4>
+                                      <h4 className="text-xs font-semibold text-slate-600 mb-2">Подзадачи:</h4>
                                       <ul className="space-y-1.5">
                                           {task.subtasks.map(subtask => (
                                               <li key={subtask.id} className="flex items-center text-sm">
@@ -540,7 +540,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                               )}
                               {task.attachments && task.attachments.length > 0 && (
                                   <div>
-                                       <h4 className="text-xs font-semibold text-slate-600 mb-2">������������� �����:</h4>
+                                       <h4 className="text-xs font-semibold text-slate-600 mb-2">Прикреплённые файлы:</h4>
                                        <ul className="space-y-1">
                                           {task.attachments.map(file => (
                                               <li key={file.id}>
@@ -567,24 +567,24 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
       case 'Расчеты':
         return (
           <div>
-            <button onClick={() => setShowAddQuote(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">�������� ������</button>
+            <button onClick={() => setShowAddQuote(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">Добавить расчёт</button>
             <div className="space-y-4">
               {deal.quotes.map(quote => (
                 <div key={quote.id} className="p-4 border border-slate-200 rounded-lg">
                    <div className="flex justify-between items-start">
                       <div>
                          <h4 className="font-bold text-lg text-slate-800">{quote.insurer}</h4>
-                         <p className="text-sm text-slate-500">{quote.insuranceType || '�����'}</p>
+                         <p className="text-sm text-slate-500">{quote.insuranceType || 'Не указано'}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => { setQuoteForPolicy(quote); setShowAddPolicy(true); }} className="p-2 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200" title="������� �����">�����</button>
-                        <button onClick={() => onDeleteQuote(deal.id, quote.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-full" title="�������"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                        <button onClick={() => { setQuoteForPolicy(quote); setShowAddPolicy(true); }} className="p-2 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200" title="Создать полис">Полис</button>
+                        <button onClick={() => onDeleteQuote(deal.id, quote.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-full" title="Удалить"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                    </div>
                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div><span className="text-slate-500 block">������</span><span className="font-semibold text-slate-800">{formatCurrency(quote.premium)}</span></div>
-                      <div><span className="text-slate-500 block">�����</span><span className="font-semibold text-slate-800">{formatCurrency(quote.sumInsured)}</span></div>
-                      <div><span className="text-slate-500 block">��������</span><span className="font-semibold text-slate-800">{quote.deductible || '-'}</span></div>
+                      <div><span className="text-slate-500 block">Премия</span><span className="font-semibold text-slate-800">{formatCurrency(quote.premium)}</span></div>
+                      <div><span className="text-slate-500 block">Страховая сумма</span><span className="font-semibold text-slate-800">{formatCurrency(quote.sumInsured)}</span></div>
+                      <div><span className="text-slate-500 block">Франшиза</span><span className="font-semibold text-slate-800">{quote.deductible || '-'}</span></div>
                    </div>
                    {quote.comments && <p className="mt-3 text-sm text-slate-600 bg-slate-50 p-3 rounded-md">{quote.comments}</p>}
                 </div>
@@ -594,7 +594,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         );
 
       case 'Чат': {
-        const currentUser = '������������'; // Hardcoded for example purposes
+        const currentUser = 'Менеджер'; // Hardcoded for example purposes
         return (
           <>
             <div className="space-y-4 pb-24">
@@ -621,11 +621,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                           handleChatSubmit(e);
                       }
                   }}
-                  placeholder="�������� ���������..."
+                  placeholder="Напишите сообщение..."
                   className="w-full border-slate-300 rounded-md text-sm shadow-sm focus:ring-sky-500 focus:border-sky-500"
                   rows={1}
                 />
-                <button type="submit" className="px-3 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 flex-shrink-0" title="���������">
+                <button type="submit" className="px-3 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700 flex-shrink-0" title="Отправить">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                   </svg>
@@ -640,13 +640,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         return (
           <div>
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">��������� ����</button>
+            <button onClick={() => fileInputRef.current?.click()} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">Загрузить файл</button>
             <ul className="space-y-2">
               {deal.files.map(file => (
                 <li key={file.id} className="flex items-center p-2 border border-slate-200 rounded-md">
                    <span className="flex-1 truncate">{file.name}</span>
                    <span className="text-sm text-slate-500 mr-4">{formatBytes(file.size)}</span>
-                   <button onClick={() => onDeleteFile(deal.id, file.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-full" title="�������"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                   <button onClick={() => onDeleteFile(deal.id, file.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-full" title="Удалить"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </li>
               ))}
             </ul>
@@ -655,17 +655,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
 
       case 'Полисы':
         const headers: { label: string, key: string }[] = [
-            { label: '�����', key: 'policyNumber' },
-            { label: '����������', key: 'counterparty' },
-            { label: '���� ������', key: 'startDate' },
-            { label: '���� ���������', key: 'endDate' },
-            { label: '������', key: 'policyPremium' },
-            { label: '�������', key: 'payments' },
-            { label: '������', key: 'status' },
+            { label: 'Номер полиса', key: 'policyNumber' },
+            { label: 'Контрагент', key: 'counterparty' },
+            { label: 'Дата начала', key: 'startDate' },
+            { label: 'Дата окончания', key: 'endDate' },
+            { label: 'Премия', key: 'policyPremium' },
+            { label: 'Платежи', key: 'payments' },
+            { label: 'Статус', key: 'status' },
         ];
         return (
             <div className="space-y-4">
-                <button onClick={() => { setQuoteForPolicy(undefined); setShowAddPolicy(true); }} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">�������� �����</button>
+                <button onClick={() => { setQuoteForPolicy(undefined); setShowAddPolicy(true); }} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">Добавить полис</button>
                 
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200">
@@ -683,7 +683,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                                         )}
                                     </th>
                                 ))}
-                                <th scope="col" className="relative px-4 py-3"><span className="sr-only">��������</span></th>
+                                <th scope="col" className="relative px-4 py-3"><span className="sr-only">Действия</span></th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-200">
@@ -694,7 +694,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                                         <td className="px-4 py-4 whitespace-nowrap text-sm">
                                             <div className="font-medium text-slate-900">{policy.policyNumber}</div>
                                             <div className="text-slate-500">{policy.type}</div>
-                                            {policy.type === '����' && <div className="text-xs text-slate-400 mt-1">{policy.carBrand} {policy.carModel}</div>}
+                                            {policy.type === 'КАСКО' && <div className="text-xs text-slate-400 mt-1">{policy.carBrand} {policy.carModel}</div>}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">{policy.counterparty}</td>
                                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{policy.startDate}</td>
@@ -713,21 +713,21 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                                                     })}
                                                 </ul>
                                             ) : (
-                                                <span className="text-xs text-slate-400">���</span>
+                                                <span className="text-xs text-slate-400">Нет</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             <PaymentStatusBadge statusInfo={policy.statusInfo} />
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button onClick={() => { setPolicyForPayment(policy); setShowAddPayment(true); }} className="text-sky-600 hover:text-sky-900">�������� ������</button>
+                                            <button onClick={() => { setPolicyForPayment(policy); setShowAddPayment(true); }} className="text-sky-600 hover:text-sky-900">Добавить платёж</button>
                                         </td>
                                     </tr>
                                 )
                             })}
                         </tbody>
                     </table>
-                     {policies.length === 0 && <p className="text-center text-sm text-slate-500 py-8">������ �� ���� ������ ��� �� ���������.</p>}
+                     {policies.length === 0 && <p className="text-center text-sm text-slate-500 py-8">Полисы по этой сделке ещё не добавлены.</p>}
                 </div>
             </div>
         );
@@ -737,20 +737,20 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         const totalExpense = dealFinancials.filter(f => f.type === 'Расход').reduce((sum, f) => sum + f.amount, 0);
         return (
             <div>
-                 <button onClick={() => setShowAddFinancial(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">�������� ��������</button>
+                 <button onClick={() => setShowAddFinancial(true)} className="mb-4 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">Добавить операцию</button>
                  <div className="mb-6 grid grid-cols-3 gap-4">
-                    <div className="bg-green-50 p-4 rounded-lg"><span className="block text-sm text-green-800">�����</span><span className="text-xl font-bold text-green-900">{formatCurrency(totalIncome)}</span></div>
-                    <div className="bg-red-50 p-4 rounded-lg"><span className="block text-sm text-red-800">������</span><span className="text-xl font-bold text-red-900">{formatCurrency(totalExpense)}</span></div>
-                    <div className="bg-blue-50 p-4 rounded-lg"><span className="block text-sm text-blue-800">�������</span><span className="text-xl font-bold text-blue-900">{formatCurrency(totalIncome - totalExpense)}</span></div>
+                    <div className="bg-green-50 p-4 rounded-lg"><span className="block text-sm text-green-800">Доход</span><span className="text-xl font-bold text-green-900">{formatCurrency(totalIncome)}</span></div>
+                    <div className="bg-red-50 p-4 rounded-lg"><span className="block text-sm text-red-800">Расход</span><span className="text-xl font-bold text-red-900">{formatCurrency(totalExpense)}</span></div>
+                    <div className="bg-blue-50 p-4 rounded-lg"><span className="block text-sm text-blue-800">Баланс</span><span className="text-xl font-bold text-blue-900">{formatCurrency(totalIncome - totalExpense)}</span></div>
                  </div>
                  <ul className="space-y-2">
                   {dealFinancials.map(fin => (
-                    <li key={fin.id} className={`flex justify-between items-center p-3 rounded-md ${fin.type === '�����' ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <li key={fin.id} className={`flex justify-between items-center p-3 rounded-md ${fin.type === 'Доход' ? 'bg-green-50' : 'bg-red-50'}`}>
                       <div>
                         <p className="font-medium text-slate-800">{fin.description}</p>
                         <p className="text-xs text-slate-500">{fin.date}</p>
                       </div>
-                      <p className={`font-semibold ${fin.type === '�����' ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(fin.amount)}</p>
+                      <p className={`font-semibold ${fin.type === 'Доход' ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(fin.amount)}</p>
                     </li>
                   ))}
                  </ul>
@@ -761,14 +761,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         return (
           <div>
             <form onSubmit={handleNoteSubmit} className="mb-4">
-              <textarea
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                placeholder="�������� �������..."
-                className="w-full border-slate-300 rounded-md"
-                rows={3}
-              />
-              <button type="submit" className="mt-2 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">���������</button>
+                <textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Напишите заметку..."
+                  className="w-full border-slate-300 rounded-md"
+                  rows={3}
+                />
+                <button type="submit" className="mt-2 px-4 py-2 text-sm bg-sky-600 text-white rounded-md hover:bg-sky-700">Добавить</button>
             </form>
             <div className="space-y-3">
               {deal.notes.map(note => (
@@ -777,7 +777,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                   <div className="text-xs text-slate-400 mt-2 flex justify-between items-center">
                     <span>{note.createdAt}</span>
                     <button onClick={() => onUpdateNoteStatus(deal.id, note.id, note.status === 'active' ? 'archived' : 'active')}>
-                      {note.status === 'active' ? '������������' : '������������'}
+                        {note.status === 'active' ? 'Архивировать' : 'Восстановить'}
                     </button>
                   </div>
                 </div>
@@ -829,7 +829,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                     <button 
                         onClick={() => setIsEditingTitle(true)}
                         className="ml-3 p-2 rounded-full text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:text-sky-600 transition-opacity flex-shrink-0"
-                        title="������������� ��������"
+                        title="Редактировать название"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" />
@@ -845,7 +845,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                         type="button"
                         onClick={() => setClientSelectorOpen(!isClientSelectorOpen)}
                         className="text-lg font-semibold text-slate-700 border-0 border-b-2 border-transparent appearance-none rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-transparent hover:bg-slate-100 p-1 -ml-2 w-full text-left truncate cursor-pointer"
-                        aria-label="������� �������"
+                        aria-label="Выбрать клиента"
                         aria-haspopup="listbox"
                         aria-expanded={isClientSelectorOpen}
                     >
@@ -856,7 +856,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                             <div className="p-2 border-b border-slate-200">
                                 <input
                                     type="text"
-                                    placeholder="����� �������..."
+                                    placeholder="Найти клиента..."
                                     autoFocus
                                     value={clientSearchQuery}
                                     onChange={(e) => setClientSearchQuery(e.target.value)}
@@ -887,7 +887,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                                         )}
                                     </li>
                                 ))) : (
-                                     <li className="px-3 py-2 text-sm text-slate-500">������� �� �������.</li>
+                                     <li className="px-3 py-2 text-sm text-slate-500">Клиенты не найдены.</li>
                                 )}
                             </ul>
                         </div>
@@ -912,7 +912,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
         </div>
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-                <label htmlFor="deal-status" className="block text-xs font-medium text-slate-500">������</label>
+                <label htmlFor="deal-status" className="block text-xs font-medium text-slate-500">Статус</label>
                 <select
                     id="deal-status"
                     value={deal.status}
@@ -923,12 +923,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                 </select>
             </div>
             <div>
-                <span className="block text-xs font-medium text-slate-500">��������</span>
+                <span className="block text-xs font-medium text-slate-500">Ответственный</span>
                 <p className="mt-1 font-semibold text-slate-800 sm:text-sm py-2 px-1">{deal.owner}</p>
             </div>
             <div>
-                <span className="block text-xs font-medium text-slate-500">��������</span>
-                <p className="mt-1 font-semibold text-slate-800 sm:text-sm py-2 px-1">{deal.assistant || '�� ��������'}</p>
+                <span className="block text-xs font-medium text-slate-500">Ассистент</span>
+                <p className="mt-1 font-semibold text-slate-800 sm:text-sm py-2 px-1">{deal.assistant || 'Не назначен'}</p>
             </div>
         </div>
       </div>
