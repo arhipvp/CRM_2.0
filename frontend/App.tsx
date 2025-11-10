@@ -42,6 +42,7 @@ import {
 } from './types';
 import * as crmApi from './services/crmApi';
 import { loadData } from './services/dataLoader';
+import { normalizePaymentStatus } from './utils/paymentStatus';
 
 type View = 'deals' | 'clients' | 'policies' | 'payments' | 'finance' | 'tasks' | 'settings';
 type Modal = 'addDeal' | 'addClient' | { type: 'editClient'; client: Client } | null;
