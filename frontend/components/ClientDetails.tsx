@@ -2,6 +2,8 @@
 // Although named ClientDetails, it functions as DealDetails to fit the application's context.
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Client, Deal, DealStatus, Task, Note, Quote, FileAttachment, Policy, Payment, FinancialTransaction, ChatMessage } from '../types';
+import { normalizePaymentStatus, paymentStatusClassName, paymentStatusLabel } from '../utils/paymentStatus';
+import type { PaymentStatusCode } from '../utils/paymentStatus';
 import { AddQuoteForm } from './AddQuoteForm';
 import { AddPolicyForm } from './AddPolicyForm';
 import { AddPaymentForm } from './AddPaymentForm';
@@ -168,13 +170,29 @@ const getPaymentStatusInfo = (policyId: string, payments: Payment[]): { text: st
     if (policyPayments.length === 0) {
         return { text: 'Нет платежей', className: 'bg-slate-100 text-slate-600' };
     }
-    if (policyPayments.some(p => p.status === 'overdue')) {
-        return { text: 'Просрочен', className: 'bg-red-100 text-red-800' };
+
+    const normalizedStatuses = policyPayments.map(p => normalizePaymentStatus(p.status));
+    const statusSet = new Set(normalizedStatuses);
+
+    const buildStatusInfo = (code: PaymentStatusCode) => ({
+        text: paymentStatusLabel(code),
+        className: paymentStatusClassName(code),
+    });
+
+    if (statusSet.has('overdue')) {
+        return buildStatusInfo('overdue');
     }
-    if (policyPayments.some(p => p.status === 'pending')) {
-        return { text: 'В ожидании', className: 'bg-yellow-100 text-yellow-800' };
+    if (statusSet.has('scheduled')) {
+        return buildStatusInfo('scheduled');
     }
-    return { text: 'Все оплачены', className: 'bg-green-100 text-green-800' };
+    if (statusSet.has('paid')) {
+        return buildStatusInfo('paid');
+    }
+    if (statusSet.has('cancelled')) {
+        return buildStatusInfo('cancelled');
+    }
+
+    return buildStatusInfo('scheduled');
 };
 
 const PaymentStatusBadge: React.FC<{ statusInfo: { text: string; className: string } }> = ({ statusInfo }) => (
@@ -249,7 +267,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
   const sortedDealPolicies = useMemo(() => {
     const enriched = policies.map(policy => {
         const policyPayments = payments.filter(p => p.policyId === policy.id);
-        const policyPremium = policyPayments.reduce((sum, p) => sum + p.amount, 0);
+        const policyPremium = policyPayments.reduce((sum, p) => {
+            const amount = Number(p.plannedAmount);
+            return sum + (Number.isFinite(amount) ? amount : 0);
+        }, 0);
         const statusInfo = getPaymentStatusInfo(policy.id, payments);
         return { ...policy, policyPremium, statusInfo };
     });
@@ -682,11 +703,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({
                                         <td className="px-4 py-4 text-sm text-slate-500">
                                             {policyPayments.length > 0 ? (
                                                 <ul className="space-y-1">
-                                                    {policyPayments.map(p => (
-                                                        <li key={p.id} className="text-xs">
-                                                            <span>{p.dueDate}: {formatCurrency(p.amount)}</span>
-                                                        </li>
-                                                    ))}
+                                                    {policyPayments.map(p => {
+                                                        const amount = Number(p.plannedAmount);
+                                                        return (
+                                                            <li key={p.id} className="text-xs">
+                                                                <span>{p.plannedDate}: {formatCurrency(Number.isFinite(amount) ? amount : 0)}</span>
+                                                            </li>
+                                                        );
+                                                    })}
                                                 </ul>
                                             ) : (
                                                 <span className="text-xs text-slate-400">���</span>

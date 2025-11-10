@@ -5,8 +5,8 @@ import {
   paymentStatusClassName,
   paymentStatusLabel,
   paymentStatusOptions,
-  PaymentStatusCode,
 } from '../../utils/paymentStatus';
+import type { PaymentStatusCode } from '../../utils/paymentStatus';
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('ru-RU', {
@@ -30,19 +30,31 @@ const getPaymentStatusInfo = (
   }
 
   const statuses = policyPayments.map((payment) => normalizePaymentStatus(payment.status));
+  const statusSet = new Set(statuses);
 
-  if (statuses.includes('overdue')) {
-    const code: PaymentStatusCode = 'overdue';
-    return { code, text: paymentStatusLabel(code), className: paymentStatusClassName(code) };
+  const buildStatusInfo = (code: PaymentStatusCode) => ({
+    code,
+    text: paymentStatusLabel(code),
+    className: paymentStatusClassName(code),
+  });
+
+  if (statusSet.has('overdue')) {
+    return buildStatusInfo('overdue');
   }
 
-  if (statuses.includes('pending')) {
-    const code: PaymentStatusCode = 'pending';
-    return { code, text: paymentStatusLabel(code), className: paymentStatusClassName(code) };
+  if (statusSet.has('scheduled')) {
+    return buildStatusInfo('scheduled');
   }
 
-  const code: PaymentStatusCode = 'paid';
-  return { code, text: paymentStatusLabel(code), className: paymentStatusClassName(code) };
+  if (statusSet.has('paid')) {
+    return buildStatusInfo('paid');
+  }
+
+  if (statusSet.has('cancelled')) {
+    return buildStatusInfo('cancelled');
+  }
+
+  return buildStatusInfo('scheduled');
 };
 
 const getDaysNoun = (days: number): string => {
@@ -154,7 +166,10 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ policies, clients, p
         endDate !== null && daysUntilRenewal !== null && daysUntilRenewal >= 0 && daysUntilRenewal <= RENEWAL_REMINDER_DAYS;
 
       const policyPayments = payments.filter((payment) => payment.policyId === policy.id);
-      const policyPremium = policyPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      const policyPremium = policyPayments.reduce((sum, payment) => {
+        const amount = Number(payment.plannedAmount);
+        return sum + (Number.isFinite(amount) ? amount : 0);
+      }, 0);
 
       return {
         ...policy,
